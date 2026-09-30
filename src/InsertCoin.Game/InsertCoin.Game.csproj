@@ -1,0 +1,13 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>InsertCoin.Game</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InsertCoin.Core\InsertCoin.Core.csproj" />
+    <ProjectReference Include="..\InsertCoin.Adapters\InsertCoin.Adapters.csproj" />
+  </ItemGroup>
+</Project>

@@ -157,6 +157,28 @@ that `Running` returns to 0 after quitting a game.
 2. Art test: one SVG cabinet in the Cozy style, judged before more art is made.
 3. Core + tests. 4. Adapters + tests. 5. Cabinet scenes and effects. 6. Sound. 7. Tray, settings, onboarding.
 
+## 8a. Spike results (2026-09-30, Godot 4.7.2 .NET, the development PC)
+
+| Check | Result |
+|---|---|
+| Renderer | **Compatibility (OpenGL 3)**. Forward+ (Vulkan) reports no window transparency and draws a black box; 797 MB vs 195 MB working set. |
+| Transparent borderless window | Works (Compatibility). |
+| Mouse passthrough polygon | Works: outside the silhouette, clicks reach the window underneath. |
+| Unfocusable topmost popup | Works: foreground stays on the previously focused window. |
+| Idle cost, static | ~1.9 % of one core (0.06 % of machine). |
+| Idle cost, glow pulsing continuously | ~6.2 % of one core (0.2 % of machine). |
+| Godot SVG import | Drops `<text>` and filters (blur). |
+| Usable screen rect | Equals full screen when the taskbar auto-hides → popup keeps a 72 px bottom margin in that case. |
+
+Decisions from the spike:
+
+- **Art pipeline:** skin SVGs are rendered by headless Chrome to transparent PNG at 2× (text, blur shadows and baked
+  glow survive), then imported by Godot at 0.5 scale. A `tools/art` script does this per part/layer.
+- **Glow:** no engine bloom (none usable with transparency on Compatibility). Glow comes from baked soft layers plus
+  additive sprites animated with tweens.
+- **Live text** (screen, receipts, tickets) is Godot labels with OFL fonts, not SVG text.
+- Game C# project targets `net10.0` (only .NET 9/10 runtimes installed); Core/Adapters stay `net8.0`.
+
 ## 9. Future (noted, not in v1)
 
 - More skins (see §5); skin picker.

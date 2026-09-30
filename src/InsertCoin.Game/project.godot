@@ -1,0 +1,32 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="INSERT COIN"
+run/main_scene="res://spike/Spike.tscn"
+config/features=PackedStringArray("4.7", "C#")
+run/low_processor_mode=true
+
+[display]
+
+window/size/viewport_width=600
+window/size/viewport_height=900
+window/size/window_width_override=360
+window/size/window_height_override=540
+window/size/borderless=true
+window/size/transparent=true
+window/size/always_on_top=true
+window/per_pixel_transparency/allowed=true
+window/stretch/mode="canvas_items"
+window/subwindows/embed_subwindows=false
+
+[dotnet]
+
+project/assembly_name="InsertCoin.Game"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+viewport/transparent_background=true
+viewport/hdr_2d=true
