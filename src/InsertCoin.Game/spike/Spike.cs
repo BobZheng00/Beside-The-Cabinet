@@ -9,7 +9,7 @@ namespace InsertCoin.Game.Spike;
 /// </summary>
 public partial class Spike : Node2D
 {
-    private const float WindowScale = 0.6f; // viewport 600x900 → window 360x540
+    private const float WindowScale = 0.6f; // viewport 600x920 → window 360x552
     private Vector2I _dragOffset;
     private bool _dragging;
 
@@ -31,7 +31,7 @@ public partial class Spike : Node2D
                 FillFrom = new Vector2(0.5f, 0.5f), FillTo = new Vector2(0.5f, 0.0f),
                 Gradient = new Gradient { Colors = [new Color(1f, 0.45f, 0.85f, 0.55f), new Color(1f, 0.45f, 0.85f, 0f)], Offsets = [0f, 1f] },
             },
-            Position = new Vector2(300, 345),
+            Position = new Vector2(338, 330),
             Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add },
         };
         AddChild(halo);
@@ -43,8 +43,8 @@ public partial class Spike : Node2D
         }
 
         // Click-through everywhere except the cabinet silhouette (window pixels).
-        Vector2[] silhouette = [new(160, 90), new(464, 90), new(464, 170), new(508, 170), new(508, 810), new(470, 848), new(144, 848),
-                                new(126, 826), new(126, 562), new(106, 562), new(106, 516), new(126, 516), new(126, 188), new(160, 188)];
+        Vector2[] silhouette = [new(30, 630), new(170, 630), new(170, 118), new(250, 82), new(530, 82), new(530, 812),
+                                new(480, 860), new(240, 905), new(30, 905)];
         DisplayServer.WindowSetMousePassthrough([.. silhouette.Select(p => p * WindowScale)]);
 
         if (args.TryGetValue("pos", out var pos) && pos.Split(',') is [var x, var y])
