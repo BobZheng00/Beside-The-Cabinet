@@ -173,12 +173,14 @@ def marquee_face():
     </g>
     <text x="{W / 2 + 12}" y="54" text-anchor="middle" font-family="Segoe UI Black, Arial Rounded MT Bold, sans-serif" font-size="25"
           font-weight="900" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1">INSERT COIN</text>'''
-    glow = poly([marquee.to_screen(12, 9), marquee.to_screen(W - 12, 9), marquee.to_screen(W - 12, marquee.length - 9),
-                 marquee.to_screen(12, marquee.length - 9)], "#FFB6EA", 'opacity="0.55" filter="url(#glow)"')
+    glow = (f'<clipPath id="marqueeClip">{poly(marquee.quad(), "#000")}</clipPath>'
+            f'<g clip-path="url(#marqueeClip)" style="mix-blend-mode:screen">'
+            + poly([marquee.to_screen(24, 16), marquee.to_screen(W - 24, 16), marquee.to_screen(W - 24, marquee.length - 16),
+                    marquee.to_screen(24, marquee.length - 16)], "#FFD0F2", 'opacity="0.6" filter="url(#softGlow)"') + '</g>')
     return f'''<g id="marquee">
-  {glow}
   {poly(hood.quad(), "#2E2542", STROKE)}{hood.group(hood_lights)}
   {poly(marquee.quad(), "#3A2E52", STROKE)}{marquee.group(sign)}
+  {glow}
 </g>'''
 
 
@@ -272,18 +274,22 @@ def body_face():
 
 
 def trims():
-    def strip(x0, x1):
-        return "".join(poly([P(x0, z1, y1), P(x1, z1, y1), P(x1, z2, y2), P(x0, z2, y2)], "#2A2138", STROKE)
-                       for (z1, y1), (z2, y2) in zip(EDGE, EDGE[1:]))
-    return f'<g id="trim-left">{strip(L - T, L)}</g>\n<g id="trim-right">{strip(R, R + T)}</g>'
+    def strip(x0, x1, name):
+        outer = [P(x0, z, y) for z, y in EDGE]
+        inner = [P(x1, z, y) for z, y in EDGE]
+        shape = f'<polygon points="{pts(outer + inner[::-1])}" fill="#2A2138"/>'
+        lines = "".join(f'<polyline points="{pts(side)}" fill="none" {STROKE}/>' for side in (outer, inner))
+        caps = f'<polyline points="{pts([outer[0], inner[0]])}" fill="none" {STROKE}/><polyline points="{pts([outer[-1], inner[-1]])}" fill="none" {STROKE}/>'
+        return f'<g id="{name}">{shape}{lines}{caps}</g>'
+    return strip(L - T, L, "trim-left") + strip(R, R + T, "trim-right")
 
 
 def feet():
     def box(x0, x1):
-        front = [P(x0, 2, FLOOR), P(x1, 2, FLOOR), P(x1, 2, FLOOR + 14), P(x0, 2, FLOOR + 14)]
-        side = [P(x1, 2, FLOOR), P(x1, 30, FLOOR), P(x1, 30, FLOOR + 14), P(x1, 2, FLOOR + 14)]
+        front = [P(x0, 12, FLOOR), P(x1, 12, FLOOR), P(x1, 12, FLOOR + 14), P(x0, 12, FLOOR + 14)]
+        side = [P(x1, 12, FLOOR), P(x1, 44, FLOOR), P(x1, 44, FLOOR + 14), P(x1, 12, FLOOR + 14)]
         return poly(side, "#1A1326", STROKE) + poly(front, "#2E2542", STROKE)
-    return f'<g id="feet">{box(L - T + 4, L + 60)}{box(R - 60, R + T - 4)}</g>'
+    return f'<g id="feet">{box(L - T, L + 52)}{box(R - 52, R + T)}</g>'
 
 
 def cable():
@@ -323,7 +329,9 @@ def props():
 
 def screen_glow():
     q = [screen.to_screen(30, 26), screen.to_screen(W - 30, 26), screen.to_screen(W - 30, 204), screen.to_screen(30, 204)]
-    return f'<g id="screen-glow" style="mix-blend-mode:screen">{poly(q, "#FF6FD2", "opacity=\"0.5\" filter=\"url(#glow)\"")}</g>'
+    return (f'<clipPath id="screenFaceClip">{poly(screen.quad(), "#000")}</clipPath>'
+            f'<g id="screen-glow" clip-path="url(#screenFaceClip)" style="mix-blend-mode:screen">'
+            f'{poly(q, "#FF6FD2", "opacity=\"0.55\" filter=\"url(#glow)\"")}</g>')
 
 
 def anchors():

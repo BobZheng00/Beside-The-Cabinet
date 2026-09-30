@@ -20,32 +20,12 @@ public partial class Spike : Node2D
                  $"transparent={DisplayServer.IsWindowTransparencyAvailable()} lowcpu={OS.LowProcessorUsageMode}");
 
         // Base art: SVG pre-rendered by Chrome at 2x (keeps text, blur shadows and baked glow).
-        AddChild(new Sprite2D { Texture = GD.Load<Texture2D>("res://skins/cozy/cabinet@2x.png"), Centered = false, Scale = new Vector2(0.5f, 0.5f) });
+        var art = GD.Load<Texture2D>("res://skins/cozy/cabinet@2x.png");
+        AddChild(new Sprite2D { Texture = art, Centered = false, Scale = new Vector2(0.5f, 0.5f) });
 
-        // Animated glow: additive radial halo over the CRT (Compatibility renderer has no usable 2D bloom here).
-        var halo = new Sprite2D
-        {
-            Texture = new GradientTexture2D
-            {
-                Width = 420, Height = 380, Fill = GradientTexture2D.FillEnum.Radial,
-                FillFrom = new Vector2(0.5f, 0.5f), FillTo = new Vector2(0.5f, 0.0f),
-                Gradient = new Gradient { Colors = [new Color(1f, 0.45f, 0.85f, 0.55f), new Color(1f, 0.45f, 0.85f, 0f)], Offsets = [0f, 1f] },
-            },
-            Position = new Vector2(338, 330),
-            Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add },
-        };
-        AddChild(halo);
-        if (!args.ContainsKey("static"))
-        {
-            var pulse = CreateTween().SetLoops();
-            pulse.TweenProperty(halo, "modulate:a", 0.45f, 1.6).SetTrans(Tween.TransitionType.Sine);
-            pulse.TweenProperty(halo, "modulate:a", 1.0f, 1.6).SetTrans(Tween.TransitionType.Sine);
-        }
-
-        // Click-through everywhere except the cabinet silhouette (window pixels).
-        Vector2[] silhouette = [new(30, 630), new(170, 630), new(170, 118), new(250, 82), new(530, 82), new(530, 812),
-                                new(480, 860), new(240, 905), new(30, 905)];
-        DisplayServer.WindowSetMousePassthrough([.. silhouette.Select(p => p * WindowScale)]);
+        // On Windows the passthrough polygon is a window region: it clips drawing too. So it must enclose every
+        // visible pixel, soft shadows included — take the convex hull of the art's alpha instead of a hand-made shape.
+        DisplayServer.WindowSetMousePassthrough(VisibleHull(art.GetImage(), 0.5f * WindowScale));
 
         if (args.TryGetValue("pos", out var pos) && pos.Split(',') is [var x, var y])
             DisplayServer.WindowSetPosition(new Vector2I(int.Parse(x), int.Parse(y)));
@@ -112,6 +92,14 @@ public partial class Spike : Node2D
                 GetTree().Quit();
                 break;
         }
+    }
+
+    private static Vector2[] VisibleHull(Image image, float toWindow)
+    {
+        var alpha = new Bitmap();
+        alpha.CreateFromImageAlpha(image, 0.004f);
+        var points = alpha.OpaqueToPolygons(new Rect2I(Vector2I.Zero, image.GetSize()), 2f).SelectMany(p => p);
+        return [.. Geometry2D.ConvexHull([.. points]).Select(p => (p * toWindow).Round())];
     }
 
     private static Dictionary<string, string> ParseArgs() =>
