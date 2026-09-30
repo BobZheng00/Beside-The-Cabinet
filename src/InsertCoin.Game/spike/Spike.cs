@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Godot;
 
 namespace InsertCoin.Game.Spike;
@@ -11,6 +12,9 @@ public partial class Spike : Node2D
 {
     private const float WindowScale = 0.6f; // viewport 600x920 → window 360x552
     private Vector2I _dragOffset;
+    private Bitmap _hitMask = null!;
+    private nint _hwnd;
+    private bool? _clickThrough;
     private bool _dragging;
 
     public override void _Ready()
@@ -23,9 +27,15 @@ public partial class Spike : Node2D
         var art = GD.Load<Texture2D>("res://skins/cozy/cabinet@2x.png");
         AddChild(new Sprite2D { Texture = art, Centered = false, Scale = new Vector2(0.5f, 0.5f) });
 
-        // On Windows the passthrough polygon is a window region: it clips drawing too. So it must enclose every
-        // visible pixel, soft shadows included — take the convex hull of the art's alpha instead of a hand-made shape.
-        DisplayServer.WindowSetMousePassthrough(VisibleHull(art.GetImage(), 0.5f * WindowScale));
+        // Click-through without window regions (their edges draw faint lines over empty space): hit-test the cursor
+        // against the art's alpha ~30x a second and toggle the native click-through style.
+        _hitMask = new Bitmap();
+        _hitMask.CreateFromImageAlpha(art.GetImage(), 0.35f);
+        _hwnd = (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle);
+        GD.Print($"exstyle=0x{Win32.GetWindowLongPtr(_hwnd, Win32.GwlExStyle):X}");
+        var poll = new Godot.Timer { WaitTime = 1.0 / 30, Autostart = true };
+        poll.Timeout += UpdateClickThrough;
+        AddChild(poll);
 
         if (args.TryGetValue("pos", out var pos) && pos.Split(',') is [var x, var y])
             DisplayServer.WindowSetPosition(new Vector2I(int.Parse(x), int.Parse(y)));
@@ -94,12 +104,26 @@ public partial class Spike : Node2D
         }
     }
 
-    private static Vector2[] VisibleHull(Image image, float toWindow)
+    private void UpdateClickThrough()
     {
-        var alpha = new Bitmap();
-        alpha.CreateFromImageAlpha(image, 0.004f);
-        var points = alpha.OpaqueToPolygons(new Rect2I(Vector2I.Zero, image.GetSize()), 2f).SelectMany(p => p);
-        return [.. Geometry2D.ConvexHull([.. points]).Select(p => (p * toWindow).Round())];
+        var local = (Vector2)(DisplayServer.MouseGetPosition() - DisplayServer.WindowGetPosition()) / (0.5f * WindowScale);
+        var size = _hitMask.GetSize();
+        var overArt = local.X >= 0 && local.Y >= 0 && local.X < size.X && local.Y < size.Y && _hitMask.GetBit((int)local.X, (int)local.Y);
+        var clickThrough = !overArt && !_dragging;
+        if (clickThrough == _clickThrough)
+            return;
+        _clickThrough = clickThrough;
+        var style = Win32.GetWindowLongPtr(_hwnd, Win32.GwlExStyle) | Win32.WsExLayered;
+        style = clickThrough ? style | Win32.WsExTransparent : style & ~Win32.WsExTransparent;
+        Win32.SetWindowLongPtr(_hwnd, Win32.GwlExStyle, style);
+    }
+
+    private static class Win32
+    {
+        public const int GwlExStyle = -20;
+        public const nint WsExTransparent = 0x20, WsExLayered = 0x80000;
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint hwnd, int index);
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
     }
 
     private static Dictionary<string, string> ParseArgs() =>
