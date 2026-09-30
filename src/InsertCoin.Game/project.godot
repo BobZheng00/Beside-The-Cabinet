@@ -11,9 +11,9 @@ run/low_processor_mode=true
 [display]
 
 window/size/viewport_width=600
-window/size/viewport_height=920
+window/size/viewport_height=753
 window/size/window_width_override=360
-window/size/window_height_override=552
+window/size/window_height_override=452
 window/size/borderless=true
 window/size/transparent=true
 window/size/always_on_top=true

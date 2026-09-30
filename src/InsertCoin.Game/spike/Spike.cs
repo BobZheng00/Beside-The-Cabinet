@@ -10,7 +10,7 @@ namespace InsertCoin.Game.Spike;
 /// </summary>
 public partial class Spike : Node2D
 {
-    private const float WindowScale = 0.6f; // viewport 600x920 → window 360x552
+    private const float WindowScale = 0.6f; // viewport 600x753 → window 360x452
     private Vector2I _dragOffset;
     private Bitmap _hitMask = null!;
     private nint _hwnd;
