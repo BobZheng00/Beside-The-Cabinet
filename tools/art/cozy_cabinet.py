@@ -31,7 +31,8 @@ CP_FRONT, CP_LIP_BOT = (-30, 338), (-30, 306)
 BODY_TOP, BODY_BOT = (4, 306), (4, 46)
 KICK_TOP, KICK_BOT = (18, 46), (18, 0)
 # Front edge of the side panels (z, y), top to bottom; also the outline of the side art.
-EDGE = [HOOD_TOP, MARQ_BOT, (20, 384), CP_FRONT, CP_LIP_BOT, BODY_TOP, BODY_BOT, KICK_TOP, KICK_BOT]
+# Below the control panel the panels run straight down to the floor; body and kick sit recessed between them.
+EDGE = [HOOD_TOP, MARQ_BOT, (20, 384), CP_FRONT, (CP_FRONT[0], 0)]
 SIDE = EDGE + [(BACK, 0), (BACK, ROOF)]
 
 
@@ -214,9 +215,10 @@ def ground_shadow():
 
 
 def feet():
-    fills = {"front": "#2E2542", "right": "#1A1326", "left": "#231A33"}
-    return (f'<g id="feet">{box((XO - 58, FLOOR, BACK - 44), (58, -FLOOR, 36), fills)}'
-            f'{box((-XO, FLOOR, 8), (58, -FLOOR, 36), fills)}{box((XO - 58, FLOOR, 8), (58, -FLOOR, 36), fills)}</g>')
+    fills = {"front": "#2E2542", "right": "#1A1326", "left": "#231A33", "top": "#3E3257"}
+    front, fw = CP_FRONT[0], 34                     # pads sit under the side panels, flush with their front edge
+    return (f'<g id="feet">{box((XO - fw, FLOOR, BACK - 44), (fw, -FLOOR, 36), fills)}'
+            f'{box((-XO, FLOOR, front), (fw, -FLOOR, 36), fills)}{box((XO - fw, FLOOR, front), (fw, -FLOOR, 36), fills)}</g>')
 
 
 def inner_wall():
@@ -344,7 +346,7 @@ def body_face():
     <g clip-path="url(#trayClip)">{path(back, "#1A1326")}{path(left, "#2E2542")}{path(floor, "#3A2E52")}{coins}</g>
     {path(opening, "none", STROKE)}</g>''')
 
-    parts.append(path(on(body, rrect(190, 160, 52, 9, 3)), OUT))
+    parts.append(path(on(body, rrect(176, 160, 52, 9, 3)), OUT))
     cat = f'''<g transform="rotate(-8)" stroke="{OUT}" stroke-linejoin="round">
       <path d="M-16 -8 l3 -12 8 7 h10 l8 -7 3 12 q3 18 -16 20 q-19 -2 -16 -20 z" fill="#FFFFFF" stroke-width="2.5"/>
       <circle cx="-6" cy="-2" r="2.2" fill="{OUT}" stroke="none"/><circle cx="7" cy="-2" r="2.2" fill="{OUT}" stroke="none"/>
@@ -353,13 +355,13 @@ def body_face():
     coin = f'''<g transform="rotate(-6)"><circle r="13" fill="url(#gold)" stroke="{OUT}" stroke-width="2.5"/>
       <text y="5" text-anchor="middle" font-family="Segoe UI Black, sans-serif" font-size="13" fill="#8A5410">$</text></g>'''
     parts.append(body.decal(40, 64, f'<g transform="translate(40 64)">{cat}</g>'))
-    parts.append(body.decal(222, 66, f'<g transform="translate(222 66)">{coin}</g>'))
-    ticket = f'''<g transform="translate(216 165) rotate(4)" stroke="{OUT}" stroke-linejoin="round">
+    parts.append(body.decal(208, 66, f'<g transform="translate(208 66)">{coin}</g>'))
+    ticket = f'''<g transform="translate(202 165) rotate(4)" stroke="{OUT}" stroke-linejoin="round">
       <path d="M-19 0 H19 V58 l-4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 Z" fill="#FFF4E6" stroke-width="2.5"/>
       <text y="22" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="12" fill="#C2185B" stroke="none">IOU</text>
       <text y="38" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="9" fill="#7A4A6E" stroke="none">15m</text>
       <path d="M-13 48 H13" stroke="#E0B8C8" stroke-width="2" stroke-dasharray="3 3"/></g>'''
-    parts.append(f'<g id="iou-ticket">{body.decal(216, 190, ticket)}</g>')
+    parts.append(f'<g id="iou-ticket">{body.decal(202, 190, ticket)}</g>')
     return f'<g id="body">{"".join(parts)}</g>'
 
 
@@ -369,7 +371,7 @@ def roof_face():
 
 def side_panel():
     parts = [path(on(right_side, [(z, ROOF - y) for z, y in SIDE]), "url(#sideFill)", STROKE)]
-    stripe = [(z + 12, ROOF - y) for z, y in EDGE[:7]]
+    stripe = [(z + 12, ROOF - y) for z, y in EDGE[:4]] + [(CP_FRONT[0] + 12, ROOF - 40)]
     stripe[0] = (12, 14)
     parts.append(path(on(right_side, stripe), "none", 'stroke="#C3B2FF" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"', closed=False))
     ea, eb = 96, 300
@@ -470,7 +472,7 @@ def anchors():
   {poly("check-button", cp_top, [(128, 16), (172, 16), (172, 60), (128, 60)])}
   {poly("joystick", cp_top, [(38, 16), (78, 16), (78, 56), (38, 56)])}
   {poly("coin-tray", body, [(54, 150), (174, 150), (174, 212), (54, 212)])}
-  {poly("printer", body, [(190, 160), (242, 160), (242, 169), (190, 169)])}
+  {poly("printer", body, [(176, 160), (228, 160), (228, 169), (176, 169)])}
 </g>'''
 
 
