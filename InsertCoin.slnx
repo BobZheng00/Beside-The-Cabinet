@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/InsertCoin.Core/InsertCoin.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/InsertCoin.Core.Tests/InsertCoin.Core.Tests.csproj" />
+  </Folder>
+</Solution>
