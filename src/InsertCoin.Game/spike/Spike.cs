@@ -43,7 +43,8 @@ public partial class Spike : Node2D
         }
 
         // Click-through everywhere except the cabinet silhouette (window pixels).
-        Vector2[] silhouette = [new(128, 100), new(506, 100), new(506, 560), new(492, 560), new(492, 846), new(108, 846), new(108, 506), new(128, 506)];
+        Vector2[] silhouette = [new(160, 90), new(464, 90), new(464, 170), new(508, 170), new(508, 810), new(470, 848), new(144, 848),
+                                new(126, 826), new(126, 562), new(106, 562), new(106, 516), new(126, 516), new(126, 188), new(160, 188)];
         DisplayServer.WindowSetMousePassthrough([.. silhouette.Select(p => p * WindowScale)]);
 
         if (args.TryGetValue("pos", out var pos) && pos.Split(',') is [var x, var y])
