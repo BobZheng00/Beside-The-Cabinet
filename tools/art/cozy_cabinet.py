@@ -168,6 +168,25 @@ def box(corner, size, fills):
                    if k in fills and CAM.sees(pts[0], n))
 
 
+# ---- Layers ---------------------------------------------------------------------------------------------------------
+# The game animates some parts on their own. Every such fragment is wrapped in layer(name, ...):
+#   MODE "preview": everything drawn (the concept image)      MODE "base": moving parts left out
+#   MODE <layer>:   only that layer drawn, on the same canvas, so it lines up with the base exactly
+LAYERS = ["screen-glass", "screen-glow", "marquee-glow", "bulbs", "check-cap", "slot-glow"]
+MODE = "preview"
+
+
+def layer(name, fragment):
+    if MODE == "preview":
+        return fragment
+    return f'<g visibility="visible">{fragment}</g>' if MODE == name else ""
+
+
+def clip(cid, points):
+    # visibility is explicit so clip paths still work while the rest of a single-layer render is hidden
+    return f'<clipPath id="{cid}"><path d="{d(points)}" visibility="visible"/></clipPath>'
+
+
 # ---- Faces ---------------------------------------------------------------------------------------------------------
 hood, marquee = front_plane(HOOD_TOP, HOOD_BOT), front_plane(HOOD_BOT, MARQ_BOT)
 screen = front_plane(SCREEN_TOP, SCREEN_BOT)
@@ -227,7 +246,7 @@ def inner_wall():
 def screen_face():
     L = screen.length
     crt = rrect(30, 26, W - 60, 178, 26)
-    content = f'''<g font-family="Consolas, Lucida Console, monospace" font-weight="bold" fill="#6A1C5E">
+    content = f"""<g font-family="Consolas, Lucida Console, monospace" font-weight="bold" fill="#6A1C5E">
       <text x="46" y="52" font-size="14" letter-spacing="1">CREDIT 03</text>
       <path d="M170 42 q4 -8 8 0 q4 -8 8 0 l-8 9 z" fill="#E0457F"/>
       <text x="{W - 46}" y="52" font-size="14" text-anchor="end">x4</text>
@@ -235,45 +254,51 @@ def screen_face():
       <text x="{W / 2}" y="144" font-size="11" text-anchor="middle" letter-spacing="3" opacity="0.8">TIME LEFT</text>
       <rect x="56" y="164" width="{W - 112}" height="11" rx="5.5" fill="#6A1C5E" opacity="0.25"/>
       <rect x="56" y="164" width="{(W - 112) * 0.85:.1f}" height="11" rx="5.5" fill="#6A1C5E"/>
-    </g>
-    <ellipse cx="86" cy="56" rx="64" ry="24" fill="#FFFFFF" opacity="0.26" transform="rotate(-16 86 56)"/>'''
+    </g>"""
+    highlight = '<ellipse cx="86" cy="56" rx="64" ry="24" fill="#FFFFFF" opacity="0.26" transform="rotate(-16 86 56)"/>'
     holes = "".join(path(on(screen, circle(W / 2 + dx, 226, 3, 16)), "#221A33") for dx in (-24, -8, 8, 24))
     screen_poly = on(screen, [(0, 0), (W, 0), (W, L), (0, L)])
-    return f'''<g id="screen">
+    glass = (f'<g clip-path="url(#crtClip)">{path(on(screen, crt), "url(#scan)")}{screen.decal(86, 56, highlight)}</g>'
+             + path(on(screen, crt), "none", 'stroke="#8E2F7E" stroke-width="2.5" opacity="0.55"'))
+    glow = f'<g clip-path="url(#screenFaceClip)">{path(on(screen, crt), "#FF6FD2", 'opacity="0.5" filter="url(#glow)"')}</g>'
+    return f"""<g id="screen">
   {face(screen, "#2E2542")}
   {path(on(screen, rrect(14, 12, W - 28, L - 34, 18)), "#3C3058", 'stroke="#251C38" stroke-width="3"')}
   {path(on(screen, crt), "url(#crt)")}
-  <clipPath id="crtClip">{path(on(screen, crt), "#000")}</clipPath>
-  <g clip-path="url(#crtClip)">{screen.decal(W / 2, 115, content)}{path(on(screen, crt), "url(#scan)")}</g>
-  {path(on(screen, crt), "none", 'stroke="#8E2F7E" stroke-width="2.5" opacity="0.55"')}
+  {clip("crtClip", on(screen, crt))}
+  {layer("screen-content", f'<g clip-path="url(#crtClip)">{screen.decal(W / 2, 115, content)}</g>')}
+  {layer("screen-glass", glass)}
   {holes}
-  <clipPath id="screenFaceClip">{path(screen_poly, "#000")}</clipPath>
-  <g clip-path="url(#screenFaceClip)" style="mix-blend-mode:screen">{path(on(screen, crt), "#FF6FD2", 'opacity="0.5" filter="url(#glow)"')}</g>
-</g>'''
+  {clip("screenFaceClip", screen_poly)}
+  {layer("screen-glow", glow)}
+</g>"""
+
+
+BULBS = [18 + i * 22.4 for i in range(11)]      # hood-local x of each marquee bulb
 
 
 def marquee_face():
     L = marquee.length
-    lights = "".join(path(on(hood, circle(18 + i * 22.4, 10, 4.2, 18)), "#FFE27A" if i % 2 == 0 else "#7A6A9E", THIN)
-                     for i in range(11))
+    dim = "".join(path(on(hood, circle(x, 10, 4.2, 18)), "#7A6A9E", THIN) for x in BULBS)
+    lit = "".join(path(on(hood, circle(x, 10, 4.2, 18)), "#FFE27A", THIN) for x in BULBS[::2])
     sign = rrect(12, 8, W - 24, L - 16, 6)
-    doodles = f'''<g stroke="{OUT}" stroke-linejoin="round">
+    doodles = f"""<g stroke="{OUT}" stroke-linejoin="round">
       <path transform="translate(-118 2) scale(0.78) translate(112 -20)" d="M-112 20 q-12 0 -12 -10 q0 -10 11 -10 q3 -10 14 -9 q9 -8 19 1 q11 -1 11 10 q8 2 6 10 q-2 8 -11 8 z" fill="#FFFFFF" stroke-width="2.5"/>
       <path d="M92 -16 a10 10 0 1 0 8 17 a8 8 0 1 1 -8 -17 z" fill="#FFF3C4" stroke-width="2.5"/>
       <path d="M72 14 l2.6 5.6 6 .8 -4.4 4.2 1 6 -5.2 -2.8 -5.2 2.8 1 -6 -4.4 -4.2 6 -.8 z" fill="#FFF3C4" stroke-width="2"/>
       <circle cx="-34" cy="-20" r="2.5" fill="#FFF3C4" stroke="none"/><circle cx="46" cy="-18" r="2.2" fill="#FFF3C4" stroke="none"/>
     </g>
     <text x="14" y="9" text-anchor="middle" font-family="Segoe UI Black, Arial Rounded MT Bold, sans-serif" font-size="23"
-          font-weight="900" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1">INSERT COIN</text>'''
-    return f'''<g id="marquee">
-  {face(hood, "#2E2542")}{lights}
+          font-weight="900" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1">INSERT COIN</text>"""
+    glow = path(on(marquee, rrect(30, 16, W - 60, L - 32, 10)), "#FFD0F2", 'opacity="0.55" filter="url(#softGlow)"')
+    return f"""<g id="marquee">
+  {face(hood, "#2E2542")}{dim}{layer("bulbs", lit)}
   {face(marquee, "#3A2E52")}
   {path(on(marquee, sign), "url(#sign)", THIN)}
-  <clipPath id="signClip">{path(on(marquee, sign), "#000")}</clipPath>
-  <g clip-path="url(#signClip)">{marquee.decal(W / 2, L / 2, f'<g transform="translate({W / 2} {L / 2})">{doodles}</g>')}
-    <g style="mix-blend-mode:screen">{path(on(marquee, rrect(30, 16, W - 60, L - 32, 10)), "#FFD0F2", 'opacity="0.55" filter="url(#softGlow)"')}</g>
-  </g>
-</g>'''
+  {clip("signClip", on(marquee, sign))}
+  <g clip-path="url(#signClip)">{marquee.decal(W / 2, L / 2, f'<g transform="translate({W / 2} {L / 2})">{doodles}</g>')}</g>
+  {layer("marquee-glow", f'<g clip-path="url(#signClip)">{glow}</g>')}
+</g>"""
 
 
 def control_panel():
@@ -285,10 +310,10 @@ def control_panel():
         parts.append(cylinder(cp_top, a, b, r + 3.5, 2, "#2E2542", "#3E3257"))
         parts.append(cylinder(cp_top, a, b, r, 5, "#5E4E8E", cap))
     parts.append(cylinder(cp_top, 150, 38, 22, 2, "#2E2542", "#3E3257"))
-    parts.append(cylinder(cp_top, 150, 38, 18, 6, "#B7791A", "url(#gold)"))
     top = add(cp_top.at(150, 38), mul(cp_top.n, 6))
     tick = [add(top, add(mul(cp_top.u, du), mul(cp_top.v, dv))) for du, dv in ((-8, 0), (-2, 5), (9, -5))]
-    parts.append(path([CAM(p) for p in tick], "none", 'stroke="#8A5410" stroke-width="3.5" stroke-linecap="round"', closed=False))
+    parts.append(layer("check-cap", cylinder(cp_top, 150, 38, 18, 6, "#B7791A", "url(#gold)")
+                       + path([CAM(p) for p in tick], "none", 'stroke="#8A5410" stroke-width="3.5" stroke-linecap="round"', closed=False)))
     # Joystick: base plate, shaft along the panel normal, ball.
     parts.append(cylinder(cp_top, 58, 36, 20, 3, "#241B36", "#3E3257"))
     base = cp_top.at(58, 36)
@@ -308,6 +333,28 @@ def control_panel():
     return f'<g id="control-panel">{"".join(parts)}{lip}</g>'
 
 
+TICKET = (202, 190)                  # body-local point the ticket art is mapped around
+COIN_EDGE = {"bronze": "#8A4A22", "silver": "#7B7F9C", "gold": "#B7791A", "star": "#B7791A"}
+
+
+def ticket_art():
+    """IOU ticket in body-local coordinates; its top edge (y=165) sits in the printer slot."""
+    return f"""<g transform="translate(202 165) rotate(4)" stroke="{OUT}" stroke-linejoin="round">
+      <path d="M-19 0 H19 V58 l-4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 Z" fill="#FFF4E6" stroke-width="2.5"/>
+      <text y="22" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="12" fill="#C2185B" stroke="none">IOU</text>
+      <path d="M-13 48 H13" stroke="#E0B8C8" stroke-width="2" stroke-dasharray="3 3"/></g>"""
+
+
+def coin_art(plane, a, b, kind):
+    art = cylinder(plane, a, b, 13, 3, COIN_EDGE[kind], f"url(#{'gold' if kind == 'star' else kind})", THIN)
+    if kind == "star":
+        top = add(plane.at(a, b), mul(plane.n, 3))
+        star = [add(top, add(mul(plane.u, r * math.sin(t)), mul(plane.v, -r * math.cos(t))))
+                for i in range(10) for r, t in [((7 if i % 2 == 0 else 3), math.pi * i / 5)]]
+        art += path([CAM(p) for p in star], "#FFFFFF", 'stroke="#8A5410" stroke-width="1.5" stroke-linejoin="round"')
+    return art
+
+
 def body_face():
     L = body.length
     parts = [face(kick, "#2A2138"), face(body, "url(#frontFill)"),
@@ -323,7 +370,7 @@ def body_face():
     parts.append(path(on(door, rrect(8, 8, w - 16, h - 16, 6)), "none", 'stroke="#7E6BC0" stroke-width="2.5"'))
     for sx in (26, 75):
         slot = rrect(sx, 20, 15, 30, 4)
-        parts.append(path(on(door, slot), "#FFB347", 'opacity="0.85" filter="url(#softGlow)"'))
+        parts.append(layer("slot-glow", path(on(door, slot), "#FFB347", 'opacity="0.85" filter="url(#softGlow)"')))
         parts.append(path(on(door, slot), "#FFB347", THIN))
         parts.append(path(on(door, circle(sx + 7.5, 64, 3.5, 16)), OUT))
     parts.append(door.decal(w / 2, 88, f'<text x="{w / 2}" y="92" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="10" fill="#C9BCF2" letter-spacing="2">15 MIN</text>'))
@@ -338,12 +385,10 @@ def body_face():
     left = [CAM(p) for p in ((xa, ytop, zb), (xa, ytop, zb + td), (xa, ybot, zb + td), (xa, ybot, zb))]
     floor = [CAM(p) for p in ((xa, ybot, zb), (xb, ybot, zb), (xb, ybot, zb + td), (xa, ybot, zb + td))]
     tray_floor = Plane((xa, ybot, zb + td), (1, 0, 0), (0, 0, -1), td)
-    coins = "".join(cylinder(tray_floor, a, b, 13, 3, edge, cap, THIN)
-                    for a, b, edge, cap in ((30, 16, "#8A4A22", "url(#bronze)"), (58, 20, "#7B7F9C", "url(#silver)"),
-                                            (46, 8, "#B7791A", "url(#gold)"), (88, 14, "#B7791A", "url(#gold)")))
-    parts.append(f'''<g id="coin-tray"><clipPath id="trayClip">{path(opening, "#000")}</clipPath>
-    <g clip-path="url(#trayClip)">{path(back, "#1A1326")}{path(left, "#2E2542")}{path(floor, "#3A2E52")}{coins}</g>
-    {path(opening, "none", STROKE)}</g>''')
+    coins = "".join(coin_art(tray_floor, a, b, kind) for a, b, kind in ((30, 16, "bronze"), (58, 20, "silver"), (46, 8, "gold"), (88, 14, "gold")))
+    parts.append(f"""<g id="coin-tray">{clip("trayClip", opening)}
+    <g clip-path="url(#trayClip)">{path(back, "#1A1326")}{path(left, "#2E2542")}{path(floor, "#3A2E52")}{layer("coins", coins)}</g>
+    {path(opening, "none", STROKE)}</g>""")
 
     parts.append(path(on(body, rrect(176, 160, 52, 9, 3)), OUT))
     cat = f'''<g transform="rotate(-8)" stroke="{OUT}" stroke-linejoin="round">
@@ -355,12 +400,7 @@ def body_face():
       <text y="5" text-anchor="middle" font-family="Segoe UI Black, sans-serif" font-size="13" fill="#8A5410">$</text></g>'''
     parts.append(body.decal(40, 64, f'<g transform="translate(40 64)">{cat}</g>'))
     parts.append(body.decal(208, 66, f'<g transform="translate(208 66)">{coin}</g>'))
-    ticket = f'''<g transform="translate(202 165) rotate(4)" stroke="{OUT}" stroke-linejoin="round">
-      <path d="M-19 0 H19 V58 l-4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 Z" fill="#FFF4E6" stroke-width="2.5"/>
-      <text y="22" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="12" fill="#C2185B" stroke="none">IOU</text>
-      <text y="38" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="9" fill="#7A4A6E" stroke="none">15m</text>
-      <path d="M-13 48 H13" stroke="#E0B8C8" stroke-width="2" stroke-dasharray="3 3"/></g>'''
-    parts.append(f'<g id="iou-ticket">{body.decal(202, 190, ticket)}</g>')
+    parts.append(layer("ticket", f'<g id="iou-ticket">{body.decal(*TICKET, ticket_art())}</g>'))
     return f'<g id="body">{"".join(parts)}</g>'
 
 
@@ -482,20 +522,130 @@ def frame_points():
     return pts
 
 
-def svg(preview_bg=True):
-    height = CAM.frame(frame_points(), 600, 26)
+def document(width, height, content, view=None):
+    view = view or f"0 0 {width} {height}"
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{width}" height="{height}">\n'
+            f'<!-- INSERT COIN · Cozy skin (generated by tools/art/cozy_cabinet.py). Original artwork. -->\n{content}\n</svg>\n')
+
+
+def scene(height, preview_bg):
     parts = [defs()]
     if preview_bg:
         parts.append(f'<g id="preview-bg"><rect width="600" height="{height}" fill="url(#bgGlow)"/></g>')
     parts += [ground_shadow(), plinth(), inner_wall(), screen_face(), marquee_face(), body_face(), control_panel(),
               roof_face(), side_panel(), trims(), cable(), props(), anchors()]
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 {height}" width="600" height="{height}">\n'
-            f'<!-- INSERT COIN · Cozy skin · cabinet v5 (generated by tools/art/cozy_cabinet.py). Original artwork. -->\n'
-            + "\n".join(parts) + "\n</svg>\n")
+    return "\n".join(parts)
+
+
+def svg(preview_bg=True):
+    global MODE
+    MODE = "preview"
+    height = CAM.frame(frame_points(), 600, 26)
+    return document(600, height, scene(height, preview_bg))
+
+
+# ---- Skin export (game) -------------------------------------------------------------------------------------------
+CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+SCALE = 2
+
+
+def render_png(svg_path, png_path, width, height):
+    import subprocess
+    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--force-device-scale-factor={SCALE}",
+                    "--default-background-color=00000000", f"--window-size={width},{height}",
+                    f"--screenshot={png_path}", svg_path.resolve().as_uri()], check=True, capture_output=True)
+
+
+def sprite(content, points, origin, pad=6, min_size=160):
+    """A small SVG around the given projected points; returns (svg, size, origin inside the sprite)."""
+    x0, y0 = min(x for x, _ in points) - pad, min(y for _, y in points) - pad
+    w = max(math.ceil(max(x for x, _ in points) + pad - x0), min_size)
+    h = max(math.ceil(max(y for _, y in points) + pad - y0), min_size)
+    return document(w, h, defs() + content, f"{x0:.2f} {y0:.2f} {w} {h}"), (w, h), [round(origin[0] - x0, 2), round(origin[1] - y0, 2)]
+
+
+def export_skin(art_dir, skin_dir):
+    import json
+    global MODE
+    height = CAM.frame(frame_points(), 600, 26)
+    art_dir.mkdir(parents=True, exist_ok=True)
+    skin_dir.mkdir(parents=True, exist_ok=True)
+    renders = []
+
+    for name in ["base"] + LAYERS:
+        MODE = name
+        content = scene(height, preview_bg=False)
+        if name != "base":
+            content = f'<g visibility="hidden">{content}</g>'
+        (art_dir / f"{name}.svg").write_text(document(600, height, content), encoding="utf-8")
+        renders.append((name, (600, height)))
+    MODE = "preview"
+
+    # Tray: coins lie on its floor (a across 0..120, b from the back wall 0 to the opening 30).
+    ta, tb, tw, th, td = 54, 150, 120, 62, 30
+    xa, ybot, zb = -XI + ta, BODY_TOP[1] - tb - th, BODY_TOP[0]
+    tray_floor = Plane((xa, ybot, zb + td), (1, 0, 0), (0, 0, -1), td)
+    spots = [(16, 19), (44, 19), (72, 19), (100, 19), (30, 9), (58, 9), (86, 9)]
+    centre = tray_floor.at(60, 15)
+    sprites = {}
+    for kind in ("bronze", "silver", "gold", "star"):
+        pts = [CAM(add(tray_floor.at(60 + 13 * math.cos(t), 15 + 13 * math.sin(t)), mul(tray_floor.n, h)))
+               for t in (i * math.pi / 12 for i in range(24)) for h in (0, 3)]
+        doc, size, origin = sprite(coin_art(tray_floor, 60, 15, kind), pts, CAM(centre))
+        (art_dir / f"coin-{kind}.svg").write_text(doc, encoding="utf-8")
+        renders.append((f"coin-{kind}", size))
+        sprites[f"coin-{kind}"] = {"file": f"coin-{kind}.png", "origin": origin}
+
+    # Ticket: mapped with the body's local affine; origin is where it leaves the printer slot.
+    top_mid = body.p(202, 165)
+    corners = [body.p(202 + dx, 165 + dy) for dx in (-26, 26) for dy in (-4, 70)]
+    doc, size, origin = sprite(body.decal(*TICKET, ticket_art()), corners, top_mid)
+    (art_dir / "ticket.svg").write_text(doc, encoding="utf-8")
+    renders.append(("ticket", size))
+    sprites["ticket"] = {"file": "ticket.png", "origin": origin}
+
+    for name, (w, h) in renders:
+        render_png(art_dir / f"{name}.svg", skin_dir / f"{name}.png", w, h)
+
+    def pt(p): return [round(p[0], 2), round(p[1], 2)]
+    def pts2(points): return [pt(p) for p in points]
+
+    bulbs = []
+    for x in BULBS:
+        ring = on(hood, circle(x, 10, 4.2, 18))
+        c = hood.p(x, 10)
+        bulbs.append({"x": round(c[0], 2), "y": round(c[1], 2), "r": round(max(abs(px - c[0]) for px, _ in ring), 2)})
+    cap_top = [CAM(add(p, mul(cp_top.n, 6))) for p in (cp_top.at(x, y) for x, y in circle(150, 38, 18, 24))]
+    cap_centre = add(cp_top.at(150, 38), mul(cp_top.n, 6))
+    pressed = sub(CAM(sub(cap_centre, mul(cp_top.n, 4))), CAM(cap_centre))
+    door = Plane((-XI + 72, BODY_TOP[1] - 24, BODY_TOP[0] - 5), (1, 0, 0), (0, -1, 0), 104)
+    stack = sub(CAM(add(centre, (0, 3, 0))), CAM(centre))
+    skin = {
+        "id": "cozy", "name": "Cozy", "scale": SCALE, "canvas": [600, height],
+        "layers": {n: f"{n}.png" for n in ["base"] + LAYERS},
+        "sprites": sprites,
+        "anchors": {
+            "screen": {"quad": pts2(on(screen, [(30, 26), (W - 30, 26), (W - 30, 204), (30, 204)])), "size": [W - 60, 178]},
+            "bulbs": bulbs,
+            "checkButton": {"polygon": pts2(hull(cap_top)), "press": pt(pressed)},
+            "coinSlot": pt(door.p(26 + 7.5, 35)),
+            "tray": {"opening": pts2(on(body, [(ta, tb), (ta + tw, tb), (ta + tw, tb + th), (ta, tb + th)])),
+                     "spots": [pt(tray_floor.p(a, b)) for a, b in spots], "stack": pt(stack),
+                     "chute": pt(CAM(add(tray_floor.at(60, 4), (0, th - 6, 0))))},
+            "printer": {"slot": pts2(on(body, [(176, 160), (228, 160), (228, 169), (176, 169)])), "ticket": pt(top_mid)},
+            "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
+        },
+    }
+    (skin_dir / "skin.json").write_text(json.dumps(skin, indent=2), encoding="utf-8")
+    return skin
 
 
 if __name__ == "__main__":
+    import sys
     root = Path(__file__).resolve().parents[2]
     out = root / "art" / "cozy" / "cabinet-v5.svg"
     out.write_text(svg(), encoding="utf-8")
     print(f"wrote {out}")
+    if "--skin" in sys.argv:
+        export_skin(root / "art" / "cozy" / "layers", root / "src" / "InsertCoin.Game" / "skins" / "cozy")
+        print("exported skin to src/InsertCoin.Game/skins/cozy")
