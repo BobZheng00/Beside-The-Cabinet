@@ -80,6 +80,18 @@ public partial class DesktopWindow : Node
         }
     }
 
+    /// <summary>Keeps the window above others (or not) without activating it, so it never steals keyboard focus.</summary>
+    public void SetTopmost(bool topmost) =>
+        Win32.SetWindowPos(_hwnd, topmost ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
+
+    /// <summary>Raises the window above everything for a few seconds, then lets it sink back.</summary>
+    public void Rise(double seconds, bool stayOnTop)
+    {
+        SetTopmost(true);
+        if (!stayOnTop)
+            GetTree().CreateTimer(seconds).Timeout += () => SetTopmost(false);
+    }
+
     private void SetClickThrough(bool clickThrough)
     {
         if (clickThrough == _clickThrough)
@@ -94,6 +106,9 @@ public partial class DesktopWindow : Node
     {
         public const int GwlExStyle = -20;
         public const nint WsExTransparent = 0x20, WsExLayered = 0x80000;
+        public static readonly nint HwndTopmost = -1, HwndNoTopmost = -2;
+        public const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
+        [DllImport("user32.dll")] public static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint hwnd, int index);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);
     }

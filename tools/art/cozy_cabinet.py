@@ -201,8 +201,17 @@ def face(plane, fill, extra=STROKE):
     return path(on(plane, [(0, 0), (W, 0), (W, plane.length), (0, plane.length)]), fill, extra)
 
 
+FONT_DIR = Path(__file__).resolve().parents[2] / "src" / "InsertCoin.Game" / "fonts"
+ROUND = "Fredoka, sans-serif"                 # titles (OFL)
+PIXEL = "'Press Start 2P', monospace"         # printed labels and screen text (OFL)
+
+
 def defs():
-    return '''<defs>
+    return f'''<defs>
+  <style>
+    @font-face {{ font-family: "Fredoka"; font-weight: 300 700; src: url("{(FONT_DIR / "Fredoka-Variable.ttf").as_uri()}"); }}
+    @font-face {{ font-family: "Press Start 2P"; src: url("{(FONT_DIR / "PressStart2P-Regular.ttf").as_uri()}"); }}
+  </style>
   <linearGradient id="sideFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6452A0"/><stop offset="1" stop-color="#46397A"/></linearGradient>
   <linearGradient id="frontFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8674C4"/><stop offset="1" stop-color="#6B59A7"/></linearGradient>
   <linearGradient id="cpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A897E0"/><stop offset="1" stop-color="#C6B8F4"/></linearGradient>
@@ -246,12 +255,11 @@ def inner_wall():
 def screen_face():
     L = screen.length
     crt = rrect(30, 26, W - 60, 178, 26)
-    content = f"""<g font-family="Consolas, Lucida Console, monospace" font-weight="bold" fill="#6A1C5E">
-      <text x="46" y="52" font-size="14" letter-spacing="1">CREDIT 03</text>
-      <path d="M170 42 q4 -8 8 0 q4 -8 8 0 l-8 9 z" fill="#E0457F"/>
-      <text x="{W - 46}" y="52" font-size="14" text-anchor="end">x4</text>
-      <text x="{W / 2}" y="122" font-size="54" text-anchor="middle" letter-spacing="2">57:47</text>
-      <text x="{W / 2}" y="144" font-size="11" text-anchor="middle" letter-spacing="3" opacity="0.8">TIME LEFT</text>
+    content = f"""<g font-family="{PIXEL}" fill="#6A1C5E">
+      <text x="46" y="52" font-size="9">CREDIT 03</text>
+      <text x="{W - 46}" y="52" font-size="9" text-anchor="end" fill="#E0457F">x4</text>
+      <text x="{W / 2}" y="124" font-size="30" text-anchor="middle">57:47</text>
+      <text x="{W / 2}" y="146" font-size="8" text-anchor="middle" opacity="0.8">TIME LEFT</text>
       <rect x="56" y="164" width="{W - 112}" height="11" rx="5.5" fill="#6A1C5E" opacity="0.25"/>
       <rect x="56" y="164" width="{(W - 112) * 0.85:.1f}" height="11" rx="5.5" fill="#6A1C5E"/>
     </g>"""
@@ -288,8 +296,8 @@ def marquee_face():
       <path d="M72 14 l2.6 5.6 6 .8 -4.4 4.2 1 6 -5.2 -2.8 -5.2 2.8 1 -6 -4.4 -4.2 6 -.8 z" fill="#FFF3C4" stroke-width="2"/>
       <circle cx="-34" cy="-20" r="2.5" fill="#FFF3C4" stroke="none"/><circle cx="46" cy="-18" r="2.2" fill="#FFF3C4" stroke="none"/>
     </g>
-    <text x="14" y="9" text-anchor="middle" font-family="Segoe UI Black, Arial Rounded MT Bold, sans-serif" font-size="23"
-          font-weight="900" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1">INSERT COIN</text>"""
+    <text x="14" y="9" text-anchor="middle" font-family="{ROUND}" font-size="25"
+          font-weight="700" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1.5">INSERT COIN</text>"""
     glow = path(on(marquee, rrect(30, 16, W - 60, L - 32, 10)), "#FFD0F2", 'opacity="0.55" filter="url(#softGlow)"')
     return f"""<g id="marquee">
   {face(hood, "#2E2542")}{dim}{layer("bulbs", lit)}
@@ -326,7 +334,7 @@ def control_panel():
     br = 14 * CAM.focal / CAM.depth(ball)
     parts.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="{br:.1f}" fill="url(#ball)" {STROKE}/>'
                  f'<ellipse cx="{bx - br * 0.32:.1f}" cy="{by - br * 0.38:.1f}" rx="{br * 0.34:.1f}" ry="{br * 0.22:.1f}" fill="#FFFFFF" opacity="0.75"/>')
-    label = f'<text x="{W - 14}" y="22" text-anchor="end" font-family="Consolas, monospace" font-weight="bold" font-size="10" fill="#C9BCF2" letter-spacing="2">1P</text>'
+    label = f'<text x="{W - 14}" y="22" text-anchor="end" font-family="{PIXEL}" font-size="7" fill="#C9BCF2">1P</text>'
     lip = (face(cp_lip, "#6A58A6")
            + path(on(cp_lip, [(10, 8), (W - 10, 8)]), "none", 'stroke="#8C79CB" stroke-width="3" stroke-linecap="round"', closed=False)
            + cp_lip.decal(W - 14, 22, label))
@@ -341,7 +349,7 @@ def ticket_art():
     """IOU ticket in body-local coordinates; its top edge (y=165) sits in the printer slot."""
     return f"""<g transform="translate(202 165) rotate(4)" stroke="{OUT}" stroke-linejoin="round">
       <path d="M-19 0 H19 V58 l-4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 -4.75 5 -4.75 -5 Z" fill="#FFF4E6" stroke-width="2.5"/>
-      <text y="22" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="12" fill="#C2185B" stroke="none">IOU</text>
+      <text y="24" text-anchor="middle" font-family="{PIXEL}" font-size="8" fill="#C2185B" stroke="none">IOU</text>
       <path d="M-13 48 H13" stroke="#E0B8C8" stroke-width="2" stroke-dasharray="3 3"/></g>"""
 
 
@@ -373,7 +381,7 @@ def body_face():
         parts.append(layer("slot-glow", path(on(door, slot), "#FFB347", 'opacity="0.85" filter="url(#softGlow)"')))
         parts.append(path(on(door, slot), "#FFB347", THIN))
         parts.append(path(on(door, circle(sx + 7.5, 64, 3.5, 16)), OUT))
-    parts.append(door.decal(w / 2, 88, f'<text x="{w / 2}" y="92" text-anchor="middle" font-family="Consolas, monospace" font-weight="bold" font-size="10" fill="#C9BCF2" letter-spacing="2">15 MIN</text>'))
+    parts.append(door.decal(w / 2, 88, f'<text x="{w / 2}" y="92" text-anchor="middle" font-family="{PIXEL}" font-size="7" fill="#C9BCF2">15 MIN</text>'))
 
     # Coin tray: a recess 30 deep. From above-right we see its back wall, inner left wall and floor.
     ta, tb, tw, th, td = 54, 150, 120, 62, 30
@@ -397,7 +405,7 @@ def body_face():
       <path d="M-2 4 q2 2.5 5 0" fill="none" stroke-width="1.8"/>
       <circle cx="-11" cy="3" r="2.6" fill="#FFB3D1" stroke="none"/><circle cx="12" cy="3" r="2.6" fill="#FFB3D1" stroke="none"/></g>'''
     coin = f'''<g transform="rotate(-6)"><circle r="13" fill="url(#gold)" stroke="{OUT}" stroke-width="2.5"/>
-      <text y="5" text-anchor="middle" font-family="Segoe UI Black, sans-serif" font-size="13" fill="#8A5410">$</text></g>'''
+      <text y="5" text-anchor="middle" font-family="{ROUND}" font-weight="700" font-size="15" fill="#8A5410">$</text></g>'''
     parts.append(body.decal(40, 64, f'<g transform="translate(40 64)">{cat}</g>'))
     parts.append(body.decal(208, 66, f'<g transform="translate(208 66)">{coin}</g>'))
     parts.append(layer("ticket", f'<g id="iou-ticket">{body.decal(*TICKET, ticket_art())}</g>'))

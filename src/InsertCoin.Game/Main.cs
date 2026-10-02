@@ -34,6 +34,8 @@ public partial class Main : Node2D
     private CabinetView _cabinet = null!;
     private Director _director = null!;
     private DesktopWindow _window = null!;
+    private TrayIcon _tray = null!;
+    private Onboarding _onboarding = null!;
     private System.Threading.Mutex? _singleInstance;
 
     private TimeSpan _lastTick;
@@ -74,7 +76,33 @@ public partial class Main : Node2D
         _window.Hover += p => _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
         _window.Clicked += p => { if (_cabinet.HitsCheck(p)) _cabinet.PressCheck(); };
         _cabinet.CheckPressed += OnCheck;
+        ApplySize();
         PlaceWindow();
+        _window.SetTopmost(_settings.AlwaysOnTop);
+
+        _tray = new TrayIcon();
+        AddChild(_tray);
+        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size);
+        _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
+        _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
+        _tray.CheckNow += () => _cabinet.PressCheck();
+        _tray.ChangePlayer += () => { _window.Rise(4, _settings.AlwaysOnTop); DisplayServer.WindowMoveToForeground(); _onboarding.Start(keepInitials: _settings.Initials); };
+        _tray.AlwaysOnTopChanged += on => { SaveSettings(_settings with { AlwaysOnTop = on }); _window.SetTopmost(on); };
+        _tray.StartWithWindowsChanged += Startup.Set;
+        _tray.Quit += () => { Save(); GetTree().Quit(); };
+
+        _onboarding = new Onboarding(_cabinet.Screen, _tasks);
+        _onboarding.Completed += (initials, username) =>
+        {
+            SaveSettings(_settings with { Initials = initials, Username = username });
+            _cabinet.Screen.Flash($"HI {initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
+            _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
+            _backoffSeconds = 60;
+            Poll();
+        };
+        AddTimer(0.5, _onboarding.Blink);
+        if (string.IsNullOrWhiteSpace(_settings.Username))
+            _onboarding.Start();
 
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
@@ -147,7 +175,7 @@ public partial class Main : Node2D
         if (DateTimeOffset.Now - _lastCheck < CheckCooldown)
             return;
         _lastCheck = DateTimeOffset.Now;
-        _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO PLAYER SET" : "ASKING LEETCODE…", 1.5);
+        _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO PLAYER SET" : "ASKING LEETCODE", 1.5);
         _backoffSeconds = 60;
         Poll();
     }
@@ -158,6 +186,9 @@ public partial class Main : Node2D
         _state = result.State;
         foreach (var e in result.Events)
             _director.Play(e);
+        // Moments worth seeing rise above other windows for a few seconds — never over a running game.
+        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or SessionEnded or WeeklyReset))
+            _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
         RefreshScreen();
@@ -188,7 +219,13 @@ public partial class Main : Node2D
             WeekSolves = s.Week.Solves,
             WeekTokens = s.Week.TokensEarned,
             WeekPlayedMs = s.Week.PlayedMs,
+            Initials = _settings.Initials,
         });
+        var mood = shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
+        var streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules);
+        _tray.Set(mood, mood == TrayMood.Debt
+            ? $"INSERT COIN — {shownDebt / 60_000} min owed ({s.IouTickets(_rules)} IOU)"
+            : $"INSERT COIN — {shownLeft / 60_000} min left · {s.Credits} credits" + (streak > 0 ? $" · combo x{streak}" : ""));
         _cabinet.SetScreenPower(s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f);
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
         if (s.Session is not null && shownLeft == 0)
@@ -199,11 +236,11 @@ public partial class Main : Node2D
 
     private string StatusLine()
     {
-        if (_state.Paused) return "PAUSED · AFK";
+        if (_state.Paused) return "PAUSED - AFK";
         if (_state.Session is { } session) return "GAME: " + string.Join(" + ", session.GameNames).ToUpperInvariant();
         if (_noSteam) return "NO STEAM";
-        if (string.IsNullOrWhiteSpace(_settings.Username)) return "NO PLAYER · SEE SETTINGS";
-        if (_linkDown) return "LINK DOWN · RETRYING";
+        if (string.IsNullOrWhiteSpace(_settings.Username)) return "NO PLAYER";
+        if (_linkDown) return "LINK DOWN - RETRYING";
         return (_settings.Username ?? "").ToUpperInvariant();
     }
 
@@ -213,6 +250,16 @@ public partial class Main : Node2D
     {
         _stateStore.Save(_state);
         _lastSave = DateTimeOffset.Now;
+    }
+
+    /// <summary>Small / Medium / Large = 60 / 80 / 100 % of the skin's canvas.</summary>
+    private void ApplySize()
+    {
+        var scale = _settings.Size switch { "S" => 0.6f, "L" => 1.0f, _ => 0.8f };
+        var size = (Vector2I)(_cabinet.Skin.Canvas * scale).Round();
+        var bottomRight = DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize();
+        DisplayServer.WindowSetSize(size);
+        DisplayServer.WindowSetPosition(bottomRight - size);      // grow/shrink from the feet, not the top-left
     }
 
     private void PlaceWindow()
@@ -226,10 +273,14 @@ public partial class Main : Node2D
     private void SaveWindowPosition()
     {
         var pos = DisplayServer.WindowGetPosition();
-        if (pos.X == _settings.WindowX && pos.Y == _settings.WindowY)
-            return;
-        _settings = _settings with { WindowX = pos.X, WindowY = pos.Y };
-        _settingsStore.Save(_settings);
+        if (pos.X != _settings.WindowX || pos.Y != _settings.WindowY)
+            SaveSettings(_settings with { WindowX = pos.X, WindowY = pos.Y });
+    }
+
+    private void SaveSettings(AppSettings settings)
+    {
+        _settings = settings;
+        _settingsStore.Save(settings);
     }
 
     public override void _Notification(int what)
@@ -248,6 +299,11 @@ public partial class Main : Node2D
     {
         if (e is InputEventJoypadButton || e is InputEventJoypadMotion { AxisValue: > 0.3f or < -0.3f })
             _lastJoypad = DateTimeOffset.Now;
+        if (e is InputEventKey { Pressed: true } typed && _onboarding.Active)
+        {
+            _onboarding.Key(typed);
+            return;
+        }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
         if (key.Keycode == Key.Escape)
@@ -269,8 +325,16 @@ public partial class Main : Node2D
 
     private void Dev(string action)
     {
+        if (action.StartsWith("type:"))
+        {
+            foreach (var c in action["type:".Length..])
+                _onboarding.Key(new InputEventKey { Pressed = true, Unicode = c });
+            return;
+        }
         switch (action)
         {
+            case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
+            case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
             case "easy": DevSolve(Difficulty.Easy); break;
             case "medium": DevSolve(Difficulty.Medium); break;
             case "hard": DevSolve(Difficulty.Hard); break;
