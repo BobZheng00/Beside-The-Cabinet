@@ -2,7 +2,8 @@
 
 Idea: an anime character sits on the stool beside the cabinet, reacts to what happens (coins, warnings, debt,
 streaks) and, with an LLM behind it, acts as a small time-management helper. Not in v1. This note records what
-is available and what it would cost.
+is available and what it would cost. Decisions for the LLM side:
+[../specs/2026-10-02-companion-helper.md](../specs/2026-10-02-companion-helper.md).
 
 Status of each claim: **read** = taken from the linked page; **untested** = not tried in this project when the
 note was written. The spike further down has since tested the VRM route.

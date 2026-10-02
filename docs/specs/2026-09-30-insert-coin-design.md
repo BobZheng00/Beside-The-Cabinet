@@ -184,6 +184,7 @@ Decisions from the spike:
 - More skins (see §5); skin picker.
 - A companion character on the stool, later with an LLM behind it as a time-management helper. Research and
   spike results: [../research/2026-10-02-companion-character.md](../research/2026-10-02-companion-character.md).
+  The character is built; decisions for the language-model helper: [2026-10-02-companion-helper.md](2026-10-02-companion-helper.md).
 - Mini-games playable on the CRT via a small `IMiniGame` interface; possibly cost a token to play.
 - Steam release: Steamworks.NET, achievements as event listeners (`JACKPOT` first Hard, `DEBT FREE`,
   `7-DAY COMBO`), final name + trademark check, review LeetCode terms (unofficial API).
