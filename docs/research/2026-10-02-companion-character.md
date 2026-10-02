@@ -168,6 +168,28 @@ A second CC0 VRoid sample (Sakurada Fumiriya, 16 MB zip, taller, longer legs) wa
 it worked without changes; the poses were then made to scale with hip height and leg length so that his feet
 reach the ring and his arms straighten in the cheer.
 
+## User-supplied models (tested 2026-10-02)
+
+Question: if users are later allowed to bring their own model, is a swap quick?
+
+- Characters from popular games and anime are not published under open licences. What exists is typically fan-use terms
+  (non-commercial, often in MMD format or behind a login). The closest thing found that is well known,
+  freely downloadable and permissively licensed is Alicia Solid, Niconico's 3D mascot: no credit needed,
+  modification allowed, commercial use by individuals but not by companies
+  ([terms](https://3d.nicovideo.jp/alicia/rule.html); the file is also in
+  [UniVRM's test models](https://github.com/vrm-c/UniVRM/tree/master/Tests/Models/Alicia_vrm-0.51)).
+  She is a useful test because she was not made with VRoid Studio: different material names, proportions and rig.
+- Test: `alicia.vrm` (7.9 MB) placed in the profile's `characters` folder, not in the repo. Result: loaded at run
+  time through godot-vrm's glTF extensions (`Companion/vrm_loader.gd`), no editor import, in the editor run and in
+  the exported standalone build. She sits, waves, cheers and smiles, and her long hair hangs from the physics; her colours
+  stay her own because her materials do not carry VRoid's names.
+- So a user upload needs: a folder, a file picker or drag-and-drop on top of it, and a licence reminder. Bundling
+  is a different matter: only CC0 or similarly open models should ship inside the app.
+
+Also fixed here: the canvas was exactly as wide as the cabinet art, so a waving hand was cut at the window edge.
+The skin generator now pads the canvas up and to the left (647x820 instead of 600x753) for the reach of a tall
+character. The "stretch" fidget was removed (it looked stiff) and replaced by a deep breath.
+
 ## Suggested spike (as planned before it was run)
 
 1. Add godot-vrm (about 11 MB repo) to a scratch copy of the game, import one CC0 VRoid sample (11–17 MB).

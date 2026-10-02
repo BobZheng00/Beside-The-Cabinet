@@ -39,7 +39,6 @@ internal sealed class Puppet
     private static readonly Hand RightRest = new(new(-0.055f, 0.148f, 0.125f), new(0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(-0.7f, -0.3f, -0.6f));
 
     private static readonly Hand FistAtChest = new(new(0.12f, 0.40f, 0.22f), new(0, 1, 0.2f), new(-1, 0, 0), new(0.5f, -1, -0.5f));
-    private static readonly Hand Overhead = new(new(0.10f, 0.87f, 0.03f), new(-0.3f, 1, 0), new(0, 0.3f, 1), new(1, 0, -0.2f));
 
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
@@ -63,12 +62,11 @@ internal sealed class Puppet
         ["tiltLeft"] = new(new Pose().Set("Neck", -3, 0, -3).Set("Head", -4, 0, -9)),
         ["tiltRight"] = new(new Pose().Set("Neck", -3, 0, 3).Set("Head", -4, 0, 9)),
         ["shift"] = new(new Pose().Set("Spine", 4, 0, 5).Set("Chest", 2, 0, -3).Set("Head", -4, 0, -3)),
-        ["stretch"] = new(new Pose().Set("Spine", -7, 0, 0).Set("Chest", -6, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -9, 0, 0)
-                .Both("Shoulder", 0, 0, 14).Both("LowerLeg", 86, 0, 0).Both("Foot", 8, 0, 0),
-            Overhead, Overhead.Mirrored, Curl: 0),
+        // a deep breath in: chest and shoulders up, let go again by the springs
+        ["sigh"] = new(new Pose().Set("Spine", 1, 0, 0).Set("Chest", -3, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -6, 0, 0).Both("Shoulder", 0, 0, 7)),
     };
 
-    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "tiltLeft", "tiltRight", "shift", "stretch"];
+    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "tiltLeft", "tiltRight", "shift", "sigh"];
     private static readonly string[] Sides = ["Left", "Right"];
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
@@ -92,7 +90,7 @@ internal sealed class Puppet
     private readonly List<(double At, Action Do)> _cues = [];
     private readonly RandomNumberGenerator _random = new();
 
-    private double _time, _busyUntil, _gazeUntil, _nextWander = 7, _nextFidget = 5, _nextSaccade, _lastStretch;
+    private double _time, _busyUntil, _gazeUntil, _nextWander = 7, _nextFidget = 5, _nextSaccade;
     private double _cheerAt = -100, _waveAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
     private string _kickSide = "Left";
     private Vector3 _gaze;
@@ -295,7 +293,7 @@ internal sealed class Puppet
                 Retarget(Viewer);
         }
 
-        var chest = _rig.Total("Chest", _goal);
+        var chest = _rig.Total(_rig.Has("Chest") ? "Chest" : "Spine", _goal);
         var direction = (chest.Inverse() * (_gaze - Head)).Normalized();
         var yaw = Mathf.Clamp(Mathf.Atan2(direction.X, direction.Z), -1.2f, 1.2f) * _awake;
         var pitch = Mathf.Clamp(Mathf.Asin(direction.Y), -0.2f, 0.45f) * _awake;     // a bowed head hides her face
@@ -471,14 +469,10 @@ internal sealed class Puppet
         }
         else if (pick < 0.88f)
             _humAt = _time;
-        else if (_time - _lastStretch > 50)
+        else
         {
-            _lastStretch = _time;
-            _busyUntil = _time + 3.4;
-            _on["stretch"] = 1;
-            _face.EyesClosed = true;
-            _face.Show("aa", 0.3f, 1.5);
-            After(2.0, () => { _on["stretch"] = 0; _face.EyesClosed = _on["doze"] > 0; });
+            _on["sigh"] = 1;
+            After(1.1, () => { _on["sigh"] = 0; _face.Blink(); });
         }
     }
 

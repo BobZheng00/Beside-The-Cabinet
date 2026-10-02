@@ -3,8 +3,9 @@ using Godot;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
-/// Swaps a VRM's MToon materials for the cabinet-style toon shader, keeping each one's texture, alpha mode and
-/// draw order. What a material is (skin, hair, cloth, face detail) is read from VRoid's material names.
+/// Swaps a character's materials for the cabinet-style toon shader, keeping each one's texture, alpha mode and
+/// draw order. Models made with VRoid Studio name their materials by what they are (skin, hair, tops, shoes…);
+/// those get their colours remapped onto the skin's palette. Anything else keeps its own colours.
 /// </summary>
 internal sealed class ToonMaterials
 {
@@ -12,7 +13,7 @@ internal sealed class ToonMaterials
     private static readonly Color Ink = new("1E1630");               // the art's outline colour
 
     private readonly Dictionary<string, Shader> _shaders = [];
-    private readonly Dictionary<Material, ShaderMaterial> _converted = [];
+    private readonly Dictionary<(Material, bool), ShaderMaterial> _converted = [];
 
     /// <summary>Every surface material made (outlines excluded), for per-frame parameters.</summary>
     public IReadOnlyCollection<ShaderMaterial> All => _converted.Values;
@@ -20,37 +21,61 @@ internal sealed class ToonMaterials
     public void Apply(Node3D character, Vector3 lightDirection, Vector3 glowPosition, float inkPixels)
     {
         foreach (var mesh in character.FindChildren("*", nameof(MeshInstance3D), true, false).Cast<MeshInstance3D>())
+        {
+            var face = mesh.GetBlendShapeCount() > 0;               // the mesh that carries expressions
             for (var s = 0; s < mesh.Mesh.GetSurfaceCount(); s++)
-                if (mesh.Mesh.SurfaceGetMaterial(s) is ShaderMaterial source)
-                    mesh.SetSurfaceOverrideMaterial(s, Convert(source, lightDirection, glowPosition, inkPixels));
+                if (Read(mesh.Mesh.SurfaceGetMaterial(s)) is { } source)
+                    mesh.SetSurfaceOverrideMaterial(s, Convert(source, face, lightDirection, glowPosition, inkPixels));
+        }
     }
 
-    private ShaderMaterial Convert(ShaderMaterial source, Vector3 lightDirection, Vector3 glowPosition, float inkPixels)
+    /// <summary>What we need to know about a material, whatever kind it is.</summary>
+    private sealed record Source(Material Material, Variant Texture, Variant Colour, Variant Cutoff,
+                                 bool Blend, bool Cutout, bool TwoSided, bool WritesDepth, bool Outlined);
+
+    private static Source? Read(Material? material)
     {
-        if (_converted.TryGetValue(source, out var done))
+        switch (material)
+        {
+            case ShaderMaterial mtoon when mtoon.Shader is not null:
+                // VRM's MToon: the variant is in the shader's file name
+                var variant = mtoon.Shader.ResourcePath.GetFile();
+                return new Source(mtoon, mtoon.GetShaderParameter("_MainTex"), mtoon.GetShaderParameter("_Color"), mtoon.GetShaderParameter("_Cutoff"),
+                                  variant.Contains("_trans"), variant.Contains("cutout"), variant.Contains("cull_off"), variant.Contains("zwrite"),
+                                  mtoon.NextPass is not null);
+            case BaseMaterial3D standard:
+                // unlit or PBR materials, in models that do not use MToon
+                var blend = standard.Transparency is BaseMaterial3D.TransparencyEnum.Alpha or BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass;
+                var cutout = standard.Transparency is BaseMaterial3D.TransparencyEnum.AlphaScissor or BaseMaterial3D.TransparencyEnum.AlphaHash;
+                return new Source(standard, standard.AlbedoTexture is { } texture ? (Variant)texture : new Variant(), standard.AlbedoColor, standard.AlphaScissorThreshold,
+                                  blend, cutout, standard.CullMode == BaseMaterial3D.CullModeEnum.Disabled,
+                                  standard.Transparency == BaseMaterial3D.TransparencyEnum.AlphaDepthPrePass, Outlined: !blend);
+            default:
+                return null;
+        }
+    }
+
+    private ShaderMaterial Convert(Source source, bool face, Vector3 lightDirection, Vector3 glowPosition, float inkPixels)
+    {
+        if (_converted.TryGetValue((source.Material, face), out var done))
             return done;
 
-        var variant = source.Shader.ResourcePath.GetFile();
-        var blend = variant.Contains("_trans");
-        var cutout = variant.Contains("cutout");
-        var twoSided = variant.Contains("cull_off");
-        var modes = "unshaded, " + (twoSided ? "cull_disabled" : "cull_back") + (variant.Contains("zwrite") ? ", depth_draw_always" : "");
-        var define = blend ? "BLEND" : cutout ? "CUTOUT" : "";
-
-        var material = new ShaderMaterial { Shader = Variant(modes, define), RenderPriority = source.RenderPriority };
-        var texture = source.GetShaderParameter("_MainTex");
-        material.SetShaderParameter("albedo_tex", texture);
-        material.SetShaderParameter("albedo", source.GetShaderParameter("_Color"));
-        material.SetShaderParameter("cutoff", source.GetShaderParameter("_Cutoff"));
+        var modes = "unshaded, " + (source.TwoSided ? "cull_disabled" : "cull_back") + (source.WritesDepth ? ", depth_draw_always" : "");
+        var define = source.Blend ? "BLEND" : source.Cutout ? "CUTOUT" : "";
+        var material = new ShaderMaterial { Shader = Variant(modes, define), RenderPriority = source.Material.RenderPriority };
+        material.SetShaderParameter("albedo_tex", source.Texture);
+        material.SetShaderParameter("albedo", source.Colour);
+        material.SetShaderParameter("cutoff", source.Cutoff);
         material.SetShaderParameter("light_dir", lightDirection);
         material.SetShaderParameter("glow_pos", glowPosition);
 
-        var name = source.ResourceName;
+        var name = source.Material.ResourceName;
         var kind = name.Contains("_SKIN") ? (name.Contains("Face") ? Kind.Face : Kind.Skin)
                  : name.Contains("_HAIR") ? Kind.Hair
                  : name.Contains("_CLOTH") ? Kind.Cloth
                  : name.Contains("_EYE") || name.Contains("_FACE") ? Kind.Detail
-                 : Kind.Unknown;        // not a VRoid name: shaded and inked like the rest, colours left as authored
+                 : face ? Kind.Face          // not a VRoid name: colours stay as authored; a face still reads best flat
+                 : Kind.Unknown;
         switch (kind)
         {
             case Kind.Skin:
@@ -83,16 +108,16 @@ internal sealed class ToonMaterials
                 break;
         }
 
-        if (source.NextPass is not null && kind != Kind.Detail)
+        if (source.Outlined && kind != Kind.Detail)
         {
-            var outline = new ShaderMaterial { Shader = Variant("unshaded, cull_front", cutout ? "OUTLINE\n#define CUTOUT" : "OUTLINE") };
-            outline.SetShaderParameter("albedo_tex", texture);
-            outline.SetShaderParameter("cutoff", source.GetShaderParameter("_Cutoff"));
+            var outline = new ShaderMaterial { Shader = Variant("unshaded, cull_front", source.Cutout ? "OUTLINE\n#define CUTOUT" : "OUTLINE") };
+            outline.SetShaderParameter("albedo_tex", source.Texture);
+            outline.SetShaderParameter("cutoff", source.Cutoff);
             outline.SetShaderParameter("ink", Ink);
             outline.SetShaderParameter("ink_px", inkPixels);
             material.NextPass = outline;
         }
-        _converted[source] = material;
+        _converted[(source.Material, face)] = material;
         return material;
     }
 

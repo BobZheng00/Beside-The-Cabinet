@@ -38,7 +38,8 @@ public partial class CompanionView : Node2D
     private Vector2? _devPointer;
     private bool _active = true;
 
-    public void Build(CabinetSkin skin, string characterId)
+    /// <param name="character">A character from <see cref="Available"/>.</param>
+    public void Build(CabinetSkin skin, Character character)
     {
         _skin = skin;
         var world = skin.World;
@@ -74,7 +75,7 @@ public partial class CompanionView : Node2D
         };
         viewport.AddChild(_camera);
 
-        _character = GD.Load<PackedScene>($"res://characters/{characterId}/{characterId}.vrm").Instantiate<Node3D>();
+        _character = character.Load() ?? throw new InvalidOperationException($"cannot load character '{character.Id}'");
         LetClothHang(_character);
         viewport.AddChild(_character);
 
@@ -94,9 +95,20 @@ public partial class CompanionView : Node2D
 
     public void Play(Moment moment) => _puppet.Play(moment);
 
-    /// <summary>Characters that can sit on the stool: every folder in res://characters holding a .vrm of the same name.</summary>
-    public static string[] Available() =>
-        [.. DirAccess.GetDirectoriesAt("res://characters").Where(id => ResourceLoader.Exists($"res://characters/{id}/{id}.vrm")).Order()];
+    /// <summary>
+    /// Characters that can sit on the stool: the ones built in (every folder in res://characters holding a .vrm of
+    /// the same name) and any .vrm file the user has put in their own characters folder.
+    /// </summary>
+    public static Character[] Available(string userFolder)
+    {
+        var builtIn = DirAccess.GetDirectoriesAt("res://characters")
+            .Where(id => ResourceLoader.Exists($"res://characters/{id}/{id}.vrm"))
+            .Select(id => new Character(id, $"res://characters/{id}/{id}.vrm", BuiltIn: true));
+        var own = Directory.Exists(userFolder)
+            ? Directory.GetFiles(userFolder, "*.vrm").Select(file => new Character(Path.GetFileNameWithoutExtension(file).ToLowerInvariant(), file, BuiltIn: false))
+            : [];
+        return [.. builtIn.Concat(own).DistinctBy(c => c.Id).OrderBy(c => c.Id)];
+    }
 
     /// <summary>Shows her and keeps her moving, or hides her and stops drawing the 3D scene.</summary>
     public void SetActive(bool active)
@@ -118,6 +130,8 @@ public partial class CompanionView : Node2D
             return;
         foreach (var spring in springs.Select(s => s.AsGodotObject()))
         {
+            if (spring.Get("gravity_scale").AsSingle() != 0)
+                continue;                               // the model's author already gave it weight
             var skirt = spring.Get("joint_nodes").AsStringArray().FirstOrDefault("").Contains("Skirt");
             spring.Set("gravity_scale", skirt ? 0.7f : 0.3f);
         }
@@ -181,4 +195,15 @@ public partial class CompanionView : Node2D
         var basis = _camera.Basis;
         return _camera.Position + basis.X * offset.X - basis.Y * offset.Y;
     }
+}
+
+/// <summary>A character that can sit on the stool: built into the app, or a .vrm file in the user's folder.</summary>
+public sealed record Character(string Id, string Path, bool BuiltIn)
+{
+    public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..] : Id;
+
+    /// <summary>Built-in characters were imported when the app was built; the user's own are read from disk now.</summary>
+    public Node3D? Load() => BuiltIn
+        ? GD.Load<PackedScene>(Path).Instantiate<Node3D>()
+        : GD.Load<GDScript>("res://Companion/vrm_loader.gd").Call("load_vrm", Path).As<Node3D>();
 }

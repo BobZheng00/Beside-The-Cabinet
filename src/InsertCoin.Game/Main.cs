@@ -34,6 +34,7 @@ public partial class Main : Node2D
     private IGameDetector _games = null!;
     private CabinetView _cabinet = null!;
     private CompanionView? _companion;
+    private string _charactersDir = "";
     private Director _director = null!;
     private DesktopWindow _window = null!;
     private TrayIcon _tray = null!;
@@ -60,6 +61,7 @@ public partial class Main : Node2D
 
         var args = OS.GetCmdlineUserArgs().Select(a => a.TrimStart('-').Split('=', 2)).ToDictionary(a => a[0], a => a.Length > 1 ? a[1] : "");
         var dataDir = args.TryGetValue("data", out var dir) && dir.Length > 0 ? dir : DefaultDataDir;
+        _charactersDir = Path.Combine(dataDir, "characters");
         _settingsStore = new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json"));
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
         _settings = _settingsStore.Load() ?? new AppSettings();
@@ -69,6 +71,7 @@ public partial class Main : Node2D
         _games = args.ContainsKey("no-steam") ? new NoGames() : new SteamDetector(new WindowsSteamRegistry(), _settings.IgnoredSteamAppIds);
 
         var skin = CabinetSkin.Load(_settings.Skin);
+        GetWindow().ContentScaleSize = (Vector2I)skin.Canvas;      // one canvas unit = one viewport unit, whatever the skin's size
         _cabinet = new CabinetView();
         AddChild(_cabinet);
         _cabinet.Build(skin);
@@ -100,10 +103,15 @@ public partial class Main : Node2D
         _tray = new TrayIcon();
         AddChild(_tray);
         _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
-                    CompanionView.Available(), _settings.Companion);
+                    [.. CompanionView.Available(_charactersDir).Select(c => (c.Id, c.Name))], _settings.Companion);
         _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
+        _tray.OpenCharacters += () =>
+        {
+            Directory.CreateDirectory(_charactersDir);          // .vrm files put here show up in the menu after a restart
+            OS.ShellOpen(_charactersDir);
+        };
         _tray.CharacterChanged += id =>
         {
             SaveSettings(_settings with { Companion = id });
@@ -307,13 +315,23 @@ public partial class Main : Node2D
     /// <summary>Seats the companion on the stool (built the first time she is wanted) or leaves it empty.</summary>
     private void ShowCompanion(bool show)
     {
-        if (show && _companion is null && CompanionView.Available() is { Length: > 0 } characters)
+        if (show && _companion is null && CompanionView.Available(_charactersDir) is { Length: > 0 } characters)
         {
-            var id = characters.Contains(_settings.Companion) ? _settings.Companion : characters[0];
+            var character = characters.FirstOrDefault(c => c.Id == _settings.Companion) ?? characters[0];
             _companion = new CompanionView();
             AddChild(_companion);
             MoveChild(_companion, _cabinet.GetIndex() + 1);       // drawn over the cabinet art, under everything else
-            _companion.Build(_cabinet.Skin, id);
+            try
+            {
+                _companion.Build(_cabinet.Skin, character);
+            }
+            catch (Exception e)
+            {
+                // a model file of the user's that will not load must not take the cabinet down with it
+                GD.PrintErr($"Companion '{character.Id}': {e.Message}");
+                _companion.QueueFree();
+                _companion = null;
+            }
         }
         _companion?.SetActive(show);
         Engine.MaxFps = show && _companion is not null ? 60 : 0;        // she moves all the time; no need to draw faster than this on fast monitors

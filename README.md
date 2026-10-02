@@ -93,14 +93,22 @@ when the character itself is moved or turned.
 
 ### Adding a character
 
-1. Put the model at `src/InsertCoin.Game/characters/<id>/<id>.vrm` (lower-case id), with a note of its source and
-   licence next to it.
-2. Re-import: `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
-3. Pick it in the tray menu ("Companion: <Id>"), or set `"Companion": "<id>"` in `settings.json`.
+- **As a user, no tools needed:** tray menu → "Add your own character…" opens `characters` in the profile folder
+  (`%APPDATA%\InsertCoin\characters`). Drop a `.vrm` file there, restart, pick it in the tray menu. The file is
+  read at run time by `Companion/vrm_loader.gd`, in the standalone build too.
+- **Built into the app:** put the model at `src/InsertCoin.Game/characters/<id>/<id>.vrm` (lower-case id) with a
+  note of its source and licence, then re-import:
+  `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
 
-Models made with VRoid Studio work as they are: the shader recognises VRoid's material names (skin, hair, tops,
-bottoms, shoes, accessory) and remaps their colours onto the palette. Other VRM models are posed, shaded and inked
-the same way but keep their own colours.
+Either way `"Companion": "<id>"` in `settings.json` selects it (the id is the file name).
+
+Models made with VRoid Studio get the cabinet's palette: the shader recognises VRoid's material names (skin, hair,
+tops, bottoms, shoes, accessory) and remaps their colours. Other VRM models are posed, shaded and inked the same
+way but keep their own colours; materials that are not MToon are converted too. Poses are fitted to each model's
+hip height and leg length.
+
+The skin's canvas is wider and taller than the cabinet art (see `layout()` in `tools/art/cozy_cabinet.py`) so that
+a raised arm stays inside the window.
 
 ## Assets
 
