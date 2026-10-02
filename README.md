@@ -101,18 +101,29 @@ when the character itself is moved or turned.
 ### Adding a character
 
 - **As a user, no tools needed:** tray menu → "Add your own character…" opens `characters` in the profile folder
-  (`%APPDATA%\InsertCoin\characters`). Drop a `.vrm` file there, restart, pick it in the tray menu. The file is
-  read at run time by `Companion/vrm_loader.gd`, in the standalone build too.
+  (`%APPDATA%\InsertCoin\characters`). Drop a `.vrm` or `.glb` file there (or a folder holding a `.gltf` with
+  its `.bin` and textures, which is how Sketchfab's glTF downloads unpack), restart, pick it in the tray menu.
+  Files are read at run time, in the standalone build too.
 - **Built into the app:** put the model at `src/InsertCoin.Game/characters/<id>/<id>.vrm` (lower-case id) with a
   note of its source and licence, then re-import:
   `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
 
 Either way `"Companion": "<id>"` in `settings.json` selects it (the id is the file name).
 
-Models made with VRoid Studio get the cabinet's palette: the shader recognises VRoid's material names (skin, hair,
-tops, bottoms, shoes, accessory) and remaps their colours. Other VRM models are posed, shaded and inked the same
-way but keep their own colours; materials that are not MToon are converted too. Poses are fitted to each model's
-hip height and leg length.
+What each kind of file gets:
+
+| | VRM made with VRoid Studio | other VRM | GLB / glTF with a humanoid skeleton |
+|---|---|---|---|
+| sits, gestures, follows the pointer | yes | yes | yes |
+| ink and two-tone shading | yes | yes | yes |
+| cabinet palette | yes (by VRoid's material names) | own colours | own colours |
+| expressions and blinking | yes | yes | only if its blend shapes have recognisable names |
+| hair and cloth physics | yes | yes | no (the format has none) |
+
+A plain GLB does not say which bone is which, so `HumanoidMap` works it out from the usual naming habits (Mixamo,
+Unreal, Blender, Biped, Daz) and the skeleton's shape; `Rig` then copes with any units, facing and rest pose (T or
+A). A model without a skeleton (a sculpt, most OBJ-derived files) cannot be posed: the stool stays empty and the
+CRT says why. OBJ and USDZ are not read at all; they carry no skeleton.
 
 The skin's canvas is wider and taller than the cabinet art (see `layout()` in `tools/art/cozy_cabinet.py`) so that
 a raised arm stays inside the window.

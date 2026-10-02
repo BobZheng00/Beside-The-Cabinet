@@ -71,9 +71,8 @@ internal sealed class Puppet
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
 
-    // Hand placements and the hip position below are written for a figure whose hips stand this high (metres);
-    // they are scaled to the character at hand.
-    private const float ReferenceHips = 0.935f;
+    // Hand placements and the hip position below are written for one figure and scaled to the character at hand
+    // (see Rig.Size).
     private const float HipHeight = 0.085f, HipBack = -0.035f;     // hips above / behind the seat centre
     private const float ThighSlope = 5;                            // degrees below level
     private const float RestCurl = 11;
@@ -111,7 +110,7 @@ internal sealed class Puppet
     {
         _rig = rig;
         _face = face;
-        _size = rig.RestJoint("Hips").Y / ReferenceHips;
+        _size = rig.Size;
 
         // Bend the knees so the toes reach the foot ring, whatever the length of her legs.
         var thigh = rig.RestOffset("LeftUpperLeg", "LeftLowerLeg").Length();
@@ -531,7 +530,7 @@ internal sealed class Puppet
         var x = side == "Left" ? fingers : -fingers;                 // at rest the left hand's fingers point along +x
         var handTotal = new Basis(x, -palm, x.Cross(-palm)).GetRotationQuaternion();
 
-        return (_rig.Total(side + "Shoulder", _frame).Inverse() * upperTotal, upperTotal.Inverse() * lowerTotal, lowerTotal.Inverse() * handTotal);
+        return (_rig.ParentTotal(upper, _frame).Inverse() * upperTotal, upperTotal.Inverse() * lowerTotal, lowerTotal.Inverse() * handTotal);
     }
 
     /// <summary>

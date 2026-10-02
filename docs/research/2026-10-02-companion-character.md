@@ -207,6 +207,23 @@ Speech: a paper bubble over her head in the art's ink, text typed out. Lines are
 ledger's numbers (`App/Lines.cs`): one per event, the most pressing wins when several happen at once, and a
 status line when she is clicked. An LLM would replace that one function.
 
+## GLB / glTF models (2026-10-02)
+
+Sketchfab offers OBJ, USDZ, glTF and GLB, not VRM. VRM is glTF plus labels (which bone is which, expressions,
+spring bones, toon materials), so a rigged GLB can be used if the app supplies the labels itself. OBJ and USDZ
+carry no skeleton and are out.
+
+Added: `HumanoidMap` guesses the humanoid bones from names and structure; `Rig` takes the skeleton's transform
+into account (units, facing) and straightens A-pose limbs so one set of poses fits; plain PBR materials are
+converted to the toon shader; blend shapes named blink/smile/etc. become expressions.
+
+Tested with three Mixamo-rigged samples from the three.js repository (not bundled): Michelle, Soldier (stored
+facing the other way) and Xbot, all in centimetres under a rotated armature. All three sit, wave and cheer, in the
+editor run and in the exported build. An unrigged model (Khronos' Duck) is refused with a message on the CRT.
+
+Not tested: a GLB actually downloaded from Sketchfab (login needed), rigs with non-English bone names, A-pose
+rigs (the straightening code is there but all three samples rest in a T-pose).
+
 ## Suggested spike (as planned before it was run)
 
 1. Add godot-vrm (about 11 MB repo) to a scratch copy of the game, import one CC0 VRoid sample (11–17 MB).

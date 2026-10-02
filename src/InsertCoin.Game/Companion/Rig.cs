@@ -23,22 +23,92 @@ internal sealed class Pose : Dictionary<string, Vector3>
     }
 }
 
-/// <summary>Writes rotations given in the character's axes onto a skeleton whose bones have arbitrary rest axes.</summary>
+/// <summary>
+/// Poses a skeleton in the character's own terms. Whatever the file's units, facing, bone names, bone axes or rest
+/// pose (T or A), callers see a figure in metres that faces +z, with its arms straight out to the sides and its
+/// legs straight down at rest, and give each bone's rotation from that rest, in the character's axes, relative to
+/// its parent.
+/// </summary>
 internal sealed class Rig
 {
+    private const float ReferenceLeg = 0.79f;             // hip joint to ankle of the figure the poses were written for, metres
+
     private readonly Skeleton3D _skeleton;
     private readonly Dictionary<string, int> _index = [];
     private readonly Dictionary<int, Vector3> _shift = [];
-    private readonly Quaternion[] _rest;                  // global rest rotation of each bone
+    private readonly string[] _name;                      // each bone's humanoid name where it has one, else its own
+    private readonly Transform3D _toCharacter;            // skeleton space to character space
+    private readonly Quaternion _turn;                    // the rotation in that
+    private readonly Quaternion[] _raw;                   // global rest rotation of each bone, as the file has it
+    private readonly Quaternion[] _rest;                  // the same in character space, limbs straightened
+    private readonly Vector3[] _joint;                    // rest joint positions in character space, limbs straightened
 
-    public Rig(Skeleton3D skeleton)
+    /// <param name="humanoid">Humanoid bone names to bone indices, for a skeleton that does not use those names itself.</param>
+    /// <param name="toCharacter">Takes the skeleton's space to character space (metres, facing +z).</param>
+    public Rig(Skeleton3D skeleton, IReadOnlyDictionary<string, int>? humanoid, Transform3D toCharacter)
     {
         _skeleton = skeleton;
-        _rest = new Quaternion[skeleton.GetBoneCount()];
-        for (var i = 0; i < _rest.Length; i++)
+        _toCharacter = toCharacter;
+        _turn = toCharacter.Basis.GetRotationQuaternion();
+        var count = skeleton.GetBoneCount();
+        _name = [.. Enumerable.Range(0, count).Select(skeleton.GetBoneName)];
+        foreach (var (name, bone) in humanoid ?? new Dictionary<string, int>())
+            _name[bone] = name;
+        _raw = new Quaternion[count];
+        _rest = new Quaternion[count];
+        _joint = new Vector3[count];
+        for (var i = 0; i < count; i++)
         {
-            _index[skeleton.GetBoneName(i)] = i;
-            _rest[i] = skeleton.GetBoneGlobalRest(i).Basis.GetRotationQuaternion();
+            _index[_name[i]] = i;
+            _raw[i] = skeleton.GetBoneGlobalRest(i).Basis.GetRotationQuaternion();
+        }
+        Straighten();
+    }
+
+    /// <summary>
+    /// Works out the rest pose the poses are written against: arms along x, legs along -y. A model resting in an
+    /// A-pose has its limbs turned there; everything hanging off them (fingers, twist bones) turns with them.
+    /// </summary>
+    private void Straighten()
+    {
+        var count = _raw.Length;
+        var aims = new Dictionary<int, (int Child, Vector3 Direction)>();
+        void Aim(string bone, string child, Vector3 direction)
+        {
+            if (_index.TryGetValue(bone, out var b) && _index.TryGetValue(child, out var c))
+                aims[b] = (c, direction);
+        }
+        foreach (var (side, outwards) in new[] { ("Left", Vector3.Right), ("Right", Vector3.Left) })
+        {
+            Aim(side + "UpperArm", side + "LowerArm", outwards);
+            Aim(side + "LowerArm", side + "Hand", outwards);
+            Aim(side + "Hand", side + "MiddleProximal", outwards);
+            Aim(side + "UpperLeg", side + "LowerLeg", Vector3.Down);
+            Aim(side + "LowerLeg", side + "Foot", Vector3.Down);
+        }
+
+        var at = new Vector3[count];
+        var depth = new int[count];
+        for (var i = 0; i < count; i++)
+        {
+            at[i] = _toCharacter * _skeleton.GetBoneGlobalRest(i).Origin;
+            for (var b = _skeleton.GetBoneParent(i); b >= 0; b = _skeleton.GetBoneParent(b))
+                depth[i]++;
+        }
+        var turned = new Quaternion[count];                 // how far each bone is turned from the file's rest pose
+        foreach (var i in Enumerable.Range(0, count).OrderBy(i => depth[i]))        // parents before children
+        {
+            var parent = _skeleton.GetBoneParent(i);
+            var inherited = parent >= 0 ? turned[parent] : Quaternion.Identity;
+            _joint[i] = parent >= 0 ? _joint[parent] + inherited * (at[i] - at[parent]) : at[i];
+            turned[i] = inherited;
+            if (aims.TryGetValue(i, out var aim))
+            {
+                var now = inherited * (at[aim.Child] - at[i]);
+                if (now.Length() > 1e-5f && now.Normalized().Dot(aim.Direction) > -0.99f)
+                    turned[i] = (new Quaternion(now.Normalized(), aim.Direction) * inherited).Normalized();
+            }
+            _rest[i] = (turned[i] * _turn * _raw[i]).Normalized();
         }
     }
 
@@ -47,23 +117,26 @@ internal sealed class Rig
 
     public bool Has(string bone) => _index.ContainsKey(bone);
 
+    /// <summary>How big the figure is next to the one the poses were written for (by leg length).</summary>
+    public float Size => (RestOffset("LeftUpperLeg", "LeftLowerLeg").Length() + RestOffset("LeftLowerLeg", "LeftFoot").Length()) / ReferenceLeg;
+
     /// <summary>Rotates a bone away from its rest direction, relative to its parent.</summary>
     public void Rotate(string bone, Quaternion rotation)
     {
         if (!_index.TryGetValue(bone, out var i))
             return;
         var parent = _skeleton.GetBoneParent(i);
-        var parentRest = parent >= 0 ? _rest[parent] : Quaternion.Identity;
+        var parentRest = parent >= 0 ? _rest[parent] : _turn;
         _skeleton.SetBonePoseRotation(i, (parentRest.Inverse() * rotation * _rest[i]).Normalized());
     }
 
-    /// <summary>Puts the hips at a point in the skeleton's space.</summary>
+    /// <summary>Puts the hips at a point in character space.</summary>
     public void PlaceHips(Vector3 position)
     {
         var hips = _index["Hips"];
         var parent = _skeleton.GetBoneParent(hips);
         var frame = parent >= 0 ? _skeleton.GetBoneGlobalRest(parent) : Transform3D.Identity;
-        _skeleton.SetBonePosePosition(hips, frame.AffineInverse() * position);
+        _skeleton.SetBonePosePosition(hips, frame.AffineInverse() * (_toCharacter.AffineInverse() * position));
     }
 
     /// <summary>Moves a bone's joint away from its rest place (offset in the character's axes), as a chest rising.</summary>
@@ -73,8 +146,8 @@ internal sealed class Rig
             return;
         _shift[i] = offset;
         var parent = _skeleton.GetBoneParent(i);
-        var parentRest = parent >= 0 ? _rest[parent] : Quaternion.Identity;
-        _skeleton.SetBonePosePosition(i, _skeleton.GetBoneRest(i).Origin + parentRest.Inverse() * offset);
+        var parentRest = parent >= 0 ? _raw[parent] : Quaternion.Identity;
+        _skeleton.SetBonePosePosition(i, _skeleton.GetBoneRest(i).Origin + parentRest.Inverse() * (_toCharacter.Basis.Inverse() * offset));
     }
 
     /// <summary>A bone's total rotation from rest, given each bone's rotation relative to its parent.</summary>
@@ -88,7 +161,7 @@ internal sealed class Rig
     {
         var total = Quaternion.Identity;
         for (var i = bone; i >= 0; i = _skeleton.GetBoneParent(i))
-            if (frame.TryGetValue(_skeleton.GetBoneName(i), out var rotation))
+            if (frame.TryGetValue(_name[i], out var rotation))
                 total = rotation * total;
         return total.Normalized();
     }
@@ -104,21 +177,19 @@ internal sealed class Rig
         for (var k = chain.Count - 1; k >= 0; k--)
         {
             var parent = _skeleton.GetBoneParent(chain[k]);
-            position += Total(parent, frame) * (RestPosition(chain[k]) - RestPosition(parent) + _shift.GetValueOrDefault(chain[k]));
+            position += Total(parent, frame) * (_joint[chain[k]] - _joint[parent] + _shift.GetValueOrDefault(chain[k]));
         }
         return position;
     }
 
-    /// <summary>Where a bone's joint is in the rest pose, in the skeleton's space.</summary>
-    public Vector3 RestJoint(string bone) => RestPosition(_index[bone]);
+    /// <summary>Where a bone's joint is in the rest pose, in character space.</summary>
+    public Vector3 RestJoint(string bone) => _joint[_index[bone]];
 
     /// <summary>Rest-pose vector from a bone's joint to another's, in the character's axes.</summary>
-    public Vector3 RestOffset(string from, string to) => RestPosition(_index[to]) - RestPosition(_index[from]);
+    public Vector3 RestOffset(string from, string to) => _joint[_index[to]] - _joint[_index[from]];
 
-    private Vector3 RestPosition(int bone) => _skeleton.GetBoneGlobalRest(bone).Origin;
-
-    /// <summary>Where a bone currently is, in the skeleton's space.</summary>
-    public Vector3 PositionOf(string bone) => _skeleton.GetBoneGlobalPose(_index[bone]).Origin;
+    /// <summary>Where a bone currently is, in character space.</summary>
+    public Vector3 PositionOf(string bone) => _toCharacter * _skeleton.GetBoneGlobalPose(_index[bone]).Origin;
 }
 
 /// <summary>

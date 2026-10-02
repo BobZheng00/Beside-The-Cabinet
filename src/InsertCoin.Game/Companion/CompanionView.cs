@@ -25,6 +25,8 @@ public partial class CompanionView : Node2D
         ("RightUpperLeg", "RightLowerLeg", 0.09f), ("RightLowerLeg", "RightFoot", 0.06f), ("RightFoot", "RightToes", 0.06f),
     ];
 
+    private static readonly string[] Formats = ["*.vrm", "*.glb", "*.gltf"];
+
     private CabinetSkin _skin = null!;
     private Rig _rig = null!;
     private Node3D _character = null!;
@@ -83,8 +85,12 @@ public partial class CompanionView : Node2D
         var screen = toHer * world.ToMetres(world.Screen);
         _materials = new ToonMaterials();
         _materials.Apply(_character, toHer.Basis * LightDirection, screen, InnerInkCanvasPixels * skin.Scale);
-        var skeleton = _character.FindChildren("*", nameof(Skeleton3D), true, false).OfType<Skeleton3D>().First();
-        _rig = new Rig(skeleton);
+        var skeleton = _character.FindChildren("*", nameof(Skeleton3D), true, false).OfType<Skeleton3D>().FirstOrDefault()
+                       ?? throw new InvalidOperationException("the model has no skeleton, so it cannot be posed");
+        var humanoid = HumanoidMap.Guess(skeleton);
+        if (humanoid is not null && HumanoidMap.Required.FirstOrDefault(bone => !humanoid.ContainsKey(bone)) is { } missing)
+            throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
+        _rig = new Rig(skeleton, humanoid, Fit(_character, skeleton, humanoid));
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen };
 
@@ -103,10 +109,9 @@ public partial class CompanionView : Node2D
     {
         if (!_active)
             return;
-        var neck = _rig.PositionOf("Neck");
+        var neck = _rig.PositionOf(_rig.Has("Neck") ? "Neck" : "Spine");
         var head = _rig.PositionOf("Head");
-        var size = _rig.RestJoint("Hips").Y / 0.935f;
-        var crown = head + (head - neck).Normalized() * (0.24f * size);          // top of her hair, roughly
+        var crown = head + (head - neck).Normalized() * (0.24f * _rig.Size);     // top of her hair, roughly
         _bubble.Say(line, _camera.UnprojectPosition(crown) / _skin.Scale - new Vector2(0, 4), _skin.Canvas);
     }
 
@@ -119,8 +124,13 @@ public partial class CompanionView : Node2D
         var builtIn = DirAccess.GetDirectoriesAt("res://characters")
             .Where(id => ResourceLoader.Exists($"res://characters/{id}/{id}.vrm"))
             .Select(id => new Character(id, $"res://characters/{id}/{id}.vrm", BuiltIn: true));
+        // The user's own: a model file in the folder, or a folder holding one (how Sketchfab's glTF downloads unpack).
+        string? ModelIn(string folder) => Formats.SelectMany(format => Directory.GetFiles(folder, format)).FirstOrDefault();
         var own = Directory.Exists(userFolder)
-            ? Directory.GetFiles(userFolder, "*.vrm").Select(file => new Character(Path.GetFileNameWithoutExtension(file).ToLowerInvariant(), file, BuiltIn: false))
+            ? Formats.SelectMany(format => Directory.GetFiles(userFolder, format))
+                .Select(file => new Character(Path.GetFileNameWithoutExtension(file).ToLowerInvariant(), file, BuiltIn: false))
+                .Concat(Directory.GetDirectories(userFolder).Where(folder => ModelIn(folder) is not null)
+                    .Select(folder => new Character(Path.GetFileName(folder).ToLowerInvariant(), ModelIn(folder)!, BuiltIn: false)))
             : [];
         return [.. builtIn.Concat(own).DistinctBy(c => c.Id).OrderBy(c => c.Id)];
     }
@@ -134,6 +144,28 @@ public partial class CompanionView : Node2D
 
     /// <summary>Dev: follow a pretend pointer at this canvas point from now on.</summary>
     public void DevPointer(Vector2 canvasPoint) => _devPointer = canvasPoint;
+
+    /// <summary>
+    /// Sizes and turns a model that is not a VRM so that it is in metres and faces +z, and returns what takes its
+    /// skeleton's space to character space. (A VRM is in metres and faces +z by the format's rules.)
+    /// </summary>
+    private static Transform3D Fit(Node3D root, Skeleton3D skeleton, IReadOnlyDictionary<string, int>? humanoid)
+    {
+        var inRoot = Transform3D.Identity;
+        for (Node node = skeleton; node != root && node is not null; node = node.GetParent())
+            if (node is Node3D spatial)
+                inRoot = spatial.Transform * inRoot;
+        if (humanoid is null)
+            return inRoot;
+
+        Vector3 At(string bone) => inRoot * skeleton.GetBoneGlobalRest(humanoid[bone]).Origin;
+        var leg = At("LeftUpperLeg").DistanceTo(At("LeftLowerLeg")) + At("LeftLowerLeg").DistanceTo(At("LeftFoot"));
+        var scale = leg is > 0.3f and < 1.3f ? 1 : 0.8f / leg;          // centimetres, inches or a giant: make it person-sized
+        var forward = (At("LeftUpperArm") - At("RightUpperArm")).Cross(Vector3.Up);
+        var yaw = Mathf.Atan2(forward.X, forward.Z);
+        root.Transform = new Transform3D(new Basis(Vector3.Up, -yaw).Scaled(Vector3.One * scale), Vector3.Zero);
+        return root.Transform * inRoot;
+    }
 
     /// <summary>
     /// VRoid exports hair and skirts with no gravity, only stiffness: fine standing still, but seated the skirt
@@ -160,13 +192,15 @@ public partial class CompanionView : Node2D
         Vector2 Canvas(Vector3 point) => _camera.UnprojectPosition(point) / _skin.Scale;
         var hips = _rig.PositionOf("Hips");
         var perMetre = (Canvas(hips + _camera.Basis.X) - Canvas(hips)).Length();
-        var neck = _rig.PositionOf("Neck");
+        var neck = _rig.PositionOf(_rig.Has("Neck") ? "Neck" : "Spine");
         var head = _rig.PositionOf("Head");
         var crown = head + (head - neck).Normalized() * 0.10f;
         if (canvasPoint.DistanceTo(Canvas(crown)) < 0.15f * perMetre)
             return true;
         foreach (var (from, to, radius) in Body)
         {
+            if (!_rig.Has(from) || !_rig.Has(to))
+                continue;
             var closest = Geometry2D.GetClosestPointToSegment(canvasPoint, Canvas(_rig.PositionOf(from)), Canvas(_rig.PositionOf(to)));
             if (canvasPoint.DistanceTo(closest) < radius * perMetre)
                 return true;
@@ -218,7 +252,15 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
     public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..] : Id;
 
     /// <summary>Built-in characters were imported when the app was built; the user's own are read from disk now.</summary>
-    public Node3D? Load() => BuiltIn
-        ? GD.Load<PackedScene>(Path).Instantiate<Node3D>()
-        : GD.Load<GDScript>("res://Companion/vrm_loader.gd").Call("load_vrm", Path).As<Node3D>();
+    public Node3D? Load()
+    {
+        if (BuiltIn)
+            return GD.Load<PackedScene>(Path).Instantiate<Node3D>();
+        if (Path.EndsWith(".vrm", StringComparison.OrdinalIgnoreCase))
+            return GD.Load<GDScript>("res://Companion/vrm_loader.gd").Call("load_vrm", Path).As<Node3D>();
+        // plain glTF / GLB: no VRM labels, the bones are worked out from their names (HumanoidMap)
+        var document = new GltfDocument();
+        var state = new GltfState();
+        return document.AppendFromFile(Path, state) == Error.Ok ? document.GenerateScene(state) as Node3D : null;
+    }
 }

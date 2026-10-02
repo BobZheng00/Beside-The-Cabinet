@@ -344,6 +344,7 @@ public partial class Main : Node2D
             {
                 // a model file of the user's that will not load must not take the cabinet down with it
                 GD.PrintErr($"Companion '{character.Id}': {e.Message}");
+                _cabinet.Screen.Flash("NO GO", $"{character.Name}: {e.Message}".ToUpperInvariant(), 6.0);
                 _companion.QueueFree();
                 _companion = null;
             }

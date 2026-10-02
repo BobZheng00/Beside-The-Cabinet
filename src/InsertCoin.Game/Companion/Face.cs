@@ -21,7 +21,36 @@ internal sealed class Face
     /// <summary>Eyes held shut (dozing, a long stretch).</summary>
     public bool EyesClosed { get; set; }
 
+    // What blend shapes tend to be called in models that are not VRM (ARKit, VRChat, hand-named).
+    private static readonly (string Expression, string[] Words)[] ShapeWords =
+    [
+        ("blink", ["blink", "eyesclosed", "eyeclose", "eyesclose"]),
+        ("happy", ["smile", "happy", "joy"]),
+        ("sad", ["sad", "sorrow"]),
+        ("surprised", ["surprise"]),
+        ("aa", ["jawopen", "mouthopen", "vrc.v_aa"]),
+    ];
+
     public Face(Node3D character)
+    {
+        ReadVrmExpressions(character);
+        if (_expressions.Count == 0)
+            GuessExpressions(character);
+    }
+
+    private void GuessExpressions(Node3D character)
+    {
+        foreach (var mesh in character.FindChildren("*", nameof(MeshInstance3D), true, false).OfType<MeshInstance3D>())
+            for (var shape = 0; shape < mesh.GetBlendShapeCount(); shape++)
+            {
+                var name = (mesh.Mesh as ArrayMesh)?.GetBlendShapeName(shape).ToString().ToLowerInvariant() ?? "";
+                foreach (var (expression, words) in ShapeWords)
+                    if (words.Any(name.Contains))
+                        _expressions[expression] = [.. _expressions.GetValueOrDefault(expression, []), (mesh, shape, 1f)];
+            }
+    }
+
+    private void ReadVrmExpressions(Node3D character)
     {
         var player = character.FindChildren("*", nameof(AnimationPlayer), true, false).OfType<AnimationPlayer>().FirstOrDefault();
         if (player is null)
