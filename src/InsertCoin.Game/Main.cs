@@ -75,7 +75,7 @@ public partial class Main : Node2D
         _audio.Build(_settings.Muted);
         _ticket = new AlertTicket();
         AddChild(_ticket);
-        _director = new Director(_cabinet, _audio, _ticket, () => _settings.InGameTickets);
+        _director = new Director(_cabinet, _audio, _ticket, _rules, () => _settings.InGameTickets);
 
         _window = new DesktopWindow();
         AddChild(_window);
@@ -120,6 +120,16 @@ public partial class Main : Node2D
         AddTimer(5.0, () => { if (DateTimeOffset.Now >= _nextPoll) Poll(); });
         Tick();
         Poll();
+        if (args.ContainsKey("diag"))
+            AddTimer(2.0, () =>
+            {
+                var screen = DisplayServer.WindowGetCurrentScreen();
+                GD.Print($"diag screen={screen} scale={DisplayServer.ScreenGetScale(screen)} dpi={DisplayServer.ScreenGetDpi(screen)} " +
+                         $"screenSize={DisplayServer.ScreenGetSize(screen)} screenPos={DisplayServer.ScreenGetPosition(screen)} " +
+                         $"winPos={DisplayServer.WindowGetPosition()} winSize={DisplayServer.WindowGetSize()} " +
+                         $"viewport={GetViewport().GetVisibleRect().Size} contentScale={GetWindow().ContentScaleFactor} " +
+                         $"stretch={GetViewport().GetStretchTransform().Scale}");
+            });
         if (args.TryGetValue("script", out var script))
             foreach (var step in script.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('@')))
                 GetTree().CreateTimer(double.Parse(step[1], System.Globalization.CultureInfo.InvariantCulture)).Timeout += () => Dev(step[0]);

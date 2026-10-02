@@ -16,6 +16,7 @@ public partial class CabinetView : Node2D
     public MarqueeLights Lights { get; private set; } = null!;
     public CoinTray Tray { get; private set; } = null!;
     public Printer Printer { get; private set; } = null!;
+    public Receipt Receipt { get; private set; } = null!;
 
     private Sprite2D _checkCap = null!, _screenGlow = null!, _slotGlow = null!, _marqueeGlow = null!;
     private Tween? _checkTween;
@@ -44,6 +45,9 @@ public partial class CabinetView : Node2D
         Printer = new Printer();
         AddChild(Printer);
         Printer.Build(skin);
+        Receipt = new Receipt();
+        AddChild(Receipt);
+        Receipt.Build(skin);
 
         _screenGlow.Modulate = new Color(1, 1, 1, 0.8f);
         _slotGlow.Modulate = new Color(1, 1, 1, 0.55f);

@@ -47,6 +47,8 @@ public sealed class CabinetSkin
                 TrayChute = V(file.Anchors.Tray.Chute),
                 PrinterSlot = [.. file.Anchors.Printer.Slot.Select(V)],
                 TicketOrigin = V(file.Anchors.Printer.Ticket),
+                ReceiptQuad = [.. file.Anchors.Printer.Receipt.Select(V)],
+                ReceiptSize = V(file.Anchors.Printer.ReceiptSize),
                 Marquee = [.. file.Anchors.Marquee.Select(V)],
             },
         };
@@ -64,7 +66,7 @@ public sealed class CabinetSkin
     private sealed record BulbFile(float X, float Y, float R);
     private sealed record ButtonFile(float[][] Polygon, float[] Press);
     private sealed record TrayFile(float[][] Opening, float[][] Spots, float[] Stack, float[] Chute);
-    private sealed record PrinterFile(float[][] Slot, [property: JsonPropertyName("ticket")] float[] Ticket);
+    private sealed record PrinterFile(float[][] Slot, [property: JsonPropertyName("ticket")] float[] Ticket, float[][] Receipt, float[] ReceiptSize);
 }
 
 /// <summary>A sprite texture and the canvas-unit point inside it that lands on its anchor.</summary>
@@ -84,5 +86,7 @@ public sealed class SkinAnchors
     public required Vector2 TrayChute { get; init; }
     public required Vector2[] PrinterSlot { get; init; }
     public required Vector2 TicketOrigin { get; init; }
+    public required Vector2[] ReceiptQuad { get; init; }          // TL, TR, BR, BL of the paper hanging from the slot
+    public required Vector2 ReceiptSize { get; init; }
     public required Vector2[] Marquee { get; init; }
 }

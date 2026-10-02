@@ -8,7 +8,7 @@ namespace InsertCoin.Game.App;
 /// Turns ledger events into moments: cabinet animation, sound, and — for things that happen mid-game — the corner
 /// ticket. The only place that knows both the rules and the presentation.
 /// </summary>
-public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket ticket, Func<bool> inGameTickets)
+public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket ticket, Rules rules, Func<bool> inGameTickets)
 {
     public void Play(LedgerEvent e)
     {
@@ -68,6 +68,8 @@ public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket t
                 break;
             case SessionEnded end:
                 audio.Play("game_over");
+                audio.Play("printer", delay: 0.9);
+                cabinet.GetTree().CreateTimer(0.9).Timeout += () => cabinet.Receipt.Print(end.Receipt, rules);
                 cabinet.Screen.Flash("GAME OVER", $"PLAYED {Minutes(end.Receipt.PlayedMs)}\nIOU {end.Receipt.IousPrinted}", 4.0);
                 break;
             case WeeklyReset w:

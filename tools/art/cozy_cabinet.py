@@ -640,7 +640,9 @@ def export_skin(art_dir, skin_dir):
             "tray": {"opening": pts2(on(body, [(ta, tb), (ta + tw, tb), (ta + tw, tb + th), (ta, tb + th)])),
                      "spots": [pt(tray_floor.p(a, b)) for a, b in spots], "stack": pt(stack),
                      "chute": pt(CAM(add(tray_floor.at(60, 4), (0, th - 6, 0))))},
-            "printer": {"slot": pts2(on(body, [(176, 160), (228, 160), (228, 169), (176, 169)])), "ticket": pt(top_mid)},
+            "printer": {"slot": pts2(on(body, [(176, 160), (228, 160), (228, 169), (176, 169)])), "ticket": pt(top_mid),
+                        # paper path for the session receipt: a strip hanging from the slot (TL, TR, BR, BL) and its size
+                        "receipt": pts2(on(body, [(179, 166), (225, 166), (225, 268), (179, 268)])), "receiptSize": [46, 102]},
             "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
         },
     }
