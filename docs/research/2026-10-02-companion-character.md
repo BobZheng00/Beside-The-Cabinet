@@ -190,6 +190,23 @@ Also fixed here: the canvas was exactly as wide as the cabinet art, so a waving 
 The skin generator now pads the canvas up and to the left (647x820 instead of 600x753) for the reach of a tall
 character. The "stretch" fidget was removed (it looked stiff) and replaced by a deep breath.
 
+## Energy and speech (2026-10-02)
+
+CPU time of the app over 20 s on the dev machine, as a share of one core (run from the editor binary, size M):
+
+| | companion on | companion off |
+|---|---|---|
+| before: 60 fps cap with her, no cap without | 10.8 % | 8.2 % |
+| now, full pace (60 fps cap either way) | 10.8 % | 4.1 % |
+| now, slow pace (15 fps: a game is running, or Energy saver) | 3.5-4.5 % | 1.7 % |
+
+The surprise was the right-hand column: the marquee lights and glows animate all the time, so without a cap the
+cabinet alone was being redrawn at the monitor's refresh rate. The cap now applies with or without her.
+
+Speech: a paper bubble over her head in the art's ink, text typed out. Lines are canned and built from the
+ledger's numbers (`App/Lines.cs`): one per event, the most pressing wins when several happen at once, and a
+status line when she is clicked. An LLM would replace that one function.
+
 ## Suggested spike (as planned before it was run)
 
 1. Add godot-vrm (about 11 MB repo) to a scratch copy of the game, import one CC0 VRoid sample (11–17 MB).

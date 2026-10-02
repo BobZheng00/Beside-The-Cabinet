@@ -8,10 +8,10 @@ public enum TrayMood { Fine, Low, Debt }
 public partial class TrayIcon : Node
 {
     public event Action? ShowCabinet, CheckNow, ChangePlayer, OpenCharacters, Quit;
-    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged;
+    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, EnergySaverChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
-    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8, FolderId = 9, SizeId = 10, CharacterId = 20;
+    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8, FolderId = 9, SizeId = 10, EnergyId = 13, CharacterId = 20;
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
@@ -24,7 +24,7 @@ public partial class TrayIcon : Node
     private TrayMood? _mood;
     private string[] _characters = [];
 
-    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, (string Id, string Name)[] characters, string character)
+    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, (string Id, string Name)[] characters, string character, bool energySaver)
     {
         _menu = new PopupMenu();
         _menu.AddItem("Show cabinet", ShowId);
@@ -48,6 +48,8 @@ public partial class TrayIcon : Node
         _menu.AddSeparator();
         _menu.AddCheckItem("Mute sounds", MuteId);
         _menu.AddCheckItem("In-game tickets", TicketsId);
+        _menu.AddCheckItem("Energy saver", EnergyId);
+        _menu.SetItemChecked(_menu.GetItemIndex(EnergyId), energySaver);
         _menu.AddCheckItem("Always on top", TopId);
         _menu.AddCheckItem("Start with Windows", StartupId);
         _menu.SetItemChecked(_menu.GetItemIndex(MuteId), muted);
@@ -91,6 +93,7 @@ public partial class TrayIcon : Node
             case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
             case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case FolderId: OpenCharacters?.Invoke(); break;
+            case EnergyId: EnergySaverChanged?.Invoke(Toggle(EnergyId)); break;
             case QuitId: Quit?.Invoke(); break;
             case >= CharacterId when id < CharacterId + _characters.Length:
                 for (var i = 0; i < _characters.Length; i++)

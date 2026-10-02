@@ -205,7 +205,7 @@ internal sealed class Puppet
     public void Update(double delta)
     {
         _time += delta;
-        var dt = Mathf.Min((float)delta, 0.05f);
+        var dt = Mathf.Min((float)delta, 0.1f);          // the energy-saving pace is 15 frames a second
         var t = (float)_time;
         foreach (var cue in _cues.Where(c => _time >= c.At).ToList())
         {

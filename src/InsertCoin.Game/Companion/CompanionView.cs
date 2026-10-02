@@ -35,6 +35,7 @@ public partial class CompanionView : Node2D
     private double _mouseStill = 1e9;
     private float _glow = 0.5f;
     private SubViewport _viewport = null!;
+    private SpeechBubble _bubble = null!;
     private Vector2? _devPointer;
     private bool _active = true;
 
@@ -91,9 +92,23 @@ public partial class CompanionView : Node2D
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
         layer.SetShaderParameter("width_px", InkCanvasPixels * skin.Scale);
         AddChild(new Sprite2D { Texture = viewport.GetTexture(), Centered = false, Scale = Vector2.One / skin.Scale, Material = layer });
+        _bubble = new SpeechBubble();
+        AddChild(_bubble);
     }
 
     public void Play(Moment moment) => _puppet.Play(moment);
+
+    /// <summary>Shows a line in a speech bubble over her head.</summary>
+    public void Say(string line)
+    {
+        if (!_active)
+            return;
+        var neck = _rig.PositionOf("Neck");
+        var head = _rig.PositionOf("Head");
+        var size = _rig.RestJoint("Hips").Y / 0.935f;
+        var crown = head + (head - neck).Normalized() * (0.24f * size);          // top of her hair, roughly
+        _bubble.Say(line, _camera.UnprojectPosition(crown) / _skin.Scale - new Vector2(0, 4), _skin.Canvas);
+    }
 
     /// <summary>
     /// Characters that can sit on the stool: the ones built in (every folder in res://characters holding a .vrm of

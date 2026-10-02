@@ -14,17 +14,22 @@ Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-inse
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu
-(size, companion, mute, in-game tickets, always on top, start with Windows, change player, quit).
+(size, companion, mute, in-game tickets, energy saver, always on top, start with Windows, change player, quit).
 
 The companion on the stool (branch `companion-spike`) follows the mouse pointer with her eyes and head, waves when
 clicked, and reacts to what the cabinet does: cheers for coins, glances at the screen, worries about debt, dozes
-while the session is paused. The tray menu switches her off or picks another character.
+while the session is paused. She says a line about it in a speech bubble; click her for where things stand.
+The tray menu switches her off or picks another character.
+
+The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
+worth watching still get a few seconds at full pace).
 
 Dev keys (debug builds, click the cabinet first): `F1/F2/F3` solve Easy/Medium/Hard · `F5` fake game on/off ·
 `F6` clock ×60 · `F7` AFK on/off · `F9` wipe state · `Esc` quit.
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
-`point:x:y` (a pretend mouse pointer at that canvas point) and `character:id` (swap who sits on the stool).
+`point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
+`say:some_text` (a speech bubble), `click` (as if she were clicked) and `saver` (toggle the energy saver).
 
 ## Layout
 
@@ -82,6 +87,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `ToonMaterials` + `toon.gdshaderinc` replace the model's materials: two flat tones from one fixed light, texture
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
+- `SpeechBubble` draws what she says; the lines themselves come from `App/Lines.cs`, canned text built from the
+  ledger's numbers (the seam for a language model later).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser
   towards the hand, so moves overshoot and settle), and life on top (breathing, sway, head drift, fidgets, eyes

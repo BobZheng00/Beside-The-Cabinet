@@ -21,6 +21,9 @@ namespace InsertCoin.Game;
 public partial class Main : Node2D
 {
     private static readonly TimeSpan CheckCooldown = TimeSpan.FromSeconds(10);
+    // Frames per second. Something on the cabinet always moves (lights, glows, the companion), so the window is
+    // redrawn all the time: full pace when someone may be watching, a slow one while a game runs or to save energy.
+    private const int FullPace = 60, SlowPace = 15;
     private static readonly string DefaultDataDir = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "InsertCoin");
 
     private readonly Stopwatch _clock = Stopwatch.StartNew();
@@ -35,6 +38,8 @@ public partial class Main : Node2D
     private CabinetView _cabinet = null!;
     private CompanionView? _companion;
     private string _charactersDir = "";
+    private readonly Random _random = new();
+    private TimeSpan _livelyUntil;
     private Director _director = null!;
     private DesktopWindow _window = null!;
     private TrayIcon _tray = null!;
@@ -93,7 +98,11 @@ public partial class Main : Node2D
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
             else if (_companion?.Hits(p) == true)
+            {
+                Lively(6);
                 _companion.Play(Moment.Greet);
+                _companion.Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+            }
         };
         _cabinet.CheckPressed += OnCheck;
         ApplySize();
@@ -103,7 +112,8 @@ public partial class Main : Node2D
         _tray = new TrayIcon();
         AddChild(_tray);
         _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
-                    [.. CompanionView.Available(_charactersDir).Select(c => (c.Id, c.Name))], _settings.Companion);
+                    [.. CompanionView.Available(_charactersDir).Select(c => (c.Id, c.Name))], _settings.Companion, _settings.EnergySaver);
+        _tray.EnergySaverChanged += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
         _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
@@ -232,8 +242,12 @@ public partial class Main : Node2D
     {
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
+        if (result.Events.Count > 0)
+            Lively(6);
         foreach (var e in result.Events)
             _director.Play(e);
+        if (Lines.For(result.Events, _state, _rules, _random) is { } line)
+            _companion?.Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
         if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or SessionEnded or WeeklyReset))
             _window.Rise(6, _settings.AlwaysOnTop);
@@ -277,6 +291,7 @@ public partial class Main : Node2D
         var power = s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f;
         _cabinet.SetScreenPower(power);
         _companion?.SetScreenLight(power);
+        SetPace();
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
         if (s.Session is not null && shownLeft == 0)
             _cabinet.Lights.SetModeIfNot(LightMode.Alarm);
@@ -334,7 +349,23 @@ public partial class Main : Node2D
             }
         }
         _companion?.SetActive(show);
-        Engine.MaxFps = show && _companion is not null ? 60 : 0;        // she moves all the time; no need to draw faster than this on fast monitors
+        SetPace();
+    }
+
+    /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
+    private void SetPace()
+    {
+        // Lights and glows animate all the time, so without a cap the window redraws at the monitor's rate.
+        var slow = _state.Session is not null                                       // a game is running: stay out of its way
+                   || (_settings.EnergySaver && _clock.Elapsed > _livelyUntil);
+        Engine.MaxFps = slow ? SlowPace : FullPace;
+    }
+
+    /// <summary>Something worth watching is about to happen: full pace for a few seconds even when saving energy.</summary>
+    private void Lively(double seconds)
+    {
+        _livelyUntil = _clock.Elapsed + TimeSpan.FromSeconds(seconds);
+        SetPace();
     }
 
     private void PlaceWindow()
@@ -412,6 +443,24 @@ public partial class Main : Node2D
             _companion?.QueueFree();
             _companion = null;
             ShowCompanion(_settings.ShowCompanion);
+            return;
+        }
+        if (action.StartsWith("say:"))               // say:text puts a line in her speech bubble (underscores for spaces)
+        {
+            _companion?.Say(action["say:".Length..].Replace('_', ' '));
+            return;
+        }
+        if (action is "click")                        // as if she had been clicked
+        {
+            Lively(6);
+            _companion?.Play(Moment.Greet);
+            _companion?.Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+            return;
+        }
+        if (action is "saver")                        // toggles the energy saver
+        {
+            SaveSettings(_settings with { EnergySaver = !_settings.EnergySaver });
+            SetPace();
             return;
         }
         if (action.StartsWith("moment:"))

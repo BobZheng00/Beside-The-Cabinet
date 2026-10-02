@@ -13,6 +13,7 @@ public sealed record AppSettings
     public bool InGameTickets { get; init; } = true;
     public string Companion { get; init; } = "shino";   // character folder under res://characters
     public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
+    public bool EnergySaver { get; init; }              // draw at a low frame rate all the time, not only while a game runs
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
 }
