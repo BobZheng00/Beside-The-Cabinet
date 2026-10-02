@@ -50,7 +50,7 @@ internal sealed class ToonMaterials
                  : name.Contains("_HAIR") ? Kind.Hair
                  : name.Contains("_CLOTH") ? Kind.Cloth
                  : name.Contains("_EYE") || name.Contains("_FACE") ? Kind.Detail
-                 : Kind.Cloth;
+                 : Kind.Unknown;        // not a VRoid name: shaded and inked like the rest, colours left as authored
         switch (kind)
         {
             case Kind.Skin:
@@ -117,5 +117,5 @@ internal sealed class ToonMaterials
         return shader;
     }
 
-    private enum Kind { Skin, Face, Hair, Cloth, Detail }
+    private enum Kind { Skin, Face, Hair, Cloth, Detail, Unknown }
 }

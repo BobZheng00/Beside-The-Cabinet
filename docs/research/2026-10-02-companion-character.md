@@ -130,6 +130,44 @@ Found along the way:
 Not done: LLM, speech bubble, energy saver (e.g. fewer frames while a game runs), user-supplied models,
 a character of our own.
 
+## Motion: what makes a seated character look alive (researched 2026-10-02)
+
+Asked after the first spike, where the wave and cheer looked stiff and the idle too still.
+
+- **Live2D's idle recipe.** Its SDK "Breath" effect is nothing but sine waves on a handful of parameters with
+  periods that never line up: head angle X 6.5 s, Y 3.5 s, Z 5.5 s, body angle 15.5 s, breath 3.2 s, each at a
+  fair amplitude ([Cubism SDK manual: Breath](https://docs.live2d.com/en/cubism-sdk-manual/breath/)). Hair and
+  cloth physics are then driven by that motion. The lesson: the head is never still, and physics needs something
+  to react to.
+- **Second-order dynamics.** Instead of easing a value, let it follow its target like a damped spring: it
+  accelerates, overshoots and settles, which reads as weight
+  ([Godot C# version of t3ssel8r's formulation](https://gist.github.com/Andicraft/ab605dda924a0321e755abf8f573ebd7)).
+- **Overlapping action and drag.** In a wave the upper arm leads, the forearm follows later and the hand later
+  still ("successive breaking of joints"); parts do not start or stop together
+  ([Brian Lemay](http://www.brianlemay.com/animation/successivebreaking.html),
+  [AnimSchool](https://blog.animschool.edu/2024/04/19/follow-through-and-overlap-animation-tips/)).
+  Anticipation: a small move the other way before a big one.
+- **Eyes and blinks.** Eyes do not glide or stare: they jump to a fixation point in 40-80 ms and hold, the head
+  follows 80-150 ms later and only part of the way, blinks are irregular (about 3.5 s mean, skewed), come in
+  doubles now and then, and often accompany a large gaze shift
+  ([one open-source avatar's numbers](https://github.com/Yuuzulight/Mana/pull/753)).
+- **Postural sway.** Research on idle motion finds that small continuous posture shifts and breathing are what
+  make a virtual character read as present
+  ([Sci Rep 2021](https://www.nature.com/articles/s41598-021-91710-5)).
+
+Applied in `Puppet.cs` / `Face.cs`: springs on every joint (looser towards the hand), reaction timelines with
+anticipation (crouch before the cheer), a wave whose wrist trails the forearm, hands that travel through space
+with the elbow bent, breathing that lifts chest and shoulders with a faster inhale, constant torso sway and head
+drift on incommensurate periods, a faint draught on hair and skirt, eye saccades with the head lagging, skewed
+blink timing, and a set of fidgets (leg swings, head tilts, re-settling, humming sway, a stretch).
+
+Measured after the change: between two idle frames 1.8 s apart at size M, 7-9 % of the pixels in her part of the
+window differ, spread over head, hair, shoulders, arms and feet.
+
+A second CC0 VRoid sample (Sakurada Fumiriya, 16 MB zip, taller, longer legs) was dropped in to test swapping:
+it worked without changes; the poses were then made to scale with hip height and leg length so that his feet
+reach the ring and his arms straighten in the cheer.
+
 ## Suggested spike (as planned before it was run)
 
 1. Add godot-vrm (about 11 MB repo) to a scratch copy of the game, import one CC0 VRoid sample (11–17 MB).

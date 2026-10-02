@@ -11,12 +11,14 @@ internal sealed class Face
     private readonly Dictionary<string, (MeshInstance3D Mesh, int Shape, float Value)[]> _expressions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, float> _weight = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, float> _target = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, float> _resting = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, double> _until = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<(MeshInstance3D, int), float> _shapes = [];
     private readonly RandomNumberGenerator _random = new();
     private double _time, _nextBlink = 2, _blinkStarted = -1;
+    private float _blinkDepth = 1, _blinkPace = 1;
 
-    /// <summary>Eyes held shut (dozing).</summary>
+    /// <summary>Eyes held shut (dozing, a long stretch).</summary>
     public bool EyesClosed { get; set; }
 
     public Face(Node3D character)
@@ -53,6 +55,20 @@ internal sealed class Face
         _until[expression] = _time + seconds;
     }
 
+    /// <summary>The expression she wears when nothing else is asked for.</summary>
+    public void Rest(string expression, float weight)
+    {
+        _resting[expression] = weight;
+        _target.TryAdd(expression, 0);
+    }
+
+    /// <summary>Blinks now (people often blink as their gaze jumps).</summary>
+    public void Blink()
+    {
+        if (_blinkStarted < 0)
+            StartBlink();
+    }
+
     public void Update(double delta)
     {
         _time += delta;
@@ -61,12 +77,15 @@ internal sealed class Face
             _target[name] = 0;
             _until.Remove(name);
         }
+        var shown = _target.Where(t => !_resting.ContainsKey(t.Key)).Sum(t => t.Value);
         foreach (var name in _target.Keys)
         {
+            // the resting expression gives way while another one is showing
+            var goal = Mathf.Max(_target[name], _resting.GetValueOrDefault(name) * Mathf.Clamp(1 - shown, 0, 1));
             var now = _weight.GetValueOrDefault(name);
-            _weight[name] = now + (_target[name] - now) * (1 - Mathf.Exp(-(float)delta * 9f));
+            _weight[name] = now + (goal - now) * (1 - Mathf.Exp(-(float)delta * 9f));
         }
-        _weight["blink"] = Blink();
+        _weight["blink"] = BlinkValue();
 
         foreach (var key in _shapes.Keys.ToList())
             _shapes[key] = 0;
@@ -78,24 +97,36 @@ internal sealed class Face
             mesh.SetBlendShapeValue(shape, value);
     }
 
-    private float Blink()
+    private void StartBlink()
+    {
+        _blinkStarted = _time;
+        _blinkDepth = _random.Randf() < 0.1f ? 0.55f : 1f;          // now and then only half a blink
+        _blinkPace = _random.RandfRange(0.85f, 1.15f);
+    }
+
+    private float BlinkValue()
     {
         if (EyesClosed)
             return 1;
         if (_weight.GetValueOrDefault("happy") > 0.4f)       // a smile already narrows the eyes
             return 0;
         if (_blinkStarted < 0 && _time >= _nextBlink)
-            _blinkStarted = _time;
+            StartBlink();
         if (_blinkStarted < 0)
             return 0;
+
+        // lids snap shut, rest a moment, open more slowly
+        double close = 0.07 * _blinkPace, hold = 0.035 * _blinkPace, open = 0.16 * _blinkPace;
         var t = _time - _blinkStarted;
-        const double close = 0.07, open = 0.13;
-        if (t >= close + open)
+        if (t >= close + hold + open)
         {
             _blinkStarted = -1;
-            _nextBlink = _time + (_random.Randf() < 0.18f ? 0.25 : _random.RandfRange(2.2f, 5.5f));   // sometimes a double blink
+            // gaps between blinks are skewed: mostly 2-5 s, sometimes long; one in eight is a double blink
+            var gap = _random.Randf() < 0.12f ? _random.RandfRange(0.12f, 0.3f) : Mathf.Clamp(Mathf.Exp(_random.Randfn(1.15f, 0.45f)), 1.2f, 8f);
+            _nextBlink = _time + gap;
             return 0;
         }
-        return t < close ? (float)(t / close) : 1 - (float)((t - close) / open);
+        var lid = t < close ? (float)(t / close) : t < close + hold ? 1f : 1 - (float)((t - close - hold) / open);
+        return _blinkDepth * Mathf.SmoothStep(0, 1, lid);
     }
 }

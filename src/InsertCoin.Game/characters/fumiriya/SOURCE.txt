@@ -1,0 +1,9 @@
+Sakurada Fumiriya (fumiriya.vrm)
+
+A sample character from the early versions of VRoid Studio, released by pixiv Inc. under CC0 (public domain
+dedication): it may be edited and used freely, including commercially, without credit.
+
+Downloaded 2026-10-02 from https://opengameart.org/content/vroid-studio-cc0-models (sakurada_fumiriya.zip),
+which mirrors the files from VRoid's help page on sample model terms.
+
+In the app his colours are remapped onto the cabinet's palette by the toon shader; the file itself is unmodified.

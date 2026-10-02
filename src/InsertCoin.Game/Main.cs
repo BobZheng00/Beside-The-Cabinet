@@ -99,10 +99,18 @@ public partial class Main : Node2D
 
         _tray = new TrayIcon();
         AddChild(_tray);
-        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion);
+        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
+                    CompanionView.Available(), _settings.Companion);
         _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
+        _tray.CharacterChanged += id =>
+        {
+            SaveSettings(_settings with { Companion = id });
+            _companion?.QueueFree();            // someone else takes the stool
+            _companion = null;
+            ShowCompanion(_settings.ShowCompanion);
+        };
         _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
         _tray.CheckNow += () => _cabinet.PressCheck();
@@ -299,15 +307,16 @@ public partial class Main : Node2D
     /// <summary>Seats the companion on the stool (built the first time she is wanted) or leaves it empty.</summary>
     private void ShowCompanion(bool show)
     {
-        if (show && _companion is null)
+        if (show && _companion is null && CompanionView.Available() is { Length: > 0 } characters)
         {
+            var id = characters.Contains(_settings.Companion) ? _settings.Companion : characters[0];
             _companion = new CompanionView();
             AddChild(_companion);
             MoveChild(_companion, _cabinet.GetIndex() + 1);       // drawn over the cabinet art, under everything else
-            _companion.Build(_cabinet.Skin, _settings.Companion);
+            _companion.Build(_cabinet.Skin, id);
         }
         _companion?.SetActive(show);
-        Engine.MaxFps = show ? 60 : 0;        // she moves all the time; no need to draw faster than this on fast monitors
+        Engine.MaxFps = show && _companion is not null ? 60 : 0;        // she moves all the time; no need to draw faster than this on fast monitors
     }
 
     private void PlaceWindow()
@@ -377,6 +386,14 @@ public partial class Main : Node2D
         {
             var at = action.Split(':');
             _companion?.DevPointer(new Vector2(float.Parse(at[1]), float.Parse(at[2])));
+            return;
+        }
+        if (action.StartsWith("character:"))         // character:id swaps who sits on the stool
+        {
+            SaveSettings(_settings with { Companion = action["character:".Length..] });
+            _companion?.QueueFree();
+            _companion = null;
+            ShowCompanion(_settings.ShowCompanion);
             return;
         }
         if (action.StartsWith("moment:"))

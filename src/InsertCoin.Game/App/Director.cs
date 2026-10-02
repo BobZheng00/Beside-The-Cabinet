@@ -28,7 +28,7 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 if (jackpot)
                     audio.Play("jackpot");
                 cabinet.Lights.Burst(LightMode.Celebrate, jackpot ? 3.5 : 1.8);
-                companion?.Play(Moment.Cheer);
+                companion?.Play(jackpot ? Moment.Cheer : Moment.Pump);
                 cabinet.Screen.Flash(jackpot ? "JACKPOT" : $"+{c.Tokens}", Truncate(c.Task.Title, 40) + (c.StarToken ? $"\nSTREAK x{c.Streak} BONUS" : ""), 3.0);
                 break;
             case DebtPaid p:

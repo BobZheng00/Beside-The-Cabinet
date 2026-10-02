@@ -10,10 +10,10 @@ namespace InsertCoin.Game.Companion;
 public partial class CompanionView : Node2D
 {
     private const float BodyYawDegrees = 16;          // turned a little from the cabinet's facing towards the viewer
-    private const float InkCanvasPixels = 3.0f;       // silhouette stroke, canvas units (the art's is 3.5)
-    private const float InnerInkCanvasPixels = 1.25f; // lines inside the figure
-    private const double PointerRestSeconds = 5;
-    private static readonly Vector3 LightDirection = new Vector3(-0.45f, 0.75f, 0.5f).Normalized();   // towards the art's light: above, viewer's left      // she stops following a pointer that has been still this long
+    private const float InkCanvasPixels = 1.6f;       // silhouette stroke, canvas units: finer than the cabinet's 3.5, she is a smaller, softer shape
+    private const float InnerInkCanvasPixels = 0.8f;  // lines inside the figure
+    private const double PointerRestSeconds = 5;      // she stops following a pointer that has been still this long
+    private static readonly Vector3 LightDirection = new Vector3(-0.45f, 0.75f, 0.5f).Normalized();   // towards the art's light: above, viewer's left
 
     // Her outline for hit-testing: capsules between joints, radius in metres.
     private static readonly (string From, string To, float Radius)[] Body =
@@ -83,7 +83,8 @@ public partial class CompanionView : Node2D
         _materials.Apply(_character, toHer.Basis * LightDirection, screen, InnerInkCanvasPixels * skin.Scale);
         var skeleton = _character.FindChildren("*", nameof(Skeleton3D), true, false).OfType<Skeleton3D>().First();
         _rig = new Rig(skeleton);
-        _puppet = new Puppet(_rig, new Face(_character)) { Viewer = _camera.Position, Screen = screen };
+        var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
+        _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen };
 
         _lastMouse = DisplayServer.MouseGetPosition();
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
@@ -92,6 +93,10 @@ public partial class CompanionView : Node2D
     }
 
     public void Play(Moment moment) => _puppet.Play(moment);
+
+    /// <summary>Characters that can sit on the stool: every folder in res://characters holding a .vrm of the same name.</summary>
+    public static string[] Available() =>
+        [.. DirAccess.GetDirectoriesAt("res://characters").Where(id => ResourceLoader.Exists($"res://characters/{id}/{id}.vrm")).Order()];
 
     /// <summary>Shows her and keeps her moving, or hides her and stops drawing the 3D scene.</summary>
     public void SetActive(bool active)
@@ -149,6 +154,10 @@ public partial class CompanionView : Node2D
             return;
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
+        // A faint, uneven draught keeps hair and skirt from ever hanging dead still.
+        var t = Time.GetTicksMsec() / 1000f;
+        var draught = new Vector3(0.07f * Mathf.Sin(t * 0.83f) + 0.04f * Mathf.Sin(t * 2.1f + 1), 0, 0.04f * Mathf.Sin(t * 0.61f + 2));
+        _character.Set("springbone_add_force", draught);
         foreach (var material in _materials.All)
             material.SetShaderParameter("glow_amount", 0.14f * _glow);
     }

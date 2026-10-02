@@ -9,9 +9,9 @@ public partial class TrayIcon : Node
 {
     public event Action? ShowCabinet, CheckNow, ChangePlayer, Quit;
     public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged;
-    public event Action<string>? SizeChanged;
+    public event Action<string>? SizeChanged, CharacterChanged;
 
-    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8, SizeId = 10;
+    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8, SizeId = 10, CharacterId = 20;
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
@@ -22,8 +22,9 @@ public partial class TrayIcon : Node
     private PopupMenu _menu = null!;
     private readonly Dictionary<TrayMood, Texture2D> _icons = [];
     private TrayMood? _mood;
+    private string[] _characters = [];
 
-    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion)
+    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, string[] characters, string character)
     {
         _menu = new PopupMenu();
         _menu.AddItem("Show cabinet", ShowId);
@@ -37,6 +38,13 @@ public partial class TrayIcon : Node
         }
         _menu.AddCheckItem("Companion", CompanionId);
         _menu.SetItemChecked(_menu.GetItemIndex(CompanionId), companion);
+        _characters = characters;
+        if (characters.Length > 1)
+            foreach (var (id, i) in characters.Select((id, i) => (id, i)))
+            {
+                _menu.AddRadioCheckItem($"Companion: {id[..1].ToUpperInvariant()}{id[1..]}", CharacterId + i);
+                _menu.SetItemChecked(_menu.GetItemIndex(CharacterId + i), id == character);
+            }
         _menu.AddSeparator();
         _menu.AddCheckItem("Mute sounds", MuteId);
         _menu.AddCheckItem("In-game tickets", TicketsId);
@@ -83,6 +91,11 @@ public partial class TrayIcon : Node
             case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
             case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case QuitId: Quit?.Invoke(); break;
+            case >= CharacterId when id < CharacterId + _characters.Length:
+                for (var i = 0; i < _characters.Length; i++)
+                    _menu.SetItemChecked(_menu.GetItemIndex(CharacterId + i), CharacterId + i == id);
+                CharacterChanged?.Invoke(_characters[id - CharacterId]);
+                break;
             case >= SizeId and < SizeId + 3:
                 for (var i = 0; i < 3; i++)
                     _menu.SetItemChecked(_menu.GetItemIndex(SizeId + i), SizeId + i == id);
