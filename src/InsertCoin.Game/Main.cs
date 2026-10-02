@@ -101,9 +101,10 @@ public partial class Main : Node2D
             {
                 Lively(6);
                 _companion.Play(Moment.Greet);
-                _companion.Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+                Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
             }
         };
+        GetWindow().FilesDropped += AddCharacters;             // a model dropped on the cabinet or on her
         _cabinet.CheckPressed += OnCheck;
         ApplySize();
         PlaceWindow();
@@ -112,23 +113,24 @@ public partial class Main : Node2D
         _tray = new TrayIcon();
         AddChild(_tray);
         _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
-                    [.. CompanionView.Available(_charactersDir).Select(c => (c.Id, c.Name))], _settings.Companion, _settings.EnergySaver);
+                    _settings.SpeechBubbles, Characters(), _settings.Companion, _settings.EnergySaver);
         _tray.EnergySaverChanged += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
         _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
+        _tray.SpeechChanged += on =>
+        {
+            SaveSettings(_settings with { SpeechBubbles = on });
+            if (!on)
+                _companion?.Hush();
+        };
+        _tray.AddCharacter += PickCharacter;
         _tray.OpenCharacters += () =>
         {
-            Directory.CreateDirectory(_charactersDir);          // .vrm files put here show up in the menu after a restart
+            Directory.CreateDirectory(_charactersDir);          // files put here by hand show up in the menu after a restart
             OS.ShellOpen(_charactersDir);
         };
-        _tray.CharacterChanged += id =>
-        {
-            SaveSettings(_settings with { Companion = id });
-            _companion?.QueueFree();            // someone else takes the stool
-            _companion = null;
-            ShowCompanion(_settings.ShowCompanion);
-        };
+        _tray.CharacterChanged += Seat;
         _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
         _tray.CheckNow += () => _cabinet.PressCheck();
@@ -247,7 +249,7 @@ public partial class Main : Node2D
         foreach (var e in result.Events)
             _director.Play(e);
         if (Lines.For(result.Events, _state, _rules, _random) is { } line)
-            _companion?.Say(line);
+            Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
         if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or SessionEnded or WeeklyReset))
             _window.Rise(6, _settings.AlwaysOnTop);
@@ -353,6 +355,76 @@ public partial class Main : Node2D
         SetPace();
     }
 
+    /// <summary>Someone else takes the stool.</summary>
+    private void Seat(string id)
+    {
+        SaveSettings(_settings with { Companion = id });
+        _companion?.QueueFree();
+        _companion = null;
+        ShowCompanion(_settings.ShowCompanion);
+    }
+
+    private (string Id, string Name)[] Characters() => [.. CompanionView.Available(_charactersDir).Select(c => (c.Id, c.Name))];
+
+    /// <summary>Asks for a model with the system's own file dialog, then adds it.</summary>
+    private void PickCharacter()
+    {
+        var dialog = new FileDialog
+        {
+            Title = "Add a character",
+            ModeOverridesTitle = false,
+            FileMode = FileDialog.FileModeEnum.OpenFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            UseNativeDialog = true,
+            CurrentDir = OS.GetSystemDir(OS.SystemDir.Downloads),
+            Filters = ["*.vrm, *.glb, *.gltf, *.zip ; 3D characters (VRM, glTF, or a zip holding one)"],
+        };
+        dialog.FileSelected += path =>
+        {
+            dialog.QueueFree();
+            AddCharacters([path]);
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        _window.Rise(4, _settings.AlwaysOnTop);
+        DisplayServer.WindowMoveToForeground();             // the dialog belongs to the cabinet's window: bring both forward
+        dialog.PopupCentered();
+    }
+
+    /// <summary>Copies models (picked or dropped) into the user's characters folder and seats the first of them.</summary>
+    private void AddCharacters(string[] paths)
+    {
+        var added = new List<string>();
+        foreach (var path in paths)
+            try
+            {
+                if (CharacterFiles.Import(path, _charactersDir) is { } id)
+                    added.Add(id);
+            }
+            catch (Exception e)
+            {
+                // an unreadable or half-downloaded file must not take the cabinet down with it
+                GD.PrintErr($"Adding '{path}': {e.Message}");
+            }
+        if (added.Count == 0)
+        {
+            _cabinet.Screen.Flash("NO GO", "ONLY .VRM, .GLB OR .GLTF", 4.0);
+            return;
+        }
+        _tray.SetCharacters(Characters(), added[0]);
+        SaveSettings(_settings with { ShowCompanion = true });
+        Seat(added[0]);
+        Lively(6);
+        _companion?.Play(Moment.Greet);
+    }
+
+    /// <summary>A line in her speech bubble, unless the user has asked for quiet.</summary>
+    private void Say(string line)
+    {
+        if (_settings.SpeechBubbles)
+            _companion?.Say(line);
+    }
+
     /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
     private void SetPace()
     {
@@ -440,22 +512,42 @@ public partial class Main : Node2D
         }
         if (action.StartsWith("character:"))         // character:id swaps who sits on the stool
         {
-            SaveSettings(_settings with { Companion = action["character:".Length..] });
-            _companion?.QueueFree();
-            _companion = null;
-            ShowCompanion(_settings.ShowCompanion);
+            Seat(action["character:".Length..]);
+            return;
+        }
+        if (action.StartsWith("add:"))               // add:path adds a model as if it had been dropped on the window
+        {
+            AddCharacters([action["add:".Length..]]);
+            return;
+        }
+        if (action is "pick")                         // the "Add a character…" file dialog
+        {
+            PickCharacter();
+            return;
+        }
+        if (action.StartsWith("tray:"))              // tray:x:y opens the tray menu at this screen point
+        {
+            var at = action.Split(':');
+            _tray.DevShowMenu(new Vector2I(int.Parse(at[1]), int.Parse(at[2])));
             return;
         }
         if (action.StartsWith("say:"))               // say:text puts a line in her speech bubble (underscores for spaces)
         {
-            _companion?.Say(action["say:".Length..].Replace('_', ' '));
+            Say(action["say:".Length..].Replace('_', ' '));
+            return;
+        }
+        if (action is "quiet")                        // toggles her speech bubbles
+        {
+            SaveSettings(_settings with { SpeechBubbles = !_settings.SpeechBubbles });
+            if (!_settings.SpeechBubbles)
+                _companion?.Hush();
             return;
         }
         if (action is "click")                        // as if she had been clicked
         {
             Lively(6);
             _companion?.Play(Moment.Greet);
-            _companion?.Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+            Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
             return;
         }
         if (action is "saver")                        // toggles the energy saver

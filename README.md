@@ -14,12 +14,13 @@ Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-inse
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu
-(size, companion, mute, in-game tickets, energy saver, always on top, start with Windows, change player, quit).
+(size, companion, speech bubbles, characters, mute, in-game tickets, energy saver, always on top, start with
+Windows, change player, quit).
 
-The companion on the stool (branch `companion-spike`) follows the mouse pointer with her eyes and head, waves when
-clicked, and reacts to what the cabinet does: cheers for coins, glances at the screen, worries about debt, dozes
-while the session is paused. She says a line about it in a speech bubble; click her for where things stand.
-The tray menu switches her off or picks another character.
+The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to
+what the cabinet does: cheers for coins, glances at the screen, worries about debt, dozes while the session is
+paused. She says a line about it in a speech bubble; click her for where things stand. The tray menu switches her
+off, silences her, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).
@@ -29,8 +30,10 @@ Dev keys (debug builds, click the cabinet first): `F1/F2/F3` solve Easy/Medium/H
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
-`say:some_text` (a speech bubble), `click` (as if she were clicked), `saver` (toggle the energy saver) and
-`legs:left|right|both|ring` (which feet hang off the stool's ring).
+`say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `saver`
+(toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
+(as if the file were dropped on the window), `pick` (the "Add a character…" dialog) and `tray:x:y` (open the tray
+menu at that screen point).
 
 ## Layout
 
@@ -39,7 +42,8 @@ src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no 
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses
-tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers
+tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
+                          app_icon.py — the app icon (.ico for the .exe, .png for the window)
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it; sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
@@ -52,6 +56,7 @@ dotnet test                                   # rules + adapters
 dotnet build src/InsertCoin.Game              # game assembly
 python tools/art/cozy_cabinet.py --skin       # regenerate art -> src/InsertCoin.Game/skins/cozy (needs Chrome)
 python tools/sfx/generate.py                  # regenerate sounds -> src/InsertCoin.Game/sounds
+python tools/art/app_icon.py                  # regenerate the app icon -> src/InsertCoin.Game/icon.ico, icon.png (needs Chrome)
 ```
 
 ### Standalone build
@@ -63,7 +68,7 @@ build.cmd                                                                       
 
 The export preset points at that template path. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
 (the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly.
-The `.exe` still carries Godot's icon (setting a custom one needs `rcedit`).
+Godot's exporter writes the app icon (`icon.ico`) and the product name into the `.exe` itself; no `rcedit` needed.
 
 Godot 4.7.2 .NET is expected at `<tools>\Godot\Godot_v4.7.2-stable_mono_win64\`. After changing art or sounds,
 re-import: `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
@@ -102,10 +107,12 @@ when the character itself is moved or turned.
 
 ### Adding a character
 
-- **As a user, no tools needed:** tray menu → "Add your own character…" opens `characters` in the profile folder
-  (`%APPDATA%\InsertCoin\characters`). Drop a `.vrm` or `.glb` file there (or a folder holding a `.gltf` with
-  its `.bin` and textures, which is how Sketchfab's glTF downloads unpack), restart, pick it in the tray menu.
-  Files are read at run time, in the standalone build too.
+- **As a user, no tools needed:** tray menu → "Add a character…" and pick a `.vrm`, `.glb`, `.gltf` or a `.zip`
+  holding one (Sketchfab's glTF downloads come zipped), or drop the file on the cabinet. It is copied into
+  `characters` in the profile folder (`%APPDATA%\InsertCoin\characters`; a `.gltf` gets a folder of its own with
+  the `.bin` and textures it refers to) and takes the stool at once. A file of the same name is replaced.
+  "Open characters folder" shows that folder; files put there by hand appear after a restart. Files are read at
+  run time, in the standalone build too.
 - **Built into the app:** put the model at `src/InsertCoin.Game/characters/<id>/<id>.vrm` (lower-case id) with a
   note of its source and licence, then re-import:
   `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.

@@ -25,7 +25,7 @@ public partial class CompanionView : Node2D
         ("RightUpperLeg", "RightLowerLeg", 0.09f), ("RightLowerLeg", "RightFoot", 0.06f), ("RightFoot", "RightToes", 0.06f),
     ];
 
-    private static readonly string[] Formats = ["*.vrm", "*.glb", "*.gltf"];
+    internal static readonly string[] Formats = ["*.vrm", "*.glb", "*.gltf"];     // in order of preference
 
     private CabinetSkin _skin = null!;
     private Rig _rig = null!;
@@ -117,9 +117,12 @@ public partial class CompanionView : Node2D
         _bubble.Say(line, _camera.UnprojectPosition(crown) / _skin.Scale - new Vector2(0, 4), _skin.Canvas);
     }
 
+    /// <summary>Stops talking mid-sentence: the bubble goes away now.</summary>
+    public void Hush() => _bubble.Clear();
+
     /// <summary>
     /// Characters that can sit on the stool: the ones built in (every folder in res://characters holding a .vrm of
-    /// the same name) and any .vrm file the user has put in their own characters folder.
+    /// the same name) and any model the user has put in their own characters folder.
     /// </summary>
     public static Character[] Available(string userFolder)
     {

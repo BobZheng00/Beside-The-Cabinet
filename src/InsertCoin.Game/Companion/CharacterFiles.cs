@@ -1,0 +1,82 @@
+using System.IO.Compression;
+using System.Text.Json;
+
+namespace InsertCoin.Game.Companion;
+
+/// <summary>Brings a character the user picked or dropped into their characters folder.</summary>
+public static class CharacterFiles
+{
+    /// <summary>
+    /// Copies the model at <paramref name="path"/> into <paramref name="userFolder"/>: a .vrm or .glb as it is, a .gltf
+    /// into a folder of its own together with the files it refers to. A .zip (how Sketchfab's glTF downloads come) or
+    /// a folder is searched for a model. A file of the same name already there is replaced.
+    /// </summary>
+    /// <returns>The id of the character added, or null when there was no model to add.</returns>
+    public static string? Import(string path, string userFolder)
+    {
+        if (Directory.Exists(path))
+            return FindModel(path) is { } inside ? Import(inside, userFolder) : null;
+        Directory.CreateDirectory(userFolder);
+        switch (Path.GetExtension(path).ToLowerInvariant())
+        {
+            case ".zip":
+                // unpacked into a folder named after the zip, so a model called scene.gltf gets the zip's name
+                var unpacked = Path.Combine(Path.GetTempPath(), "insert-coin-import", Path.GetFileNameWithoutExtension(path));
+                if (Directory.Exists(unpacked))
+                    Directory.Delete(unpacked, recursive: true);
+                ZipFile.ExtractToDirectory(path, unpacked);
+                try
+                {
+                    return FindModel(unpacked) is { } model ? Import(model, userFolder) : null;
+                }
+                finally
+                {
+                    Directory.Delete(unpacked, recursive: true);
+                }
+            case ".vrm" or ".glb":
+                var target = Path.Combine(userFolder, Path.GetFileName(path));
+                if (!Same(path, target))
+                    File.Copy(path, target, overwrite: true);
+                return Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+            case ".gltf":
+                var from = Path.GetDirectoryName(Path.GetFullPath(path))!;
+                var name = Path.GetFileNameWithoutExtension(path);
+                if (name.Equals("scene", StringComparison.OrdinalIgnoreCase))      // Sketchfab's name for every model
+                    name = Path.GetFileName(from);
+                var to = Path.Combine(userFolder, name);
+                if (!Same(from, to))
+                    foreach (var file in References(path).Prepend(Path.GetFileName(path)))
+                    {
+                        var source = Path.GetFullPath(Path.Combine(from, file));
+                        if (!source.StartsWith(from + Path.DirectorySeparatorChar) || !File.Exists(source))
+                            continue;                   // outside the model's folder, or missing: the model will say so when loaded
+                        var copy = Path.Combine(to, Path.GetRelativePath(from, source));
+                        Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+                        File.Copy(source, copy, overwrite: true);
+                    }
+                return name.ToLowerInvariant();
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>The first model in a folder or below, preferring the formats that carry the most.</summary>
+    private static string? FindModel(string folder) =>
+        CompanionView.Formats.SelectMany(format => Directory.EnumerateFiles(folder, format, SearchOption.AllDirectories)).FirstOrDefault();
+
+    /// <summary>Files a .gltf refers to (its buffers and textures), relative to its folder.</summary>
+    private static List<string> References(string gltf)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(gltf));
+        var files = new List<string>();
+        foreach (var list in new[] { "buffers", "images" })
+            if (json.RootElement.TryGetProperty(list, out var items) && items.ValueKind == JsonValueKind.Array)
+                foreach (var item in items.EnumerateArray())
+                    if (item.TryGetProperty("uri", out var uri) && uri.GetString() is { } text && !text.StartsWith("data:"))
+                        files.Add(Uri.UnescapeDataString(text));
+        return files;
+    }
+
+    private static bool Same(string a, string b) =>
+        string.Equals(Path.GetFullPath(a).TrimEnd('\\'), Path.GetFullPath(b).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+}

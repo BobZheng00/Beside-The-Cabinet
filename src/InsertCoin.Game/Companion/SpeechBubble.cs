@@ -64,6 +64,13 @@ public partial class SpeechBubble : Node2D
         _tween.TweenCallback(Callable.From(() => Visible = false));
     }
 
+    /// <summary>Takes back whatever is showing, at once.</summary>
+    public void Clear()
+    {
+        _tween?.Kill();
+        Visible = false;
+    }
+
     public override void _Draw()
     {
         if (_shape.Length == 0)
