@@ -36,6 +36,8 @@ public partial class Main : Node2D
     private DesktopWindow _window = null!;
     private TrayIcon _tray = null!;
     private Onboarding _onboarding = null!;
+    private AudioBank _audio = null!;
+    private AlertTicket _ticket = null!;
     private System.Threading.Mutex? _singleInstance;
 
     private TimeSpan _lastTick;
@@ -68,7 +70,12 @@ public partial class Main : Node2D
         _cabinet = new CabinetView();
         AddChild(_cabinet);
         _cabinet.Build(skin);
-        _director = new Director(_cabinet);
+        _audio = new AudioBank();
+        AddChild(_audio);
+        _audio.Build(_settings.Muted);
+        _ticket = new AlertTicket();
+        AddChild(_ticket);
+        _director = new Director(_cabinet, _audio, _ticket, () => _settings.InGameTickets);
 
         _window = new DesktopWindow();
         AddChild(_window);
@@ -82,7 +89,9 @@ public partial class Main : Node2D
 
         _tray = new TrayIcon();
         AddChild(_tray);
-        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size);
+        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets);
+        _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
+        _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
         _tray.CheckNow += () => _cabinet.PressCheck();
@@ -91,12 +100,13 @@ public partial class Main : Node2D
         _tray.StartWithWindowsChanged += Startup.Set;
         _tray.Quit += () => { Save(); GetTree().Quit(); };
 
-        _onboarding = new Onboarding(_cabinet.Screen, _tasks);
+        _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += (initials, username) =>
         {
             SaveSettings(_settings with { Initials = initials, Username = username });
             _cabinet.Screen.Flash($"HI {initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
+            _audio.Play("hello");
             _backoffSeconds = 60;
             Poll();
         };
@@ -175,6 +185,7 @@ public partial class Main : Node2D
         if (DateTimeOffset.Now - _lastCheck < CheckCooldown)
             return;
         _lastCheck = DateTimeOffset.Now;
+        _audio.Play("check");
         _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO PLAYER SET" : "ASKING LEETCODE", 1.5);
         _backoffSeconds = 60;
         Poll();
@@ -335,6 +346,7 @@ public partial class Main : Node2D
         {
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
+            case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "easy": DevSolve(Difficulty.Easy); break;
             case "medium": DevSolve(Difficulty.Medium); break;
             case "hard": DevSolve(Difficulty.Hard); break;

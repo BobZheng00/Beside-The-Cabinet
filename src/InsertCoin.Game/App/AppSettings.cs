@@ -9,6 +9,8 @@ public sealed record AppSettings
     public string[] IgnoredSteamAppIds { get; init; } = ["431960"];   // Wallpaper Engine
     public bool AlwaysOnTop { get; init; }
     public string Size { get; init; } = "M";          // S, M or L
+    public bool Muted { get; init; }
+    public bool InGameTickets { get; init; } = true;
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
 }

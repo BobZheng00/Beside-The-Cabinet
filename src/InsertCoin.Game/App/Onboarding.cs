@@ -9,7 +9,7 @@ namespace InsertCoin.Game.App;
 /// First-run setup on the cabinet screen, arcade style: ENTER YOUR INITIALS, then the LeetCode player —
 /// typed as a username or pasted as a profile link — checked against the task source before it is accepted.
 /// </summary>
-public sealed class Onboarding(ScreenView screen, ITaskSource tasks)
+public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank audio)
 {
     private enum Step { Initials, Player, Checking }
 
@@ -47,6 +47,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks)
         if (!Active || _step == Step.Checking)
             return;
         _note = "";
+        audio.Play("key");
         if (key.Keycode == Godot.Key.Escape && _canCancel)
         {
             Finish();
@@ -97,6 +98,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks)
         if (!LeetCodeProfile.TryParse(_player, out var username, out var error))
         {
             _note = error!;
+            audio.Play("error");
             return;
         }
         _step = Step.Checking;
@@ -115,6 +117,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks)
         {
             _note = "LINK DOWN - TRY AGAIN";
         }
+        audio.Play("error");
         _step = Step.Player;
         Draw();
     }
