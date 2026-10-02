@@ -1,5 +1,6 @@
 using InsertCoin.Core;
 using InsertCoin.Game.Cabinet;
+using InsertCoin.Game.Companion;
 using InsertCoin.Game.Desktop;
 
 namespace InsertCoin.Game.App;
@@ -8,10 +9,11 @@ namespace InsertCoin.Game.App;
 /// Turns ledger events into moments: cabinet animation, sound, and — for things that happen mid-game — the corner
 /// ticket. The only place that knows both the rules and the presentation.
 /// </summary>
-public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket ticket, Rules rules, Func<bool> inGameTickets)
+public sealed class Director(CabinetView cabinet, Func<CompanionView?> companionNow, AudioBank audio, AlertTicket ticket, Rules rules, Func<bool> inGameTickets)
 {
     public void Play(LedgerEvent e)
     {
+        var companion = companionNow();
         switch (e)
         {
             case CoinsEarned c:
@@ -26,10 +28,12 @@ public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket t
                 if (jackpot)
                     audio.Play("jackpot");
                 cabinet.Lights.Burst(LightMode.Celebrate, jackpot ? 3.5 : 1.8);
+                companion?.Play(Moment.Cheer);
                 cabinet.Screen.Flash(jackpot ? "JACKPOT" : $"+{c.Tokens}", Truncate(c.Task.Title, 40) + (c.StarToken ? $"\nSTREAK x{c.Streak} BONUS" : ""), 3.0);
                 break;
             case DebtPaid p:
                 audio.Play("paid", delay: 0.4);
+                companion?.Play(p.DebtLeftMs == 0 ? Moment.Cheer : Moment.Glance);
                 if (p.DebtLeftMs == 0)
                     cabinet.Printer.Paid();
                 cabinet.Screen.Flash(p.DebtLeftMs == 0 ? "PAID" : "-IOU", p.DebtLeftMs == 0 ? "DEBT FREE" : "PAYING OFF DEBT", 2.5);
@@ -38,39 +42,52 @@ public sealed class Director(CabinetView cabinet, AudioBank audio, AlertTicket t
                 audio.Play("token");
                 cabinet.Tray.TakeOne();
                 cabinet.FlashSlot();
+                companion?.Play(Moment.Glance);
                 break;
             case LowTime { Level: Warning.FiveMinutes }:
                 audio.Alert("warn5");
                 cabinet.Lights.Burst(LightMode.Alarm, 3);
+                companion?.Play(Moment.Alarm);
                 cabinet.Screen.Flash("5:00", "LEFT - LAST TOKEN", 3.0);
                 Ticket("5:00 LEFT", "Your last token is burning");
                 break;
             case LowTime { Level: Warning.OneMinute }:
                 audio.Alert("warn1");
                 cabinet.Lights.Burst(LightMode.Alarm, 4);
+                companion?.Play(Moment.Alarm);
                 cabinet.Screen.Flash("1:00", "LEFT - SAVE YOUR GAME", 3.0);
                 Ticket("1:00 LEFT", "Save your game");
                 break;
             case CreditsOut:
                 audio.Alert("credits_out");
                 Ticket("OUT OF TIME", "Playing on credit: x1.5");
+                companion?.Play(Moment.Worry);
                 Continue(10);
                 break;
             case IouPrinted i:
                 audio.Alert("printer");
                 cabinet.Printer.PrintWhole();
+                companion?.Play(Moment.Worry);
                 cabinet.Screen.Flash($"IOU #{i.TicketNumber}", "PLAYING ON CREDIT", 2.5);
                 Ticket($"IOU #{i.TicketNumber}", $"{i.DebtMs / 60_000} min owed - solve to pay");
                 break;
             case SessionStarted s:
                 audio.Play("game_on");
+                companion?.Play(Moment.Glance);
                 cabinet.Screen.Flash("GAME ON", Truncate(string.Join(" + ", s.GameNames), 28), 2.5);
                 break;
             case SessionEnded end:
                 audio.Play("game_over");
+                companion?.Play(Moment.Glance);
                 audio.Play("printer", delay: 0.9);
                 cabinet.GetTree().CreateTimer(0.9).Timeout += () => cabinet.Receipt.Print(end.Receipt, rules);
                 cabinet.Screen.Flash("GAME OVER", $"PLAYED {Minutes(end.Receipt.PlayedMs)}\nIOU {end.Receipt.IousPrinted}", 4.0);
+                break;
+            case Paused:
+                companion?.Play(Moment.Doze);
+                break;
+            case Resumed:
+                companion?.Play(Moment.Wake);
                 break;
             case WeeklyReset w:
                 audio.Play("cashbox");

@@ -465,10 +465,14 @@ def cable():
 </g>'''
 
 
+STOOL = (-262, 300, -80)             # centre of the stool's seat top
+STOOL_RADIUS, STOOL_RING = 58, 96    # seat radius, height of the foot ring
+
+
 def props():
-    sx, sz, seat_y, rad = -262, -80, 300, 58
+    (sx, seat_y, sz), rad = STOOL, STOOL_RADIUS
     seat = Plane((sx, seat_y, sz), (1, 0, 0), (0, 0, -1))          # horizontal plane, normal +y
-    ring = Plane((sx, 96, sz), (1, 0, 0), (0, 0, -1))
+    ring = Plane((sx, STOOL_RING, sz), (1, 0, 0), (0, 0, -1))
     legs = []
     for ang in (225, 315, 135, 45):
         a = math.radians(ang)
@@ -525,7 +529,7 @@ def anchors():
 
 def frame_points():
     pts = [(x, y, z) for x in (-XO, XO) for z, y in SIDE] + [(XO + 8, FLOOR, BACK + 12), (-XO - 8, FLOOR, -44)]
-    pts += [(-262 + 70 * math.cos(t), y, -80 + 70 * math.sin(t)) for t in (i * math.pi / 8 for i in range(16)) for y in (FLOOR, 300)]
+    pts += [(STOOL[0] + 70 * math.cos(t), y, STOOL[2] + 70 * math.sin(t)) for t in (i * math.pi / 8 for i in range(16)) for y in (FLOOR, STOOL[1])]
     pts += [(-380, FLOOR, -170), (XO + 130, FLOOR, -20), (XO + 70, 170, 140)]
     return pts
 
@@ -572,7 +576,7 @@ def sprite(content, points, origin, pad=6, min_size=160):
     return document(w, h, defs() + content, f"{x0:.2f} {y0:.2f} {w} {h}"), (w, h), [round(origin[0] - x0, 2), round(origin[1] - y0, 2)]
 
 
-def export_skin(art_dir, skin_dir):
+def export_skin(art_dir, skin_dir, render=True):
     import json
     global MODE
     height = CAM.frame(frame_points(), 600, 26)
@@ -612,7 +616,7 @@ def export_skin(art_dir, skin_dir):
     renders.append(("ticket", size))
     sprites["ticket"] = {"file": "ticket.png", "origin": origin}
 
-    for name, (w, h) in renders:
+    for name, (w, h) in renders if render else []:
         render_png(art_dir / f"{name}.svg", skin_dir / f"{name}.png", w, h)
 
     def pt(p): return [round(p[0], 2), round(p[1], 2)]
@@ -645,6 +649,15 @@ def export_skin(art_dir, skin_dir):
                         "receipt": pts2(on(body, [(179, 166), (225, 166), (225, 268), (179, 268)])), "receiptSize": [46, 102]},
             "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
         },
+        # The 3D scene behind the art, for anything rendered live into it (the companion on the stool).
+        # Model units, x right, y up, z towards the back. A canvas point is offset + focal * (right, -up) / depth.
+        "world": {
+            "unitsPerMetre": 400,
+            "camera": {"position": [round(v, 3) for v in CAM.c], "yaw": 30, "focal": round(CAM.focal, 4), "offset": [round(CAM.ox, 4), round(CAM.oy, 4)]},
+            "floor": FLOOR,
+            "seat": list(STOOL), "seatRadius": STOOL_RADIUS, "footRest": STOOL_RING,
+            "screen": [round(v, 2) for v in screen.at(W / 2, 115)],
+        },
     }
     (skin_dir / "skin.json").write_text(json.dumps(skin, indent=2), encoding="utf-8")
     return skin
@@ -656,6 +669,6 @@ if __name__ == "__main__":
     out = root / "art" / "cozy" / "cabinet-v5.svg"
     out.write_text(svg(), encoding="utf-8")
     print(f"wrote {out}")
-    if "--skin" in sys.argv:
-        export_skin(root / "art" / "cozy" / "layers", root / "src" / "InsertCoin.Game" / "skins" / "cozy")
+    if "--skin" in sys.argv or "--anchors" in sys.argv:          # --anchors rewrites skin.json without rendering
+        export_skin(root / "art" / "cozy" / "layers", root / "src" / "InsertCoin.Game" / "skins" / "cozy", render="--skin" in sys.argv)
         print("exported skin to src/InsertCoin.Game/skins/cozy")

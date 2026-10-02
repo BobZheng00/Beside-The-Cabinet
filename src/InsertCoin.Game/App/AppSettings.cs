@@ -11,6 +11,8 @@ public sealed record AppSettings
     public string Size { get; init; } = "M";          // S, M or L
     public bool Muted { get; init; }
     public bool InGameTickets { get; init; } = true;
+    public string Companion { get; init; } = "shino";   // character folder under res://characters
+    public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
 }

@@ -6,5 +6,7 @@ obj/
 *.user
 TestResults/
 /builds/
+__pycache__/
 
 builds/
+__pycache__/

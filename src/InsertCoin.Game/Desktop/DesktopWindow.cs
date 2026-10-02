@@ -14,6 +14,8 @@ public partial class DesktopWindow : Node
     public event Action<Vector2>? Clicked;
     /// <summary>Canvas point under the cursor, or null when outside the art.</summary>
     public event Action<Vector2?>? Hover;
+    /// <summary>Anything solid besides the art's opaque pixels (things drawn live), tested with a canvas point.</summary>
+    public Func<Vector2, bool>? AlsoSolid { get; set; }
 
     private Bitmap _hitMask = null!;
     private float _maskScale;
@@ -42,6 +44,8 @@ public partial class DesktopWindow : Node
 
     private bool OverArt(Vector2 canvasPoint)
     {
+        if (AlsoSolid?.Invoke(canvasPoint) == true)
+            return true;
         var px = canvasPoint * _maskScale;
         var size = _hitMask.GetSize();
         return px.X >= 0 && px.Y >= 0 && px.X < size.X && px.Y < size.Y && _hitMask.GetBit((int)px.X, (int)px.Y);

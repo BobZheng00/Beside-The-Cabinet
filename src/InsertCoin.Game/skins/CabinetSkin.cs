@@ -17,6 +17,7 @@ public sealed class CabinetSkin
     public required IReadOnlyDictionary<string, Texture2D> Layers { get; init; }
     public required IReadOnlyDictionary<string, SkinSprite> Sprites { get; init; }
     public required SkinAnchors Anchors { get; init; }
+    public required SkinWorld World { get; init; }
 
     public static CabinetSkin Load(string id)
     {
@@ -51,14 +52,28 @@ public sealed class CabinetSkin
                 ReceiptSize = V(file.Anchors.Printer.ReceiptSize),
                 Marquee = [.. file.Anchors.Marquee.Select(V)],
             },
+            World = new SkinWorld
+            {
+                UnitsPerMetre = file.World.UnitsPerMetre,
+                CameraPosition = V3(file.World.Camera.Position),
+                CameraYawDegrees = file.World.Camera.Yaw,
+                Focal = file.World.Camera.Focal,
+                Offset = V(file.World.Camera.Offset),
+                Floor = file.World.Floor,
+                Seat = V3(file.World.Seat),
+                SeatRadius = file.World.SeatRadius,
+                FootRest = file.World.FootRest,
+                Screen = V3(file.World.Screen),
+            },
         };
     }
 
     private static Vector2 V(float[] p) => new(p[0], p[1]);
+    private static Vector3 V3(float[] p) => new(p[0], p[1], p[2]);
 
     // ---- skin.json shape ----
     private sealed record SkinFile(string Id, string Name, float Scale, float[] Canvas, Dictionary<string, string> Layers,
-                                   Dictionary<string, SpriteFile> Sprites, AnchorsFile Anchors);
+                                   Dictionary<string, SpriteFile> Sprites, AnchorsFile Anchors, WorldFile World);
     private sealed record SpriteFile(string File, float[] Origin);
     private sealed record AnchorsFile(ScreenFile Screen, BulbFile[] Bulbs, ButtonFile CheckButton, float[] CoinSlot, TrayFile Tray,
                                       PrinterFile Printer, float[][] Marquee);
@@ -66,6 +81,8 @@ public sealed class CabinetSkin
     private sealed record BulbFile(float X, float Y, float R);
     private sealed record ButtonFile(float[][] Polygon, float[] Press);
     private sealed record TrayFile(float[][] Opening, float[][] Spots, float[] Stack, float[] Chute);
+    private sealed record WorldFile(float UnitsPerMetre, CameraFile Camera, float Floor, float[] Seat, float SeatRadius, float FootRest, float[] Screen);
+    private sealed record CameraFile(float[] Position, float Yaw, float Focal, float[] Offset);
     private sealed record PrinterFile(float[][] Slot, [property: JsonPropertyName("ticket")] float[] Ticket, float[][] Receipt, float[] ReceiptSize);
 }
 
@@ -89,4 +106,26 @@ public sealed class SkinAnchors
     public required Vector2[] ReceiptQuad { get; init; }          // TL, TR, BR, BL of the paper hanging from the slot
     public required Vector2 ReceiptSize { get; init; }
     public required Vector2[] Marquee { get; init; }
+}
+
+/// <summary>
+/// The 3D scene the art was drawn from, so live 3D can be rendered into the same picture.
+/// Model units: x right, y up, z towards the back of the cabinet. A point lands on the canvas at
+/// Offset + Focal * (right, -up) / depth for a camera that looks horizontally (yaw only, lens shifted).
+/// </summary>
+public sealed class SkinWorld
+{
+    public required float UnitsPerMetre { get; init; }
+    public required Vector3 CameraPosition { get; init; }
+    public required float CameraYawDegrees { get; init; }
+    public required float Focal { get; init; }
+    public required Vector2 Offset { get; init; }
+    public required float Floor { get; init; }
+    public required Vector3 Seat { get; init; }                   // centre of the stool's seat top
+    public required float SeatRadius { get; init; }
+    public required float FootRest { get; init; }                 // height of the stool's foot ring
+    public required Vector3 Screen { get; init; }                 // centre of the CRT
+
+    /// <summary>Model point to Godot metres (right-handed: z flips).</summary>
+    public Vector3 ToMetres(Vector3 model) => new Vector3(model.X, model.Y, -model.Z) / UnitsPerMetre;
 }

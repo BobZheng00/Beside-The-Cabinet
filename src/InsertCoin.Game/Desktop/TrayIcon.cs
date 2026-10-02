@@ -8,10 +8,10 @@ public enum TrayMood { Fine, Low, Debt }
 public partial class TrayIcon : Node
 {
     public event Action? ShowCabinet, CheckNow, ChangePlayer, Quit;
-    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged;
+    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged;
     public event Action<string>? SizeChanged;
 
-    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, SizeId = 10;
+    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8, SizeId = 10;
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
@@ -23,7 +23,7 @@ public partial class TrayIcon : Node
     private readonly Dictionary<TrayMood, Texture2D> _icons = [];
     private TrayMood? _mood;
 
-    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets)
+    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion)
     {
         _menu = new PopupMenu();
         _menu.AddItem("Show cabinet", ShowId);
@@ -35,6 +35,8 @@ public partial class TrayIcon : Node
             _menu.AddRadioCheckItem($"Size: {name}", SizeId + i);
             _menu.SetItemChecked(_menu.GetItemIndex(SizeId + i), Sizes[i] == size);
         }
+        _menu.AddCheckItem("Companion", CompanionId);
+        _menu.SetItemChecked(_menu.GetItemIndex(CompanionId), companion);
         _menu.AddSeparator();
         _menu.AddCheckItem("Mute sounds", MuteId);
         _menu.AddCheckItem("In-game tickets", TicketsId);
@@ -79,6 +81,7 @@ public partial class TrayIcon : Node
             case StartupId: StartWithWindowsChanged?.Invoke(Toggle(StartupId)); break;
             case MuteId: MutedChanged?.Invoke(Toggle(MuteId)); break;
             case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
+            case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case QuitId: Quit?.Invoke(); break;
             case >= SizeId and < SizeId + 3:
                 for (var i = 0; i < 3; i++)

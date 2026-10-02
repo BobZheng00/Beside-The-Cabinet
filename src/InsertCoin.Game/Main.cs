@@ -4,6 +4,7 @@ using InsertCoin.Adapters;
 using InsertCoin.Core;
 using InsertCoin.Game.App;
 using InsertCoin.Game.Cabinet;
+using InsertCoin.Game.Companion;
 using InsertCoin.Game.Desktop;
 using InsertCoin.Game.Skins;
 
@@ -15,7 +16,7 @@ namespace InsertCoin.Game;
 /// Debug builds add a dev console: F1/F2/F3 solve Easy/Medium/Hard, F5 fake game on/off, F6 time ×60,
 /// F7 AFK on/off, F9 wipe state.
 /// User args (after "--"): --data=DIR uses another profile folder, --no-steam ignores Steam,
-/// --script=easy@2,hard@4,game@6,warp@6,afk@30,check@8,wipe@0 plays dev actions at the given seconds.
+/// --script=easy@2,hard@4,game@6,warp@6,afk@30,check@8,wipe@0,moment:cheer@3 plays dev actions at the given seconds.
 /// </summary>
 public partial class Main : Node2D
 {
@@ -32,6 +33,7 @@ public partial class Main : Node2D
     private ITaskSource _tasks = null!;
     private IGameDetector _games = null!;
     private CabinetView _cabinet = null!;
+    private CompanionView? _companion;
     private Director _director = null!;
     private DesktopWindow _window = null!;
     private TrayIcon _tray = null!;
@@ -70,18 +72,26 @@ public partial class Main : Node2D
         _cabinet = new CabinetView();
         AddChild(_cabinet);
         _cabinet.Build(skin);
+        ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();
         AddChild(_audio);
         _audio.Build(_settings.Muted);
         _ticket = new AlertTicket();
         AddChild(_ticket);
-        _director = new Director(_cabinet, _audio, _ticket, _rules, () => _settings.InGameTickets);
+        _director = new Director(_cabinet, () => _companion, _audio, _ticket, _rules, () => _settings.InGameTickets);
 
         _window = new DesktopWindow();
         AddChild(_window);
         _window.Build(skin.Layers["base"], skin.Scale, skin.Canvas);
         _window.Hover += p => _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
-        _window.Clicked += p => { if (_cabinet.HitsCheck(p)) _cabinet.PressCheck(); };
+        _window.AlsoSolid = p => _companion?.Hits(p) == true;
+        _window.Clicked += p =>
+        {
+            if (_cabinet.HitsCheck(p))
+                _cabinet.PressCheck();
+            else if (_companion?.Hits(p) == true)
+                _companion.Play(Moment.Greet);
+        };
         _cabinet.CheckPressed += OnCheck;
         ApplySize();
         PlaceWindow();
@@ -89,9 +99,10 @@ public partial class Main : Node2D
 
         _tray = new TrayIcon();
         AddChild(_tray);
-        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets);
+        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion);
         _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
+        _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
         _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
         _tray.CheckNow += () => _cabinet.PressCheck();
@@ -247,7 +258,9 @@ public partial class Main : Node2D
         _tray.Set(mood, mood == TrayMood.Debt
             ? $"INSERT COIN — {shownDebt / 60_000} min owed ({s.IouTickets(_rules)} IOU)"
             : $"INSERT COIN — {shownLeft / 60_000} min left · {s.Credits} credits" + (streak > 0 ? $" · combo x{streak}" : ""));
-        _cabinet.SetScreenPower(s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f);
+        var power = s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f;
+        _cabinet.SetScreenPower(power);
+        _companion?.SetScreenLight(power);
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
         if (s.Session is not null && shownLeft == 0)
             _cabinet.Lights.SetModeIfNot(LightMode.Alarm);
@@ -281,6 +294,20 @@ public partial class Main : Node2D
         var bottomRight = DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize();
         DisplayServer.WindowSetSize(size);
         DisplayServer.WindowSetPosition(bottomRight - size);      // grow/shrink from the feet, not the top-left
+    }
+
+    /// <summary>Seats the companion on the stool (built the first time she is wanted) or leaves it empty.</summary>
+    private void ShowCompanion(bool show)
+    {
+        if (show && _companion is null)
+        {
+            _companion = new CompanionView();
+            AddChild(_companion);
+            MoveChild(_companion, _cabinet.GetIndex() + 1);       // drawn over the cabinet art, under everything else
+            _companion.Build(_cabinet.Skin, _settings.Companion);
+        }
+        _companion?.SetActive(show);
+        Engine.MaxFps = show ? 60 : 0;        // she moves all the time; no need to draw faster than this on fast monitors
     }
 
     private void PlaceWindow()
@@ -346,6 +373,17 @@ public partial class Main : Node2D
 
     private void Dev(string action)
     {
+        if (action.StartsWith("point:"))             // point:x:y pretends the mouse pointer is at this canvas point
+        {
+            var at = action.Split(':');
+            _companion?.DevPointer(new Vector2(float.Parse(at[1]), float.Parse(at[2])));
+            return;
+        }
+        if (action.StartsWith("moment:"))
+        {
+            _companion?.Play(Enum.Parse<Moment>(action["moment:".Length..], ignoreCase: true));
+            return;
+        }
         if (action.StartsWith("type:"))
         {
             foreach (var c in action["type:".Length..])
