@@ -40,6 +40,7 @@ src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, direct
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
+tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it; sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
 
