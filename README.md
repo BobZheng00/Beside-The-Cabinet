@@ -9,7 +9,8 @@ Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-inse
 
 | | |
 |---|---|
-| `run.cmd` | The real thing: your profile in `%APPDATA%\InsertCoin`, real Steam detection. |
+| `builds\InsertCoin\InsertCoin.exe` | The standalone app (after `build.cmd`). Real profile in `%APPDATA%\InsertCoin`, real Steam detection. No dev keys. |
+| `run.cmd` | Same as the app, but run from source through the Godot editor binary (debug build, dev keys on). |
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu
@@ -39,6 +40,17 @@ dotnet build src/InsertCoin.Game              # game assembly
 python tools/art/cozy_cabinet.py --skin       # regenerate art -> src/InsertCoin.Game/skins/cozy (needs Chrome)
 python tools/sfx/generate.py                  # regenerate sounds -> src/InsertCoin.Game/sounds
 ```
+
+### Standalone build
+
+```
+python tools/export/fetch_template.py --get <folder>/templates/4.7.2-stable-mono   # once: 40 MB instead of the 1.2 GB archive
+build.cmd                                                                                  # -> builds\InsertCoin\InsertCoin.exe + data folder
+```
+
+The export preset points at that template path. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
+(the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly.
+The `.exe` still carries Godot's icon (setting a custom one needs `rcedit`).
 
 Godot 4.7.2 .NET is expected at `<tools>\Godot\Godot_v4.7.2-stable_mono_win64\`. After changing art or sounds,
 re-import: `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
