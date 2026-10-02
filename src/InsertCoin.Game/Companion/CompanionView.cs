@@ -144,6 +144,9 @@ public partial class CompanionView : Node2D
         _viewport.RenderTargetUpdateMode = active ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
     }
 
+    /// <summary>Dev: which feet hang free of the stool's ring ("left", "right", "both", "ring").</summary>
+    public void DevLegs(string which) => _puppet.Hang(which is "left" or "both", which is "right" or "both");
+
     /// <summary>Dev: follow a pretend pointer at this canvas point from now on.</summary>
     public void DevPointer(Vector2 canvasPoint) => _devPointer = canvasPoint;
 

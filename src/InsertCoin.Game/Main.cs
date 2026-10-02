@@ -464,6 +464,11 @@ public partial class Main : Node2D
             SetPace();
             return;
         }
+        if (action.StartsWith("legs:"))              // legs:left|right|both|ring sets which feet hang off the stool's ring
+        {
+            _companion?.DevLegs(action["legs:".Length..]);
+            return;
+        }
         if (action.StartsWith("moment:"))
         {
             _companion?.Play(Enum.Parse<Moment>(action["moment:".Length..], ignoreCase: true));

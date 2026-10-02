@@ -29,7 +29,8 @@ Dev keys (debug builds, click the cabinet first): `F1/F2/F3` solve Easy/Medium/H
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
-`say:some_text` (a speech bubble), `click` (as if she were clicked) and `saver` (toggle the energy saver).
+`say:some_text` (a speech bubble), `click` (as if she were clicked), `saver` (toggle the energy saver) and
+`legs:left|right|both|ring` (which feet hang off the stool's ring).
 
 ## Layout
 

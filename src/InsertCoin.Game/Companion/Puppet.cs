@@ -75,6 +75,7 @@ internal sealed class Puppet
     // (see Rig.Size).
     private const float HipJointHeight = 0.045f, HipJointBack = -0.04f;   // hip joints above / behind the seat centre
     private const float ThighSlope = 5;                            // degrees below level
+    private const float KneeHanging = 90 - ThighSlope + 9;         // knee bend of a leg hanging free: the shin a little back of plumb
     private const float RestCurl = 11;
 
     // ---- State ---------------------------------------------------------------------------------------------------
@@ -84,6 +85,9 @@ internal sealed class Puppet
     private readonly float _size;
     private readonly Vector3 _seat;                       // where the hips bone goes, from the seat centre
     private readonly bool _dangling;                      // her feet do not reach the stool's ring
+    private readonly float _kneeOnRing;                   // knee bend (degrees) that rests her toes on the ring
+    private readonly Dictionary<string, float> _hang = [], _hangGoal = [];   // per leg: 0 = foot on the ring, 1 = hanging free
+    private double _nextLegChange = 10;
     private readonly Dictionary<string, Quaternion> _goal = [], _frame = [];
     private readonly Dictionary<string, RotationSpring> _springs = [];
     private readonly Dictionary<string, float> _on = [], _shown = [], _shownSpeed = [];
@@ -125,7 +129,9 @@ internal sealed class Puppet
         _sit = new Pose();
         foreach (var (bone, degrees) in Sit)
             _sit[bone] = degrees;
-        _sit.Both("LowerLeg", 90 - ThighSlope + back, 0, 0);
+        _kneeOnRing = 90 - ThighSlope + back;
+        foreach (var side in Sides)
+            _hang[side] = _hangGoal[side] = _dangling ? 1 : 0;
         // She is seated by her hip joints; where the hips bone sits relative to them differs from rig to rig.
         var fromJoints = rig.RestOffset("LeftUpperLeg", "Hips");
         _seat = new Vector3(0, HipJointHeight * _size + fromJoints.Y, HipJointBack * _size + fromJoints.Z);
@@ -228,11 +234,18 @@ internal sealed class Puppet
             _shown[name] = Mathf.Clamp(_shown[name] + dt * _shownSpeed[name], 0, 1);
         }
         Fidget();
+        LegPosture(dt);
 
         // 1. Poses: seated, reaction poses over it, head and torso turned to what she is looking at.
         _goal.Clear();
         foreach (var (bone, degrees) in _sit)
             _goal[bone] = Rig.Euler(degrees);
+        foreach (var side in Sides)
+        {
+            // a foot on the ring has the knee bent back to reach it; let down, the shin hangs and the foot relaxes
+            _goal[side + "LowerLeg"] = Rig.Euler(Mathf.Lerp(_kneeOnRing, KneeHanging, _hang[side]), 0, 0);
+            _goal[side + "Foot"] = Rig.Euler(Mathf.Lerp(30, 20, _hang[side]), 0, 0);
+        }
         foreach (var (name, overlay) in Overlays)
             if (_shown[name] > 0.001f)
                 foreach (var (bone, degrees) in overlay.Body)
@@ -411,17 +424,39 @@ internal sealed class Puppet
         }
     }
 
-    /// <summary>Feet rest on the stool's ring; a heel bobs, and now and then a leg (or both) swings out and back.</summary>
+    /// <summary>
+    /// Nobody keeps both feet on a stool's ring for long. Every so often she lets one foot down, or both, and
+    /// later puts them back. A character whose legs do not reach the ring has them hanging all the time.
+    /// </summary>
+    private void LegPosture(float dt)
+    {
+        if (!_dangling && _time > _nextLegChange && _awake > 0.9f)
+        {
+            _nextLegChange = _time + _random.RandfRange(14, 38);
+            var now = (_hangGoal["Left"], _hangGoal["Right"]);
+            var next = now;
+            while (next == now)
+                next = _random.Randf() switch { < 0.4f => (0f, 0f), < 0.58f => (1f, 0f), < 0.76f => (0f, 1f), _ => (1f, 1f) };
+            (_hangGoal["Left"], _hangGoal["Right"]) = next;
+        }
+        foreach (var side in Sides)
+            _hang[side] += (_hangGoal[side] - _hang[side]) * (1 - Mathf.Exp(-dt * 1.6f));     // about a second to let a foot down
+    }
+
+    /// <summary>Dev: put her feet where asked (true = hanging free) and hold that for a while.</summary>
+    public void Hang(bool left, bool right)
+    {
+        (_hangGoal["Left"], _hangGoal["Right"]) = (left ? 1 : 0, right ? 1 : 0);
+        _nextLegChange = _time + 30;
+    }
+
+    /// <summary>A hanging leg swings gently; a heel on the ring bobs; now and then a leg (or both) swings out and back.</summary>
     private void Legs(float t)
     {
-        if (_dangling)
-        {
-            // legs that do not reach the ring swing gently, one after the other
-            Add("LeftLowerLeg", 7 * Mathf.Sin(t * 1.5f) * _awake, 0, 0);
-            Add("RightLowerLeg", 7 * Mathf.Sin(t * 1.5f + 2.4f) * _awake, 0, 0);
-        }
-        else
-            Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake, 0, 0);
+        Add("LeftLowerLeg", 7 * Mathf.Sin(t * 1.5f) * _awake * _hang["Left"], 0, 0);
+        Add("RightLowerLeg", 7 * Mathf.Sin(t * 1.5f + 2.4f) * _awake * _hang["Right"], 0, 0);
+        Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake * (1 - _hang["Left"]), 0, 0);
+        Add("RightFoot", 2.5f * Mathf.Sin(t * 1.3f + 1) * _awake * (1 - _hang["Right"]), 0, 0);
 
         var kick = (float)(_time - _kickAt);
         if (kick is >= 0 and < 2.6f)
