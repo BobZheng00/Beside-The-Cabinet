@@ -209,27 +209,66 @@ public partial class CompanionView : Node2D
             springs.SetRadius(i, 0.02f * size * perMetre);
         }
 
-        // What the loose bones must stay out of: a capsule along each thigh and shin.
-        // (Nothing for the seat: a shape big enough to stand in for it throws coat tails upwards.)
-        void Limb(string from, string to, float radius)
+        // What the loose bones must stay out of. Legs are solid to everything. Arms are solid to hair only:
+        // clothes lie on the body they belong to, and being pushed off it pulls a sleeve or a collar out of place.
+        // Tried and dropped: the torso (it sweeps hair worn over the shoulders round to the back), the head (it
+        // parts the fringe) and the seat (it throws coat tails upwards).
+        // Each capsule is shrunk until every joint of the resting hair or cloth it applies to is outside it, and
+        // left out if that makes it too thin to matter: a shape that swallows part of a chain throws it about.
+        bool IsHair(int root) => new[] { "hair", "bang", "ahoge" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
+        List<Vector3> Joints(bool hairOnly)
+        {
+            var joints = new List<Vector3>();
+            foreach (var (root, tip) in chains)
+                if (!hairOnly || IsHair(root))
+                    for (var bone = tip; bone != root; bone = skeleton.GetBoneParent(bone))
+                        joints.Add(skeleton.GetBoneGlobalRest(bone).Origin);
+            return joints;
+        }
+        var everyJoint = Joints(hairOnly: false);
+        var hairJoints = Joints(hairOnly: true);
+        var clearance = 1.5f * 0.02f * size * perMetre;
+        var forHairOnly = new List<SpringBoneCollision3D>();
+
+        void Limb(string from, string to, float radius, bool hairOnly)
         {
             if (!humanoid.TryGetValue(from, out var bone) || !humanoid.TryGetValue(to, out var child) || skeleton.GetBoneParent(child) != bone)
                 return;
+            var joints = hairOnly ? hairJoints : everyJoint;
+            if (joints.Count == 0)
+                return;
+            Vector3 a = skeleton.GetBoneGlobalRest(bone).Origin, b = skeleton.GetBoneGlobalRest(child).Origin;
+            var wanted = radius * size * perMetre;
+            var fitted = Mathf.Min(wanted, joints.Min(joint => Geometry3D.GetClosestPointToSegment(joint, a, b).DistanceTo(joint)) - clearance);
+            if (fitted < 0.35f * wanted)
+                return;
             var along = skeleton.GetBoneRest(child).Origin;             // the next joint, in this bone's own space
-            var capsule = new SpringBoneCollisionCapsule3D();
+            var capsule = new SpringBoneCollisionCapsule3D { Name = $"{from}Solid" };
             springs.AddChild(capsule);
             capsule.Bone = bone;
             capsule.PositionOffset = along / 2;
             capsule.RotationOffset = along.Normalized().Dot(Vector3.Up) > -0.999f
                 ? new Quaternion(Vector3.Up, along.Normalized())
                 : new Quaternion(Vector3.Right, Mathf.Pi);
-            capsule.Radius = radius * size * perMetre;
-            capsule.Height = along.Length() + 2 * capsule.Radius;
+            capsule.Radius = fitted;
+            capsule.Height = along.Length() + 2 * fitted;
+            if (hairOnly)
+                forHairOnly.Add(capsule);
         }
         foreach (var side in new[] { "Left", "Right" })
         {
-            Limb(side + "UpperLeg", side + "LowerLeg", 0.08f);
-            Limb(side + "LowerLeg", side + "Foot", 0.055f);
+            Limb(side + "UpperLeg", side + "LowerLeg", 0.08f, hairOnly: false);
+            Limb(side + "LowerLeg", side + "Foot", 0.055f, hairOnly: false);
+            Limb(side + "UpperArm", side + "LowerArm", 0.05f, hairOnly: true);
+            Limb(side + "LowerArm", side + "Hand", 0.045f, hairOnly: true);
+        }
+        for (var i = 0; i < chains.Count; i++)
+        {
+            if (IsHair(chains[i].Root))
+                continue;
+            springs.SetExcludeCollisionCount(i, forHairOnly.Count);
+            for (var k = 0; k < forHairOnly.Count; k++)
+                springs.SetExcludeCollisionPath(i, k, springs.GetPathTo(forHairOnly[k]));
         }
         return followers;
     }

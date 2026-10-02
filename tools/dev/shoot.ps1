@@ -40,7 +40,7 @@ public static class Shoot { [StructLayout(LayoutKind.Sequential)] public struct 
 $form = $null
 if ($Bg -ne "none") {
   $form = New-Object System.Windows.Forms.Form
-  $form.FormBorderStyle = 'None'; $form.StartPosition = 'Manual'; $form.ShowInTaskbar = $false
+  $form.FormBorderStyle = 'None'; $form.StartPosition = 'Manual'; $form.ShowInTaskbar = $false; $form.TopMost = $true   # over whatever else is on screen
   $form.BackColor = [System.Drawing.ColorTranslator]::FromHtml($Bg)
   $form.Location = New-Object System.Drawing.Point(($X - 40), ($Y - 40)); $form.Size = New-Object System.Drawing.Size(760, 920)
   $form.Show(); [System.Windows.Forms.Application]::DoEvents()

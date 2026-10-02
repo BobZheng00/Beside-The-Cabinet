@@ -236,7 +236,13 @@ blend shapes. She sat, waved and cheered on the first run. What that model chang
   and dropped: it threw skirt and coat tails upwards.
 
 Still missing for such a model: blinking and expressions (no blend shapes, the eyes are painted), eye movement
-(no eye bones). Cloth still ignores the seat and her arms.
+(no eye bones).
+
+Colliders, after trying each on this model: thighs and shins are solid to all loose chains; arms are solid to hair
+only. Each capsule is shrunk until no resting joint is inside it. Tried and dropped: a torso capsule (it swept
+the hair she wears over her shoulders round to her back), a head sphere (it parted her fringe), arms and torso
+against cloth (her shirt rode up) and a sphere for the seat (skirt and coat tails thrown upwards). So hair can
+still pass through her torso on a strong head turn, and cloth ignores the seat.
 
 Not tested: rigs with non-English bone names.
 
