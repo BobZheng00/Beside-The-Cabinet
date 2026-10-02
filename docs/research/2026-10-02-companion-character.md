@@ -229,10 +229,14 @@ blend shapes. She sat, waved and cheered on the first run. What that model chang
   joints, VRoid puts it 4 cm above, and she floated by that much.
 - Legs too short to reach the foot ring hang and swing instead of being forced towards it.
 - Loose chains named hair, skirt, piao, tail, ribbon and the like get Godot's `SpringBoneSimulator3D` (no
-  gravity, no collisions), so they trail and settle instead of being rigid.
+  gravity), so they trail and settle instead of being rigid. Thighs and shins are capsule colliders for them.
+- A skirt rigged for standing hangs straight through the thighs of a seated figure. Collisions alone do not fix
+  that, so each skirt panel is swung forward with the thigh under it: most at the front, not at the back, and
+  only far enough to lay the hem on the thigh (`Puppet.Followers`). A sphere standing in for the seat was tried
+  and dropped: it threw skirt and coat tails upwards.
 
 Still missing for such a model: blinking and expressions (no blend shapes, the eyes are painted), eye movement
-(no eye bones), and a skirt that drapes over the thighs (needs collisions).
+(no eye bones). Cloth still ignores the seat and her arms.
 
 Not tested: rigs with non-English bone names.
 

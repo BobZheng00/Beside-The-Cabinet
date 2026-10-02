@@ -108,6 +108,12 @@ internal sealed class Puppet
     /// <summary>Where the mouse pointer is, when it moved recently.</summary>
     public Vector3? Pointer { get; set; }
 
+    /// <summary>
+    /// Bones that swing forward with a thigh by the given share of its rotation: the panels of a skirt that is not
+    /// attached to the legs, so that it lies over them when she sits.
+    /// </summary>
+    public IReadOnlyList<(string Bone, string Side, float Follow)> Followers { get; init; } = [];
+
     /// <summary>Where her head is, in the skeleton's space.</summary>
     public Vector3 Head => _rig.PositionOf("Head");
 
@@ -262,6 +268,9 @@ internal sealed class Puppet
         Sway(t);
         Legs(t);
         var hips = _seat + new Vector3(0, 0.002f * lift + Bounce(), 0);
+
+        foreach (var (bone, side, follow) in Followers)
+            _frame[bone] = Quaternion.Identity.Slerp(_frame[side + "UpperLeg"], follow);
 
         // Arms last: they hang off the finished torso, so the hands stay in her lap while she breathes.
         foreach (var side in Sides)

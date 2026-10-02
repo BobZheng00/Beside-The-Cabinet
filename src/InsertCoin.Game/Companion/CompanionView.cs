@@ -90,11 +90,11 @@ public partial class CompanionView : Node2D
         var humanoid = HumanoidMap.Guess(skeleton);
         if (humanoid is not null && HumanoidMap.Required.FirstOrDefault(bone => !humanoid.ContainsKey(bone)) is { } missing)
             throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
-        _rig = new Rig(skeleton, humanoid, Fit(_character, skeleton, humanoid));
-        if (humanoid is not null)
-            LetLooseBonesSway(skeleton, humanoid);
+        var fit = Fit(_character, skeleton, humanoid);
+        _rig = new Rig(skeleton, humanoid, fit);
+        var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
-        _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen };
+        _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen, Followers = followers };
 
         _lastMouse = DisplayServer.MouseGetPosition();
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
@@ -153,10 +153,13 @@ public partial class CompanionView : Node2D
     /// <summary>
     /// A plain GLB has no physics, but game characters often carry chains of bones for hair, skirts and coat tails
     /// that the game would have simulated. Found by name, they get Godot's spring bones: no gravity (their rest
-    /// shape already hangs right), just give, so they trail and settle when she moves.
+    /// shape already hangs right), just give, so they trail and settle when she moves. Her legs and the seat are
+    /// solid to them, so a skirt lies over her thighs instead of passing through.
     /// </summary>
-    private static void LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid)
+    /// <returns>Skirt panels and how far each should swing forward with the thigh below it (see Puppet.Followers).</returns>
+    private static List<(string Bone, string Side, float Follow)> LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid, Transform3D toCharacter, float size)
     {
+        var followers = new List<(string Bone, string Side, float Follow)>();
         string[] words = ["hair", "skirt", "piao", "tail", "ribbon", "cape", "cloth", "scarf", "dress", "bang", "ahoge"];
         var posed = humanoid.Values.ToHashSet();
         bool Loose(int bone) => bone >= 0 && !posed.Contains(bone) && words.Any(skeleton.GetBoneName(bone).ToLowerInvariant().Contains);
@@ -176,8 +179,23 @@ public partial class CompanionView : Node2D
                 chains.Add((bone, end));
         }
         if (chains.Count == 0)
-            return;
+            return followers;
 
+        // A skirt is made for standing: its panels hang straight down from the waist, which is through her thighs
+        // once she sits. Each panel is swung forward with the thigh under it, fully at the front, not at all at
+        // the back, and only as far as lays its hem on the thigh.
+        var hips = toCharacter * skeleton.GetBoneGlobalRest(humanoid["Hips"]).Origin;
+        foreach (var (root, _) in chains)
+        {
+            var name = skeleton.GetBoneName(root);
+            if (!name.ToLowerInvariant().Contains("skirt") && !name.ToLowerInvariant().Contains("dress"))
+                continue;
+            var from = toCharacter * skeleton.GetBoneGlobalRest(root).Origin - hips;
+            var around = Mathf.Atan2(Mathf.Abs(from.X), from.Z);        // 0 in front of her, pi behind
+            followers.Add((name, from.X >= 0 ? "Left" : "Right", 0.78f * (Mathf.Cos(around) + 1) / 2));
+        }
+
+        var perMetre = 1 / toCharacter.Basis.Scale.X;                   // the skeleton's own units in a metre
         var springs = new SpringBoneSimulator3D();
         skeleton.AddChild(springs);
         springs.SettingCount = chains.Count;
@@ -188,7 +206,32 @@ public partial class CompanionView : Node2D
             springs.SetStiffness(i, 2.2f);
             springs.SetDrag(i, 0.35f);
             springs.SetGravity(i, 0);
+            springs.SetRadius(i, 0.02f * size * perMetre);
         }
+
+        // What the loose bones must stay out of: a capsule along each thigh and shin.
+        // (Nothing for the seat: a shape big enough to stand in for it throws coat tails upwards.)
+        void Limb(string from, string to, float radius)
+        {
+            if (!humanoid.TryGetValue(from, out var bone) || !humanoid.TryGetValue(to, out var child) || skeleton.GetBoneParent(child) != bone)
+                return;
+            var along = skeleton.GetBoneRest(child).Origin;             // the next joint, in this bone's own space
+            var capsule = new SpringBoneCollisionCapsule3D();
+            springs.AddChild(capsule);
+            capsule.Bone = bone;
+            capsule.PositionOffset = along / 2;
+            capsule.RotationOffset = along.Normalized().Dot(Vector3.Up) > -0.999f
+                ? new Quaternion(Vector3.Up, along.Normalized())
+                : new Quaternion(Vector3.Right, Mathf.Pi);
+            capsule.Radius = radius * size * perMetre;
+            capsule.Height = along.Length() + 2 * capsule.Radius;
+        }
+        foreach (var side in new[] { "Left", "Right" })
+        {
+            Limb(side + "UpperLeg", side + "LowerLeg", 0.08f);
+            Limb(side + "LowerLeg", side + "Foot", 0.055f);
+        }
+        return followers;
     }
 
     /// <summary>
