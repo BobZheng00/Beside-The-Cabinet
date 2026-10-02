@@ -221,8 +221,20 @@ Tested with three Mixamo-rigged samples from the three.js repository (not bundle
 facing the other way) and Xbot, all in centimetres under a rotated armature. All three sit, wave and cheer, in the
 editor run and in the exported build. An unrigged model (Khronos' Duck) is refused with a message on the CRT.
 
-Not tested: a GLB actually downloaded from Sketchfab (login needed), rigs with non-English bone names, A-pose
-rigs (the straightening code is there but all three samples rest in a T-pose).
+Then tested with a real Sketchfab download (22 MB, a personal test only, not in the repo): 3ds Max Biped bone names with Sketchfab's numeric suffixes,
+A-pose, centimetres under two rotated parent nodes, 376 bones of which 283 are hair, skirt and coat chains, no
+blend shapes. She sat, waved and cheered on the first run. What that model changed:
+
+- Characters are now seated by their hip joints, not the hips bone: Biped puts the pelvis bone level with the
+  joints, VRoid puts it 4 cm above, and she floated by that much.
+- Legs too short to reach the foot ring hang and swing instead of being forced towards it.
+- Loose chains named hair, skirt, piao, tail, ribbon and the like get Godot's `SpringBoneSimulator3D` (no
+  gravity, no collisions), so they trail and settle instead of being rigid.
+
+Still missing for such a model: blinking and expressions (no blend shapes, the eyes are painted), eye movement
+(no eye bones), and a skirt that drapes over the thighs (needs collisions).
+
+Not tested: rigs with non-English bone names.
 
 ## Suggested spike (as planned before it was run)
 

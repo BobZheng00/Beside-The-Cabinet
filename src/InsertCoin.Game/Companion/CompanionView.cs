@@ -91,6 +91,8 @@ public partial class CompanionView : Node2D
         if (humanoid is not null && HumanoidMap.Required.FirstOrDefault(bone => !humanoid.ContainsKey(bone)) is { } missing)
             throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
         _rig = new Rig(skeleton, humanoid, Fit(_character, skeleton, humanoid));
+        if (humanoid is not null)
+            LetLooseBonesSway(skeleton, humanoid);
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen };
 
@@ -144,6 +146,47 @@ public partial class CompanionView : Node2D
 
     /// <summary>Dev: follow a pretend pointer at this canvas point from now on.</summary>
     public void DevPointer(Vector2 canvasPoint) => _devPointer = canvasPoint;
+
+    /// <summary>
+    /// A plain GLB has no physics, but game characters often carry chains of bones for hair, skirts and coat tails
+    /// that the game would have simulated. Found by name, they get Godot's spring bones: no gravity (their rest
+    /// shape already hangs right), just give, so they trail and settle when she moves.
+    /// </summary>
+    private static void LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid)
+    {
+        string[] words = ["hair", "skirt", "piao", "tail", "ribbon", "cape", "cloth", "scarf", "dress", "bang", "ahoge"];
+        var posed = humanoid.Values.ToHashSet();
+        bool Loose(int bone) => bone >= 0 && !posed.Contains(bone) && words.Any(skeleton.GetBoneName(bone).ToLowerInvariant().Contains);
+        int Next(int bone) => skeleton.GetBoneChildren(bone).Where(Loose).DefaultIfEmpty(-1).First();
+
+        // Split each loose tree into paths: a path follows the first loose child; other children start their own.
+        var chains = new List<(int Root, int End)>();
+        for (var bone = 0; bone < skeleton.GetBoneCount(); bone++)
+        {
+            var parent = skeleton.GetBoneParent(bone);
+            if (!Loose(bone) || (Loose(parent) && Next(parent) == bone))
+                continue;
+            var end = bone;
+            while (Next(end) >= 0)
+                end = Next(end);
+            if (end != bone)
+                chains.Add((bone, end));
+        }
+        if (chains.Count == 0)
+            return;
+
+        var springs = new SpringBoneSimulator3D();
+        skeleton.AddChild(springs);
+        springs.SettingCount = chains.Count;
+        for (var i = 0; i < chains.Count; i++)
+        {
+            springs.SetRootBone(i, chains[i].Root);
+            springs.SetEndBone(i, chains[i].End);
+            springs.SetStiffness(i, 2.2f);
+            springs.SetDrag(i, 0.35f);
+            springs.SetGravity(i, 0);
+        }
+    }
 
     /// <summary>
     /// Sizes and turns a model that is not a VRM so that it is in metres and faces +z, and returns what takes its
@@ -249,7 +292,7 @@ public partial class CompanionView : Node2D
 /// <summary>A character that can sit on the stool: built into the app, or a .vrm file in the user's folder.</summary>
 public sealed record Character(string Id, string Path, bool BuiltIn)
 {
-    public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..] : Id;
+    public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..].Replace('_', ' ').Replace('-', ' ') : Id;
 
     /// <summary>Built-in characters were imported when the app was built; the user's own are read from disk now.</summary>
     public Node3D? Load()

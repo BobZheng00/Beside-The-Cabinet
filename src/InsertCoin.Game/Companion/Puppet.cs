@@ -73,7 +73,7 @@ internal sealed class Puppet
 
     // Hand placements and the hip position below are written for one figure and scaled to the character at hand
     // (see Rig.Size).
-    private const float HipHeight = 0.085f, HipBack = -0.035f;     // hips above / behind the seat centre
+    private const float HipJointHeight = 0.045f, HipJointBack = -0.04f;   // hip joints above / behind the seat centre
     private const float ThighSlope = 5;                            // degrees below level
     private const float RestCurl = 11;
 
@@ -82,6 +82,8 @@ internal sealed class Puppet
     private readonly Face _face;
     private readonly Pose _sit;
     private readonly float _size;
+    private readonly Vector3 _seat;                       // where the hips bone goes, from the seat centre
+    private readonly bool _dangling;                      // her feet do not reach the stool's ring
     private readonly Dictionary<string, Quaternion> _goal = [], _frame = [];
     private readonly Dictionary<string, RotationSpring> _springs = [];
     private readonly Dictionary<string, float> _on = [], _shown = [], _shownSpeed = [];
@@ -115,13 +117,19 @@ internal sealed class Puppet
         // Bend the knees so the toes reach the foot ring, whatever the length of her legs.
         var thigh = rig.RestOffset("LeftUpperLeg", "LeftLowerLeg").Length();
         var shin = rig.RestOffset("LeftLowerLeg", "LeftFoot").Length();
-        var knee = HipHeight * _size + rig.RestOffset("Hips", "LeftUpperLeg").Y - thigh * Mathf.Sin(Mathf.DegToRad(ThighSlope));
+        var knee = HipJointHeight * _size - thigh * Mathf.Sin(Mathf.DegToRad(ThighSlope));
         var toes = 0.34f * shin;                                    // how far below the ankle pointed toes reach
-        var back = Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp((knee + footRestDrop - toes) / shin, 0.6f, 1f)));
+        var reach = (knee + footRestDrop - toes) / shin;
+        _dangling = reach > 1;                                      // legs too short for the ring: they hang, and swing
+        var back = _dangling ? 9 : Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(reach, 0.6f, 1f)));
         _sit = new Pose();
         foreach (var (bone, degrees) in Sit)
             _sit[bone] = degrees;
         _sit.Both("LowerLeg", 90 - ThighSlope + back, 0, 0);
+        // She is seated by her hip joints; where the hips bone sits relative to them differs from rig to rig.
+        var fromJoints = rig.RestOffset("LeftUpperLeg", "Hips");
+        _seat = new Vector3(0, HipJointHeight * _size + fromJoints.Y, HipJointBack * _size + fromJoints.Z);
+
         foreach (var name in Overlays.Keys)
             _on[name] = _shown[name] = _shownSpeed[name] = 0;
         _face.Rest("relaxed", 0.1f);        // the hint of a smile; more and her eyes look sleepy
@@ -240,7 +248,7 @@ internal sealed class Puppet
         var lift = Breathe(dt);
         Sway(t);
         Legs(t);
-        var hips = new Vector3(0, HipHeight * _size + 0.002f * lift + Bounce(), HipBack * _size);
+        var hips = _seat + new Vector3(0, 0.002f * lift + Bounce(), 0);
 
         // Arms last: they hang off the finished torso, so the hands stay in her lap while she breathes.
         foreach (var side in Sides)
@@ -406,7 +414,14 @@ internal sealed class Puppet
     /// <summary>Feet rest on the stool's ring; a heel bobs, and now and then a leg (or both) swings out and back.</summary>
     private void Legs(float t)
     {
-        Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake, 0, 0);
+        if (_dangling)
+        {
+            // legs that do not reach the ring swing gently, one after the other
+            Add("LeftLowerLeg", 7 * Mathf.Sin(t * 1.5f) * _awake, 0, 0);
+            Add("RightLowerLeg", 7 * Mathf.Sin(t * 1.5f + 2.4f) * _awake, 0, 0);
+        }
+        else
+            Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake, 0, 0);
 
         var kick = (float)(_time - _kickAt);
         if (kick is >= 0 and < 2.6f)

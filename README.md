@@ -118,7 +118,7 @@ What each kind of file gets:
 | ink and two-tone shading | yes | yes | yes |
 | cabinet palette | yes (by VRoid's material names) | own colours | own colours |
 | expressions and blinking | yes | yes | only if its blend shapes have recognisable names |
-| hair and cloth physics | yes | yes | no (the format has none) |
+| hair and cloth physics | yes | yes | sway only: bones named hair, skirt, tail… get springs, no collisions |
 
 A plain GLB does not say which bone is which, so `HumanoidMap` works it out from the usual naming habits (Mixamo,
 Unreal, Blender, Biped, Daz) and the skeleton's shape; `Rig` then copes with any units, facing and rest pose (T or
