@@ -11,7 +11,7 @@ public partial class SpeechBubble : Node2D
 {
     private static readonly Font Face = Paper.Font(560);
     private const int FontSize = 17;
-    private const float MaxTextWidth = 190, PadX = 12, PadY = 8, Corner = 12, TailHeight = 13, TailHalf = 7, Stroke = 2;
+    private const float MaxTextWidth = 190, WidestText = 330, PadX = 12, PadY = 8, Corner = 12, TailHeight = 13, TailHalf = 7, Stroke = 2;
     private const string Dots = "...";
 
     private Label _label = null!;
@@ -111,9 +111,15 @@ public partial class SpeechBubble : Node2D
     /// <summary>Sizes the bubble around the text, above her head and mostly to the left of it (the cabinet is on her other side).</summary>
     private void Place(string text)
     {
-        // measured with the label's own rules (WordSmart: break between words, inside a word only if it cannot fit)
-        var size = Face.GetMultilineStringSize(text, HorizontalAlignment.Left, MaxTextWidth, FontSize,
-            brkFlags: TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive);
+        // A long reply first grows wider, so it stays above her head instead of covering it.
+        var room = _tip.Y - TailHeight - 4 - 2 * PadY;
+        var width = MaxTextWidth;
+        var size = Measure(text, width);
+        while (size.Y > room && width < WidestText)
+        {
+            width = Mathf.Min(width + 40, WidestText);
+            size = Measure(text, width);
+        }
         var box = size + new Vector2(2 * PadX, 2 * PadY);
         box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."
         var left = Mathf.Clamp(_tip.X - box.X * 0.62f, 6, _canvas.X - box.X - 6);
@@ -121,11 +127,26 @@ public partial class SpeechBubble : Node2D
         var rect = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
 
         Position = _tip;
-        _label.Text = text;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
-        _label.Size = new Vector2(MaxTextWidth, size.Y);
+        _label.Size = new Vector2(width, size.Y);
         _shape = Outline(rect, Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf));
         QueueRedraw();
+    }
+
+    /// <summary>
+    /// The text's size when wrapped at <paramref name="width"/>, as the label itself lays it out: its line count and
+    /// line height, plus the spacing it puts between lines (which measuring with the font alone leaves out).
+    /// </summary>
+    private Vector2 Measure(string text, float width)
+    {
+        _label.Text = text;
+        _label.Size = new Vector2(width, 0);
+        var lines = _label.GetLineCount();
+        var height = lines * _label.GetLineHeight() + (lines - 1) * _label.LabelSettings.LineSpacing;
+        // widest line, for a snug bubble around short text (WordSmart: break between words, inside one only if it cannot fit)
+        var widest = Face.GetMultilineStringSize(text, HorizontalAlignment.Left, width, FontSize,
+            brkFlags: TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive).X;
+        return new Vector2(Mathf.Min(widest, width), height);
     }
 
     private void Pop()
