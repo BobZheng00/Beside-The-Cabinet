@@ -62,7 +62,7 @@ public partial class Voice : Node
     private int _rate, _capacity;
     private long _pushed;
     private readonly Queue<(long End, float Level)> _levels = new();
-    private float _mouth;
+    private float _mouth, _loudest;
 
     /// <summary>The phase changed (for the settings window's status line).</summary>
     public event Action? Changed;
@@ -328,7 +328,7 @@ public partial class Voice : Node
     private (string Gpt, string Sovits) Weights(VoiceProfile profile) =>
         profile.Gpt is { } gpt && profile.Sovits is { } sovits
             ? (Path.GetFullPath(Path.Combine(_folder, gpt)), Path.GetFullPath(Path.Combine(_folder, sovits)))
-            : (GptSoVits.BaseGpt, GptSoVits.BaseSovits);
+            : GptSoVits.Base(profile.Runs);
 
     private string ClipPath(VoiceClip clip) => Path.GetFullPath(Path.Combine(_folder, clip.File));
 
@@ -404,7 +404,9 @@ public partial class Voice : Node
         while (_levels.Count > 0 && _levels.Peek().End <= playing)
             _levels.Dequeue();
         var level = _levels.Count > 0 ? _levels.Peek().Level : 0;
-        var open = Mathf.Clamp((level - 0.01f) * 7f, 0, 1);
+        // voices differ in loudness (v2 models come out about half as loud as v4): open as wide as this voice has lately been loud
+        _loudest = Mathf.Max(level, _loudest * (1 - (float)delta * 0.25f));
+        var open = Mathf.Clamp((level - 0.01f) / Mathf.Max(_loudest, 0.05f), 0, 1);
         _mouth += (open - _mouth) * (1 - Mathf.Exp(-(float)delta * (open > _mouth ? 30 : 14)));
         if (_view() is { } view)
             view.Mouth = _mouth < 0.02f ? 0 : _mouth;

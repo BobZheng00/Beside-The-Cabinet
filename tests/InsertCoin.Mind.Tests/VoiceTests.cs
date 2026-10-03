@@ -248,6 +248,23 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_clone_runs_on_v4_unless_v2ProPlus_is_chosen_which_streams()
+    {
+        var clone = new VoiceProfile { Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
+        Assert.Equal("v4", clone.Runs);
+        Assert.True(clone.Slow);
+        Assert.EndsWith("s2Gv4.pth", GptSoVits.Base(clone.Runs).Sovits);
+
+        var quick = clone with { Version = "v2ProPlus" };
+        Assert.False(quick.Slow);
+        Assert.Equal(("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"), GptSoVits.Base(quick.Runs));
+
+        var trained = clone with { Gpt = "a.ckpt", Sovits = "b.pth", Version = null };
+        Assert.Null(trained.Runs);                                // a model of unknown version: not taken for v4
+        Assert.False(trained.Slow);
+    }
+
+    [Fact]
     public void A_clip_dropped_on_a_model_without_clips_joins_it()
     {
         using var download = new TempFolder();

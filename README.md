@@ -49,7 +49,9 @@ She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its of
 graphics card starts each sentence in about a second). Tray → "Voice settings…": point it at the GPT-SoVITS folder,
 then give her a voice: drop on the cabinet a GPT-SoVITS model someone shared (a folder or `.zip` with a `.ckpt` and
 a `.pth`, usually with clips of the voice; v2 to v4 all work), a 3 to 10 second clip to clone her voice from, or
-a folder of clips with their training list (a dataset), which is cloned from its best clips.
+a folder of clips with their training list (a dataset), which is cloned from its best clips. A clone runs on
+GPT-SoVITS's v4 base model (the clearest; it makes each sentence whole before she says it, 1.5–3.5 s) or, chosen
+in the window, v2ProPlus (streams, so she starts in about half a second; a little less sure of hard words).
 The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
 ("【开心】今天也要加油哦.wav"); if they can't be found the window asks for them. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,

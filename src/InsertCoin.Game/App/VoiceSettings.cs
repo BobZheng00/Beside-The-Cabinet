@@ -17,6 +17,12 @@ public partial class VoiceSettings : Window
     [
         (VoiceProfile.DefaultSteps, "Balanced (16 steps)"), (32, "Best (32 steps, slower to start)"), (8, "Faster (8 steps, can sound metallic)"),
     ];
+    /// <summary>The base models a clip can be cloned with (<see cref="VoiceProfile.CloneVersions"/>).</summary>
+    private static readonly Dictionary<string, string> Models = new()
+    {
+        ["v4"] = "v4: clearest, starts once each sentence is made",
+        ["v2ProPlus"] = "v2ProPlus: quickest, speaks as it is made",
+    };
 
     /// <summary>Saved: the GPT-SoVITS folder chosen (the voice's own changes are already written to its folder).</summary>
     public event Action<string?>? Saved;
@@ -27,7 +33,7 @@ public partial class VoiceSettings : Window
     private VoiceProfile? _profile;
     private LineEdit _engine = null!, _words = null!;
     private Label _status = null!, _result = null!;
-    private OptionButton? _language, _quality;
+    private OptionButton? _language, _model, _quality;
     private readonly List<string> _languages = [];
     private bool _removing;
 
@@ -130,7 +136,8 @@ public partial class VoiceSettings : Window
         ShowStatus();
     }
 
-    public void Open() => Paper.Open(this, new Vector2(580, _profile is null ? 440 : _profile.About is { Length: > 0 } ? 680 : 620));
+    public void Open() => Paper.Open(this, new Vector2(580, _profile is null ? 440
+                                                          : 620 + (_profile.About is { Length: > 0 } ? 60 : 0) + (_profile.Gpt is null ? 40 : 0)));
 
     private void BuildVoice(VBoxContainer column, VoiceProfile profile)
     {
@@ -163,14 +170,27 @@ public partial class VoiceSettings : Window
         };
         Row(grid, "Words in it", _words);
 
-        if (profile.Slow)
+        if (profile.Gpt is null)
         {
-            _quality = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            _model = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            foreach (var version in VoiceProfile.CloneVersions)
+                _model.AddItem(Models[version]);
+            _model.Select(Math.Max(0, Array.IndexOf(VoiceProfile.CloneVersions, profile.Runs)));
+            Row(grid, "Model", _model);
+        }
+        if (profile.Slow || profile.Gpt is null)
+        {
+            var quality = _quality = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
             foreach (var (_, label) in Qualities)
-                _quality.AddItem(label);
+                quality.AddItem(label);
             var chosen = Array.FindIndex(Qualities, q => q.Steps == profile.Steps);
-            _quality.Select(chosen >= 0 ? chosen : 0);
-            Row(grid, "Quality", _quality);
+            quality.Select(chosen >= 0 ? chosen : 0);
+            var qualityLabel = Row(grid, "Quality", quality);
+            var model = _model;
+            void ShowQuality() => qualityLabel.Visible = quality.Visible = model is null || VoiceProfile.CloneVersions[model.Selected] is "v4";   // steps only matter to v4
+            if (model is not null)
+                model.ItemSelected += _ => ShowQuality();
+            ShowQuality();
         }
 
         if (profile.Missing is { } missing)
@@ -196,7 +216,8 @@ public partial class VoiceSettings : Window
                 ? c with { Text = _words.Text.Trim(), Language = c.Language.Length > 0 ? c.Language : language }
                 : c).ToList();
             var steps = _quality is null ? profile.Steps : Qualities[_quality.Selected].Steps;
-            (profile with { Language = language, Clips = clips, Steps = steps }).Save(_voice.Folder);
+            var version = _model is null ? profile.Version : VoiceProfile.CloneVersions[_model.Selected];
+            (profile with { Language = language, Clips = clips, Steps = steps, Version = version }).Save(_voice.Folder);
         }
         Saved?.Invoke(_engine.Text.Trim().Length > 0 ? _engine.Text.Trim() : null);
     }
@@ -248,10 +269,12 @@ public partial class VoiceSettings : Window
             });
     }
 
-    private static void Row(GridContainer grid, string label, Control field)
+    private static Label Row(GridContainer grid, string label, Control field)
     {
-        grid.AddChild(new Label { Text = label });
+        var name = new Label { Text = label };
+        grid.AddChild(name);
         grid.AddChild(field);
+        return name;
     }
 
     private static Label Hint(string text) =>

@@ -17,8 +17,15 @@ public sealed class VoiceException(string message) : Exception(message);
 /// </summary>
 public sealed class GptSoVits(HttpClient http)
 {
-    /// <summary>The base model a clip is cloned with when a voice has no weights of its own: v4, the clearest (measured 2026-10-02).</summary>
-    public const string BaseGpt = "GPT_SoVITS/pretrained_models/s1v3.ckpt", BaseSovits = "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth";
+    /// <summary>
+    /// The base model a clip is cloned with when a voice has no weights of its own (see
+    /// <see cref="VoiceProfile.CloneVersions"/>): v4, the clearest (measured 2026-10-02), unless v2ProPlus is asked for.
+    /// </summary>
+    public static (string Gpt, string Sovits) Base(string? version) => version switch
+    {
+        "v2ProPlus" => ("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"),
+        _ => ("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"),
+    };
 
     private (string Gpt, string Sovits)? _loaded;
 

@@ -26,6 +26,11 @@ public sealed partial record VoiceProfile
     /// </summary>
     public const int DefaultSteps = 16;
     public static readonly string[] AudioFormats = [".wav", ".mp3", ".ogg", ".flac"];
+    /// <summary>
+    /// The base models a clip can be cloned with: v4 (the default) is the clearest; v2ProPlus streams, so it starts
+    /// speaking in about 0.4 s where v4 first makes each sentence (or each part between commas) whole.
+    /// </summary>
+    public static readonly string[] CloneVersions = ["v4", "v2ProPlus"];
 
     public string Engine { get; init; } = "gpt-sovits";
     public string Name { get; init; } = "";
@@ -34,7 +39,10 @@ public sealed partial record VoiceProfile
     /// <summary>GPT-SoVITS weights in the folder; both null for a voice cloned from a clip with the engine's base model.</summary>
     public string? Gpt { get; init; }
     public string? Sovits { get; init; }
-    /// <summary>The GPT-SoVITS version the weights were trained for (v2, v2Pro, v2ProPlus, v3, v4), when the files say.</summary>
+    /// <summary>
+    /// The GPT-SoVITS version the weights were trained for (v2, v2Pro, v2ProPlus, v3, v4), when the files say; for a
+    /// clone, the base model it is cloned with (one of <see cref="CloneVersions"/>; null is v4).
+    /// </summary>
     public string? Version { get; init; }
     public IReadOnlyList<VoiceClip> Clips { get; init; } = [];
     public int Steps { get; init; } = DefaultSteps;
@@ -49,9 +57,13 @@ public sealed partial record VoiceProfile
         : Language.Length == 0 ? "the language it speaks"
         : null;
 
-    /// <summary>v3 and v4 (and clones made from a clip, which use v4): clearer, and slower to start each sentence.</summary>
+    /// <summary>The version it runs on: its weights' when known, or for a clone the base model chosen.</summary>
     [JsonIgnore]
-    public bool Slow => Gpt is null || Version is "v3" or "v4";
+    public string? Runs => Gpt is null ? Version ?? CloneVersions[0] : Version;
+
+    /// <summary>v3 and v4 (and clones made with v4): clearer, and slower to start each sentence, which they don't stream.</summary>
+    [JsonIgnore]
+    public bool Slow => Runs is "v3" or "v4";
 
     /// <summary>The clip to speak with for a mood: one labelled with it, else her everyday one.</summary>
     public VoiceClip? ClipFor(string? mood)

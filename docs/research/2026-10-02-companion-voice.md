@@ -171,6 +171,23 @@ characters the transcript got wrong. Single samples are noisy: the same cell mov
   (faster, can sound metallic).
 - **Launch the server hidden** (`CREATE_NO_WINDOW`) with Windows background throttling switched off for it.
 
+**v4 doesn't stream (found 2026-10-03).** GPT-SoVITS streams only models without a separate vocoder (v1, v2, v2Pro,
+v2ProPlus). For v3/v4 it prints "SoVits V3/4模型不支持流式推理模式" and falls back to returning each piece between
+punctuation once it is whole (`TTS.py`). In the demo, a reply's first sentence "今は10月3日土曜日の午後3時5分だよ。"
+took 2.8 s to first sound: 1.1 s predicting the speech, 1.6 s synthesising. Hana cloned from the same 6 s clip
+with both base models (`bench_hana_models.py`, a laptop graphics card, desktop apps open):
+
+| Line | v4, 16 steps: first audio / misheard | v2ProPlus: first audio / misheard |
+|---|---|---|
+| おかえりなさい！今日はよく頑張りましたね。… (9–11 s) | 1.54 s / 5% | 1.14 s (first after loading) / 7% |
+| ハードを二問も解いたんですか？… | 2.76 s / 7% | 0.41 s / 29% ("二問も解いた" mangled, トークン → 当館) |
+| もう遅いですよ。続きは明日にして、… | 2.07 s / 7% | 0.43 s / 0% |
+| 今は10月3日土曜日の午後3時5分だよ。 | 3.52 s / 0% | 0.44 s / 26% (numbers written as kanji: spoken right) |
+
+Inside the cabinet, v2ProPlus started each line 0.25–0.67 s after it was handed over. v2 models also come out
+about half as loud as v4, so her mouth now follows loudness relative to the voice's own recent peak. A clone's
+voice settings offer both base models; v4 stays the default until the player has compared them.
+
 ## Other engines, for reference (read; not planned)
 
 Some newer zero-shot models clone from a clip as well as GPT-SoVITS does:
