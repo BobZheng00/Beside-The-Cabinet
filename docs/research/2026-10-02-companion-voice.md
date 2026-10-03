@@ -217,6 +217,32 @@ engines live in the voice settings works (only one engine's server runs at a tim
 off), so only 1.7B is offered: the clear choice, if a little less consistent than GPT-SoVITS. The 0.6B model was
 deleted from the trial folder.
 
+**Is she the same person every time? (2026-10-03)** The player heard Test come out in a different voice almost
+every time with Qwen3-TTS. `bench_consistency.py` said the Test line 4 times (and two other lines twice) per setup
+and scored each take with a speaker-recognition model (3D-Speaker CAM++ zh/en, 27 MB; a different design from the
+ERes2NetV2 that v2ProPlus uses inside) against Hana's voiceprint, all 55 dataset clips (306 s) averaged. Her real
+clips score 0.91 on average (lowest 0.81).
+
+| Setup | Like Hana (mean / lowest) | The 4 Test takes alike (mean / lowest) | First audio |
+|---|---|---|---|
+| Qwen3-TTS 1.7B, 1 clip, temperature 0.9 (the cabinet's) | 0.61 / 0.33 | 0.48 / 0.37 | 0.33 s |
+| Qwen3-TTS 1.7B, 3 clips joined (18.6 s), 0.9 | 0.61 / 0.39 | 0.53 / 0.40 | 1.25 s |
+| Qwen3-TTS 1.7B, 1 clip, 0.6 | 0.64 / 0.39 | 0.60 / 0.45 | 0.50 s |
+| Qwen3-TTS 1.7B, 3 clips joined, 0.6 | 0.46 / 0.26 | 0.42 / 0.27 | 0.92 s |
+| GPT-SoVITS v2ProPlus, 1 clip | 0.82 / 0.80 | 0.97 / 0.96 | 0.40 s |
+| GPT-SoVITS v2ProPlus, 1 clip + the other 5 as extra references | **0.86 / 0.82** | 0.97 / 0.97 | 0.33 s |
+| GPT-SoVITS v4, 1 clip | 0.58 / 0.49 | 0.94 / 0.93 | 0.89 s |
+
+Why: GPT-SoVITS's first stage picks rhythm and intonation at random, but its second paints the timbre straight from
+the reference clip (v2ProPlus also from a voiceprint of it), so takes differ in delivery, not in who speaks.
+Qwen3-TTS makes the sound itself, timbre included; the clip is only an example to continue, so who speaks drifts.
+Joining clips into one longer example didn't make Qwen more like her and slowed its start 3–4 times; a calmer
+temperature helped a little. GPT-SoVITS v2ProPlus takes extra reference clips (`aux_ref_audio_paths`) and blends
+their tone: more like her at no cost. v3/v4 ignore extra references (they use only the first), and GPT-SoVITS
+refuses a reference outside 3–10 s, so a joined clip is no option there. v4 is steady but scored further from her
+recorded voice than v2ProPlus. Training a model on the dataset is the remaining step up (GPT-SoVITS recommends a
+minute or more; Hana has five).
+
 ## Other engines, for reference (read; not planned)
 
 Some newer zero-shot models clone from a clip as well as GPT-SoVITS does:
