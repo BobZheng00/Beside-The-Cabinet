@@ -17,7 +17,10 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class VoiceTrainer : Node
 {
-    private readonly ConcurrentQueue<string> _lines = new();
+    private readonly ConcurrentQueue<(Process From, string Line)> _lines = new();
+    private readonly Stopwatch _clock = new();
+    private double _seconds;
+    private (TimeSpan At, double Done)? _step;          // when the step under way first reported progress, and how far
     private Process? _process;
     private StreamWriter? _log;
     private string _companion = "", _work = "";
@@ -34,22 +37,41 @@ public partial class VoiceTrainer : Node
     public string Stage { get; private set; } = "";
     public double Done { get; private set; }
     public string? Problem { get; private set; }
+    /// <summary>How this PC trains against the estimate (see <see cref="VoiceTraining.Pace"/>), once it has trained a voice.</summary>
+    public double? Pace { get; private set; }
+    /// <summary>Other apps took so much of the graphics card when it started that training will be slow (see <see cref="VoiceTraining.Crowded"/>).</summary>
+    public bool Crowded { get; private set; }
+    /// <summary>About how long the training running now has left, once it can tell.</summary>
+    public TimeSpan? Left => Running && _step is { } step ? VoiceTraining.Left(_clock.Elapsed - step.At, Done - step.Done, Done) : null;
 
     /// <param name="companionFolder">Where its script, clip list and log go (the companion folder).</param>
-    public void Build(string companionFolder) => _companion = companionFolder;
+    /// <param name="pace">How this PC trained last time, if it has.</param>
+    public void Build(string companionFolder, double? pace)
+    {
+        _companion = companionFolder;
+        Pace = pace;
+    }
 
-    /// <summary>The graphics card's memory in MB, or null without an NVIDIA card (GPT-SoVITS trains on those only).</summary>
-    private static int? GraphicsMemory()
+    /// <summary>About how long training <paramref name="profile"/> would take on this PC, and whether that was measured here.</summary>
+    public (TimeSpan Time, bool Measured) Estimate(VoiceProfile profile) =>
+        (VoiceTraining.Estimate(VoiceTraining.Seconds(profile), Pace), Pace is not null);
+
+    /// <summary>
+    /// The graphics card's memory and how much of it is in use, in MB, or null without an NVIDIA card (GPT-SoVITS
+    /// trains on those only). Asked once her voice has rested: what is in use belongs to other apps.
+    /// </summary>
+    private static (int Total, int Used)? GraphicsMemory()
     {
         try
         {
-            using var smi = Process.Start(new ProcessStartInfo("nvidia-smi", "--query-gpu=memory.total --format=csv,noheader,nounits")
+            using var smi = Process.Start(new ProcessStartInfo("nvidia-smi", "--query-gpu=memory.total,memory.used --format=csv,noheader,nounits")
             {
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
             });
             var text = smi!.StandardOutput.ReadToEnd();
             smi.WaitForExit(5000);
-            return int.TryParse(text.Split('\n')[0].Trim(), out var mb) ? mb : null;
+            return text.Split('\n')[0].Split(',') is [var total, var used] && int.TryParse(total.Trim(), out var t) && int.TryParse(used.Trim(), out var u)
+                ? (t, u) : null;
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
@@ -82,11 +104,15 @@ public partial class VoiceTrainer : Node
         Done = 0;
         Stage = "starting";
         _made = null;
+        _seconds = VoiceTraining.Seconds(profile);
+        _step = null;
+        _clock.Restart();
         if (GraphicsMemory() is not { } memory)
         {
             End("Training needs an NVIDIA graphics card (GPT-SoVITS trains on those only).");
             return;
         }
+        Crowded = VoiceTraining.Crowded(memory.Total, memory.Used);
         var name = Regex.Replace(Path.GetFileNameWithoutExtension(folder.TrimEnd('\\', '/')), "[^A-Za-z0-9]+", "-").Trim('-');
         name = name.Length > 0 ? name : "voice";
         _work = Path.Combine(engine, "logs", $"insert-coin-{name}");
@@ -108,7 +134,7 @@ public partial class VoiceTrainer : Node
             StandardErrorEncoding = Encoding.UTF8,
         };
         foreach (var arg in new[] { "-s", script, "--list", list, "--work", _work, "--out", folder, "--name", name,
-                                    "--batch", VoiceTraining.BatchSize(memory).ToString(), "--sovits-epochs", VoiceTraining.SovitsEpochs.ToString(),
+                                    "--batch", VoiceTraining.BatchSize(memory.Total, memory.Used).ToString(), "--sovits-epochs", VoiceTraining.SovitsEpochs.ToString(),
                                     "--gpt-epochs", VoiceTraining.GptEpochs.ToString() })
             start.ArgumentList.Add(arg);
         start.Environment["PYTHONIOENCODING"] = "utf-8";
@@ -117,13 +143,14 @@ public partial class VoiceTrainer : Node
         {
             var process = _process = Process.Start(start) ?? throw new InvalidOperationException("GPT-SoVITS's Python did not start");
             CabinetJob.Tie(process, "voice training");
-            process.OutputDataReceived += (_, e) => Heard(e.Data);
-            process.ErrorDataReceived += (_, e) => Heard(e.Data);
+            process.OutputDataReceived += (_, e) => Heard(process, e.Data);
+            process.ErrorDataReceived += (_, e) => Heard(process, e.Data);
             process.EnableRaisingEvents = true;
-            process.Exited += (_, _) => _lines.Enqueue("@exit");
+            process.Exited += (_, _) => _lines.Enqueue((process, "@exit"));
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            GD.Print($"Voice: training {Path.GetFileName(folder)} on {VoiceTraining.Clips(profile).Count} clips ({VoiceTraining.Seconds(profile):0} s), batch {VoiceTraining.BatchSize(memory)}");
+            GD.Print($"Voice: training {Path.GetFileName(folder)} on {VoiceTraining.Clips(profile).Count} clips ({VoiceTraining.Seconds(profile):0} s), " +
+                     $"batch {VoiceTraining.BatchSize(memory.Total, memory.Used)} ({memory.Used} of {memory.Total} MB of graphics memory in use)");
             Changed?.Invoke();
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -152,11 +179,11 @@ public partial class VoiceTrainer : Node
         End(why);
     }
 
-    private void Heard(string? line)
+    private void Heard(Process from, string? line)
     {
         if (line is null)
             return;
-        _lines.Enqueue(line);
+        _lines.Enqueue((from, line));
         if (_log is { } log)
             lock (log)
                 try
@@ -171,19 +198,22 @@ public partial class VoiceTrainer : Node
     public override void _Process(double delta)
     {
         var changed = false;
-        while (_lines.TryDequeue(out var line))
+        while (_lines.TryDequeue(out var heard))
         {
-            if (VoiceTraining.Read(line) is not { } said)
+            // a run that was stopped may still be heard from: only the one running now counts
+            if (heard.From != _process || VoiceTraining.Read(heard.Line) is not { } said)
                 continue;
             var (kind, rest) = said;
             switch (kind)
             {
                 case "stage":
                     Stage = rest;
+                    _step = null;
                     GD.Print($"Voice: training: {rest}");
                     break;
                 case "progress":
                     Done = VoiceTraining.Fraction(rest);
+                    _step ??= (_clock.Elapsed, Done);      // its first report: where it starts from
                     break;
                 case "done" when rest.Split(' ') is [var gpt, var sovits]:
                     _made = (gpt, sovits);
@@ -191,9 +221,9 @@ public partial class VoiceTrainer : Node
                 case "failed":
                     Problem = $"Training failed: {rest}";
                     break;
-                case "exit" when _process is { } process:
+                case "exit":
+                    heard.From.Dispose();
                     _process = null;
-                    process.Dispose();
                     Finish();
                     return;
             }
@@ -213,7 +243,8 @@ public partial class VoiceTrainer : Node
         }
         var trained = VoiceTraining.Trained(profile, folder, made.Gpt, made.Sovits);
         trained.Save(folder);
-        GD.Print($"Voice: trained {Path.GetFileName(folder)}: {made.Gpt}, {made.Sovits}");
+        Pace = VoiceTraining.Pace(_clock.Elapsed, _seconds);
+        GD.Print($"Voice: trained {Path.GetFileName(folder)} in {_clock.Elapsed.TotalMinutes:0.0} min (pace {Pace:0.00}): {made.Gpt}, {made.Sovits}");
         Close();
         Changed?.Invoke();
         Finished?.Invoke(folder, trained);

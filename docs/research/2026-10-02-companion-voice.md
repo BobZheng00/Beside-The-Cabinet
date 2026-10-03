@@ -310,6 +310,21 @@ scratch cabinet: import, 5.5 minutes of training with the cabinet open beside it
 then her voice came back trained and said the Test line 0.70 s after it was asked; swapping trained → v2ProPlus
 clone → v4 clone → trained loaded the right weights each time.
 
+**Training next to other apps (2026-10-03, evening).** The same training in the cabinet later in the day crawled:
+100 s an SoVITS epoch instead of 25. Other apps (a browser, a live wallpaper, chat apps) now held 1.4 GB of the card,
+the cabinet a few hundred MB more, and training at the web UI's batch of 4 overflowed the 8 GB into system memory.
+Trained by hand at batches 3 and 2 with the card's memory logged (`<tools>\voice-trial\out\batchprobe`):
+
+| Batch | Training's own graphics memory | SoVITS epoch |
+|---|---|---|
+| 2 | 5.6 GB | 31 s |
+| 3 | 6.35 GB | 23 s |
+
+About 4.1 GB plus 0.75 GB a clip. So the cabinet now asks the card how much is in use once her voice has rested
+(waiting for its server to be gone) and trains as many clips at a time as fit with 0.3 GB to spare, never more than
+the web UI would; when not even one fits it warns that training will be slow. While training, the window says how
+long is left, at the pace of the step under way, and once a voice has trained the next estimate is this PC's own.
+
 **Which clip should a clone speak with? (2026-10-03)** `bench_pick_clip.py`: v2ProPlus, no blending, eight of
 Hana's clips from 3 to 10 s in turn as the speaking clip.
 

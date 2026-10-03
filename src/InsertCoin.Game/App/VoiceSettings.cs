@@ -44,8 +44,9 @@ public partial class VoiceSettings : Window
         "        clips/hana_001.wav, hana_002.wav, …\n\n" +
         "To clone her voice, one clip with its words is enough; she speaks with the clip nearest 6 seconds, or the one " +
         "you choose. More clips help a v2ProPlus clone, which blends in the tone of four of them, and training needs " +
-        "them: at least a minute in all, five or more sounds better. Drop the folder (or a .zip of it) on the " +
-        "cabinet, or use Add a folder….";
+        "them: at least a minute in all, five or more sounds better.\n\n" +
+        "A folder (or a .zip of it) is a whole voice: dropped on the cabinet or added with Add a folder…, it replaces " +
+        "her voice. Clips dropped or added with Add clips… join it.";
 
     /// <summary>Saved: the GPT-SoVITS folder chosen (the voice's own changes are already written to its folder).</summary>
     public event Action<string?>? Saved;
@@ -126,8 +127,8 @@ public partial class VoiceSettings : Window
 
         var actions = new HBoxContainer();
         actions.AddThemeConstantOverride("separation", 10);
-        var addFile = new Button { Text = "Add a file…", ThemeTypeVariation = "Quiet", TooltipText = "A clip, or a voice's .zip" };
-        var addFolder = new Button { Text = "Add a folder…", ThemeTypeVariation = "Quiet", TooltipText = "A voice's folder: clips with their words, maybe a model" };
+        var addFile = new Button { Text = "Add clips…", ThemeTypeVariation = "Quiet", TooltipText = "Clips join this voice; a voice's .zip replaces it" };
+        var addFolder = new Button { Text = "Add a folder…", ThemeTypeVariation = "Quiet", TooltipText = "A voice's folder (clips with their words, maybe a model): it replaces this voice" };
         actions.AddChild(addFile);
         actions.AddChild(addFolder);
         if (_profile is not null)
@@ -247,8 +248,9 @@ public partial class VoiceSettings : Window
         model.ItemSelected += _ => ShowQuality();
         ShowQuality();
 
-        // the clip she speaks with: the first everyday one, which the player can change and listen to
-        var speaking = profile.ClipFor(null) ?? profile.Clips.FirstOrDefault();
+        // the clip she speaks with: the first everyday one, which the player can change and listen to; or one just
+        // added, still without its words
+        var speaking = profile.Clips.FirstOrDefault() is { Text.Length: 0 } added ? added : profile.ClipFor(null) ?? profile.Clips.FirstOrDefault();
         var clipRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         clipRow.AddThemeConstantOverride("separation", 8);
         var clip = _clip = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true, Disabled = profile.Clips.Count == 0 };
@@ -434,7 +436,9 @@ public partial class VoiceSettings : Window
         if (_trainer.Running)
         {
             _progress.Value = _trainer.Done;
-            Show(_training, mine ? $"Now: {_trainer.Stage}. Her voice rests until it is done; you can close this window."
+            var left = _trainer.Left is { } time ? $", about {Minutes(time)} left" : "";
+            Show(_training, mine ? $"Now: {_trainer.Stage}{left}. Her voice rests until it is done; you can close this window." +
+                                   (_trainer.Crowded ? " Other apps are using much of the graphics card, so it will be slow: closing them helps." : "")
                                  : "Training another voice: one at a time.", Paper.Faint);
             return;
         }
@@ -452,12 +456,15 @@ public partial class VoiceSettings : Window
             return;
         }
         _train.Disabled = false;
-        var minutes = Math.Max(1, Math.Round(VoiceTraining.Estimate(seconds).TotalMinutes));
-        Show(_training, $"On {clips} clips, {seconds / 60:0.0} minutes of speech: about {minutes} minutes on an 8 GB laptop graphics card. " +
+        var (estimate, measured) = _trainer.Estimate(_profile);
+        Show(_training, $"On {clips} clips, {seconds / 60:0.0} minutes of speech: about {Minutes(estimate)} " +
+                        (measured ? "on this PC. " : "with an 8 GB laptop graphics card (once it starts, it tells the time left on yours). ") +
                         "It takes the whole graphics card, so her voice rests meanwhile, and a game starting stops it." +
                         (_profile.Trained ? "" : " Then you can swap between the trained model and a clone under Model.") +
                         (seconds < VoiceTraining.GoodSeconds ? " Five minutes of speech or more sounds better." : ""), Paper.Faint);
     }
+
+    private static string Minutes(TimeSpan time) => Math.Max(1, Math.Round(time.TotalMinutes)) is var m && m == 1 ? "a minute" : $"{m} minutes";
 
     private static Label Row(GridContainer grid, string label, Control field)
     {

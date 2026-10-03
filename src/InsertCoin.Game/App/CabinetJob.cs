@@ -22,9 +22,11 @@ public static class CabinetJob
             {
                 _job = CreateJobObject(IntPtr.Zero, null);
                 var limits = new ExtendedLimits { Basic = new BasicLimits { LimitFlags = KillOnJobClose } };
-                SetInformationJobObject(_job, ExtendedLimitInformation, ref limits, Marshal.SizeOf<ExtendedLimits>());
+                if (_job == IntPtr.Zero || !SetInformationJobObject(_job, ExtendedLimitInformation, ref limits, Marshal.SizeOf<ExtendedLimits>()))
+                    throw new System.ComponentModel.Win32Exception();
             }
-            AssignProcessToJobObject(_job, process.Handle);
+            if (!AssignProcessToJobObject(_job, process.Handle))
+                throw new System.ComponentModel.Win32Exception();
             var throttling = new PowerThrottling { Version = 1, ControlMask = 1, StateMask = 0 };    // execution speed: not throttled
             SetProcessInformation(process.Handle, ProcessPowerThrottling, ref throttling, Marshal.SizeOf<PowerThrottling>());
         }
@@ -62,13 +64,13 @@ public static class CabinetJob
         public uint Version, ControlMask, StateMask;
     }
 
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr CreateJobObject(IntPtr attributes, string? name);
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref ExtendedLimits info, int length);
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
 
     [DllImport("kernel32.dll")]

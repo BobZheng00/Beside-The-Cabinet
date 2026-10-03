@@ -129,6 +129,7 @@ public sealed class VoiceServer : IDisposable
             {
                 if (!process.HasExited)
                     process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);                  // gone, and its graphics memory with it, before a game or training wants it
             }
             catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
             {

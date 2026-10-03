@@ -147,13 +147,13 @@ public sealed partial record VoiceProfile
     }
 
     /// <summary>
-    /// Brings a voice into <paramref name="folder"/>, replacing whatever voice was there. A folder or .zip may hold a
-    /// downloaded GPT-SoVITS model (a .ckpt and a .pth) and clips; the clips come along with their words when a
-    /// training list (<c>.list</c>), a <c>.lab</c> beside the clip or the clip's file name says them, the best to speak
-    /// with first (see <see cref="IdealClipSeconds"/>). Clips without weights (a dataset) make a voice cloned from them,
-    /// which can be trained. A clip on its own is added to a model that has no clip yet, or else becomes a voice cloned
-    /// from that clip. What is still missing (the words, the language) is listed in <see cref="Missing"/> for the
-    /// player to fill in.
+    /// Brings a voice into <paramref name="folder"/>. A folder or .zip is a whole voice and replaces whatever voice was
+    /// there: maybe a downloaded GPT-SoVITS model (a .ckpt and a .pth), and clips, which come along with their words
+    /// when a training list (<c>.list</c>), a <c>.lab</c> beside the clip or the clip's file name says them, the best to
+    /// speak with first (see <see cref="IdealClipSeconds"/>). Clips without weights (a dataset) make a voice cloned
+    /// from them, which can be trained. A clip on its own joins the voice there, keeping its model and clips (she
+    /// speaks with it if it is 3 to 10 seconds long), or starts a voice cloned from it. What is still missing (the
+    /// words, the language) is listed in <see cref="Missing"/> for the player to fill in.
     /// </summary>
     public static VoiceProfile Import(string source, string folder)
     {
@@ -248,18 +248,23 @@ public sealed partial record VoiceProfile
     private static VoiceProfile FromClip(string clip, string folder)
     {
         var existing = Load(folder);
+        if (existing is null)
+            Clear(folder);                                  // whatever is there without a voice.json is no voice
         var said = FromName(clip);
-        var keepModel = existing is { Gpt: not null, Sovits: not null };
-        if (!keepModel)
-            Clear(folder);
         Directory.CreateDirectory(Path.Combine(folder, "clips"));
         var target = Unique(Path.Combine(folder, "clips", Path.GetFileName(clip)));
         File.Copy(clip, target);
         var added = new VoiceClip(Path.GetRelativePath(folder, target), said.Text, said.Language ?? SpokenLanguage.Of(said.Text) ?? existing?.Language ?? "",
                                   said.Mood, Wav.Seconds(target));
-        var profile = keepModel
-            ? existing! with { Clips = [added, .. existing!.Clips] }
-            : new VoiceProfile { Name = Tidy(Path.GetFileNameWithoutExtension(clip)), Language = added.Language, Clips = [added] };
+        // first, to speak with, when GPT-SoVITS will take it (3 to 10 s); else last, for training
+        var speaks = added.Seconds is null or (>= 3 and <= 10);
+        var profile = existing is null
+            ? new VoiceProfile { Name = Tidy(Path.GetFileNameWithoutExtension(clip)), Language = added.Language, Clips = [added] }
+            : existing with
+            {
+                Clips = speaks ? [added, .. existing.Clips] : [.. existing.Clips, added],
+                Language = existing.Language.Length > 0 ? existing.Language : added.Language,
+            };
         profile.Save(folder);
         return profile;
     }

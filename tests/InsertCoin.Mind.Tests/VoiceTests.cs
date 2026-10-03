@@ -224,8 +224,29 @@ public class VoiceTests
         Assert.True(voice.Slow);                                  // cloned with the base v4 model
         Assert.Null(voice.Missing);
 
-        var unnamed = VoiceProfile.Import(download.File("sample01.wav", Silence(5)), folder);
+        var unnamed = VoiceProfile.Import(download.File("sample01.wav", Silence(5)), System.IO.Path.Combine(home.Path, "other.voice"));
         Assert.Equal("the words spoken in its clip", unnamed.Missing);
+    }
+
+    [Fact]
+    public void A_clip_added_to_a_voice_joins_it_and_she_speaks_with_it_if_it_can()
+    {
+        using var dataset = new TempFolder();
+        using var download = new TempFolder();
+        using var home = new TempFolder();
+        dataset.File("clips/hana_001.wav", Silence(6));
+        dataset.File("hana.list", Encoding.UTF8.GetBytes("clips/hana_001.wav|hana|JA|この道は、どこまでも続いています。\n"));
+        var folder = System.IO.Path.Combine(home.Path, "hana.voice");
+        var before = VoiceProfile.Import(dataset.Path, folder);
+
+        var voice = VoiceProfile.Import(download.File("また明日ね.wav", Silence(4)), folder);
+        Assert.Equal((before.Name, "ja"), (voice.Name, voice.Language));
+        Assert.Equal(["また明日ね", "この道は、どこまでも続いています。"], voice.Clips.Select(c => c.Text));
+        Assert.Equal("また明日ね", voice.ClipFor(null)!.Text);
+
+        voice = VoiceProfile.Import(download.File("ずっと話していたいな、今日は本当に楽しかった.wav", Silence(12)), folder);
+        Assert.Equal("また明日ね", voice.ClipFor(null)!.Text);       // too long to speak with: last, for training
+        Assert.Equal(3, Directory.GetFiles(System.IO.Path.Combine(folder, "clips")).Length);
     }
 
     [Fact]

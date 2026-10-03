@@ -1,3 +1,5 @@
+using InsertCoin.Adapters;
+
 namespace InsertCoin.Game.App;
 
 /// <summary>User preferences, saved next to the ledger state in %APPDATA%\InsertCoin.</summary>
@@ -21,6 +23,19 @@ public sealed record AppSettings
     public string? MemorySearch { get; init; }          // a local model's name, "words" for shared words only; unset: the best one present
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
+    public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
+}
+
+/// <summary>The settings as saved in settings.json, shared by the parts of the app that change them: each change is saved at once.</summary>
+public sealed class SettingsFile(JsonFileStore<AppSettings> store)
+{
+    public AppSettings Now { get; private set; } = store.Load() ?? new AppSettings();
+
+    public void Save(AppSettings settings)
+    {
+        Now = settings;
+        store.Save(settings);
+    }
 }

@@ -47,8 +47,8 @@ up when its keywords are mentioned); she greets you as the card says.
 
 She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
 graphics card starts each sentence in about a second). Tray → "Voice settings…": point it at the GPT-SoVITS folder,
-then give her a voice: drop on the cabinet (or add in the window) a voice's folder or `.zip`, or a single clip.
-A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
+then give her a voice: drop on the cabinet (or add in the window) a voice's folder or `.zip`, which replaces her
+voice, or clips, which join it. A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
 trained on them (a `.ckpt` and a `.pth`; v2 to v4 all work). The words come from a training list (any `.list`,
 one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab` beside a clip, or the clip's file name
 ("【开心】今天也要加油哦.wav", the mood in brackets picking it for that mood); if none says them the window asks.
@@ -66,7 +66,8 @@ sentence whole before she says it, 1.5–3.5 s) or v2ProPlus (streams, so she st
 less sure of hard words), which also blends in the tone of her first four clips for about 0.1 s more per sentence.
 With a minute or more of clips (five sounds better), "Train a model on its clips" trains her own: v2ProPlus, the way
 GPT-SoVITS's web UI does it, about a second per second of speech plus a minute (Hana's five minutes took 5.4 on a
-laptop graphics card with 8 GB, which it all but fills); her voice rests meanwhile, and a game starting stops it. The model
+laptop graphics card with 8 GB, which it all but fills; once it starts it tells the time left, and after one run the estimate is
+this PC's own); her voice rests meanwhile, and a game starting stops it. The model
 (about 0.3 GB) goes into the voice's folder, and the window swaps between it and the clones. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
 like a subtitled anime (the model writes `[say: …]` before each sentence). While a game runs she rests her voice:
@@ -104,7 +105,9 @@ src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (M
                           store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
                           (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python)
-src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
+src/InsertCoin.Game       Godot 4.7 (.NET) app: Main (the cabinet's loop: ledger, screen, window, tray), App/Stool (whoever
+                          is on the stool: her figure, chat, voice and their windows), cabinet scene, companion,
+                          director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
                           app_icon.py — the app icon (.ico for the .exe, .png for the window)
@@ -177,6 +180,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
   run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its window. Measurements:
   [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
+- `App/Stool.cs` holds whoever is on the stool: her figure, the chat and its slip, her voice and its training, the
+  windows for them, and characters, cards and voices coming in. `Main.cs` is the cabinet's own loop.
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser
   towards the hand, so moves overshoot and settle), and life on top (breathing, sway, head drift, fidgets, eyes

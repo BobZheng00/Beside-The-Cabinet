@@ -31,10 +31,23 @@ public class VoiceTrainingTests
     public void Hana_s_five_minutes_take_about_six()
     {
         Assert.Equal(TimeSpan.FromSeconds(366), VoiceTraining.Estimate(306));          // 5.4 min measured, 2026-10-03
-        Assert.Equal(4, VoiceTraining.BatchSize(8188));                                // the development laptop's "8 GB"
-        Assert.Equal(3, VoiceTraining.BatchSize(6144));
-        Assert.Equal(1, VoiceTraining.BatchSize(1024));
-        Assert.Equal(8, VoiceTraining.BatchSize(49152));
+        Assert.Equal(2, VoiceTraining.Pace(TimeSpan.FromSeconds(732), 306));           // a PC that took twice as long…
+        Assert.Equal(TimeSpan.FromSeconds(240), VoiceTraining.Estimate(60, pace: 2));   // …is expected to again
+        Assert.Equal(4, VoiceTraining.BatchSize(8188, 200));                           // the development laptop's "8 GB", nothing else on it
+        Assert.Equal(3, VoiceTraining.BatchSize(8188, 1376));                          // its desktop apps open
+        Assert.Equal(2, VoiceTraining.BatchSize(8188, 1848));                          // and the cabinet: 3 crawled
+        Assert.Equal(1, VoiceTraining.BatchSize(4096, 3000));
+        Assert.Equal(8, VoiceTraining.BatchSize(49152, 1000));
+        Assert.True(VoiceTraining.Crowded(8188, 3500));
+        Assert.False(VoiceTraining.Crowded(8188, 1848));
+    }
+
+    [Fact]
+    public void The_time_left_goes_by_the_pace_of_the_step_under_way()
+    {
+        Assert.Null(VoiceTraining.Left(TimeSpan.FromSeconds(40), 0, 0.14));             // no progress of its own yet
+        Assert.Equal(TimeSpan.FromSeconds(234), VoiceTraining.Left(TimeSpan.FromSeconds(26), 0.08, 0.28));    // an epoch of SoVITS: 26 s
+        Assert.Null(VoiceTraining.Left(TimeSpan.FromSeconds(300), 0.2, 1));
     }
 
     [Fact]
