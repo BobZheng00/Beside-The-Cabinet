@@ -12,6 +12,12 @@ public partial class DesktopWindow : Node
 {
     /// <summary>Raised on a left click that is not the start of a drag, with the canvas point.</summary>
     public event Action<Vector2>? Clicked;
+    /// <summary>The left button went down on the window (not on a control that keeps the mouse), with the canvas point.</summary>
+    public event Action<Vector2>? Pressed;
+    /// <summary>The press became a drag of the window.</summary>
+    public event Action? DragStarted;
+    /// <summary>The left button came up again, after <see cref="Clicked"/> if it was a click.</summary>
+    public event Action? Released;
     /// <summary>Canvas point under the cursor, or null when outside the art.</summary>
     public event Action<Vector2?>? Hover;
     /// <summary>Anything solid besides the art's opaque pixels (things drawn live), tested with a canvas point.</summary>
@@ -70,16 +76,23 @@ public partial class DesktopWindow : Node
                 _dragging = false;
                 _pressAt = DisplayServer.MouseGetPosition();
                 _dragOffset = _pressAt - DisplayServer.WindowGetPosition();
+                Pressed?.Invoke(CursorCanvas());
                 break;
             case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }:
+                var pressed = _pressed;
                 if (_pressed && !_dragging)
                     Clicked?.Invoke(CursorCanvas());
                 _pressed = _dragging = false;
+                if (pressed)
+                    Released?.Invoke();
                 break;
             case InputEventMouseMotion when _pressed:
                 var mouse = DisplayServer.MouseGetPosition();
                 if (!_dragging && (mouse - _pressAt).LengthSquared() > 16)
+                {
                     _dragging = true;
+                    DragStarted?.Invoke();
+                }
                 if (_dragging)
                     DisplayServer.WindowSetPosition(mouse - _dragOffset);
                 break;

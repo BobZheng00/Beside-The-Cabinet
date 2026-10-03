@@ -11,17 +11,21 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class ChatSettings : Window
 {
-    /// <summary>The provider chosen (null: none) and the memory search (see <see cref="Chat.UseSearch"/>) after Save; the key is already stored by then.</summary>
-    public event Action<Provider?, string>? Saved;
+    /// <summary>
+    /// The provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>) and the talk key (see
+    /// <see cref="TalkKey"/>) after Save; the API key is already stored by then.
+    /// </summary>
+    public event Action<Provider?, string, string>? Saved;
 
     private Chat _chat = null!;
-    private OptionButton _preset = null!, _search = null!;
+    private OptionButton _preset = null!, _search = null!, _talkKey = null!;
     private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
     private Label _result = null!;
     private Protocol _protocol;
 
-    public void Build(Chat chat, Provider? current, string characterName, string? search)
+    /// <param name="hears">This build has her ears (the speech model), so she can be talked to aloud.</param>
+    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears)
     {
         _chat = chat;
         Title = $"Talk with {characterName}";
@@ -82,6 +86,22 @@ public partial class ChatSettings : Window
         column.AddChild(Hint("How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
                              "The multilingual model understands the most languages; the small one uses less memory."));
 
+        // talking to her aloud
+        column.AddChild(new HSeparator());
+        var talk = new GridContainer { Columns = 2 };
+        talk.AddThemeConstantOverride("h_separation", 12);
+        _talkKey = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Disabled = !hears };
+        foreach (var (_, label, _) in TalkKey.Keys)
+            _talkKey.AddItem(label);
+        _talkKey.Select(Math.Max(0, Array.FindIndex(TalkKey.Keys, k => k.Name == talkKey)));
+        Row(talk, "Talk key", _talkKey);
+        column.AddChild(talk);
+        column.AddChild(Hint(hears
+            ? $"Talk to {characterName} aloud: hold the mouse on her, or hold this key in any app, and let go when you're done; she " +
+              "answers what she heard. The microphone on the slip writes what you say into it instead, to change before sending. " +
+              "Heard on this PC; nothing is recorded."
+            : "Talking aloud needs the speech model, which this build doesn't have (python tools/models/fetch.py listening)."));
+
         column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 10);
@@ -108,7 +128,7 @@ public partial class ChatSettings : Window
         }
     }
 
-    public void Open() => Paper.Open(this, new Vector2(540, 500));
+    public void Open() => Paper.Open(this, new Vector2(540, 640));
 
     private void UsePreset(Preset preset, bool keepFields)
     {
@@ -152,7 +172,7 @@ public partial class ChatSettings : Window
     {
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
-        Saved?.Invoke(Chosen(), _searches[_search.Selected]);
+        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name);
         QueueFree();
     }
 

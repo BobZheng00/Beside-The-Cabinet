@@ -1,12 +1,14 @@
-"""Downloads the local embedding models her memory search can use into src/InsertCoin.Game/models/, which git
-ignores (the multilingual model alone is 113 MB). Both are MIT-licensed; the build ships whichever are present.
+"""Downloads the local models she runs on this PC into src/InsertCoin.Game/models/, which git ignores (they are
+large); the build ships whichever are present.
 
-    python tools/models/fetch.py                  # both
-    python tools/models/fetch.py small            # only the small one (a lighter build)
+    python tools/models/fetch.py                  # all three
+    python tools/models/fetch.py small            # only the small memory model (a lighter build)
 
-multilingual  multilingual-e5-small (intfloat), about 100 languages, 113 MB
-small         bge-small-zh-v1.5 (BAAI), Chinese first and fair English, 23 MB
-The app works without either (search by shared words only).
+multilingual  memory search: multilingual-e5-small (intfloat, MIT), about 100 languages, 113 MB
+small         memory search: bge-small-zh-v1.5 (BAAI, MIT), Chinese first and fair English, 23 MB
+listening     her ears: SenseVoice-Small (FunAudioLLM; FunASR model licence, which asks for attribution), Chinese,
+              English, Japanese, Korean and Cantonese, 240 MB
+The app works without any of them (memory search by shared words only; no talking to her aloud).
 """
 import sys
 import urllib.request
@@ -23,6 +25,13 @@ MODELS = {
               {"onnx/model_quantized.onnx": "model.onnx", "vocab.txt": "vocab.txt"},
               "bge-small-zh-v1.5 (https://huggingface.co/BAAI/bge-small-zh-v1.5), MIT License, Beijing Academy of Artificial Intelligence.\n"
               "ONNX export and 8-bit quantisation: https://huggingface.co/Xenova/bge-small-zh-v1.5.\n"),
+    "listening": ("sense-voice", "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main",
+                  {"model.int8.onnx": "model.int8.onnx", "tokens.txt": "tokens.txt"},
+                  "SenseVoice-Small (https://github.com/FunAudioLLM/SenseVoice), Tongyi Lab, Alibaba Group.\n"
+                  "FunASR Model Open Source License Agreement 1.1 (https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE):\n"
+                  "free to use, copy, modify and share, keeping its name and this attribution.\n"
+                  "ONNX export and 8-bit quantisation for sherpa-onnx: "
+                  "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.\n"),
 }
 
 

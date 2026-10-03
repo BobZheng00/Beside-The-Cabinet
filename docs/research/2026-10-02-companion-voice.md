@@ -355,6 +355,43 @@ model copy per voice (about 4 GB for 1.7B). Community LoRA tooling
 with each epoch. GPT-SoVITS training is made for 8 GB cards and a minute or more of audio, its tools are already in
 the package, and a trained voice is about 0.2–0.35 GB.
 
+## Listening, measured (2026-10-03)
+
+The trial for voice-to-voice (`<tools>\listen-trial\spike`, a console program): SenseVoice-Small (int8, 239 MB) and
+the Silero voice detector through sherpa-onnx's C# package 1.13.8, in one process with the ONNX Runtime 1.30 her
+memory search uses. CPU only, so it never competes with GPT-SoVITS or a game for the graphics card.
+
+- **Two ONNX Runtimes?** No clash. Both packages carry an `onnxruntime.dll`; the build keeps the newer (ours, 1.30,
+  over sherpa-onnx's 1.28.2), sherpa-onnx's own `sherpa-onnx-c-api.dll` (4.5 MB) runs on it, and the memory search
+  model still ran after SenseVoice had loaded. No separate process needed.
+- **Download:** the C# package is 0.2 MB but depends on native runtimes for nine platforms (about 10 MB each) — only
+  win-x64's ship in the Windows build.
+- **Speed:** loading takes 1.1 s. 3–4 s of speech is heard in about 0.1 s with 4 threads (real-time factor 0.03;
+  0.04–0.10 with 2). Audio at 48 kHz (Godot's mix rate) costs about 0.2 s more in sherpa-onnx's resampler, so the
+  cabinet should hand it 16 kHz.
+- **Voice detection:** six lines with a second of silence between, 25 s in all: six stretches of speech found, in
+  0.17 s.
+
+| Test speech (known words) | Clips | Errors | Notes |
+|---|---|---|---|
+| Chinese, Windows voice (Huihui) | 6 | 0.0% of characters | |
+| Japanese, Windows voice (Haruka) | 3 | 2.5% of characters | 解いた heard as と いた; words come out spaced |
+| Japanese, Hana's lines | 55 | 7.6% of characters | expressive acting; names and homophones (弦 → 剣) |
+| English, Windows voices (Zira, David) | 6 | 5.9% of words | "eleven tonight" → "11 To" |
+
+Clean speech only: a microphone in a room will do worse, and the player's own voice is the real test.
+
+**Built (2026-10-03).** Three ways in, as the player chose: hold the mouse on her, or hold the talk key in any app
+(Right Ctrl by default; its state is read each frame, no keyboard hook), and she answers what she heard; or click the
+microphone on the slip, and what you say is written into it to change before sending. Recognition happens once the
+player lets go: with a sentence heard in about 0.1 s, live partial results (a streaming recognizer, which needs a
+model per language and hears less well) would save almost nothing, and her reply streams as before. Godot records the
+microphone into a muted bus of its own only while she listens; the cabinet brings it to 16 kHz itself. In the
+cabinet (scratch profile, a mock chat model, recordings instead of the microphone): SenseVoice loaded in 1.0–1.2 s,
+an English line was heard in 99 ms and a Chinese one in 86 ms, both reaching the chat model word for word, and a
+Japanese line was written into the slip without its spaces. Windows recorded no microphone use for a run that never
+listened, so turning Godot's input on doesn't open the microphone by itself.
+
 ## Other engines, for reference (read; not planned)
 
 Some newer zero-shot models clone from a clip as well as GPT-SoVITS does:
@@ -468,4 +505,5 @@ English or Chinese). The bubble is always in the language the player wrote in.
      - **Crash safety:** killing the app ended the server too.
 3. **Training:** "Train a better voice…" and picking up the result; licence notes in the voice picker.
 4. **Cloud:** Fish Audio and ElevenLabs by voice id.
-5. **Listening:** push-to-talk, then hands-free.
+5. **Listening:** push-to-talk (*built 2026-10-03*: held on her, a talk key, the slip's microphone; see "Listening,
+   measured"), then hands-free (the Silero voice detector is in the same package and already measured).

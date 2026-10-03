@@ -74,6 +74,14 @@ like a subtitled anime (the model writes `[say: …]` before each sentence). Whi
 the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
 "Mute sounds" mutes her too. Clicking her stops her mid-sentence.
 
+You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Chat
+settings says otherwise), say it, and let go: she leans in to listen, and answers what she heard as if you had typed
+it. The microphone at the end of the slip writes what you say into the slip instead, to change before you send it.
+She hears on this PC, on the processor, with SenseVoice-Small (Chinese, English, Japanese, Korean, Cantonese, told
+apart by itself): about a tenth of a second for a sentence. The microphone is open only while she listens, and
+nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
+it does in the app in front.
+
 Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything, or
 forget everything. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
 account. Without a provider she keeps to her canned lines.
@@ -93,7 +101,10 @@ menu at that screen point), `chat:some_text` (say something to her), `chatbox` (
 `memorybook`, `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
-window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`. `--offscreen` opens the app's windows off
+window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
+(a recording she hears as if said holding the talk key) and `dictate:C:\path\said.wav` (as if said into the slip's
+microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
+held on her, then let go). `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout
@@ -104,7 +115,8 @@ src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atom
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
                           store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
-                          (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python)
+                          (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python), hearing (SenseVoice
+                          through sherpa-onnx)
 src/InsertCoin.Game       Godot 4.7 (.NET) app: Main (the cabinet's loop: ledger, screen, window, tray), App/Stool (whoever
                           is on the stool: her figure, chat, voice and their windows), cabinet scene, companion,
                           director, desktop window, tray, audio
@@ -112,7 +124,7 @@ tests/                    xUnit: every rule with a fake clock; adapters with rec
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
                           app_icon.py — the app icon (.ico for the .exe, .png for the window)
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
-tools/models              fetch.py — downloads the local embedding models for her memory search
+tools/models              fetch.py — downloads the local models: her memory search's, her ears' (SenseVoice)
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
                           own windows too); sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
@@ -126,11 +138,12 @@ dotnet build src/InsertCoin.Game              # game assembly
 python tools/art/cozy_cabinet.py --skin       # regenerate art -> src/InsertCoin.Game/skins/cozy (needs Chrome)
 python tools/sfx/generate.py                  # regenerate sounds -> src/InsertCoin.Game/sounds
 python tools/art/app_icon.py                  # regenerate the app icon -> src/InsertCoin.Game/icon.ico, icon.png (needs Chrome)
-python tools/models/fetch.py                  # her memory search models -> src/InsertCoin.Game/models (not in git: 140 MB)
+python tools/models/fetch.py                  # local models -> src/InsertCoin.Game/models (not in git: 380 MB)
 ```
 
-The models are optional: without them she recalls by shared words only. `build.cmd` fetches both when the folder
-is missing; `python tools/models/fetch.py small` beforehand gives a lighter build with only the small one.
+The models are optional: without the memory models she recalls by shared words only, and without SenseVoice
+(`fetch.py listening`, 240 MB) she can't be talked to aloud. `build.cmd` fetches all three when the folder is
+missing; `python tools/models/fetch.py small` beforehand gives a lighter build with only the small memory model.
 
 ### Standalone build
 
@@ -180,6 +193,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
   run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its window. Measurements:
   [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
+- Her ears: `App/Ears.cs` opens the microphone while she listens (Godot records it into a muted bus of its own),
+  `TalkKey` reads the talk key, and `Hearing` (in `InsertCoin.Mind`) turns what was said into words with
+  SenseVoice. `App/Stool.cs` ties them together: held on her, the talk key, or the slip's microphone.
 - `App/Stool.cs` holds whoever is on the stool: her figure, the chat and its slip, her voice and its training, the
   windows for them, and characters, cards and voices coming in. `Main.cs` is the cabinet's own loop.
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by

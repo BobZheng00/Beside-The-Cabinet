@@ -88,7 +88,7 @@ public sealed class Chat : IDisposable
                 {
                     var folder = $"res://models/{model.Name}/";
                     using var tokenizer = new MemoryStream(Godot.FileAccess.GetFileAsBytes(folder + model.TokenizerFile));
-                    return new LocalEmbedder(model, OnDisk(folder + "model.onnx", model.Name), tokenizer);
+                    return new LocalEmbedder(model, ModelFiles.OnDisk(folder + "model.onnx", model.Name), tokenizer);
                 });
             }
             catch (Exception e)
@@ -107,30 +107,6 @@ public sealed class Chat : IDisposable
         old?.Dispose();
         GD.Print(loaded is null ? "Chat: recalling by shared words" : $"Chat: recalling by meaning with {loaded.Model.Name}");
         await Index();
-    }
-
-    /// <summary>
-    /// A real file for a model packed into the app: run from source it is the project's own file; in the built app,
-    /// which keeps it inside its package, a copy in the local cache (%LOCALAPPDATA%\InsertCoin\models), made once.
-    /// </summary>
-    private static string OnDisk(string resource, string name)
-    {
-        var project = ProjectSettings.GlobalizePath(resource);
-        if (File.Exists(project))
-            return project;
-        var cached = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "InsertCoin", "models", name,
-                                  Path.GetFileName(resource));
-        using var source = Godot.FileAccess.Open(resource, Godot.FileAccess.ModeFlags.Read)
-                           ?? throw new FileNotFoundException($"{resource} is not in this build");
-        if (File.Exists(cached) && new FileInfo(cached).Length == (long)source.GetLength())
-            return cached;
-        Directory.CreateDirectory(Path.GetDirectoryName(cached)!);
-        var partial = cached + ".part";
-        using (var copy = File.Create(partial))
-            while (source.GetPosition() < source.GetLength())
-                copy.Write(source.GetBuffer(1 << 20));                  // a megabyte at a time, never the whole model in memory
-        File.Move(partial, cached, overwrite: true);
-        return cached;
     }
 
     /// <summary>Gives what she knows vectors from the loaded model, a batch at a time.</summary>

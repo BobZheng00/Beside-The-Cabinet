@@ -3,7 +3,7 @@ using Godot;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>Things the companion reacts to. The app decides when; the puppet decides how.</summary>
-public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note }
+public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note, Listen, Heard }
 
 /// <summary>
 /// The companion's body language. Three layers, in this order every frame:
@@ -65,6 +65,8 @@ internal sealed class Puppet
         // head bowed over the pad, a little tilted, shoulders relaxed
         ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
             PadHand, PenHand, Curl: 35),
+        // listening to the player: leaning in, head tilted towards them
+        ["listen"] = new(new Pose().Set("Spine", 5, 0, 0).Set("Chest", 3, 0, 0).Set("Neck", 2, 0, 3).Set("Head", 3, 0, 9)),
         ["doze"] = new(new Pose().Set("Spine", 3, 0, 2).Set("Chest", 2, 0, 2).Set("Neck", 4, 0, 5).Set("Head", 7, 0, 11)),
         // idle fidgets
         ["tiltLeft"] = new(new Pose().Set("Neck", -3, 0, -3).Set("Head", -4, 0, -9)),
@@ -74,7 +76,7 @@ internal sealed class Puppet
         ["sigh"] = new(new Pose().Set("Spine", 1, 0, 0).Set("Chest", -3, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -6, 0, 0).Both("Shoulder", 0, 0, 7)),
     };
 
-    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "note", "tiltLeft", "tiltRight", "shift", "sigh"];
+    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "note", "tiltLeft", "tiltRight", "shift", "sigh", "listen"];
     private static readonly string[] Sides = ["Left", "Right"];
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
@@ -212,6 +214,18 @@ internal sealed class Puppet
                 _face.EyesClosed = false;
                 _face.Show("surprised", 0.5f, 0.8);
                 Look(Viewer, 2);
+                break;
+            case Moment.Listen:
+                Interrupt(60);                                       // held until she has heard it
+                _on["listen"] = 1;
+                _face.Show("relaxed", 0.8f, 60);
+                Look(Viewer, 60);
+                break;
+            case Moment.Heard:
+                _on["listen"] = 0;
+                _busyUntil = _time + 0.8;
+                _face.Show("happy", 0.6f, 1.2);
+                Look(Viewer, 1.5);
                 break;
             case Moment.Note:
                 // pad up, eyes on it, a few quick strokes, then a satisfied look back up

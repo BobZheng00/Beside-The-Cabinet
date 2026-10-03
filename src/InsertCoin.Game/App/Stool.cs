@@ -16,6 +16,13 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class Stool : Node2D
 {
+    /// <summary>A press on her (or of the talk key) held this long is talking to her, not a click.</summary>
+    private const double HoldSeconds = 0.35;
+    private const string EarsModel = "res://models/sense-voice/";
+
+    /// <summary>How she is being talked to: held on her or by the talk key (she answers what she heard at once), or by the slip's microphone (written into it).</summary>
+    private enum Talk { None, Hold, Key, Mic }
+
     private SettingsFile _settings = null!;
     private CabinetView _cabinet = null!;
     private DesktopWindow _window = null!;
@@ -30,6 +37,12 @@ public partial class Stool : Node2D
     private MemoryBook? _memoryBook;
     private VoiceSettings? _voiceSettings;
     private bool _gameRunning;
+    private Ears _ears = null!;
+    private Task<Hearing?>? _hearing;
+    private Talk _talking;
+    private bool _pressedOnHer, _heldToTalk, _keyUsed;
+    private double _pressedFor, _keyFor;
+
     /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
     public event Action<(string Id, string Name)[], string>? CharactersAdded;
 
@@ -75,6 +88,35 @@ public partial class Stool : Node2D
         _trainer.Build(Path.Combine(dataDir, "companion"), settings.Now.TrainingPace);
         _trainer.Finished += TrainingEnded;
 
+        _ears = new Ears();
+        AddChild(_ears);
+        _ears.Full += () => _ = Heard();
+        _window.Pressed += at =>
+        {
+            _pressedOnHer = Her?.Hits(at) == true;
+            _pressedFor = 0;
+        };
+        _window.DragStarted += () =>
+        {
+            _pressedOnHer = false;
+            if (_talking == Talk.Hold)
+                StopListening();                            // she was being dragged, not talked to
+        };
+        _window.Released += () =>
+        {
+            _pressedOnHer = false;
+            if (_talking == Talk.Hold)
+                _ = Heard();
+            _heldToTalk = false;
+        };
+        _chatBox.MicPressed += () =>
+        {
+            if (_talking == Talk.Mic)
+                _ = Heard();
+            else if (_talking == Talk.None)
+                Listen(Talk.Mic);
+        };
+
         GetWindow().FilesDropped += Add;                     // a model, card or voice dropped on the cabinet or on her
         var upkeep = new Godot.Timer { WaitTime = 60, Autostart = true };
         upkeep.Timeout += () => _ = _chat.Upkeep(_gameRunning);
@@ -118,6 +160,8 @@ public partial class Stool : Node2D
     /// <summary>She waves and says where things stand; when she can talk, the slip to type to her opens too.</summary>
     public void Clicked()
     {
+        if (_heldToTalk)
+            return;                                         // that was a hold: she was being talked to
         _voice.Stop();
         _lively(6);
         Her?.Play(Moment.Greet);
@@ -152,6 +196,152 @@ public partial class Stool : Node2D
     {
         _chat?.Dispose();
         _voice?.Shutdown();
+        if (_hearing is { IsCompletedSuccessfully: true, Result: { } hearing })
+            hearing.Dispose();
+    }
+
+    // ---- Talking to her aloud -----------------------------------------------------------------------------------------
+
+    public override void _Process(double delta)
+    {
+        if (_pressedOnHer && !_heldToTalk && _talking == Talk.None)
+        {
+            _pressedFor += delta;
+            if (_pressedFor >= HoldSeconds)
+            {
+                _heldToTalk = true;                         // the release is the end of talking, not a click
+                Listen(Talk.Hold);
+            }
+        }
+        if (_settings.Now.TalkKey != TalkKey.Off)
+        {
+            if (TalkKey.IsDown(_settings.Now.TalkKey))
+            {
+                _keyFor += delta;
+                if (_keyFor >= HoldSeconds && !_keyUsed && _talking == Talk.None)
+                {
+                    _keyUsed = true;                        // once per hold, whether she could listen or not
+                    Listen(Talk.Key);
+                }
+            }
+            else
+            {
+                _keyFor = 0;
+                _keyUsed = false;
+                if (_talking == Talk.Key)
+                    _ = Heard();
+            }
+        }
+        if (_talking != Talk.None)
+            _chatBox.SetLevel(_ears.Level);
+    }
+
+    /// <summary>Whether she has ears in this build (SenseVoice, fetched by tools/models/fetch.py).</summary>
+    private static bool HasEars => ModelFiles.Present(EarsModel + Hearing.ModelFile);
+
+    /// <summary>She stops talking, leans in and listens: the microphone opens until the player lets go (or clicks the microphone again).</summary>
+    private void Listen(Talk how)
+    {
+        if (Her is null || _chat.Answering)
+            return;
+        if (!_chat.Ready || !HasEars)
+        {
+            if (how != Talk.Key)                            // a key held for something else in another app says nothing
+                Say(!_chat.Ready ? "I can only answer once I'm connected: tray → Chat settings." : "I can't hear in this build (no speech model).");
+            return;
+        }
+        _hearing ??= Task.Run(LoadHearing);                 // loads while the player talks
+        _voice.Stop();
+        _talking = how;
+        _ears.Start();
+        _lively(Ears.Longest + 10);
+        Her.Play(Moment.Listen);
+        OpenChat(focus: how != Talk.Key);                   // the talk key is held in another app: leave its focus alone
+        _chatBox.SetListening(true);
+    }
+
+    /// <summary>The microphone closes without anything being heard (she was dragged instead).</summary>
+    private void StopListening()
+    {
+        _talking = Talk.None;
+        _ears.Stop();
+        _chatBox.SetListening(false);
+        Her?.Play(Moment.Heard);
+    }
+
+    /// <summary>The player has finished: what they said is heard, then answered, or written into the slip.</summary>
+    private async Task Heard()
+    {
+        if (_talking == Talk.None)
+            return;
+        var how = _talking;
+        _talking = Talk.None;
+        var seconds = _ears.Seconds;
+        var said = _ears.Stop();
+        var silent = _ears.Peak == 0;
+        _chatBox.SetListening(false);
+        Her?.Play(Moment.Heard);
+        if (silent)
+        {
+            Say("I can't hear you. Is the microphone allowed? Windows Settings → Privacy & security → Microphone.");
+            return;
+        }
+        if (seconds >= 0.3)                                 // less is a slip of the finger
+            await Understand(said, how);
+    }
+
+    /// <summary>Hears <paramref name="said"/> (16 kHz) and answers it, or writes it into the slip.</summary>
+    private async Task Understand(float[] said, Talk how)
+    {
+        if (await (_hearing ??= Task.Run(LoadHearing)) is not { } hearing)
+        {
+            Say("I can't hear right now: my ears didn't load (see the log).");
+            return;
+        }
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var words = await Task.Run(() => hearing.Hear(said));
+        GD.Print($"Ears: {said.Length / (double)Hearing.SampleRate:0.0} s heard in {clock.ElapsedMilliseconds} ms");   // never what was said
+        if (!IsInsideTree() || words.Length == 0)
+            return;
+        if (how == Talk.Mic)
+            _chatBox.Insert(words);
+        else if (!_chat.Answering)
+        {
+            _chatBox.ShowHeard(words);
+            await Ask(words);
+        }
+    }
+
+    private static Hearing? LoadHearing()
+    {
+        try
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var model = ModelFiles.OnDisk(EarsModel + Hearing.ModelFile, "sense-voice");
+            ModelFiles.OnDisk(EarsModel + Hearing.TokensFile, "sense-voice");
+            var hearing = new Hearing(Path.GetDirectoryName(model)!);
+            GD.Print($"Ears: SenseVoice loaded in {clock.ElapsedMilliseconds} ms");
+            return hearing;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Ears: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Dev: a recording heard as if said holding the talk key, or into the slip's microphone (no microphone opened).</summary>
+    private async Task HearFile(string path, Talk how)
+    {
+        if (Her is null || !_chat.Ready || !HasEars)
+        {
+            GD.PrintErr("Ears: hear: needs her on the stool, a chat provider and the speech model");
+            return;
+        }
+        OpenChat(focus: false);                             // as listening does
+        var wav = new Wav();
+        var samples = wav.Feed(File.ReadAllBytes(path));
+        await Understand(Hearing.To16k(samples, wav.SampleRate), how);
     }
 
     // ---- The tray's switches ---------------------------------------------------------------------------------------------
@@ -416,12 +606,13 @@ public partial class Stool : Node2D
             return;
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch);
-        _chatSettings.Saved += (provider, search) =>
+        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, HasEars);
+        _chatSettings.Saved += (provider, search, talkKey) =>
         {
             _settings.Save(_settings.Now with
             {
                 ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
+                TalkKey = talkKey,
             });
             _chat.UseSearch(search);
             _chat.Connect(provider);
@@ -544,6 +735,11 @@ public partial class Stool : Node2D
                 _chatBox.DevSend(text);
                 break;
             case "chatbox": OpenChat(focus: false); break;
+            case "hear": _ = HearFile(rest, Talk.Key); break;            // hear:path.wav as if said holding the talk key (no microphone)
+            case "dictate": _ = HearFile(rest, Talk.Mic); break;         // dictate:path.wav as if said into the slip's microphone
+            case "mic": _chatBox.DevMic(); break;           // clicks the slip's microphone (opens the real microphone)
+            case "listen": Listen(Talk.Hold); break;        // listens as if held on her (opens the real microphone)…
+            case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
             case "memorybook": OpenMemoryBook(); break;
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet

@@ -22,6 +22,7 @@ public sealed record AppSettings
     public string? ChatModel { get; init; }
     public string? MemorySearch { get; init; }          // a local model's name, "words" for shared words only; unset: the best one present
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
+    public string TalkKey { get; init; } = "RightCtrl"; // held in any app to talk to her aloud (see App.TalkKey), or "Off"
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
