@@ -231,7 +231,7 @@ clips score 0.91 on average (lowest 0.81).
 | Qwen3-TTS 1.7B, 3 clips joined, 0.6 | 0.46 / 0.26 | 0.42 / 0.27 | 0.92 s |
 | GPT-SoVITS v2ProPlus, 1 clip | 0.82 / 0.80 | 0.97 / 0.96 | 0.40 s |
 | GPT-SoVITS v2ProPlus, 1 clip + the other 5 as extra references | **0.86 / 0.82** | 0.97 / 0.97 | 0.33 s |
-| GPT-SoVITS v4, 1 clip | 0.58 / 0.49 | 0.94 / 0.93 | 0.89 s |
+| GPT-SoVITS v4, 1 clip (on a fresh clip: see below) | 0.83 / 0.80 | 0.93 / 0.91 | 0.84 s |
 
 Why: GPT-SoVITS's first stage picks rhythm and intonation at random, but its second paints the timbre straight from
 the reference clip (v2ProPlus also from a voiceprint of it), so takes differ in delivery, not in who speaks.
@@ -239,9 +239,26 @@ Qwen3-TTS makes the sound itself, timbre included; the clip is only an example t
 Joining clips into one longer example didn't make Qwen more like her and slowed its start 3–4 times; a calmer
 temperature helped a little. GPT-SoVITS v2ProPlus takes extra reference clips (`aux_ref_audio_paths`) and blends
 their tone: more like her at no cost. v3/v4 ignore extra references (they use only the first), and GPT-SoVITS
-refuses a reference outside 3–10 s, so a joined clip is no option there. v4 is steady but scored further from her
-recorded voice than v2ProPlus. Training a model on the dataset is the remaining step up (GPT-SoVITS recommends a
-minute or more; Hana has five).
+refuses a reference outside 3–10 s, so a joined clip is no option there. Training a model on the dataset is the
+remaining step up (GPT-SoVITS recommends a minute or more; Hana has five).
+
+**A GPT-SoVITS trap (found 2026-10-03).** The first run scored v4 at 0.58 and the player heard it as much worse than
+before. It ran on the same server straight after v2ProPlus with five extra clips. GPT-SoVITS keeps one "reference
+recording" (`prompt_cache["raw_audio"]`), and preparing each extra clip overwrites it (`_get_ref_spec`, TTS.py:775);
+v4's vocoder path reads it (TTS.py:1611), so v4 spoke with the last extra clip's sound and the first clip's words.
+Loading new weights doesn't clear what was prepared either (`init_vits_weights`), though that alone mattered little:
+v4 straight after a plain v2ProPlus scored 0.82, and 0.83 after `/set_refer_audio` prepared the clip afresh
+(`check_v4_stale.py`). The cabinet sends no extra clips today; when it blends them for v2ProPlus it must send them
+to v2 models only and prepare the clip afresh after every change of weights.
+
+**Can Qwen3-TTS be trained? (read 2026-10-03)** Yes, but not on this laptop. The official
+[`sft_12hz.py`](https://github.com/QwenLM/Qwen3-TTS/tree/main/finetuning) fine-tunes every weight of the 0.6B or
+1.7B base with AdamW in bf16 (batch 32, learning rate 2e-6), far beyond 8 GB of graphics memory, and saves a whole
+model copy per voice (about 4 GB for 1.7B). Community LoRA tooling
+([instavar](https://instavar.com/blog/ai-production-stack/LoRA_Finetuning_Qwen3_TTS_Custom_Voices)) still suggests a
+24 GB card for 1.7B and 10–30 minutes of clean audio (5 minimum), and warns of a label-shift bug that speeds speech up
+with each epoch. GPT-SoVITS training is made for 8 GB cards and a minute or more of audio, its tools are already in
+the package, and a trained voice is about 0.2–0.35 GB.
 
 ## Other engines, for reference (read; not planned)
 
