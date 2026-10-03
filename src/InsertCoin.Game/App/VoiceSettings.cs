@@ -23,8 +23,7 @@ public partial class VoiceSettings : Window
     [
         "GPT-SoVITS v4: clear, starts once each sentence is made",
         "GPT-SoVITS v2ProPlus: quick, speaks as it is made",
-        "Qwen3-TTS 0.6B: quickest, speaks as it is made",
-        "Qwen3-TTS 1.7B: larger, a little slower to start",
+        "Qwen3-TTS 1.7B: clear, speaks as it is made",
     ];
 
     /// <summary>Saved: the GPT-SoVITS and Qwen3-TTS folders chosen (the voice's own changes are already written to its folder).</summary>
@@ -189,7 +188,7 @@ public partial class VoiceSettings : Window
 
         if (profile.ClonedWith is { } cloned)
         {
-            _model = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            _model = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };   // a long label never widens the window
             foreach (var label in Models)
                 _model.AddItem(label);
             _model.Select(Math.Max(0, Array.IndexOf(VoiceProfile.CloneModels, cloned)));

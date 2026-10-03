@@ -10,13 +10,14 @@ namespace InsertCoin.Mind;
 public sealed class QwenTts(HttpClient http) : IVoiceEngine
 {
     /// <summary>
-    /// Speech steps (1/12 s each) made before a piece is sent: 4 starts speaking about 0.3 s after asking, 8 about
-    /// 0.45 s, both at under two thirds of real time on the development laptop (measured 2026-10-03).
+    /// Speech steps (1/12 s each) made before a piece is sent. With the 1.7B model on the development laptop, 4 starts
+    /// speaking about 0.33 s after asking and makes speech in 0.74–0.80 of the time it plays; 8 starts after about
+    /// 0.5 s at 0.67 (measured 2026-10-03).
     /// </summary>
     public const int PieceSteps = 4;
 
     /// <summary>The base model of a size the voice is cloned with (see <see cref="VoiceProfile.CloneModels"/>).</summary>
-    public static string Model(string? size) => $"Qwen/Qwen3-TTS-12Hz-{size ?? "0.6B"}-Base";
+    public static string Model(string? size) => $"Qwen/Qwen3-TTS-12Hz-{size ?? "1.7B"}-Base";
 
     /// <summary>The server's own code, carried inside the cabinet and written out beside its log when it starts.</summary>
     public static string ServerScript()

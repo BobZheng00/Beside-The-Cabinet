@@ -32,11 +32,12 @@ public sealed partial record VoiceProfile
     /// <summary>
     /// The base models a clip can be cloned with, the first of each engine its default. GPT-SoVITS v4 is clear but
     /// makes each sentence (or each part between commas) whole before it speaks: 1.5–3.5 s; v2ProPlus streams, about
-    /// 0.4 s. Qwen3-TTS streams too, about 0.3 s, and read hard Japanese lines more surely (measured 2026-10-03).
+    /// 0.4 s. Qwen3-TTS 1.7B streams too, about 0.35 s, and read hard Japanese lines more surely (measured
+    /// 2026-10-03). Its 0.6B sounded like a different person from line to line to the player, so it isn't offered.
     /// </summary>
     public static readonly CloneModel[] CloneModels =
     [
-        new(VoiceEngines.GptSoVits, "v4"), new(VoiceEngines.GptSoVits, "v2ProPlus"), new(VoiceEngines.Qwen, "0.6B"), new(VoiceEngines.Qwen, "1.7B"),
+        new(VoiceEngines.GptSoVits, "v4"), new(VoiceEngines.GptSoVits, "v2ProPlus"), new(VoiceEngines.Qwen, "1.7B"),
     ];
 
     /// <summary>The engine a clone speaks with (see <see cref="VoiceEngines"/>); a trained model always speaks with GPT-SoVITS.</summary>

@@ -194,13 +194,13 @@ sounds, so Qwen3-TTS went next, through faster-qwen3-tts 0.5.3 (PyTorch 2.11 cu1
 "no attribute 'rope_theta'"). The 0.6B and 1.7B base models downloaded in under a minute (2.5 and 4.5 GB). Same
 clip, same lines (`bench_qwen.py`):
 
-| Line | 0.6B, 8 steps a piece | 0.6B, 4 steps a piece | 1.7B, 8 steps a piece |
-|---|---|---|---|
-| おかえりなさい！… | 0.43 s / 5% | 0.27 s / 5% | 0.50 s / 5% |
-| ハードを2問も解いたんですか！… | 0.45 s / 7% (right; "2" as a digit) | 0.30 s / 3% | 0.53 s / 3% |
-| もう遅いですよ。… | 0.42 s / 0% | 0.28 s / 0% | 0.51 s / 0% |
-| 今は10月3日土曜日の午後3時5分だよ。 | 0.43 s / 26% (kanji numbers: spoken right) | 0.28 s / 26% | 0.51 s / 26% |
-| Speed (time to make ÷ length) | 0.54–0.61 | 0.61–0.66 | 0.66–0.68 |
+| Line | 0.6B, 8 steps a piece | 0.6B, 4 steps a piece | 1.7B, 8 steps a piece | 1.7B, 4 steps a piece |
+|---|---|---|---|---|
+| おかえりなさい！… | 0.43 s / 5% | 0.27 s / 5% | 0.50 s / 5% | 0.33 s / 5% |
+| ハードを2問も解いたんですか！… | 0.45 s / 7% (right; "2" as a digit) | 0.30 s / 3% | 0.53 s / 3% | 0.33 s / 3% |
+| もう遅いですよ。… | 0.42 s / 0% | 0.28 s / 0% | 0.51 s / 0% | 0.34 s / 0% |
+| 今は10月3日土曜日の午後3時5分だよ。 | 0.43 s / 26% (kanji numbers: spoken right) | 0.28 s / 26% | 0.51 s / 26% | 0.34 s / 0% |
+| Speed (time to make ÷ length) | 0.54–0.61 | 0.61–0.66 | 0.66–0.68 | 0.74–0.80 |
 
 It read the line v2ProPlus mangled correctly with both sizes. Load 6–7 s, warm-up (CUDA graphs) 2–3 s; graphics
 memory about 2.8 GB loaded for 0.6B and 4.6 GB for 1.7B (peaks while speaking: 3.4 and 5.2 GB). Output is 24 kHz
@@ -211,6 +211,11 @@ The cabinet runs it with its own server (`qwen_server.py`, built into `InsertCoi
 the voice log; standard library HTTP, one sentence at a time, a dropped connection stops the sentence). Inside the
 cabinet, with 4 steps a piece, each line started 0.32–0.44 s after it was handed over, and switching between
 engines live in the voice settings works (only one engine's server runs at a time).
+
+**The player's verdict (2026-10-03):** with 0.6B, Hana sounded like a different person from line to line
+(maybe the small dataset; every line used the same 6 s clip). 1.7B suffered from it much less (line 1 sounded a bit
+off), so only 1.7B is offered: the clear choice, if a little less consistent than GPT-SoVITS. The 0.6B model was
+deleted from the trial folder.
 
 ## Other engines, for reference (read; not planned)
 

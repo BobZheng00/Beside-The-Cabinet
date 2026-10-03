@@ -2,7 +2,7 @@
 faster-qwen3-tts installed). It listens on this PC only and makes one sentence at a time:
 
     GET  /health   {"model": the model loaded, or null}
-    POST /load     {"model": "Qwen/Qwen3-TTS-12Hz-0.6B-Base"}: loads it (unless it is loaded) and warms it up
+    POST /load     {"model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base"}: loads it (unless it is loaded) and warms it up
     POST /tts      {"text", "language" (ja, zh, en…), "ref_audio" (a path), "ref_text", "chunk_size"}: a 16-bit mono
                    WAV that streams back while it is being made; closing the connection stops it
 

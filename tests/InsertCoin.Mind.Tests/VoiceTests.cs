@@ -269,14 +269,13 @@ public class VoiceTests
     {
         using var home = new TempFolder();
         var clone = new VoiceProfile { Engine = VoiceEngines.Qwen, Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
-        Assert.Equal((VoiceEngines.Qwen, "0.6B", false), (clone.SpeaksWith, clone.Runs, clone.Slow));
+        Assert.Equal((VoiceEngines.Qwen, "1.7B", false), (clone.SpeaksWith, clone.Runs, clone.Slow));
         Assert.Equal(VoiceProfile.CloneModels[2], clone.ClonedWith);
-        Assert.Equal("Qwen/Qwen3-TTS-12Hz-0.6B-Base", QwenTts.Model(clone.Runs));
+        Assert.Equal("Qwen/Qwen3-TTS-12Hz-1.7B-Base", QwenTts.Model(clone.Runs));
 
-        var larger = clone with { Version = "1.7B" };
-        Assert.Equal("Qwen/Qwen3-TTS-12Hz-1.7B-Base", QwenTts.Model(larger.Runs));
-        Assert.Equal("0.6B", (clone with { Version = "v2ProPlus" }).Runs);    // a GPT-SoVITS model left from before: Qwen's own first
-        larger.Save(home.Path);
+        Assert.Equal("1.7B", (clone with { Version = "v2ProPlus" }).Runs);    // a GPT-SoVITS model left from before: Qwen's own
+        Assert.Equal("1.7B", (clone with { Version = "0.6B" }).Runs);         // no longer offered
+        (clone with { Version = "1.7B" }).Save(home.Path);
         Assert.Equal((VoiceEngines.Qwen, "1.7B"), (VoiceProfile.Load(home.Path)!.SpeaksWith, VoiceProfile.Load(home.Path)!.Runs));
 
         var trained = clone with { Gpt = "a.ckpt", Sovits = "b.pth", Version = "v2ProPlus" };
@@ -387,7 +386,7 @@ public class VoiceTests
         wav.AsSpan(40, 4).Fill(0xFF);
         var server = new FakeServer(request => request.RequestUri!.AbsolutePath == "/tts"
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(wav) }
-            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"model": "Qwen/Qwen3-TTS-12Hz-0.6B-Base"}""") });
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base"}""") });
         var engine = new QwenTts(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9881/") });
         var clip = new VoiceClip("clips/hana_035.wav", "今日はいい天気だから、少し散歩しようかな。", "ja");
         var voice = new VoiceProfile { Engine = VoiceEngines.Qwen, Language = "ja", Clips = [clip] };
@@ -402,7 +401,7 @@ public class VoiceTests
         }
 
         Assert.Equal(["/load", "/tts"], server.Asked);
-        Assert.Equal("""{"model":"Qwen/Qwen3-TTS-12Hz-0.6B-Base"}""", server.Bodies[0]);
+        Assert.Equal("""{"model":"Qwen/Qwen3-TTS-12Hz-1.7B-Base"}""", server.Bodies[0]);
         Assert.Contains("\"language\":\"ja\"", server.Bodies[1]);
         Assert.Contains("\"ref_text\":\"それもあって", System.Text.RegularExpressions.Regex.Unescape(server.Bodies[1]));
         Assert.Contains($"\"chunk_size\":{QwenTts.PieceSteps}", server.Bodies[1]);

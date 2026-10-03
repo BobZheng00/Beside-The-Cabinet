@@ -52,9 +52,10 @@ a `.pth`, usually with clips of the voice; v2 to v4 all work), a 3 to 10 second 
 a folder of clips with their training list (a dataset), which is cloned from its best clips. A clone runs on
 GPT-SoVITS's v4 base model (the clearest; it makes each sentence whole before she says it, 1.5–3.5 s) or, chosen
 in the window, v2ProPlus (streams, so she starts in about half a second; a little less sure of hard words) or
-Qwen3-TTS 0.6B or 1.7B (streams, about 0.3 s; 24 kHz). Qwen3-TTS is a second folder in the window: a Python
-virtual environment (`venv`) with `faster-qwen3-tts` installed (and `transformers==5.15.1`: 5.18 breaks its speech
-tokenizer); its models download into the folder's `hf` the first time (0.6B 2.5 GB, 1.7B 4.5 GB). The cabinet
+Qwen3-TTS 1.7B (streams, about 0.35 s; 24 kHz; clear, though the voice can vary a little between lines). Qwen3-TTS
+is a second folder in the window: a Python virtual environment (`venv`) with `faster-qwen3-tts` installed (and
+`transformers==5.15.1`: 5.18 breaks its speech tokenizer); its model downloads into the folder's `hf` the first time
+(4.2 GB). The cabinet
 runs its own server there (`src/InsertCoin.Mind/Voice/qwen_server.py`, built in). Only one engine runs at a time.
 The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
 ("【开心】今天也要加油哦.wav"); if they can't be found the window asks for them. A voice speaks one language
