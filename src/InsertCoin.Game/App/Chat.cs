@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Godot;
 using InsertCoin.Core;
@@ -49,7 +51,7 @@ public sealed class Chat : IDisposable
     public void Connect(Provider? provider)
     {
         _client?.Dispose();
-        _client = provider?.Connect(Keys.Load());
+        _client = provider?.Connect(Keys.Load()) is { } client ? new Timed(client) : null;
         UseSearch(_search);
     }
 
@@ -159,6 +161,8 @@ public sealed class Chat : IDisposable
         conversation.VoiceLanguage = speech?.Language;
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
+        var clock = Stopwatch.StartNew();
+        long? shown = null;
         try
         {
             view.BeginReply();
@@ -167,6 +171,7 @@ public sealed class Chat : IDisposable
                                       {
                                           if (!Here())
                                               return;
+                                          shown ??= clock.ElapsedMilliseconds;
                                           view.Continue(words);
                                           speech?.Text(words);
                                       },
@@ -178,6 +183,7 @@ public sealed class Chat : IDisposable
                                           speech?.Direction(name, payload);
                                       },
                                       answering.Token);
+            GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
             if (Here())
                 speech?.Finish();
         }
@@ -270,6 +276,41 @@ public sealed class Chat : IDisposable
         _client?.Dispose();
         _embedder?.Dispose();
         Store.Dispose();
+    }
+
+    /// <summary>
+    /// Logs how a reply streamed in: when the first piece came, when the first words did (a model that thinks first
+    /// sends nothing to show until it has thought), when it ended, and the tokens it took when the provider says.
+    /// </summary>
+    private sealed class Timed(IChatClient inner) : DelegatingChatClient(inner)
+    {
+        public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+                                                                                         [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var clock = Stopwatch.StartNew();
+            long? firstPiece = null, firstWords = null;
+            var pieces = 0;
+            UsageDetails? usage = null;
+            try
+            {
+                await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken))
+                {
+                    firstPiece ??= clock.ElapsedMilliseconds;
+                    if (update.Text.Length > 0)
+                    {
+                        firstWords ??= clock.ElapsedMilliseconds;
+                        pieces++;
+                    }
+                    usage = update.Contents.OfType<UsageContent>().LastOrDefault()?.Details ?? usage;
+                    yield return update;
+                }
+            }
+            finally
+            {
+                GD.Print($"Chat: reply streamed: first piece after {firstPiece} ms, first words after {firstWords} ms, done after {clock.ElapsedMilliseconds} ms, "
+                         + $"{pieces} pieces of words" + (usage is null ? "" : $"; {usage.OutputTokenCount} tokens out ({usage.ReasoningTokenCount ?? 0} of them thinking), {usage.InputTokenCount} in"));
+            }
+        }
     }
 
     /// <summary>Plays a stage direction from her reply; ones her body has no move for are ignored.</summary>

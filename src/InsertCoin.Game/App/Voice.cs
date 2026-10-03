@@ -212,7 +212,15 @@ public partial class Voice : Node
         if (!CanSpeak)
             return null;
         Speech? speech = null;
-        speech = new Speech(_profile!.Language, sentence => Say(sentence, speech!.Mood));
+        var clock = Stopwatch.StartNew();
+        var first = true;
+        speech = new Speech(_profile!.Language, sentence =>
+        {
+            if (first)
+                GD.Print($"Voice: the reply's first sentence to say came {clock.ElapsedMilliseconds} ms after asking");
+            first = false;
+            Say(sentence, speech!.Mood);
+        });
         return speech;
     }
 
