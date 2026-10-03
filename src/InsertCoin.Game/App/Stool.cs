@@ -759,6 +759,7 @@ public partial class Stool : Node2D
             case "quiet": SetBubbles(!_settings.Now.SpeechBubbles); break;
             case "click": Clicked(); break;                 // as if she had been clicked
             case "legs": Her?.DevLegs(rest); break;         // legs:left|right|both|ring sets which feet hang off the stool's ring
+            case "closeup": Her?.DevCloseUp(rest != "off"); break;     // closeup:hands narrows her camera onto her hands, closeup:off puts it back
             case "moment": Her?.Play(Enum.Parse<Moment>(rest, ignoreCase: true)); break;
             default: return false;
         }

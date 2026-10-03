@@ -104,7 +104,8 @@ sample line), `voice:some_text` (a bubble she also says aloud, if it is in her v
 window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording she hears as if said holding the talk key) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
-held on her, then let go). `--offscreen` opens the app's windows off
+held on her, then let go), and `closeup:hands` (her camera narrowed onto her hands, to judge fingers; `closeup:off`).
+`--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout

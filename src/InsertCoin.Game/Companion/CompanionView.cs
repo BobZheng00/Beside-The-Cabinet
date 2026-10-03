@@ -138,7 +138,8 @@ public partial class CompanionView : Node2D
 
     // ---- The pad and pencil she takes notes with -------------------------------------------------------------------
 
-    private static readonly string[] HandJoints = ["Hand", "IndexProximal", "MiddleProximal", "LittleProximal"];
+    private static readonly string[] HandJoints =
+        ["Hand", "IndexProximal", "MiddleProximal", "LittleProximal", "IndexIntermediate", "IndexDistal", "ThumbProximal", "ThumbDistal"];
     private Node3D? _pad, _pencil;
 
     /// <summary>
@@ -178,9 +179,9 @@ public partial class CompanionView : Node2D
     }
 
     /// <summary>
-    /// Holds the notebook between her hands, tipped up towards the viewer so it reads as a notebook at this size
-    /// (hands are only roughly where a pose puts them, so it is placed from the pose's intent, not from the palm),
-    /// and runs the pencil from her right hand's grip down to the page. Both pop in and out with the pose.
+    /// The notebook lies on her left palm, its page facing the way the palm does, and goes wherever the hand goes;
+    /// the pencil is pinched between her right thumb and index fingertips, leaning about 50° to the page with its point
+    /// on it, so it moves with her writing hand. Both pop in and out with the pose.
     /// </summary>
     private void PlacePadAndPencil()
     {
@@ -191,22 +192,46 @@ public partial class CompanionView : Node2D
         if (!_pad.Visible)
             return;
         var size = _rig.Size;
-        var leftGrip = _rig.PositionOf("LeftMiddleProximal");
-        var rightGrip = _rig.PositionOf("RightIndexProximal");
 
         // her frame: she faces +z, +x is her left
-        var centre = leftGrip.Lerp(rightGrip, 0.4f) + new Vector3(0, -0.02f, 0.02f) * size;
-        var toViewer = (_camera.Position - centre).Normalized();
-        var face = (Vector3.Up * 0.8f + toViewer * 0.6f).Normalized();                 // the page faces up and towards the viewer
-        var upPage = (Vector3.Up - face * Vector3.Up.Dot(face)).Normalized();            // where the binding is
-        var across = face.Cross(upPage).Normalized();
+        var (fingers, palm) = HandFrame("Left");
+        var face = palm;
+        var centre = _rig.PositionOf("LeftMiddleProximal") + fingers * 0.02f * size + face * 0.024f * size;   // on palm and fingers, under her thumb
+        var across = fingers;                                                            // the fingers run across the page
+        var upPage = across.Cross(face);                                                 // where the binding is: the top, away from her
+        if (upPage.Z < 0)
+            (across, upPage) = (-across, -upPage);
         _pad.GlobalTransform = new Transform3D(new Basis(across, face, upPage).Scaled(Vector3.One * shown), centre);
 
-        var tip = centre + face * 0.006f * size + across * 0.012f * size - upPage * 0.01f * size;
-        var down = (tip - rightGrip).Normalized();                                      // from the grip to the paper
+        // the tripod grip: from between the thumb and index fingertips the point goes on past the fingertips and down to
+        // the page, and the pencil's other end leans back over the web between thumb and index
+        var grip = (Fingertip("RightIndexIntermediate", "RightIndexDistal") + Fingertip("RightThumbProximal", "RightThumbDistal")) / 2;
+        var (penFingers, penPalm) = HandFrame("Right");
+        var thumbSide = penFingers.Cross(penPalm);
+        var down = (penFingers * 0.6f + penPalm * 0.6f - thumbSide * 0.25f).Normalized();
+        var page = centre + face * 0.006f * size;
+        var reach = Mathf.Clamp((page - grip).Dot(face) / Mathf.Min(down.Dot(face), -0.2f), 0.005f * size, 0.06f * size);
+        var tip = grip + down * reach;
         var side = down.Cross(Vector3.Up).Normalized();
         var penBasis = new Basis(side, -down, side.Cross(-down).Normalized()).Scaled(Vector3.One * shown);
         _pencil.GlobalTransform = new Transform3D(penBasis, tip - down * 0.066f * size);
+    }
+
+    /// <summary>A posed hand's finger direction (wrist to knuckles) and the way its palm faces, in her space.</summary>
+    private (Vector3 Fingers, Vector3 Palm) HandFrame(string side)
+    {
+        var wrist = _rig.PositionOf(side + "Hand");
+        var fingers = (_rig.PositionOf(side + "MiddleProximal") - wrist).Normalized();
+        var thumbward = _rig.PositionOf(side + "IndexProximal") - _rig.PositionOf(side + "LittleProximal");
+        var palm = side == "Left" ? fingers.Cross(thumbward) : thumbward.Cross(fingers);
+        return (fingers, (palm - fingers * palm.Dot(fingers)).Normalized());
+    }
+
+    /// <summary>Roughly where a finger ends: its last bone carried on as far again.</summary>
+    private Vector3 Fingertip(string before, string last)
+    {
+        var joint = _rig.PositionOf(last);
+        return joint + (joint - _rig.PositionOf(before)) * 0.9f;
     }
 
     /// <summary>Canvas point just above the top of her hair, where a speech bubble's tail points.</summary>
@@ -250,6 +275,30 @@ public partial class CompanionView : Node2D
 
     /// <summary>Dev: follow a pretend pointer at this canvas point from now on.</summary>
     public void DevPointer(Vector2 canvasPoint) => _devPointer = canvasPoint;
+
+    private bool _closeUp;
+    private (float Size, Vector2 Offset)? _lens;
+
+    /// <summary>
+    /// Dev: the same camera, its view narrowed onto her hands (and kept on them), to see fingers at a size where they
+    /// can be judged; false puts the lens back.
+    /// </summary>
+    public void DevCloseUp(bool on)
+    {
+        _lens ??= (_camera.Size, _camera.FrustumOffset);
+        _closeUp = on;
+        if (!on)
+            (_camera.Size, _camera.FrustumOffset) = _lens.Value;
+    }
+
+    private void FrameHands()
+    {
+        var hands = (_rig.PositionOf("LeftHand") + _rig.PositionOf("RightHand")) / 2;
+        var local = _camera.Transform.AffineInverse() * hands;            // the camera looks along -z
+        var near = _camera.Near / -local.Z;
+        _camera.Size = 0.34f * _rig.Size * near;                          // about a forearm's length, top to bottom
+        _camera.FrustumOffset = new Vector2(local.X, local.Y) * near;     // centred on them, at the near plane
+    }
 
     /// <summary>
     /// A plain GLB has no physics, but game characters often carry chains of bones for hair, skirts and coat tails
@@ -447,6 +496,8 @@ public partial class CompanionView : Node2D
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
         PlacePadAndPencil();
+        if (_closeUp)
+            FrameHands();
         // A faint, uneven draught keeps hair and skirt from ever hanging dead still.
         var t = Time.GetTicksMsec() / 1000f;
         var draught = new Vector3(0.07f * Mathf.Sin(t * 0.83f) + 0.04f * Mathf.Sin(t * 2.1f + 1), 0, 0.04f * Mathf.Sin(t * 0.61f + 2));

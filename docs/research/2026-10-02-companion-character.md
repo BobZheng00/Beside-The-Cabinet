@@ -244,6 +244,18 @@ blend shapes. She sat, waved and cheered on the first run. What that model chang
   with the index side to the front (VRMs are already; a game rig's hand bone can be rolled any way), and the
   thumb now folds in as the fingers close (it stuck straight out of every character's fist). Checked on her, a
   VRM and a Mixamo model: fist, notebook and pencil, and resting hands unchanged on the other two.
+- Her note-taking still looked strange to the player, rightly: that pose had been made up by eye, with no
+  reference. Every finger of both hands bent alike (a claw under the pad, no grip on the pencil), the pad floated
+  between the hands, and the pencil ran from the index knuckle. Rebuilt from how a pocket notebook is held and
+  written in: the pad lies on the left palm, fingers straight beneath it and the thumb over its edge, nearly flat
+  (tipped 25° to the viewer; tipped further, the writing hand has to come at the page from the viewer's side); the
+  right hand writes with the dynamic tripod grip handwriting is taught with
+  ([NHS](https://www.uhd.nhs.uk/uploads/about/docs/our_publications/patient_information_leaflets/Childrens_therapy/Development_of_Pencil_Skills.pdf),
+  [kidtherapy.org](https://kidtherapy.org/pencil-grip-development/)): the pencil between the pads of thumb and
+  index finger, resting on the middle finger, ring and little fingers tucked, palm down to the page. Fingers now
+  bend one by one (`Puppet.Grip`). The pad is placed from her posed left hand and the pencil between her right thumb
+  and index fingertips, its point on the page, so both move with her hands. Judged in close-up (`closeup:hands`)
+  on her, the VRM and the Mixamo model.
 
 Still missing for such a model: blinking and expressions (no blend shapes, the eyes are painted), eye movement
 (no eye bones).

@@ -24,8 +24,24 @@ internal sealed class Puppet
         private static Vector3 Flip(Vector3 v) => new(-v.X, v.Y, v.Z);
     }
 
-    /// <summary>A pose laid over the seated one: body rotations, optional hand placements, finger curl (degrees).</summary>
-    private sealed record Overlay(Pose Body, Hand? Left = null, Hand? Right = null, float Curl = -1);
+    /// <summary>
+    /// How a hand's fingers bend: degrees at each joint of the four fingers (a little less at the knuckle), and how
+    /// far the thumb folds in towards the palm (0 to 1).
+    /// </summary>
+    private readonly record struct Grip(float Index, float Middle, float Ring, float Little, float Thumb)
+    {
+        /// <summary>All four fingers alike, the thumb folding in as they close (a fist's thumb lies over the fingers).</summary>
+        public static Grip Even(float curl) => new(curl, curl, curl, curl, Mathf.Clamp((curl - RestCurl) / 60f, 0, 1));
+        public float Of(string finger) => finger switch { "Index" => Index, "Middle" => Middle, "Ring" => Ring, "Little" => Little, _ => Thumb };
+        public Grip Towards(Grip other, float weight) => new(Mathf.Lerp(Index, other.Index, weight), Mathf.Lerp(Middle, other.Middle, weight),
+            Mathf.Lerp(Ring, other.Ring, weight), Mathf.Lerp(Little, other.Little, weight), Mathf.Lerp(Thumb, other.Thumb, weight));
+    }
+
+    /// <summary>
+    /// A pose laid over the seated one: body rotations, optional hand placements, and how the fingers bend: all alike
+    /// (<paramref name="Curl"/>, degrees) or finger by finger (a grip per hand).
+    /// </summary>
+    private sealed record Overlay(Pose Body, Hand? Left = null, Hand? Right = null, float Curl = -1, Grip? LeftGrip = null, Grip? RightGrip = null);
 
     // ---- Poses (degrees; x = pitch forward, y = turn to her left, z = roll; left side given, right mirrored) -----
     private static readonly Pose Sit = new Pose()
@@ -40,10 +56,16 @@ internal sealed class Puppet
 
     private static readonly Hand FistAtChest = new(new(0.12f, 0.40f, 0.22f), new(0, 1, 0.2f), new(-1, 0, 0), new(0.5f, -1, -0.5f));
 
-    // Taking a note: the left hand holds a little pad up in front of her, palm up and tipped towards her; the right
-    // hand writes on it.
-    private static readonly Hand PadHand = new(new(0.09f, 0.36f, 0.26f), new(-0.5f, 0.25f, 0.8f), new(0.05f, 0.85f, 0.4f), new(0.8f, -0.6f, -0.2f));
-    private static readonly Hand PenHand = new(new(-0.04f, 0.40f, 0.29f), new(0.45f, -0.45f, 0.75f), new(0.25f, -0.85f, -0.3f), new(-0.8f, -0.6f, -0.1f));
+    // Taking a note, as people hold a pocket notebook and write in it. The left hand carries the pad on its palm,
+    // palm up, fingers straight beneath it and the thumb over its edge, its top away from her. The right hand
+    // writes with the dynamic tripod grip (the grip handwriting is taught with): the pencil pinched between the pads
+    // of thumb and index finger and resting on the middle finger, ring and little fingers tucked into the palm, the
+    // palm turned down to the page. The page lies almost flat, tipped only about 25° towards the viewer: tipped
+    // further, the writing hand would have to come at it from the viewer's side.
+    private static readonly Hand PadHand = new(new(0.13f, 0.30f, 0.20f), new(-0.91f, 0, 0.41f), new(0.14f, 0.94f, 0.31f), new(0.8f, -0.6f, -0.2f));
+    private static readonly Hand PenHand = new(new(-0.045f, 0.39f, 0.21f), new(0.55f, -0.15f, 0.82f), new(0.30f, -0.90f, -0.30f), new(-0.8f, -0.6f, -0.1f));
+    private static readonly Grip PadGrip = new(-4, -4, -3, -2, 0.5f);
+    private static readonly Grip PenGrip = new(32, 45, 75, 80, 0.55f);
 
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
@@ -64,7 +86,7 @@ internal sealed class Puppet
         ["worry"] = new(new Pose().Set("Spine", 6, 0, 0).Set("Chest", 4, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 5, 0, 4).Both("Shoulder", 0, 0, -5)),
         // head bowed over the pad, a little tilted, shoulders relaxed
         ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
-            PadHand, PenHand, Curl: 35),
+            PadHand, PenHand, LeftGrip: PadGrip, RightGrip: PenGrip),
         // listening to the player: leaning in, head tilted towards them
         ["listen"] = new(new Pose().Set("Spine", 5, 0, 0).Set("Chest", 3, 0, 0).Set("Neck", 2, 0, 3).Set("Head", 3, 0, 9)),
         ["doze"] = new(new Pose().Set("Spine", 3, 0, 2).Set("Chest", 2, 0, 2).Set("Neck", 4, 0, 5).Set("Head", 7, 0, 11)),
@@ -101,7 +123,7 @@ internal sealed class Puppet
     private readonly Dictionary<string, Quaternion> _goal = [], _frame = [];
     private readonly Dictionary<string, RotationSpring> _springs = [];
     private readonly Dictionary<string, float> _on = [], _shown = [], _shownSpeed = [];
-    private readonly Dictionary<string, float> _curl = new() { ["Left"] = RestCurl, ["Right"] = RestCurl };
+    private readonly Dictionary<string, Grip> _grip = new() { ["Left"] = Grip.Even(RestCurl), ["Right"] = Grip.Even(RestCurl) };
     private readonly List<(double At, Action Do)> _cues = [];
     private readonly RandomNumberGenerator _random = new();
 
@@ -577,14 +599,15 @@ internal sealed class Puppet
         var left = side == "Left";
         // The hand travels through space from one placement to the next, so the elbow stays bent on the way.
         var place = (left ? LeftRest : RightRest).Sized(_size);
-        var curl = RestCurl;
+        var grip = Grip.Even(RestCurl);
         foreach (var (name, overlay) in Overlays)
         {
             if (_shown[name] <= 0.001f || (left ? overlay.Left : overlay.Right) is not { } target)
                 continue;
             place = place.Towards(target.Sized(_size), _shown[name]);
-            if (overlay.Curl >= 0)
-                curl = Mathf.Lerp(curl, overlay.Curl, _shown[name]);
+            var wanted = (left ? overlay.LeftGrip : overlay.RightGrip) ?? (overlay.Curl >= 0 ? (Grip?)Grip.Even(overlay.Curl) : null);
+            if (wanted is { } bend)
+                grip = grip.Towards(bend, _shown[name]);
         }
         var (upper, lower, hand) = Reach(side, place, hips);
         _frame[side + "UpperArm"] = Spring(side + "UpperArm").Follow(upper, dt);
@@ -596,13 +619,12 @@ internal sealed class Puppet
         if (cheer is >= 0 and < 1.6f)
             Add(side + "UpperArm", 0, 0, (left ? 1 : -1) * 8 * Mathf.Sin(cheer * Mathf.Tau * 2.9f + (left ? 0 : 0.7f)) * Mathf.Exp(-cheer * 1.5f));
 
-        _curl[side] += (curl - _curl[side]) * (1 - Mathf.Exp(-dt * 14f));
+        var now = _grip[side] = _grip[side].Towards(grip, 1 - Mathf.Exp(-dt * 14f));
         foreach (var finger in Fingers)
             foreach (var joint in Joints)
-                _frame[side + finger + joint] = Rig.Euler(0, 0, (left ? -1 : 1) * _curl[side] * (joint == "Proximal" ? 0.75f : 1.05f));
-        // the thumb folds in over the fingers as they close: about the hand's length, from its front edge down
-        // towards the palm (left at rest it lies along the fingers, not sticking out of a fist)
-        var thumb = Mathf.Clamp((_curl[side] - RestCurl) / 60f, 0, 1);
+                _frame[side + finger + joint] = Rig.Euler(0, 0, (left ? -1 : 1) * now.Of(finger) * (joint == "Proximal" ? 0.75f : 1.05f));
+        // the thumb folds in: about the hand's length, from its front edge down towards the palm
+        var thumb = now.Thumb;
         _frame[side + "ThumbMetacarpal"] = Rig.Euler(22 * thumb, 0, 0);
         _frame[side + "ThumbProximal"] = Rig.Euler(28 * thumb, 0, 0);
         _frame[side + "ThumbDistal"] = Rig.Euler(38 * thumb, 0, 0);
