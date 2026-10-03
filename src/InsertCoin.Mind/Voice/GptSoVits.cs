@@ -1,25 +1,17 @@
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
-using System.Text.Json;
 
 namespace InsertCoin.Mind;
-
-/// <summary>A piece of her voice: mono samples (-1..1) at a sample rate (32 kHz for v2 models, 48 kHz for v4).</summary>
-public readonly record struct VoiceAudio(int SampleRate, float[] Samples);
-
-/// <summary>The voice engine could not do what was asked; the message says why, in its words.</summary>
-public sealed class VoiceException(string message) : Exception(message);
 
 /// <summary>
 /// Talks to a GPT-SoVITS server (its <c>api_v2.py</c>, on this PC): loads a voice's weights, then turns one sentence
 /// at a time into audio that streams back while it is being made. Paths are the server's: absolute, or relative to
 /// its folder for its own base models.
 /// </summary>
-public sealed class GptSoVits(HttpClient http)
+public sealed class GptSoVits(HttpClient http) : IVoiceEngine
 {
     /// <summary>
     /// The base model a clip is cloned with when a voice has no weights of its own (see
-    /// <see cref="VoiceProfile.CloneVersions"/>): v4, the clearest (measured 2026-10-02), unless v2ProPlus is asked for.
+    /// <see cref="VoiceProfile.CloneModels"/>): v4, the clearest (measured 2026-10-02), unless v2ProPlus is asked for.
     /// </summary>
     public static (string Gpt, string Sovits) Base(string? version) => version switch
     {
@@ -29,7 +21,6 @@ public sealed class GptSoVits(HttpClient http)
 
     private (string Gpt, string Sovits)? _loaded;
 
-    /// <summary>Whether the server answers.</summary>
     public async Task<bool> Alive(CancellationToken cancel = default)
     {
         try
@@ -43,6 +34,15 @@ public sealed class GptSoVits(HttpClient http)
         }
     }
 
+    /// <summary>Loads the voice's own weights, or the base model it is cloned with.</summary>
+    public Task Load(VoiceProfile profile, string folder, CancellationToken cancel = default)
+    {
+        var (gpt, sovits) = profile.Gpt is { } g && profile.Sovits is { } s
+            ? (Path.GetFullPath(Path.Combine(folder, g)), Path.GetFullPath(Path.Combine(folder, s)))
+            : Base(profile.Runs);
+        return Load(gpt, sovits, cancel);
+    }
+
     /// <summary>Loads a voice's weights, unless they are the ones loaded already (switching takes a few seconds).</summary>
     public async Task Load(string gpt, string sovits, CancellationToken cancel = default)
     {
@@ -54,16 +54,17 @@ public sealed class GptSoVits(HttpClient http)
         _loaded = (gpt, sovits);
     }
 
-    /// <summary>The server was restarted: whatever it had loaded is gone.</summary>
     public void Forget() => _loaded = null;
+
+    public IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, VoiceClip clip, string clipPath, CancellationToken cancel = default) =>
+        Speak(text, profile.Language, clipPath, clip, profile.Steps, cancel);
 
     /// <summary>
     /// Says <paramref name="text"/> in <paramref name="language"/> with the tone of <paramref name="clip"/> (whose file is
     /// at <paramref name="clipPath"/>). Audio comes back in pieces as it is made. <paramref name="steps"/> only
     /// matters to v3 and v4 models.
     /// </summary>
-    public async IAsyncEnumerable<VoiceAudio> Speak(string text, string language, string clipPath, VoiceClip clip, int steps,
-                                                    [EnumeratorCancellation] CancellationToken cancel = default)
+    public IAsyncEnumerable<VoiceAudio> Speak(string text, string language, string clipPath, VoiceClip clip, int steps, CancellationToken cancel = default)
     {
         var body = new
         {
@@ -79,40 +80,13 @@ public sealed class GptSoVits(HttpClient http)
             parallel_infer = false,
             sample_steps = steps,
         };
-        using var request = new HttpRequestMessage(HttpMethod.Post, "tts") { Content = JsonContent.Create(body) };
-        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
-        if (!response.IsSuccessStatusCode)
-            throw new VoiceException(Reason(await response.Content.ReadAsStringAsync(cancel)));
-        await using var stream = await response.Content.ReadAsStreamAsync(cancel);
-        var wav = new Wav();
-        var buffer = new byte[16384];
-        int read;
-        while ((read = await stream.ReadAsync(buffer, cancel)) > 0)
-            if (wav.Feed(buffer.AsSpan(0, read)) is { Length: > 0 } samples)
-                yield return new VoiceAudio(wav.SampleRate, samples);
+        return VoiceStream.Read(http, new HttpRequestMessage(HttpMethod.Post, "tts") { Content = JsonContent.Create(body) }, cancel);
     }
 
     private async Task Call(string path, CancellationToken cancel)
     {
         using var response = await http.GetAsync(path, cancel);
         if (!response.IsSuccessStatusCode)
-            throw new VoiceException(Reason(await response.Content.ReadAsStringAsync(cancel)));
-    }
-
-    /// <summary>The server's own explanation from its JSON error ({"message": …, "Exception": …}), or the body as it is.</summary>
-    private static string Reason(string body)
-    {
-        try
-        {
-            using var json = JsonDocument.Parse(body);
-            var root = json.RootElement;
-            var message = root.TryGetProperty("message", out var m) ? m.GetString() : null;
-            var detail = root.TryGetProperty("Exception", out var e) ? e.GetString() : null;
-            return string.Join(": ", new[] { message, detail }.Where(s => !string.IsNullOrWhiteSpace(s))) is { Length: > 0 } reason ? reason : body;
-        }
-        catch (JsonException)
-        {
-            return body.Length > 300 ? body[..300] : body;
-        }
+            throw VoiceException.From(await response.Content.ReadAsStringAsync(cancel));
     }
 }

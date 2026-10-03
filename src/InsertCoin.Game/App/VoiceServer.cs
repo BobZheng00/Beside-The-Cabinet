@@ -4,13 +4,15 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using InsertCoin.Mind;
 
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The player's GPT-SoVITS (the official Windows package) run as a hidden server for her voice, on a free port on this
-/// PC only. It is tied to the cabinet: if the cabinet closes or crashes, Windows ends the server too. Windows'
-/// background throttling is switched off for it, since nobody looks at its window (it has none).
+/// The engine of her voice run as a hidden server, on a free port on this PC only: the player's GPT-SoVITS (the
+/// official Windows package, its own api_v2.py), or the player's Qwen3-TTS (a Python with faster-qwen3-tts, running
+/// the cabinet's qwen_server.py). It is tied to the cabinet: if the cabinet closes or crashes, Windows ends the server
+/// too. Windows' background throttling is switched off for it, since nobody looks at its window (it has none).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class VoiceServer : IDisposable
@@ -23,32 +25,53 @@ public sealed class VoiceServer : IDisposable
     private IntPtr _job;
     private StreamWriter? _logWriter;
 
-    public VoiceServer(string folder, string logFile)
+    /// <param name="engine">One of <see cref="VoiceEngines"/>.</param>
+    public VoiceServer(string engine, string folder, string logFile)
     {
+        Engine = engine;
         _folder = folder;
         _log = logFile;
     }
 
     private bool _answered;
 
+    public string Engine { get; }
+    public string Folder => _folder;
     public Uri? Url { get; private set; }
     public bool Running => _process is { HasExited: false };
     /// <summary>Running and has answered: voices can be loaded.</summary>
     public bool Ready => _answered && Running;
 
-    /// <summary>What is wrong with <paramref name="folder"/> as a GPT-SoVITS install, or null when it will do.</summary>
-    public static string? Check(string? folder)
+    /// <summary>What is wrong with <paramref name="folder"/> as an install of <paramref name="engine"/>, or null when it will do.</summary>
+    public static string? Check(string engine, string? folder)
     {
+        var name = VoiceEngines.Name(engine);
         if (string.IsNullOrWhiteSpace(folder))
-            return "Choose the folder GPT-SoVITS is in.";
+            return $"Choose the folder {name} is in.";
         if (!Directory.Exists(folder))
             return "That folder doesn't exist.";
+        if (engine == VoiceEngines.Qwen)
+        {
+            if (QwenPython(folder) is not { } python)
+                return "No Python there: choose the Qwen3-TTS folder (the one with venv in it).";
+            var home = Path.GetDirectoryName(python)!;
+            if (Path.GetFileName(home) == "Scripts")
+                home = Path.GetDirectoryName(home)!;                                        // a virtual environment's
+            if (!Directory.Exists(Path.Combine(home, "Lib", "site-packages", "faster_qwen3_tts")))
+                return "That Python has no faster-qwen3-tts installed.";
+            return null;
+        }
         if (!File.Exists(Path.Combine(folder, "api_v2.py")))
             return "No api_v2.py there: choose the GPT-SoVITS folder itself (the one with go-webui.bat).";
         if (!File.Exists(Path.Combine(folder, "runtime", "python.exe")))
             return "This isn't GPT-SoVITS's Windows package (no runtime\\python.exe).";
         return null;
     }
+
+    /// <summary>The Python of a Qwen3-TTS folder: a virtual environment in it, or a Python of its own.</summary>
+    private static string? QwenPython(string folder) =>
+        new[] { Path.Combine(folder, "venv", "Scripts", "python.exe"), Path.Combine(folder, ".venv", "Scripts", "python.exe"),
+                Path.Combine(folder, "runtime", "python.exe"), Path.Combine(folder, "python.exe") }.FirstOrDefault(File.Exists);
 
     /// <summary>
     /// Starts the server, or keeps waiting for one already starting, until it answers; false (with the reason in the
@@ -66,7 +89,7 @@ public sealed class VoiceServer : IDisposable
         {
             try
             {
-                using var response = await http.GetAsync("docs", cancel);
+                using var response = await http.GetAsync(Engine == VoiceEngines.Qwen ? "health" : "docs", cancel);
                 if (response.IsSuccessStatusCode)
                     return _answered = true;
             }
@@ -86,7 +109,8 @@ public sealed class VoiceServer : IDisposable
         Url = new Uri($"http://127.0.0.1:{port}/");
         Directory.CreateDirectory(Path.GetDirectoryName(_log)!);
         _logWriter = new StreamWriter(_log, append: false, new UTF8Encoding(false)) { AutoFlush = true };
-        var start = new ProcessStartInfo(Path.Combine(_folder, "runtime", "python.exe"))
+        var qwen = Engine == VoiceEngines.Qwen;
+        var start = new ProcessStartInfo(qwen ? QwenPython(_folder)! : Path.Combine(_folder, "runtime", "python.exe"))
         {
             WorkingDirectory = _folder,
             UseShellExecute = false,
@@ -96,10 +120,19 @@ public sealed class VoiceServer : IDisposable
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        foreach (var arg in new[] { "api_v2.py", "-a", "127.0.0.1", "-p", port.ToString() })
+        string[] args = ["api_v2.py", "-a", "127.0.0.1", "-p", port.ToString()];
+        if (qwen)
+        {
+            var script = Path.Combine(Path.GetDirectoryName(_log)!, "qwen_server.py");      // the cabinet's own, written out fresh
+            File.WriteAllText(script, QwenTts.ServerScript(), new UTF8Encoding(false));
+            args = [script, "--host", "127.0.0.1", "--port", port.ToString()];
+            start.Environment["HF_HOME"] = Path.Combine(_folder, "hf");                   // its models stay with it
+            start.Environment["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1";
+        }
+        foreach (var arg in args)
             start.ArgumentList.Add(arg);
         start.Environment["PYTHONIOENCODING"] = "utf-8";
-        var process = _process = Process.Start(start) ?? throw new InvalidOperationException("GPT-SoVITS did not start");
+        var process = _process = Process.Start(start) ?? throw new InvalidOperationException($"{VoiceEngines.Name(Engine)} did not start");
         TieToCabinet(process);
         var writer = _logWriter;
         void Log(string? line)
@@ -178,7 +211,7 @@ public sealed class VoiceServer : IDisposable
         }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            Godot.GD.PrintErr($"Voice: could not tie GPT-SoVITS to the cabinet: {e.Message}");
+            Godot.GD.PrintErr($"Voice: could not tie {VoiceEngines.Name(Engine)} to the cabinet: {e.Message}");
         }
     }
 

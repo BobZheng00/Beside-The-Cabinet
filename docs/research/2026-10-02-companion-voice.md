@@ -188,6 +188,30 @@ Inside the cabinet, v2ProPlus started each line 0.25–0.67 s after it was hande
 about half as loud as v4, so her mouth now follows loudness relative to the voice's own recent peak. A clone's
 voice settings offer both base models; v4 stays the default until the player has compared them.
 
+**Qwen3-TTS tried (2026-10-03).** The player found v2ProPlus good with Hana's clip but heard odd breathing
+sounds, so Qwen3-TTS went next, through faster-qwen3-tts 0.5.3 (PyTorch 2.11 cu128, Python 3.12, a venv in
+`<tools>\voice-trial\qwen3-tts`; `transformers` must stay at 5.15.1, as 5.18 breaks its Mimi speech tokenizer with
+"no attribute 'rope_theta'"). The 0.6B and 1.7B base models downloaded in under a minute (2.5 and 4.5 GB). Same
+clip, same lines (`bench_qwen.py`):
+
+| Line | 0.6B, 8 steps a piece | 0.6B, 4 steps a piece | 1.7B, 8 steps a piece |
+|---|---|---|---|
+| おかえりなさい！… | 0.43 s / 5% | 0.27 s / 5% | 0.50 s / 5% |
+| ハードを2問も解いたんですか！… | 0.45 s / 7% (right; "2" as a digit) | 0.30 s / 3% | 0.53 s / 3% |
+| もう遅いですよ。… | 0.42 s / 0% | 0.28 s / 0% | 0.51 s / 0% |
+| 今は10月3日土曜日の午後3時5分だよ。 | 0.43 s / 26% (kanji numbers: spoken right) | 0.28 s / 26% | 0.51 s / 26% |
+| Speed (time to make ÷ length) | 0.54–0.61 | 0.61–0.66 | 0.66–0.68 |
+
+It read the line v2ProPlus mangled correctly with both sizes. Load 6–7 s, warm-up (CUDA graphs) 2–3 s; graphics
+memory about 2.8 GB loaded for 0.6B and 4.6 GB for 1.7B (peaks while speaking: 3.4 and 5.2 GB). Output is 24 kHz
+(v2ProPlus 32 kHz, v4 48 kHz), about as loud as v4, and it speaks faster: the four lines took 23–25 s against
+31–33 s for GPT-SoVITS. faster-qwen3-tts decodes with 25 frames of left context, so small pieces don't pop.
+
+The cabinet runs it with its own server (`qwen_server.py`, built into `InsertCoin.Mind` and written out beside
+the voice log; standard library HTTP, one sentence at a time, a dropped connection stops the sentence). Inside the
+cabinet, with 4 steps a piece, each line started 0.32–0.44 s after it was handed over, and switching between
+engines live in the voice settings works (only one engine's server runs at a time).
+
 ## Other engines, for reference (read; not planned)
 
 Some newer zero-shot models clone from a clip as well as GPT-SoVITS does:
@@ -203,7 +227,7 @@ Checked again 2026-10-03, for what would run on the development laptop:
   FlashAttention, native Windows setup, streams): 0.41 s first audio and 2.26× real time for 0.6B on an RTX 4060.
   The official package is slow without FlashAttention 2, and vLLM-Omni has no online serving yet. Its Base models
   can be fine-tuned, and its cross-lingual cloning
-  [beats CosyVoice 3](https://arxiv.org/html/2601.15621v1). **The one to try first.**
+  [beats CosyVoice 3](https://arxiv.org/html/2601.15621v1). **Tried 2026-10-03: see above; the cabinet runs it.**
 - **[dots.tts](https://github.com/rednote-hilab/dots.tts)** (rednote, June 2026, Apache, 2B, 24 languages, 48 kHz):
   85 ms first audio streaming on the authors' hardware; heavier, and no Windows notes.
 - **IndexTTS 2.5** (Japanese added) needs [about 6 GB](https://huggingface.co/IndexTeam/IndexTTS-2.5), doesn't

@@ -14,6 +14,11 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- the Qwen3-TTS server the cabinet runs: written out beside the voice log when it starts -->
+    <EmbeddedResource Include="Voice\qwen_server.py" LogicalName="qwen_server.py" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

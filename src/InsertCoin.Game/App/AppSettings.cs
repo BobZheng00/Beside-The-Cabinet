@@ -21,6 +21,7 @@ public sealed record AppSettings
     public string? MemorySearch { get; init; }          // a local model's name, "words" for shared words only; unset: the best one present
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
+    public string? QwenEngine { get; init; }            // the folder of the player's Qwen3-TTS (a venv with faster-qwen3-tts; its models in hf)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
 }

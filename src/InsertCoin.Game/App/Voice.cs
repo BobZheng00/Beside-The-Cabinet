@@ -8,10 +8,11 @@ using HttpClient = System.Net.Http.HttpClient;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Her voice. Keeps the player's GPT-SoVITS in step with what is wanted: started, with the voice of whoever is on the
-/// stool loaded and warmed up, while she has a voice that can talk; stopped (its graphics memory given back) when the
-/// voice is switched off, she has none, or a game runs. Speaks a sentence at a time as a reply streams in, plays the
-/// audio as it arrives, and opens her mouth with its loudness. Without a working voice she simply stays text-only.
+/// Her voice. Keeps the engine the voice of whoever is on the stool speaks with (the player's GPT-SoVITS or Qwen3-TTS;
+/// only one runs at a time) in step with what is wanted: started, with her voice loaded and warmed up, while she has a
+/// voice that can talk; stopped (its graphics memory given back) when the voice is switched off, she has none, or a
+/// game runs. Speaks a sentence at a time as a reply streams in, plays the audio as it arrives, and opens her mouth
+/// with its loudness. Without a working voice she simply stays text-only.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public partial class Voice : Node
@@ -43,7 +44,8 @@ public partial class Voice : Node
     private string _log = "";
     private VoiceServer? _server;
     private HttpClient? _http;
-    private GptSoVits? _engine;
+    private IVoiceEngine? _engine;
+    private Dictionary<string, string?> _engineFolders = [];
     private VoiceProfile? _profile, _warm;
     private string _folder = "";
     private bool _enabled = true, _gameRunning;
@@ -76,11 +78,11 @@ public partial class Voice : Node
 
     public string Status => Now switch
     {
-        Phase.NotSetUp => "Not set up: choose where GPT-SoVITS is.",
+        Phase.NotSetUp => $"Not set up: choose where {VoiceEngines.Name(Needed)} is.",
         Phase.Off => "Switched off (tray menu: Voice).",
         Phase.Resting => "Resting while your game runs, to leave it the graphics card.",
         Phase.NoVoice => _profile is null ? "No voice yet." : $"The voice still needs {_profile.Missing}.",
-        Phase.Starting => "Starting GPT-SoVITS… (a first start can take a minute)",
+        Phase.Starting => $"Starting {VoiceEngines.Name(Needed)}… (a first start can take a minute)",
         Phase.Loading => $"Loading {_profile?.Name}…",
         Phase.Ready => "Ready.",
         Phase.Failed => $"Not working: {_problem}",
@@ -124,13 +126,22 @@ public partial class Voice : Node
         set => _player.VolumeDb = value ? -80 : 0;
     }
 
-    /// <summary>The GPT-SoVITS folder to run (see <see cref="VoiceServer.Check"/>).</summary>
-    public void UseEngine(string? folder)
+    /// <summary>Where the player's engines are (see <see cref="VoiceServer.Check"/>); a running one whose folder changed is ended.</summary>
+    public void UseEngines(string? gptSoVits, string? qwen)
     {
-        Shutdown();
-        _server = VoiceServer.Check(folder) is null ? new VoiceServer(folder!, _log) : null;
+        _engineFolders = new() { [VoiceEngines.GptSoVits] = gptSoVits, [VoiceEngines.Qwen] = qwen };
+        if (_server is { } running && running.Folder != _engineFolders[running.Engine])
+            Shutdown();
         Refresh();
     }
+
+    /// <summary>The engine the voice on the stool speaks with.</summary>
+    public string Needed => _profile?.SpeaksWith ?? VoiceEngines.GptSoVits;
+
+    private string? EngineFolder => _engineFolders.GetValueOrDefault(Needed);
+
+    /// <summary>The engine the voice on the stool needs is there.</summary>
+    private bool SetUp => VoiceServer.Check(Needed, EngineFolder) is null;
 
     /// <summary>Someone else is on the stool, or their voice changed: reads the voice in <paramref name="voiceFolder"/>.</summary>
     public void Seat(string voiceFolder)
@@ -141,7 +152,7 @@ public partial class Voice : Node
         Refresh();
     }
 
-    private bool Wanted => _enabled && !_gameRunning && _server is not null && _profile is { Missing: null };
+    private bool Wanted => _enabled && !_gameRunning && SetUp && _profile is { Missing: null };
 
     /// <summary>She can say something right now.</summary>
     public bool CanSpeak => Now == Phase.Ready && Wanted;
@@ -156,36 +167,39 @@ public partial class Voice : Node
             Stop();
             _server?.Stop();
             _engine?.Forget();
-            Set(_server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : Phase.NoVoice);
+            Set(!SetUp ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : Phase.NoVoice);
             return;
         }
-        if (Now == Phase.Ready && _server!.Ready && ReferenceEquals(_warm, _profile))
+        if (_server is { } running && running.Engine != Needed)
+            EndServer();                            // she now speaks with the other engine: only one has the graphics card
+        _server ??= new VoiceServer(Needed, EngineFolder!, _log);
+        if (Now == Phase.Ready && _server.Ready && ReferenceEquals(_warm, _profile))
             return;                                 // already loaded and warmed up
         var cancel = (_refreshing = new CancellationTokenSource()).Token;
         var profile = _profile!;
+        var server = _server;
         try
         {
-            if (!_server!.Ready)
+            if (!server.Ready)
             {
                 Set(Phase.Starting);
-                if (!await _server.Start(cancel))
+                if (!await server.Start(cancel))
                 {
                     if (refresh == _refreshes)
-                        Fail("GPT-SoVITS didn't start (voice-server.log in the companion folder says why).");
+                        Fail($"{VoiceEngines.Name(server.Engine)} didn't start (voice-server.log in the companion folder says why).");
                     return;
                 }
                 _http?.Dispose();
-                _http = new HttpClient { BaseAddress = _server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = new GptSoVits(_http);
+                _http = new HttpClient { BaseAddress = server.Url, Timeout = TimeSpan.FromMinutes(5) };
+                _engine = server.Engine == VoiceEngines.Qwen ? new QwenTts(_http) : new GptSoVits(_http);
             }
             if (refresh != _refreshes)
                 return;
             Set(Phase.Loading);
             var clock = Stopwatch.StartNew();
-            var (gpt, sovits) = Weights(profile);
-            await _engine!.Load(gpt, sovits, cancel);
+            await _engine!.Load(profile, _folder, cancel);
             var clip = profile.ClipFor(null)!;
-            await foreach (var _ in _engine.Speak(WarmUp(profile.Language), profile.Language, ClipPath(clip), clip, profile.Steps, cancel))
+            await foreach (var _ in _engine.Speak(WarmUp(profile.Language), profile, clip, ClipPath(clip), cancel))
             {
             }
             GD.Print($"Voice: {profile.Name} loaded and warmed up in {clock.ElapsedMilliseconds} ms");
@@ -262,11 +276,16 @@ public partial class Voice : Node
         ReportMouth("cut off: ");
     }
 
-    /// <summary>Stops talking and ends the server (the cabinet closing, or another GPT-SoVITS chosen).</summary>
+    /// <summary>Stops talking and ends the server (the cabinet closing, or the engine moved).</summary>
     public void Shutdown()
     {
         _refreshing?.Cancel();
         Stop();
+        EndServer();
+    }
+
+    private void EndServer()
+    {
         _server?.Dispose();
         _server = null;
         _http?.Dispose();
@@ -296,7 +315,7 @@ public partial class Voice : Node
                 var clip = profile.ClipFor(line.Mood)!;
                 var clock = Stopwatch.StartNew();
                 var first = true;
-                await foreach (var audio in engine.Speak(line.Text, profile.Language, ClipPath(clip), clip, profile.Steps, stop))
+                await foreach (var audio in engine.Speak(line.Text, profile, clip, ClipPath(clip), stop))
                 {
                     if (first)
                         GD.Print($"Voice: first audio of \"{(line.Text.Length > 24 ? line.Text[..24] + "…" : line.Text)}\" after {clock.ElapsedMilliseconds} ms");
@@ -314,7 +333,7 @@ public partial class Voice : Node
             if (_engine is { } engine && !await engine.Alive())
             {
                 _server?.Stop();
-                Fail("GPT-SoVITS stopped answering; trying again in 30 seconds.");
+                Fail($"{VoiceEngines.Name(Needed)} stopped answering; trying again in 30 seconds.");
                 GetTree().CreateTimer(30).Timeout += Refresh;
             }
         }
@@ -324,11 +343,6 @@ public partial class Voice : Node
                 _working = false;
         }
     }
-
-    private (string Gpt, string Sovits) Weights(VoiceProfile profile) =>
-        profile.Gpt is { } gpt && profile.Sovits is { } sovits
-            ? (Path.GetFullPath(Path.Combine(_folder, gpt)), Path.GetFullPath(Path.Combine(_folder, sovits)))
-            : GptSoVits.Base(profile.Runs);
 
     private string ClipPath(VoiceClip clip) => Path.GetFullPath(Path.Combine(_folder, clip.File));
 
@@ -357,7 +371,7 @@ public partial class Voice : Node
         _audio.Enqueue(audio.Samples);
     }
 
-    /// <summary>A stream at the voice's own sample rate (32 kHz for v2 models, 48 kHz for v4).</summary>
+    /// <summary>A stream at the voice's own sample rate (24 kHz for Qwen3-TTS, 32 kHz for v2 models, 48 kHz for v4).</summary>
     private void Open(int rate)
     {
         _rate = rate;
