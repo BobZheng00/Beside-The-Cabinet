@@ -51,13 +51,9 @@ then give her a voice: drop on the cabinet a GPT-SoVITS model someone shared (a 
 a `.pth`, usually with clips of the voice; v2 to v4 all work), a 3 to 10 second clip to clone her voice from, or
 a folder of clips with their training list (a dataset), which is cloned from its best clips. A clone runs on
 GPT-SoVITS's v4 base model (the clearest; it makes each sentence whole before she says it, 1.5–3.5 s) or, chosen
-in the window, v2ProPlus (streams, so she starts in about half a second; a little less sure of hard words) or
-Qwen3-TTS 1.7B (streams, about 0.35 s; 24 kHz; clear, though the voice can vary a little between lines). Qwen3-TTS
-is a second folder in the window: a Python virtual environment (`venv`) with `faster-qwen3-tts` installed (and
-`transformers==5.15.1`: 5.18 breaks its speech tokenizer); its model downloads into the folder's `hf` the first time
-(4.2 GB). The cabinet
-runs its own server there (`src/InsertCoin.Mind/Voice/qwen_server.py`, built in). Only one engine runs at a time.
-The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
+in the window, v2ProPlus (streams, so she starts in about half a second; a little less sure of hard words). v2
+models also blend the tone of the voice's first four clips into the one speaking, which makes her more like herself
+for about 0.1 s more per sentence. The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
 ("【开心】今天也要加油哦.wav"); if they can't be found the window asks for them. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
 like a subtitled anime (the model writes `[say: …]` before each sentence). While a game runs she rests her voice:
@@ -82,7 +78,7 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
 `memorybook`, `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
-`voicemodel:N` (a clone's model switched to `VoiceProfile.CloneModels[N]`, as saving the window does). `--offscreen` opens the app's windows off
+`voicemodel:v2ProPlus` (a clone's base model switched, as saving the window does). `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout
@@ -92,8 +88,7 @@ src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no 
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
                           store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
-                          a reply is spoken, voice profiles and their import, the GPT-SoVITS and Qwen3-TTS clients
-                          (and the Qwen3-TTS server the cabinet runs, qwen_server.py)
+                          a reply is spoken, voice profiles and their import, the GPT-SoVITS client
 src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
@@ -162,10 +157,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   upkeep every minute. `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
   `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
-- `App/Voice.cs` is her voice: `VoiceServer` runs the engine her voice needs hidden (the player's GPT-SoVITS, or
-  their Qwen3-TTS with the cabinet's `qwen_server.py`; tied to the cabinet, so it ends with it), `Speech` (in
-  `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` or `QwenTts` (both `IVoiceEngine`) streams each
-  sentence's audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceSettings.cs` is its window. Measurements:
+- `App/Voice.cs` is her voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
+  with it), `Speech` (in `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` streams each sentence's
+  audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceSettings.cs` is its window. Measurements:
   [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser

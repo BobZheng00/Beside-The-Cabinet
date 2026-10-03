@@ -6,9 +6,8 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Where the user gives her a voice: the engines that run it (GPT-SoVITS, Qwen3-TTS), and the voice of whoever is on
-/// the stool (the language it speaks, the clip it takes its tone from and the words in that clip, the model a clip is
-/// cloned with, how carefully it is made).
+/// Where the user gives her a voice: the GPT-SoVITS that runs it, and the voice of whoever is on the stool (the
+/// language it speaks, the clip it takes its tone from and the words in that clip, how carefully it is made).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public partial class VoiceSettings : Window
@@ -18,28 +17,27 @@ public partial class VoiceSettings : Window
     [
         (VoiceProfile.DefaultSteps, "Balanced (16 steps)"), (32, "Best (32 steps, slower to start)"), (8, "Faster (8 steps, can sound metallic)"),
     ];
-    /// <summary>The base models a clip can be cloned with, as <see cref="VoiceProfile.CloneModels"/> lists them.</summary>
-    private static readonly string[] Models =
-    [
-        "GPT-SoVITS v4: clear, starts once each sentence is made",
-        "GPT-SoVITS v2ProPlus: quick, speaks as it is made",
-        "Qwen3-TTS 1.7B: clear, speaks as it is made",
-    ];
+    /// <summary>The base models a clip can be cloned with (<see cref="VoiceProfile.CloneVersions"/>).</summary>
+    private static readonly Dictionary<string, string> Models = new()
+    {
+        ["v4"] = "v4: clearest, starts once each sentence is made",
+        ["v2ProPlus"] = "v2ProPlus: quickest, blends the tone of all its clips",
+    };
 
-    /// <summary>Saved: the GPT-SoVITS and Qwen3-TTS folders chosen (the voice's own changes are already written to its folder).</summary>
-    public event Action<string?, string?>? Saved;
+    /// <summary>Saved: the GPT-SoVITS folder chosen (the voice's own changes are already written to its folder).</summary>
+    public event Action<string?>? Saved;
     /// <summary>The user wants to add a voice, or take this one away; the window closes and is opened again after.</summary>
     public event Action? AddVoice, RemoveVoice;
 
     private Voice _voice = null!;
     private VoiceProfile? _profile;
-    private LineEdit _engine = null!, _qwen = null!, _words = null!;
+    private LineEdit _engine = null!, _words = null!;
     private Label _status = null!, _result = null!;
     private OptionButton? _language, _model, _quality;
     private readonly List<string> _languages = [];
     private bool _removing;
 
-    public void Build(Voice voice, string? engineFolder, string? qwenFolder, string characterName)
+    public void Build(Voice voice, string? engineFolder, string characterName)
     {
         _voice = voice;
         _profile = voice.Profile;
@@ -56,7 +54,7 @@ public partial class VoiceSettings : Window
         page.AddChild(column);
 
         column.AddChild(new Label { Text = $"{characterName}'s voice", ThemeTypeVariation = "Heading" });
-        column.AddChild(Hint($"{characterName} speaks with GPT-SoVITS or Qwen3-TTS, running on this PC. Voices shared online are GPT-SoVITS models " +
+        column.AddChild(Hint($"{characterName} speaks with GPT-SoVITS, running on this PC. Voices shared online are GPT-SoVITS models " +
                              "(a .ckpt and a .pth, often with clips of the voice); or clone one from a 3 to 10 second clip. " +
                              "Drop either on the cabinet, or add one here. While a game runs she rests her voice, to leave the game the graphics card."));
 
@@ -64,8 +62,13 @@ public partial class VoiceSettings : Window
         engine.AddThemeConstantOverride("h_separation", 12);
         engine.AddThemeConstantOverride("v_separation", 8);
         column.AddChild(engine);
-        _engine = FolderRow(engine, "GPT-SoVITS", engineFolder, @"C:\GPT-SoVITS-v2pro-20250604");
-        _qwen = FolderRow(engine, "Qwen3-TTS", qwenFolder, @"C:\Qwen3-TTS (with faster-qwen3-tts in its venv)");
+        var folderRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        folderRow.AddThemeConstantOverride("separation", 8);
+        _engine = new LineEdit { Text = engineFolder ?? "", PlaceholderText = @"C:\GPT-SoVITS-v2pro-20250604", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var browse = new Button { Text = "Browse…", ThemeTypeVariation = "Quiet" };
+        folderRow.AddChild(_engine);
+        folderRow.AddChild(browse);
+        Row(engine, "GPT-SoVITS", folderRow);
         _status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         Row(engine, "", _status);
         var get = new Button { Text = "Get GPT-SoVITS…", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
@@ -114,6 +117,7 @@ public partial class VoiceSettings : Window
         buttons.AddChild(save);
         column.AddChild(buttons);
 
+        browse.Pressed += Browse;
         get.Pressed += () => OS.ShellOpen(GetEngine);
         add.Pressed += () =>
         {
@@ -127,33 +131,13 @@ public partial class VoiceSettings : Window
             QueueFree();
         };
         _engine.TextChanged += _ => ShowStatus();
-        _qwen.TextChanged += _ => ShowStatus();
-        if (_model is not null)
-            _model.ItemSelected += _ => ShowStatus();
         voice.Changed += ShowStatus;
         TreeExiting += () => voice.Changed -= ShowStatus;
         ShowStatus();
     }
 
-    public void Open() => Paper.Open(this, new Vector2(580, _profile is null ? 480
-                                                          : 660 + (_profile.About is { Length: > 0 } ? 60 : 0) + (_profile.Gpt is null ? 40 : 0)));
-
-    /// <summary>A row for where an engine is: the folder, and Browse… to pick it.</summary>
-    private LineEdit FolderRow(GridContainer grid, string name, string? folder, string example)
-    {
-        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        row.AddThemeConstantOverride("separation", 8);
-        var field = new LineEdit { Text = folder ?? "", PlaceholderText = example, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var browse = new Button { Text = "Browse…", ThemeTypeVariation = "Quiet" };
-        row.AddChild(field);
-        row.AddChild(browse);
-        Row(grid, name, row);
-        browse.Pressed += () => Browse(field, $"Where is {name}?");
-        return field;
-    }
-
-    /// <summary>The engine the voice speaks with as the page stands (a clone's model may have just been changed).</summary>
-    private string Needed => _model is not null ? VoiceProfile.CloneModels[_model.Selected].Engine : _profile?.SpeaksWith ?? VoiceEngines.GptSoVits;
+    public void Open() => Paper.Open(this, new Vector2(580, _profile is null ? 440
+                                                          : 620 + (_profile.About is { Length: > 0 } ? 60 : 0) + (_profile.Gpt is null ? 40 : 0)));
 
     private void BuildVoice(VBoxContainer column, VoiceProfile profile)
     {
@@ -186,12 +170,12 @@ public partial class VoiceSettings : Window
         };
         Row(grid, "Words in it", _words);
 
-        if (profile.ClonedWith is { } cloned)
+        if (profile.Gpt is null)
         {
             _model = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };   // a long label never widens the window
-            foreach (var label in Models)
-                _model.AddItem(label);
-            _model.Select(Math.Max(0, Array.IndexOf(VoiceProfile.CloneModels, cloned)));
+            foreach (var version in VoiceProfile.CloneVersions)
+                _model.AddItem(Models[version]);
+            _model.Select(Math.Max(0, Array.IndexOf(VoiceProfile.CloneVersions, profile.Runs)));
             Row(grid, "Model", _model);
         }
         if (profile.Slow || profile.Gpt is null)
@@ -203,7 +187,7 @@ public partial class VoiceSettings : Window
             quality.Select(chosen >= 0 ? chosen : 0);
             var qualityLabel = Row(grid, "Quality", quality);
             var model = _model;
-            void ShowQuality() => qualityLabel.Visible = quality.Visible = model is null || VoiceProfile.CloneModels[model.Selected].Version is "v4";   // steps only matter to v4
+            void ShowQuality() => qualityLabel.Visible = quality.Visible = model is null || VoiceProfile.CloneVersions[model.Selected] is "v4";   // steps only matter to v4
             if (model is not null)
                 model.ItemSelected += _ => ShowQuality();
             ShowQuality();
@@ -211,7 +195,7 @@ public partial class VoiceSettings : Window
 
         if (profile.Missing is { } missing)
             column.AddChild(Note($"It still needs {missing}.", Paper.Bad));
-        if (clip?.Seconds is < 3 or > 10 && profile.SpeaksWith == VoiceEngines.GptSoVits)
+        if (clip?.Seconds is < 3 or > 10)
             column.AddChild(Note("GPT-SoVITS wants a clip of 3 to 10 seconds; this one may not work.", Paper.Bad));
         if (profile.About is { Length: > 0 } about)
         {
@@ -221,7 +205,7 @@ public partial class VoiceSettings : Window
         column.AddChild(Hint("Voices shared online are often made from a game's or a voice actor's lines: fine for yourself, not for sharing on."));
     }
 
-    /// <summary>Writes the voice's changes to its folder and hands back the engine folders chosen.</summary>
+    /// <summary>Writes the voice's changes to its folder and hands back the GPT-SoVITS folder chosen.</summary>
     private void Apply()
     {
         if (_profile is { } profile)
@@ -232,14 +216,10 @@ public partial class VoiceSettings : Window
                 ? c with { Text = _words.Text.Trim(), Language = c.Language.Length > 0 ? c.Language : language }
                 : c).ToList();
             var steps = _quality is null ? profile.Steps : Qualities[_quality.Selected].Steps;
-            var model = _model is null ? null : VoiceProfile.CloneModels[_model.Selected];
-            (profile with
-            {
-                Language = language, Clips = clips, Steps = steps, Engine = model?.Engine ?? profile.Engine, Version = model?.Version ?? profile.Version,
-            }).Save(_voice.Folder);
+            var version = _model is null ? profile.Version : VoiceProfile.CloneVersions[_model.Selected];
+            (profile with { Language = language, Clips = clips, Steps = steps, Version = version }).Save(_voice.Folder);
         }
-        static string? Chosen(LineEdit field) => field.Text.Trim() is { Length: > 0 } folder ? folder : null;
-        Saved?.Invoke(Chosen(_engine), Chosen(_qwen));
+        Saved?.Invoke(_engine.Text.Trim().Length > 0 ? _engine.Text.Trim() : null);
     }
 
     private async Task Test()
@@ -252,20 +232,20 @@ public partial class VoiceSettings : Window
             Show(_result, problem ?? "Listen…", problem is null ? Paper.Good : Paper.Bad);
     }
 
-    private void Browse(LineEdit field, string title)
+    private void Browse()
     {
         var dialog = new FileDialog
         {
-            Title = title,
+            Title = "Where is GPT-SoVITS?",
             ModeOverridesTitle = false,
             FileMode = FileDialog.FileModeEnum.OpenDir,
             Access = FileDialog.AccessEnum.Filesystem,
             UseNativeDialog = true,
-            CurrentDir = Directory.Exists(field.Text) ? field.Text : "C:\\",
+            CurrentDir = Directory.Exists(_engine.Text) ? _engine.Text : "C:\\",
         };
         dialog.DirSelected += folder =>
         {
-            field.Text = folder;
+            _engine.Text = folder;
             ShowStatus();
             dialog.QueueFree();
         };
@@ -278,9 +258,8 @@ public partial class VoiceSettings : Window
     {
         if (!IsInstanceValid(this))
             return;
-        var needed = Needed;
-        if (VoiceServer.Check(needed, (needed == VoiceEngines.Qwen ? _qwen : _engine).Text.Trim()) is { } problem)
-            Show(_status, $"{VoiceEngines.Name(needed)}: {problem}", Paper.Bad);
+        if (VoiceServer.Check(_engine.Text.Trim()) is { } problem)
+            Show(_status, problem, Paper.Bad);
         else
             Show(_status, _voice.Status, _voice.Now switch
             {

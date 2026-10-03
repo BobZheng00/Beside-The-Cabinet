@@ -100,7 +100,7 @@ public partial class Main : Node2D
             if (_settings.SpeechBubbles)
                 _companion?.Say(line);
         };
-        _voice.UseEngines(_settings.VoiceEngine, _settings.QwenEngine);
+        _voice.UseEngine(_settings.VoiceEngine);
         ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();
         AddChild(_audio);
@@ -491,7 +491,7 @@ public partial class Main : Node2D
     private void AddedVoice(VoiceProfile voice)
     {
         _voice.Seat(_voice.Folder);
-        if (voice.Missing is not null || _voice.Now == Voice.Phase.NotSetUp)
+        if (voice.Missing is not null || VoiceServer.Check(_settings.VoiceEngine) is not null)
         {
             _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE VOICE SETTINGS", 4.0);
             OpenVoiceSettings();
@@ -527,7 +527,7 @@ public partial class Main : Node2D
         dialog.PopupCentered();
     }
 
-    /// <summary>The engines that run her voice, and the voice of whoever is on the stool.</summary>
+    /// <summary>The GPT-SoVITS that runs her voice, and the voice of whoever is on the stool.</summary>
     private void OpenVoiceSettings()
     {
         if (IsInstanceValid(_voiceSettings))
@@ -539,14 +539,14 @@ public partial class Main : Node2D
             return;
         _voiceSettings = new VoiceSettings();
         AddChild(_voiceSettings);
-        _voiceSettings.Build(_voice, _settings.VoiceEngine, _settings.QwenEngine, character.Name);
-        _voiceSettings.Saved += (gptSoVits, qwen) =>
+        _voiceSettings.Build(_voice, _settings.VoiceEngine, character.Name);
+        _voiceSettings.Saved += engine =>
         {
-            var changed = gptSoVits != _settings.VoiceEngine || qwen != _settings.QwenEngine;
-            SaveSettings(_settings with { VoiceEngine = gptSoVits, QwenEngine = qwen });
+            var changed = engine != _settings.VoiceEngine;
+            SaveSettings(_settings with { VoiceEngine = engine });
             if (changed)
-                _voice.UseEngines(gptSoVits, qwen);
-            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words, model or quality may have changed
+                _voice.UseEngine(engine);
+            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words or quality may have changed
         };
         _voiceSettings.AddVoice += PickVoice;
         _voiceSettings.RemoveVoice += () =>
@@ -815,11 +815,11 @@ public partial class Main : Node2D
             Say(action["voice:".Length..].Replace('_', ' '));
             return;
         }
-        if (action.StartsWith("voicemodel:"))        // voicemodel:N clones her voice with model N of VoiceProfile.CloneModels, as Save in the window does
+        if (action.StartsWith("voicemodel:"))        // voicemodel:v2ProPlus clones her voice with that base model, as Save in the window does
         {
-            if (_voice.Profile is { Gpt: null } clone && int.TryParse(action["voicemodel:".Length..], out var n) && n >= 0 && n < VoiceProfile.CloneModels.Length)
+            if (_voice.Profile is { Gpt: null } clone && action["voicemodel:".Length..] is var version && VoiceProfile.CloneVersions.Contains(version))
             {
-                (clone with { Engine = VoiceProfile.CloneModels[n].Engine, Version = VoiceProfile.CloneModels[n].Version }).Save(_voice.Folder);
+                (clone with { Version = version }).Save(_voice.Folder);
                 _voice.Seat(_voice.Folder);
             }
             return;

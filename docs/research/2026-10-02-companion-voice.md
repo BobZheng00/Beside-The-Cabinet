@@ -207,14 +207,14 @@ memory about 2.8 GB loaded for 0.6B and 4.6 GB for 1.7B (peaks while speaking: 3
 (v2ProPlus 32 kHz, v4 48 kHz), about as loud as v4, and it speaks faster: the four lines took 23–25 s against
 31–33 s for GPT-SoVITS. faster-qwen3-tts decodes with 25 frames of left context, so small pieces don't pop.
 
-The cabinet runs it with its own server (`qwen_server.py`, built into `InsertCoin.Mind` and written out beside
+The cabinet ran it (until it was dropped, below) with its own server (`qwen_server.py`, built into `InsertCoin.Mind` and written out beside
 the voice log; standard library HTTP, one sentence at a time, a dropped connection stops the sentence). Inside the
 cabinet, with 4 steps a piece, each line started 0.32–0.44 s after it was handed over, and switching between
 engines live in the voice settings works (only one engine's server runs at a time).
 
 **The player's verdict (2026-10-03):** with 0.6B, Hana sounded like a different person from line to line
 (maybe the small dataset; every line used the same 6 s clip). 1.7B suffered from it much less (line 1 sounded a bit
-off), so only 1.7B is offered: the clear choice, if a little less consistent than GPT-SoVITS. The 0.6B model was
+off), so only 1.7B was kept: the clear choice, if a little less consistent than GPT-SoVITS. The 0.6B model was
 deleted from the trial folder.
 
 **Is she the same person every time? (2026-10-03)** The player heard Test come out in a different voice almost
@@ -251,6 +251,28 @@ v4 straight after a plain v2ProPlus scored 0.82, and 0.83 after `/set_refer_audi
 (`check_v4_stale.py`). The cabinet sends no extra clips today; when it blends them for v2ProPlus it must send them
 to v2 models only and prepare the clip afresh after every change of weights.
 
+**What blending costs (2026-10-03).** Blending wasn't free after all. GPT-SoVITS works out every reference clip's
+voiceprint again for each sentence, and runs each clip's tone encoder for each piece it streams.
+`bench_blend.py`, v2ProPlus, the Test line said 4 times and a long line twice:
+
+| Reference | Changing to it (once) | First audio | Speed | Like Hana |
+|---|---|---|---|---|
+| main clip 3.1 s | 1.0 s | 0.27 s | 0.28 | 0.82 |
+| main clip 6.0 s | 0.37 s | 0.37 s | 0.24 | 0.82 |
+| main clip 9.7 s | 0.66 s | 0.34 s | 0.24 | 0.85 |
+| 6.0 s + 5 extra clips | 0.89 s | 0.50 s | 0.33 | 0.86 |
+| 6.0 s + 10 extra | 0.98 s | 0.72 s | 0.38 | 0.85 |
+| 6.0 s + 20 extra | 3.15 s | 1.45 s | 0.97 | 0.86 |
+| 6.0 s + all 54 extra | 6.32 s | 2.93 s | 1.93 (slower than speech) | 0.86 |
+
+A longer speaking clip costs nothing and may help a little; extra clips help up to about five and then only cost.
+The cabinet blends a v2 voice's first four clips (`GptSoVits.BlendClips`), always the same four whatever clip is
+speaking, so the server prepares them once. In the cabinet Hana's v2ProPlus clone started each line in 0.46–0.48 s.
+A trained model costs no more per sentence than the base model it was trained from.
+
+**Qwen3-TTS dropped (2026-10-03).** Too inconsistent to hold a character's voice, and it can't be trained on this
+class of graphics card (below). The cabinet speaks with GPT-SoVITS only.
+
 **Can Qwen3-TTS be trained? (read 2026-10-03)** Yes, but not on this laptop. The official
 [`sft_12hz.py`](https://github.com/QwenLM/Qwen3-TTS/tree/main/finetuning) fine-tunes every weight of the 0.6B or
 1.7B base with AdamW in bf16 (batch 32, learning rate 2e-6), far beyond 8 GB of graphics memory, and saves a whole
@@ -275,7 +297,7 @@ Checked again 2026-10-03, for what would run on the development laptop:
   FlashAttention, native Windows setup, streams): 0.41 s first audio and 2.26× real time for 0.6B on an RTX 4060.
   The official package is slow without FlashAttention 2, and vLLM-Omni has no online serving yet. Its Base models
   can be fine-tuned, and its cross-lingual cloning
-  [beats CosyVoice 3](https://arxiv.org/html/2601.15621v1). **Tried 2026-10-03: see above; the cabinet runs it.**
+  [beats CosyVoice 3](https://arxiv.org/html/2601.15621v1). **Tried 2026-10-03 and dropped: see above.**
 - **[dots.tts](https://github.com/rednote-hilab/dots.tts)** (rednote, June 2026, Apache, 2B, 24 languages, 48 kHz):
   85 ms first audio streaming on the authors' hardware; heavier, and no Windows notes.
 - **IndexTTS 2.5** (Japanese added) needs [about 6 GB](https://huggingface.co/IndexTeam/IndexTTS-2.5), doesn't

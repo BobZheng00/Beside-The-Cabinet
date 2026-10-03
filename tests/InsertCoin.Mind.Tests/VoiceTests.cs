@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 
 namespace InsertCoin.Mind.Tests;
 
@@ -265,22 +266,12 @@ public class VoiceTests
     }
 
     [Fact]
-    public void A_clone_can_speak_with_Qwen3_TTS_but_a_trained_model_only_with_GPT_SoVITS()
+    public void A_clone_saved_for_Qwen3_TTS_while_it_was_offered_runs_on_v4()
     {
-        using var home = new TempFolder();
-        var clone = new VoiceProfile { Engine = VoiceEngines.Qwen, Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
-        Assert.Equal((VoiceEngines.Qwen, "1.7B", false), (clone.SpeaksWith, clone.Runs, clone.Slow));
-        Assert.Equal(VoiceProfile.CloneModels[2], clone.ClonedWith);
-        Assert.Equal("Qwen/Qwen3-TTS-12Hz-1.7B-Base", QwenTts.Model(clone.Runs));
-
-        Assert.Equal("1.7B", (clone with { Version = "v2ProPlus" }).Runs);    // a GPT-SoVITS model left from before: Qwen's own
-        Assert.Equal("1.7B", (clone with { Version = "0.6B" }).Runs);         // no longer offered
-        (clone with { Version = "1.7B" }).Save(home.Path);
-        Assert.Equal((VoiceEngines.Qwen, "1.7B"), (VoiceProfile.Load(home.Path)!.SpeaksWith, VoiceProfile.Load(home.Path)!.Runs));
-
-        var trained = clone with { Gpt = "a.ckpt", Sovits = "b.pth", Version = "v2ProPlus" };
-        Assert.Equal((VoiceEngines.GptSoVits, "v2ProPlus", null), (trained.SpeaksWith, trained.Runs, trained.ClonedWith));
-        Assert.Equal(VoiceEngines.GptSoVits, new VoiceProfile { Engine = "something-new" }.SpeaksWith);
+        var clone = new VoiceProfile { Engine = "qwen3-tts", Version = "1.7B", Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
+        Assert.Equal("v4", clone.Runs);
+        Assert.Equal("v4", (clone with { Version = "0.6B" }).Runs);
+        Assert.Equal("v2ProPlus", (clone with { Version = "v2ProPlus" }).Runs);
     }
 
     [Fact]
@@ -318,32 +309,69 @@ public class VoiceTests
         }
     }
 
+    private static FakeServer Speaking(short[] samples, int rate) => new(request => request.RequestUri!.AbsolutePath == "/tts"
+        ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(WavBytes(samples, rate, 0)) }
+        : new HttpResponseMessage(HttpStatusCode.OK));
+
+    private static string[] Blended(string body) =>
+        [.. JsonDocument.Parse(body).RootElement.GetProperty("aux_ref_audio_paths").EnumerateArray().Select(e => e.GetString()!)];
+
     [Fact]
-    public async Task The_engine_loads_a_voice_once_and_streams_its_speech()
+    public async Task The_engine_loads_a_voice_once_prepares_its_clip_afresh_and_streams_its_speech()
     {
+        using var home = new TempFolder();
+        home.File("clips/5.wav", Silence(5));
         short[] samples = [.. Enumerable.Range(0, 1000).Select(i => (short)(i * 30))];
-        var server = new FakeServer(request => request.RequestUri!.AbsolutePath == "/tts"
-            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(WavBytes(samples, 48000, 0)) }
-            : new HttpResponseMessage(HttpStatusCode.OK));
+        var server = Speaking(samples, 48000);
         var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
         var clip = new VoiceClip("clips/5.wav", "谁建造它？", "zh");
+        var voice = new VoiceProfile { Gpt = "a.ckpt", Sovits = "b.pth", Language = "ja", Clips = [clip] };   // a model of unknown version
 
-        await engine.Load(@"D:\kai.voice\a.ckpt", @"D:\kai.voice\b.pth");
-        await engine.Load(@"D:\kai.voice\a.ckpt", @"D:\kai.voice\b.pth");
+        await engine.Load(voice, home.Path);
+        await engine.Load(voice, home.Path);
         var heard = new List<float>();
-        await foreach (var audio in engine.Speak("おかえり！", "ja", @"D:\kai.voice\clips\5.wav", clip, 16))
+        await foreach (var audio in engine.Speak("おかえり！", voice, home.Path, clip))
         {
             Assert.Equal(48000, audio.SampleRate);
             heard.AddRange(audio.Samples);
         }
+        await foreach (var _ in engine.Speak("ただいま！", voice, home.Path, clip)) { }
 
-        Assert.Equal(["/set_gpt_weights?weights_path=D%3A%5Ckai.voice%5Ca.ckpt", "/set_sovits_weights?weights_path=D%3A%5Ckai.voice%5Cb.pth", "/tts"], server.Asked);
+        string Escaped(string file) => Uri.EscapeDataString(System.IO.Path.Combine(home.Path, file));
+        // new weights: the clip the server prepared for the old ones is prepared again, once
+        Assert.Equal([$"/set_gpt_weights?weights_path={Escaped("a.ckpt")}", $"/set_sovits_weights?weights_path={Escaped("b.pth")}",
+                      $"/set_refer_audio?refer_audio_path={Escaped(@"clips\5.wav")}", "/tts", "/tts"], server.Asked);
         Assert.Equal(samples.Length, heard.Count);
         var body = server.Bodies[^1];
         Assert.Contains("\"text_lang\":\"ja\"", body);
         Assert.Contains("\"prompt_lang\":\"zh\"", body);
         Assert.Contains("\"sample_steps\":16", body);
         Assert.Contains("\"streaming_mode\":2", body);
+        Assert.Empty(Blended(body));                                   // unknown version: it may be v4, which mustn't get extra clips
+    }
+
+    [Fact]
+    public async Task A_v2_voice_blends_the_tone_of_its_first_few_clips_and_a_v4_voice_speaks_from_one()
+    {
+        using var home = new TempFolder();
+        string[] names = ["a", "gone", "b", "c", "d", "e", "f"];
+        foreach (var name in names.Where(n => n != "gone"))
+            home.File($"clips/{name}.wav", Silence(5));
+        var clips = names.Select(n => new VoiceClip($"clips/{n}.wav", "はい。", "ja")).ToList();
+        var clone = new VoiceProfile { Language = "ja", Version = "v2ProPlus", Clips = clips };
+        var server = Speaking([1, 2, 3], 32000);
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+
+        await foreach (var _ in engine.Speak("やっほー！", clone, home.Path, clips[^1])) { }
+        await foreach (var _ in engine.Speak("やっほー！", clone with { Version = "v4" }, home.Path, clips[0])) { }
+
+        // the same first few whichever clip speaks (so the server prepares them once), and only clips that are there
+        Assert.Equal(GptSoVits.BlendClips, Blended(server.Bodies[0]).Length);
+        Assert.Equal(["a", "b", "c", "d"], Blended(server.Bodies[0]).Select(System.IO.Path.GetFileNameWithoutExtension));
+        Assert.Empty(Blended(server.Bodies[1]));
+        Assert.True(GptSoVits.Blends("v2Pro"));
+        Assert.False(GptSoVits.Blends("v3"));
+        Assert.False(GptSoVits.Blends(null));
     }
 
     [Fact]
@@ -354,10 +382,11 @@ public class VoiceTests
             Content = new StringContent("""{"message": "tts failed", "Exception": "ref_audio_path not exists"}"""),
         });
         var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+        var clip = new VoiceClip("x.wav", "hello", "en");
 
         var error = await Assert.ThrowsAsync<VoiceException>(async () =>
         {
-            await foreach (var _ in engine.Speak("hi", "en", "x.wav", new VoiceClip("x.wav", "hello", "en"), 16)) { }
+            await foreach (var _ in engine.Speak("hi", new VoiceProfile { Language = "en", Clips = [clip] }, ".", clip)) { }
         });
         Assert.Equal("tts failed: ref_audio_path not exists", error.Message);
     }
@@ -376,52 +405,4 @@ public class VoiceTests
                       "/set_gpt_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fs1v3.ckpt",
                       "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fv2Pro%2Fs2Gv2ProPlus.pth"], server.Asked);
     }
-
-    [Fact]
-    public async Task Qwen3_TTS_loads_its_model_once_and_streams_speech_cloned_from_the_clip()
-    {
-        short[] samples = [.. Enumerable.Range(0, 900).Select(i => (short)(i * 20))];
-        var wav = WavBytes(samples, 24000);
-        wav.AsSpan(4, 4).Fill(0xFF);                                    // as the server sends it: lengths unknown while it streams
-        wav.AsSpan(40, 4).Fill(0xFF);
-        var server = new FakeServer(request => request.RequestUri!.AbsolutePath == "/tts"
-            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(wav) }
-            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base"}""") });
-        var engine = new QwenTts(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9881/") });
-        var clip = new VoiceClip("clips/hana_035.wav", "今日はいい天気だから、少し散歩しようかな。", "ja");
-        var voice = new VoiceProfile { Engine = VoiceEngines.Qwen, Language = "ja", Clips = [clip] };
-
-        await engine.Load(voice, @"C:\voices\hana.voice");
-        await engine.Load(voice, @"C:\voices\hana.voice");
-        var heard = new List<float>();
-        await foreach (var audio in engine.Speak("おかえり！", voice, clip, @"C:\voices\hana.voice\clips\hana_035.wav"))
-        {
-            Assert.Equal(24000, audio.SampleRate);
-            heard.AddRange(audio.Samples);
-        }
-
-        Assert.Equal(["/load", "/tts"], server.Asked);
-        Assert.Equal("""{"model":"Qwen/Qwen3-TTS-12Hz-1.7B-Base"}""", server.Bodies[0]);
-        Assert.Contains("\"language\":\"ja\"", server.Bodies[1]);
-        Assert.Contains("\"ref_text\":\"それもあって", System.Text.RegularExpressions.Regex.Unescape(server.Bodies[1]));
-        Assert.Contains($"\"chunk_size\":{QwenTts.PieceSteps}", server.Bodies[1]);
-        Assert.Equal(samples.Length, heard.Count);
-    }
-
-    [Fact]
-    public async Task What_Qwen3_TTS_says_went_wrong_comes_through()
-    {
-        var server = new FakeServer(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
-        {
-            Content = new StringContent("""{"message": "could not load Qwen/Qwen3-TTS-12Hz-1.7B-Base", "Exception": "CUDA out of memory"}"""),
-        });
-        var engine = new QwenTts(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9881/") });
-
-        var error = await Assert.ThrowsAsync<VoiceException>(() => engine.Load(new VoiceProfile { Engine = VoiceEngines.Qwen, Version = "1.7B" }, "."));
-        Assert.Equal("could not load Qwen/Qwen3-TTS-12Hz-1.7B-Base: CUDA out of memory", error.Message);
-    }
-
-    [Fact]
-    public void The_Qwen3_TTS_server_travels_inside_the_cabinet() =>
-        Assert.Contains("def main():", QwenTts.ServerScript());
 }

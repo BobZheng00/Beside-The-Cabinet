@@ -7,17 +7,14 @@ using System.Text.RegularExpressions;
 namespace InsertCoin.Mind;
 
 /// <summary>
-/// A clip of the voice and the words spoken in it: the engine takes the voice's tone from it. <see cref="Mood"/> says
+/// A clip of the voice and the words spoken in it: GPT-SoVITS takes the voice's tone from it. <see cref="Mood"/> says
 /// which stage direction it suits (happy for [cheer], sad for [worry]…); null for her everyday voice.
 /// </summary>
 public sealed record VoiceClip(string File, string Text, string Language, string? Mood = null, double? Seconds = null);
 
-/// <summary>A base model a clip can be cloned with: an engine (see <see cref="VoiceEngines"/>) and which of its models.</summary>
-public sealed record CloneModel(string Engine, string Version);
-
 /// <summary>
 /// A character's voice, kept as <c>voice.json</c> in a folder of its own beside the character: either a model someone
-/// trained on the character's lines (GPT-SoVITS weights plus clips), or just a clip, which an engine's own base model
+/// trained on the character's lines (GPT-SoVITS weights plus clips), or just a clip, which the engine's own base model
 /// clones. Files are named relative to the folder.
 /// </summary>
 public sealed partial record VoiceProfile
@@ -30,18 +27,14 @@ public sealed partial record VoiceProfile
     public const int DefaultSteps = 16;
     public static readonly string[] AudioFormats = [".wav", ".mp3", ".ogg", ".flac"];
     /// <summary>
-    /// The base models a clip can be cloned with, the first of each engine its default. GPT-SoVITS v4 is clear but
-    /// makes each sentence (or each part between commas) whole before it speaks: 1.5–3.5 s; v2ProPlus streams, about
-    /// 0.4 s. Qwen3-TTS 1.7B streams too, about 0.35 s, and read hard Japanese lines more surely (measured
-    /// 2026-10-03). Its 0.6B sounded like a different person from line to line to the player, so it isn't offered.
+    /// The base models a clip can be cloned with: v4 (the default) is clear but makes each sentence (or each part
+    /// between commas) whole before it speaks, 1.5–3.5 s; v2ProPlus streams, about 0.4 s, and blends the tone of all
+    /// the voice's clips. (Qwen3-TTS was tried too, 2026-10-03, and dropped: she sounded like a different person
+    /// from take to take, and it can't be trained on this kind of graphics card.)
     /// </summary>
-    public static readonly CloneModel[] CloneModels =
-    [
-        new(VoiceEngines.GptSoVits, "v4"), new(VoiceEngines.GptSoVits, "v2ProPlus"), new(VoiceEngines.Qwen, "1.7B"),
-    ];
+    public static readonly string[] CloneVersions = ["v4", "v2ProPlus"];
 
-    /// <summary>The engine a clone speaks with (see <see cref="VoiceEngines"/>); a trained model always speaks with GPT-SoVITS.</summary>
-    public string Engine { get; init; } = VoiceEngines.GptSoVits;
+    public string Engine { get; init; } = "gpt-sovits";
     public string Name { get; init; } = "";
     /// <summary>The language the voice speaks (see <see cref="SpokenLanguage"/>); empty until known.</summary>
     public string Language { get; init; } = "";
@@ -50,7 +43,7 @@ public sealed partial record VoiceProfile
     public string? Sovits { get; init; }
     /// <summary>
     /// The GPT-SoVITS version the weights were trained for (v2, v2Pro, v2ProPlus, v3, v4), when the files say; for a
-    /// clone, the base model it is cloned with (see <see cref="CloneModels"/>; null is its engine's first).
+    /// clone, the base model it is cloned with (one of <see cref="CloneVersions"/>; null is v4).
     /// </summary>
     public string? Version { get; init; }
     public IReadOnlyList<VoiceClip> Clips { get; init; } = [];
@@ -66,22 +59,16 @@ public sealed partial record VoiceProfile
         : Language.Length == 0 ? "the language it speaks"
         : null;
 
-    /// <summary>The engine it speaks with: a trained model's is GPT-SoVITS; a clone's, the one chosen.</summary>
+    /// <summary>
+    /// The version it runs on: its weights' when known, or for a clone the base model chosen (v4 when none of
+    /// <see cref="CloneVersions"/> is, as with one saved for Qwen3-TTS while it was offered).
+    /// </summary>
     [JsonIgnore]
-    public string SpeaksWith => Gpt is null && VoiceEngines.All.Contains(Engine) ? Engine : VoiceEngines.GptSoVits;
+    public string? Runs => Gpt is not null ? Version : CloneVersions.Contains(Version) ? Version : CloneVersions[0];
 
-    /// <summary>The model it runs on: its weights' version when known, or for a clone the base model chosen.</summary>
+    /// <summary>v3 and v4 (and clones made with v4): clearer, and slower to start each sentence, which they don't stream.</summary>
     [JsonIgnore]
-    public string? Runs => ClonedWith?.Version ?? Version;
-
-    /// <summary>For a clone, the base model it is cloned with (its engine's first when none of its models is chosen).</summary>
-    [JsonIgnore]
-    public CloneModel? ClonedWith => Gpt is not null ? null
-        : CloneModels.FirstOrDefault(m => m.Engine == SpeaksWith && m.Version == Version) ?? CloneModels.First(m => m.Engine == SpeaksWith);
-
-    /// <summary>GPT-SoVITS v3 and v4 (and clones made with v4): clearer, and slower to start each sentence, which they don't stream.</summary>
-    [JsonIgnore]
-    public bool Slow => SpeaksWith == VoiceEngines.GptSoVits && Runs is "v3" or "v4";
+    public bool Slow => Runs is "v3" or "v4";
 
     /// <summary>The clip to speak with for a mood: one labelled with it, else her everyday one.</summary>
     public VoiceClip? ClipFor(string? mood)
