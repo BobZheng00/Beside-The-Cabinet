@@ -270,6 +270,33 @@ The cabinet blends a v2 voice's first four clips (`GptSoVits.BlendClips`), alway
 speaking, so the server prepares them once. In the cabinet Hana's v2ProPlus clone started each line in 0.46–0.48 s.
 A trained model costs no more per sentence than the base model it was trained from.
 
+**Training Hana, by hand (2026-10-03).** `train_hana.py` ran GPT-SoVITS's own steps the way its web UI does
+(webui.py `open1abc`, `open1Ba`, `open1Bb`), with its defaults for an 8 GB card: v2ProPlus, all 55 clips (306 s),
+batch 4, SoVITS 8 epochs and GPT 15. The training scripts import GPT-SoVITS's own folders through a `users.pth` that
+the web UI writes into its Python on every start; a package only ever used through `api_v2.py` has none, so the steps
+fail with "No module named 'text'" until it is written.
+
+| Step | Time | Graphics memory peak (whole card) |
+|---|---|---|
+| text, HuBERT features + 32 kHz audio, voiceprints, semantic tokens | 44 s | 2.4 GB |
+| SoVITS, 8 epochs | 207 s | **7.85 GB** of 8 |
+| GPT, 15 epochs | 74 s | 6.7 GB |
+
+5.4 minutes in all. The voice is 313 MB (GPT 148, SoVITS 165); the working files (2.8 GB, mostly checkpoints to resume
+from) can go afterwards. SoVITS training fills the card: nothing else may hold graphics memory meanwhile, the voice
+server included. Scored as before (`score_trained.py`; her real clips 0.91):
+
+| | Like Hana, from 1 clip | with 4 clips blended |
+|---|---|---|
+| v2ProPlus base | 0.82 | 0.85 |
+| trained SoVITS, base GPT | 0.86 | **0.87** |
+| both trained | 0.84 | 0.86 |
+| trained GPT, base SoVITS | 0.82 | 0.85 |
+
+Training SoVITS moves her tone a little closer; blending had already got most of the way. The GPT half shapes rhythm
+and style, which a speaker model doesn't measure, so that is for the ear. Misheard characters swung between 8 and 17%
+within one model over 6 takes, too noisy to read. In the cabinet the trained voice started each line in 0.68–0.78 s.
+
 **Qwen3-TTS dropped (2026-10-03).** Too inconsistent to hold a character's voice, and it can't be trained on this
 class of graphics card (below). The cabinet speaks with GPT-SoVITS only.
 
