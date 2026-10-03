@@ -95,6 +95,11 @@ public partial class Main : Node2D
         AddChild(_voice);
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => _companion);
         _voice.Muted = _settings.Muted;
+        _voice.Testing += line =>                           // only the bubble: she is already saying it in her own language
+        {
+            if (_settings.SpeechBubbles)
+                _companion?.Say(line);
+        };
         _voice.UseEngine(_settings.VoiceEngine);
         ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();

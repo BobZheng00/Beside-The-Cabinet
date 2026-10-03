@@ -66,6 +66,8 @@ public partial class Voice : Node
 
     /// <summary>The phase changed (for the settings window's status line).</summary>
     public event Action? Changed;
+    /// <summary>Test is saying its sample line: the line for her bubble, in English like the rest of the cabinet (a subtitle when she speaks another language).</summary>
+    public event Action<string>? Testing;
 
     public Phase Now { get; private set; } = Phase.NotSetUp;
     public VoiceProfile? Profile => _profile;
@@ -233,6 +235,7 @@ public partial class Voice : Node
             return Status;
         Stop();
         Say(Sample(_profile!.Language), "happy");
+        Testing?.Invoke(Sample("en"));
         return null;
     }
 
