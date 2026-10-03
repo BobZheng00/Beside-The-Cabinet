@@ -31,6 +31,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>The local model for search by meaning, when one is loaded; without it she recalls by shared words.</summary>
     public LocalEmbedder? Embedder { get; set; }
 
+    /// <summary>The language her voice speaks while she has one that can talk; null leaves voice out of the prompt.</summary>
+    public string? VoiceLanguage { get; set; }
+
     /// <summary>
     /// Streams her answer to <paramref name="said"/>: shown text through <paramref name="text"/>, stage directions
     /// through <paramref name="direction"/>. Both lines are logged; a failed request leaves only the player's.
@@ -54,7 +57,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, recent, situation, said, [.. lore, .. memories]);
+                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage);
         store.Add(character, Speaker.User, said.Trim(), now);
 
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep

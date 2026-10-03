@@ -80,6 +80,25 @@ public static class CharacterFiles
         return card.Name;
     }
 
+    /// <summary>Whether a file, a folder or a .zip holds a 3D model (rather than, say, a voice).</summary>
+    public static bool HoldsModel(string path)
+    {
+        if (Directory.Exists(path))
+            return FindModel(path) is not null;
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        if (extension != ".zip")
+            return extension is ".vrm" or ".glb" or ".gltf";
+        try
+        {
+            using var zip = ZipFile.OpenRead(path);
+            return zip.Entries.Any(e => CompanionView.Formats.Any(format => e.FullName.EndsWith(format.TrimStart('*'), StringComparison.OrdinalIgnoreCase)));
+        }
+        catch (InvalidDataException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>The first model in a folder or below, preferring the formats that carry the most.</summary>
     private static string? FindModel(string folder) =>
         CompanionView.Formats.SelectMany(format => Directory.EnumerateFiles(folder, format, SearchOption.AllDirectories)).FirstOrDefault();

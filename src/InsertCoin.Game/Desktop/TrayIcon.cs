@@ -7,13 +7,14 @@ public enum TrayMood { Fine, Low, Debt }
 /// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, AddCharacter, OpenCharacters, Quit;
-    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, EnergySaverChanged;
+    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, VoiceSettings, AddCharacter, OpenCharacters, Quit;
+    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
-        AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, CharacterId = 20;
-    private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, EnergyId];
+        AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
+        VoiceSettingsId = 19, CharacterId = 20;
+    private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
@@ -26,7 +27,7 @@ public partial class TrayIcon : Node
     private TrayMood? _mood;
     private string[] _characters = [];
 
-    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, bool speech,
+    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, bool speech, bool voice,
                       (string Id, string Name)[] characters, string character, bool energySaver)
     {
         _menu = new PopupMenu();
@@ -35,7 +36,7 @@ public partial class TrayIcon : Node
         var checks = new Dictionary<int, bool>
         {
             [TopId] = alwaysOnTop, [StartupId] = startWithWindows, [MuteId] = muted, [TicketsId] = inGameTickets,
-            [CompanionId] = companion, [SpeechId] = speech, [EnergyId] = energySaver,
+            [CompanionId] = companion, [SpeechId] = speech, [VoiceId] = voice, [EnergyId] = energySaver,
         };
         Fill(checks, size, characters, character);
 
@@ -82,7 +83,9 @@ public partial class TrayIcon : Node
         _menu.AddSeparator();
         Check("Companion", CompanionId);
         Check("Speech bubbles", SpeechId);
+        Check("Voice", VoiceId);
         _menu.AddItem("Chat settings…", ChatId);
+        _menu.AddItem("Voice settings…", VoiceSettingsId);
         _menu.AddItem("Memory book…", MemoryId);
         _characters = [.. characters.Select(c => c.Id)];
         foreach (var ((id, name), i) in characters.Select((c, i) => (c, i)))
@@ -123,6 +126,8 @@ public partial class TrayIcon : Node
             case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
             case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case SpeechId: SpeechChanged?.Invoke(Toggle(SpeechId)); break;
+            case VoiceId: VoiceChanged?.Invoke(Toggle(VoiceId)); break;
+            case VoiceSettingsId: VoiceSettings?.Invoke(); break;
             case ChatId: ChatSettings?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;
             case AddId: AddCharacter?.Invoke(); break;

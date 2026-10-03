@@ -14,6 +14,7 @@ public sealed partial class StageDirections(Action<string, string?> direction)
 
     private readonly StringBuilder _held = new();       // from an opening bracket until we know what it is
     private bool _started;                              // some text has been shown already
+    private bool _afterSpace, _skipSpace;               // the last character shown was a blank; drop the next one
 
     /// <summary>Feeds the next piece of the reply; returns the part of it that can be shown now.</summary>
     public string Feed(string piece)
@@ -33,8 +34,15 @@ public sealed partial class StageDirections(Action<string, string?> direction)
                 _held.Append(c);
             else if (_started || !char.IsWhiteSpace(c))         // no leading blanks left behind by a direction
             {
+                if (_skipSpace && c == ' ')
+                {
+                    _skipSpace = false;
+                    continue;
+                }
+                _skipSpace = false;
                 _started = true;
                 shown.Append(c);
+                _afterSpace = c == ' ';
             }
         }
         return shown.ToString();
@@ -61,11 +69,14 @@ public sealed partial class StageDirections(Action<string, string?> direction)
         direction(match.Groups["name"].Value, match.Groups["payload"].Success ? match.Groups["payload"].Value.Trim() : null);
         if (_started && shown.Length > 0 && shown[^1] == ' ')
             shown.Length--;                                     // "Great! [cheer]" leaves no trailing blank
+        else if (_afterSpace)
+            _skipSpace = true;                                  // that blank went out with an earlier piece: drop the one after instead
     }
 
     private void Release(StringBuilder shown)
     {
         _started = true;
+        _afterSpace = _skipSpace = false;
         shown.Append(_held);
         _held.Clear();
     }

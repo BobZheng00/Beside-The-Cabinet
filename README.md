@@ -45,6 +45,17 @@ A SillyTavern-style character card (`.png` or `.json`, V1 to V3) dropped on the 
 character…" gives whoever is on the stool its personality, example dialogue and lorebook (background that comes
 up when its keywords are mentioned); she greets you as the card says.
 
+She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
+graphics card starts each sentence in about a second). Tray → "Voice settings…": point it at the GPT-SoVITS folder,
+then give her a voice: drop on the cabinet a GPT-SoVITS model someone shared (a folder or `.zip` with a `.ckpt` and
+a `.pth`, usually with clips of the voice; v2 to v4 all work), or a 3 to 10 second clip to clone her voice from.
+The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
+("【开心】今天也要加油哦.wav"); if they can't be found the window asks for them. A voice speaks one language
+(Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
+like a subtitled anime (the model writes `[say: …]` before each sentence). While a game runs she rests her voice:
+the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
+"Mute sounds" mutes her too. Clicking her stops her mid-sentence.
+
 Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything, or
 forget everything. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
 account. Without a provider she keeps to her canned lines.
@@ -61,7 +72,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
-`memorybook`, `upkeep` (digest the conversation now) and `moment:note`. `--offscreen` opens the app's windows off
+`memorybook`, `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
+sample line) and `voice:some_text` (a bubble she also says aloud, if it is in her voice's language). `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout
@@ -70,7 +82,8 @@ every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything ap
 src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no clock
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
-                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key
+                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
+                          a reply is spoken, voice profiles and their import, the GPT-SoVITS client
 src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
@@ -139,6 +152,10 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   upkeep every minute. `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
   `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
+- `App/Voice.cs` is her voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
+  with it), `Speech` (in `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` streams each sentence's
+  audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceSettings.cs` is its window. Measurements:
+  [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser
   towards the hand, so moves overshoot and settle), and life on top (breathing, sway, head drift, fidgets, eyes
@@ -161,6 +178,10 @@ when the character itself is moved or turned.
   `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
 
 Either way `"Companion": "<id>"` in `settings.json` selects it (the id is the file name).
+
+Their voice, if they have one, is in `<id>.voice` in the characters folder: `voice.json` (language, clips and
+their words, quality), the model's weights and clips. Dropping a voice on the cabinet puts it there for whoever is
+on the stool (or for a model dropped with it).
 
 Who they are when they talk is a character card if they have one (`<id>.card.png` or `.json` in the characters
 folder, or `card.png` / `card.json` in their own folder; dropping a card on the cabinet puts it there), else a

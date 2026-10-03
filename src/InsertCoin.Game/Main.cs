@@ -42,6 +42,8 @@ public partial class Main : Node2D
     private ChatBox _chatBox = null!;
     private ChatSettings? _chatSettings;
     private MemoryBook? _memoryBook;
+    private Voice _voice = null!;
+    private VoiceSettings? _voiceSettings;
     private string _charactersDir = "";
     private readonly Random _random = new();
     private TimeSpan _livelyUntil;
@@ -89,6 +91,11 @@ public partial class Main : Node2D
         _chat = new Chat(dataDir);
         _chat.UseSearch(_settings.MemorySearch);           // remembered first, so connecting loads the right model
         _chat.Connect(ChatProvider());
+        _voice = new Voice();
+        AddChild(_voice);
+        _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => _companion);
+        _voice.Muted = _settings.Muted;
+        _voice.UseEngine(_settings.VoiceEngine);
         ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();
         AddChild(_audio);
@@ -122,9 +129,9 @@ public partial class Main : Node2D
         _tray = new TrayIcon();
         AddChild(_tray);
         _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
-                    _settings.SpeechBubbles, Characters(), _settings.Companion, _settings.EnergySaver);
+                    _settings.SpeechBubbles, _settings.Voice, Characters(), _settings.Companion, _settings.EnergySaver);
         _tray.EnergySaverChanged += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
-        _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; };
+        _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; _voice.Muted = muted; };
         _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
         _tray.CompanionChanged += on => { SaveSettings(_settings with { ShowCompanion = on }); ShowCompanion(on); };
         _tray.SpeechChanged += on =>
@@ -134,6 +141,8 @@ public partial class Main : Node2D
                 _companion?.Hush();
         };
         _tray.ChatSettings += OpenChatSettings;
+        _tray.VoiceChanged += on => { SaveSettings(_settings with { Voice = on }); WakeVoice(); };
+        _tray.VoiceSettings += OpenVoiceSettings;
         _tray.MemoryBook += OpenMemoryBook;
         _tray.AddCharacter += PickCharacter;
         _tray.OpenCharacters += () =>
@@ -256,6 +265,7 @@ public partial class Main : Node2D
     {
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
+        _voice.GameRunning = _state.Session is not null;      // her voice gives the game the graphics card
         if (result.Events.Count > 0)
             Lively(6);
         foreach (var e in result.Events)
@@ -355,6 +365,7 @@ public partial class Main : Node2D
             {
                 _companion.Build(_cabinet.Skin, character);
                 _chat.Seat(character.Id, character.Persona(_charactersDir, _settings.Username));
+                _voice.Seat(VoiceFolder(character.Id));
             }
             catch (Exception e)
             {
@@ -366,8 +377,15 @@ public partial class Main : Node2D
             }
         }
         _companion?.SetActive(show);
+        WakeVoice();
         SetPace();
     }
+
+    /// <summary>Her voice runs while she is shown and it is switched on (it still rests while a game runs).</summary>
+    private void WakeVoice() => _voice.Enabled = _settings.Voice && _settings.ShowCompanion && _companion is not null;
+
+    /// <summary>Where a character's voice is kept: a folder beside them in the user's characters folder.</summary>
+    private string VoiceFolder(string characterId) => Path.Combine(_charactersDir, characterId + ".voice");
 
     /// <summary>Someone else takes the stool.</summary>
     private void Seat(string id)
@@ -391,9 +409,10 @@ public partial class Main : Node2D
             Access = FileDialog.AccessEnum.Filesystem,
             UseNativeDialog = true,
             CurrentDir = OS.GetSystemDir(OS.SystemDir.Downloads),
-            Filters = ["*.vrm, *.glb, *.gltf, *.zip, *.png, *.json ; Characters and character cards",
+            Filters = ["*.vrm, *.glb, *.gltf, *.zip, *.png, *.json, *.wav, *.mp3, *.ogg, *.flac ; Characters, character cards and voices",
                        "*.vrm, *.glb, *.gltf, *.zip ; 3D characters (VRM, glTF, or a zip holding one)",
-                       "*.png, *.json ; Character cards (SillyTavern style) for whoever is on the stool"],
+                       "*.png, *.json ; Character cards (SillyTavern style) for whoever is on the stool",
+                       "*.zip, *.wav, *.mp3, *.ogg, *.flac ; Voices (a GPT-SoVITS model's .zip, or a 3-10 second clip)"],
         };
         dialog.FileSelected += path =>
         {
@@ -415,13 +434,21 @@ public partial class Main : Node2D
     {
         var added = new List<string>();
         var cards = new List<string>();
-        foreach (var path in paths.OrderBy(p => Path.GetExtension(p).ToLowerInvariant() is ".png" or ".json"))     // models first
+        VoiceProfile? voice = null;
+        string? refused = null;
+        // models first, then cards and voices, which go to the model added with them (or whoever is on the stool)
+        foreach (var path in paths.OrderBy(p => CharacterFiles.HoldsModel(p) ? 0 : 1))
             try
             {
                 if (Path.GetExtension(path).ToLowerInvariant() is ".png" or ".json")
                 {
                     if ((added.FirstOrDefault() ?? OnStool()?.Id) is { } who && CharacterFiles.ImportCard(path, _charactersDir, who) is { } name)
                         cards.Add(name);
+                }
+                else if (!CharacterFiles.HoldsModel(path) && VoiceProfile.LooksLikeVoice(path))
+                {
+                    if ((added.FirstOrDefault() ?? OnStool()?.Id) is { } who)
+                        voice = VoiceProfile.Import(path, VoiceFolder(who));
                 }
                 else if (CharacterFiles.Import(path, _charactersDir) is { } id)
                     added.Add(id);
@@ -430,10 +457,17 @@ public partial class Main : Node2D
             {
                 // an unreadable or half-downloaded file must not take the cabinet down with it
                 GD.PrintErr($"Adding '{path}': {e.Message}");
+                if (e is InvalidDataException)
+                    refused = e.Message;
             }
+        if (added.Count == 0 && cards.Count == 0 && voice is null)
+        {
+            _cabinet.Screen.Flash("NO GO", (refused ?? "ONLY .VRM, .GLB, .GLTF, A CHARACTER CARD OR A VOICE").ToUpperInvariant(), 5.0);
+            return;
+        }
         if (added.Count == 0 && cards.Count == 0)
         {
-            _cabinet.Screen.Flash("NO GO", "ONLY .VRM, .GLB, .GLTF OR A CHARACTER CARD", 4.0);
+            AddedVoice(voice!);
             return;
         }
         if (added.Count > 0)
@@ -444,6 +478,81 @@ public partial class Main : Node2D
         _companion?.Play(Moment.Greet);
         if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)
             GetTree().CreateTimer(0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
+        if (voice is not null)
+            AddedVoice(voice);
+    }
+
+    /// <summary>A voice was just given to whoever is on the stool: she tries it out, or says what it still needs.</summary>
+    private void AddedVoice(VoiceProfile voice)
+    {
+        _voice.Seat(_voice.Folder);
+        if (voice.Missing is not null || VoiceServer.Check(_settings.VoiceEngine) is not null)
+        {
+            _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE VOICE SETTINGS", 4.0);
+            OpenVoiceSettings();
+            return;
+        }
+        _cabinet.Screen.Flash("VOICE", $"{voice.Name} - WARMING UP".ToUpperInvariant(), 4.0);
+        Lively(20);
+        _ = _voice.Test();
+    }
+
+    /// <summary>Asks for a voice with the system's own file dialog (a downloaded model's .zip, or a clip), then adds it.</summary>
+    private void PickVoice()
+    {
+        var dialog = new FileDialog
+        {
+            Title = "Add a voice",
+            ModeOverridesTitle = false,
+            FileMode = FileDialog.FileModeEnum.OpenFile,
+            Access = FileDialog.AccessEnum.Filesystem,
+            UseNativeDialog = true,
+            CurrentDir = OS.GetSystemDir(OS.SystemDir.Downloads),
+            Filters = ["*.zip, *.wav, *.mp3, *.ogg, *.flac ; Voices (a GPT-SoVITS model's .zip, or a 3-10 second clip)"],
+        };
+        dialog.FileSelected += path =>
+        {
+            dialog.QueueFree();
+            AddCharacters([path]);
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        _window.Rise(4, _settings.AlwaysOnTop);
+        DisplayServer.WindowMoveToForeground();
+        dialog.PopupCentered();
+    }
+
+    /// <summary>The GPT-SoVITS that runs her voice, and the voice of whoever is on the stool.</summary>
+    private void OpenVoiceSettings()
+    {
+        if (IsInstanceValid(_voiceSettings))
+        {
+            _voiceSettings!.GrabFocus();
+            return;
+        }
+        if (OnStool() is not { } character)
+            return;
+        _voiceSettings = new VoiceSettings();
+        AddChild(_voiceSettings);
+        _voiceSettings.Build(_voice, _settings.VoiceEngine, character.Name);
+        _voiceSettings.Saved += engine =>
+        {
+            var changed = engine != _settings.VoiceEngine;
+            SaveSettings(_settings with { VoiceEngine = engine });
+            if (changed)
+                _voice.UseEngine(engine);
+            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words or quality may have changed
+        };
+        _voiceSettings.AddVoice += PickVoice;
+        _voiceSettings.RemoveVoice += () =>
+        {
+            var folder = VoiceFolder(character.Id);
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+            _voice.Seat(folder);
+            OpenVoiceSettings();
+        };
+        _voiceSettings.Open();
     }
 
     /// <summary>The first sentence of a card's greeting, without its *actions*, if it is short enough for the bubble.</summary>
@@ -461,12 +570,14 @@ public partial class Main : Node2D
         if (!_settings.SpeechBubbles || _companion is null)
             return;
         _companion.Say(line);
+        _voice.Line(line);
         _chat.Said(line);
     }
 
     /// <summary>She waves and says where things stand; when she can talk, the slip to type to her opens too.</summary>
     private void ClickedHer()
     {
+        _voice.Stop();
         Lively(6);
         _companion?.Play(Moment.Greet);
         if (!_chat.Answering)
@@ -495,7 +606,7 @@ public partial class Main : Node2D
         Lively(120);                                     // keep her lively while she thinks and talks
         try
         {
-            await _chat.Ask(said, Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username), _companion);
+            await _chat.Ask(said, Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username), _companion, _voice.Begin());
         }
         catch (Exception e)
         {
@@ -604,6 +715,7 @@ public partial class Main : Node2D
             if (_stateStore is not null)
                 Save();
             _chat?.Dispose();
+            _voice?.Shutdown();
             _singleInstance?.Dispose();
         }
     }
@@ -681,6 +793,21 @@ public partial class Main : Node2D
         if (action is "memorybook")                   // the "Memory book…" window
         {
             OpenMemoryBook();
+            return;
+        }
+        if (action is "voicesettings")                // the "Voice settings…" window
+        {
+            OpenVoiceSettings();
+            return;
+        }
+        if (action is "voicetest")                    // her voice says its sample line (waiting for it to be ready)
+        {
+            _ = _voice.Test();
+            return;
+        }
+        if (action.StartsWith("voice:"))             // voice:text puts a line in her bubble and says it aloud (underscores for spaces)
+        {
+            Say(action["voice:".Length..].Replace('_', ' '));
             return;
         }
         if (action is "upkeep")                       // her upkeep now, without waiting for the conversation to go quiet

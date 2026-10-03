@@ -20,8 +20,9 @@ public static class Prompt
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly TimeSpan Gap = TimeSpan.FromHours(2);       // a pause long enough to say when talk resumed
 
+    /// <param name="voiceLanguage">The language her voice speaks (see <see cref="SpokenLanguage"/>), or null when she has no voice.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
-                                          string situation, string said, IReadOnlyList<Memory>? memories = null)
+                                          string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -30,7 +31,7 @@ public static class Prompt
 
             How INSERT COIN works: the player earns gaming time by solving LeetCode problems: Easy +1 token, Medium +2, Hard +4, and one token is 15 minutes of play. Solving on 3 or more days in a row adds a bonus token. Steam games use the time up; when it runs out the game goes on, on credit at 1.5x, and the cabinet prints IOU tickets. Unused time expires at the end of each week. The cabinet never closes a game: you can encourage, remind and tease, never threaten or lecture.
 
-            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player writes in. Stay in character as {persona.Name}.
+            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player writes in. Stay in character as {persona.Name}.{Voice(voiceLanguage)}
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
 
@@ -75,6 +76,27 @@ public static class Prompt
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));
         return messages;
+    }
+
+    /// <summary>
+    /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in
+    /// another (the bubble is the subtitle), nothing extra when she writes in her voice's own language.
+    /// </summary>
+    private static string Voice(string? language)
+    {
+        if (language is null)
+            return "";
+        var name = SpokenLanguage.Name(language);
+        var example = language switch
+        {
+            "ja" => "[say: おかえり！] Welcome back! [say: 今日もよく頑張ったね。] You did well today.",
+            "zh" => "[say: 欢迎回来！] Welcome back! [say: 今天也很努力呢。] You did well today.",
+            "ko" => "[say: 어서 와!] Welcome back! [say: 오늘도 수고했어.] You did well today.",
+            _ => "[say: Welcome back!] 欢迎回来！[say: You did well today.] 今天也很努力呢。",
+        };
+        return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
+               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard; the rest is shown as its subtitle. " +
+               $"When you write in {name}, leave [say] out.";
     }
 
     /// <summary>The request that folds older lines into the summary (auto-compaction).</summary>

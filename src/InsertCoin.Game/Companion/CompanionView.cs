@@ -32,6 +32,7 @@ public partial class CompanionView : Node2D
     private Node3D _character = null!;
     private Camera3D _camera = null!;
     private Puppet _puppet = null!;
+    private Face _face = null!;
     private ToonMaterials _materials = null!;
     private Vector2I _lastMouse;
     private double _mouseStill = 1e9;
@@ -94,7 +95,8 @@ public partial class CompanionView : Node2D
         _rig = new Rig(skeleton, humanoid, fit);
         var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
-        _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen, Followers = followers };
+        _face = new Face(_character);
+        _puppet = new Puppet(_rig, _face, footRestDrop) { Viewer = _camera.Position, Screen = screen, Followers = followers };
         BuildPadAndPencil(viewport);
 
         _lastMouse = DisplayServer.MouseGetPosition();
@@ -106,6 +108,12 @@ public partial class CompanionView : Node2D
     }
 
     public void Play(Moment moment) => _puppet.Play(moment);
+
+    /// <summary>How far her mouth is open as she speaks aloud (0–1), set every frame by her voice.</summary>
+    public float Mouth
+    {
+        set => _face.Mouth = value;
+    }
 
     /// <summary>Shows a line in a speech bubble over her head.</summary>
     public void Say(string line)

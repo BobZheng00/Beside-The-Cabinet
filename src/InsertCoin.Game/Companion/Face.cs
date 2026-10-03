@@ -21,6 +21,9 @@ internal sealed class Face
     /// <summary>Eyes held shut (dozing, a long stretch).</summary>
     public bool EyesClosed { get; set; }
 
+    /// <summary>How far her mouth is open while she speaks aloud (0–1), on top of any expression's.</summary>
+    public float Mouth { get; set; }
+
     // What blend shapes tend to be called in models that are not VRM (ARKit, VRChat, hand-named).
     private static readonly (string Expression, string[] Words)[] ShapeWords =
     [
@@ -115,6 +118,8 @@ internal sealed class Face
             _weight[name] = now + (goal - now) * (1 - Mathf.Exp(-(float)delta * 9f));
         }
         _weight["blink"] = BlinkValue();
+        if (Mouth > 0.001f || _weight.ContainsKey("aa"))
+            _weight["aa"] = Mathf.Max(_target.GetValueOrDefault("aa") > 0 ? _weight.GetValueOrDefault("aa") : 0, Mouth);
 
         foreach (var key in _shapes.Keys.ToList())
             _shapes[key] = 0;

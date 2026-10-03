@@ -1,0 +1,308 @@
+using System.IO.Compression;
+using System.Net;
+using System.Text;
+
+namespace InsertCoin.Mind.Tests;
+
+public class VoiceTests
+{
+    private static List<string> Split(string text, int pieceLength)
+    {
+        var sentences = new Sentences();
+        var done = new List<string>();
+        for (var i = 0; i < text.Length; i += pieceLength)
+            done.AddRange(sentences.Feed(text.Substring(i, Math.Min(pieceLength, text.Length - i))));
+        if (sentences.Finish() is { } last)
+            done.Add(last);
+        return done;
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(100)]
+    public void Streamed_text_is_cut_into_sentences_however_it_arrives(int pieceLength)
+    {
+        Assert.Equal(["Welcome back!", "You did great, two Hards.", "3.5 hours left…", "Go on!"],
+                     Split("Welcome back! You did great, two Hards. 3.5 hours left… Go on!", pieceLength));
+        Assert.Equal(["おかえり！", "今日もよく頑張ったね。", "「少し遊んでおいで。」", "待ってるから"],
+                     Split("おかえり！今日もよく頑張ったね。「少し遊んでおいで。」待ってるから", pieceLength));
+        Assert.Equal(["欢迎回来！！", "第一行", "去玩吧~"], Split("欢迎回来！！\n第一行\n…\n去玩吧~", pieceLength));
+    }
+
+    [Theory]
+    [InlineData("Welcome back, Bob!", "en")]
+    [InlineData("おかえりなさい！", "ja")]
+    [InlineData("今日は頑張った", "ja")]
+    [InlineData("欢迎回来！", "zh")]
+    [InlineData("我今天玩了Hades两个小时", "zh")]
+    [InlineData("I named my cat 麻糬 last year", "en")]
+    [InlineData("어서 와!", "ko")]
+    [InlineData("3:15 ...", null)]
+    public void The_language_of_a_line_is_guessed_from_its_letters(string text, string? language) =>
+        Assert.Equal(language, SpokenLanguage.Of(text));
+
+    [Fact]
+    public void A_subtitled_reply_speaks_only_what_is_in_say()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("cheer", null);
+        speech.Direction("say", " おかえり！ ");
+        speech.Text("Welcome back! ");
+        speech.Direction("say", "よく頑張ったね。");
+        speech.Text("You did well.");
+        speech.Finish();
+        Assert.Equal(["おかえり！", "よく頑張ったね。"], spoken);
+    }
+
+    [Fact]
+    public void A_reply_in_the_voices_language_is_spoken_sentence_by_sentence_and_one_in_another_stays_silent()
+    {
+        var spoken = new List<string>();
+        var japanese = new Speech("ja", spoken.Add);
+        japanese.Text("おかえり！今日も");
+        Assert.Equal(["おかえり！"], spoken);              // the first sentence goes before the reply is finished
+        japanese.Text("頑張ったね。");
+        japanese.Finish();
+        Assert.Equal(["おかえり！", "今日も頑張ったね。"], spoken);
+
+        spoken.Clear();
+        var english = new Speech("en", spoken.Add);
+        english.Text("欢迎回来！你今天很棒。");             // the model forgot [say]: no English to speak
+        english.Finish();
+        Assert.Empty(spoken);
+        Assert.True(Speech.Speaks("en", "Nice one!"));
+        Assert.False(Speech.Speaks("ja", "Nice one!"));
+    }
+
+    [Fact]
+    public async Task Her_reply_tells_the_voice_what_to_say_and_the_bubble_what_to_show()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "Shino is cheerful."), new FakeClock(DateTimeOffset.Now))
+        {
+            VoiceLanguage = "ja",
+        };
+        var model = new FakeModel("[cheer] [say: おかえり", "！] Welcome back! [say: よく頑張", "ったね。] You did well.");
+        var spoken = new List<string>();
+        var shown = new StringBuilder();
+        var speech = new Speech("ja", spoken.Add);
+
+        await conversation.Answer(model, "I'm back", "", words => { shown.Append(words); speech.Text(words); }, speech.Direction);
+        speech.Finish();
+
+        Assert.Equal("Welcome back! You did well.", shown.ToString());
+        Assert.Equal(["おかえり！", "よく頑張ったね。"], spoken);
+        Assert.Contains("your voice speaks Japanese", model.Requests[0][0].Text);
+        Assert.DoesNotContain("say", temp.Store.After("shino", 0).Last().Text);      // the log keeps what was shown
+    }
+
+    [Fact]
+    public void Without_a_voice_the_prompt_says_nothing_about_one() =>
+        Assert.DoesNotContain("[say", Prompt.Build(new Persona("Shino", "x"), "", "", null, [], "", "hi")[0].Text);
+
+    // ---- WAV -------------------------------------------------------------------------------------------------------
+
+    internal static byte[] WavBytes(short[] samples, int rate = 32000, int dataSize = -1)
+    {
+        using var stream = new MemoryStream();
+        using var w = new BinaryWriter(stream);
+        w.Write("RIFF"u8);
+        w.Write(36 + samples.Length * 2);
+        w.Write("WAVEfmt "u8);
+        w.Write(16);
+        w.Write((short)1);
+        w.Write((short)1);
+        w.Write(rate);
+        w.Write(rate * 2);
+        w.Write((short)2);
+        w.Write((short)16);
+        w.Write("data"u8);
+        w.Write(dataSize >= 0 ? dataSize : samples.Length * 2);
+        foreach (var s in samples)
+            w.Write(s);
+        return stream.ToArray();
+    }
+
+    [Fact]
+    public void A_wav_arriving_in_odd_pieces_gives_back_its_samples()
+    {
+        short[] samples = [0, 16384, -16384, 32767, -32768, 100, -100];
+        var bytes = WavBytes(samples, rate: 48000, dataSize: 0);        // a stream's header does not know the length yet
+        var wav = new Wav();
+        var heard = new List<float>();
+        for (var i = 0; i < bytes.Length; i += 5)
+            heard.AddRange(wav.Feed(bytes.AsSpan(i, Math.Min(5, bytes.Length - i))));
+        Assert.Equal(48000, wav.SampleRate);
+        Assert.Equal(samples.Select(s => s / 32768f), heard);
+    }
+
+    // ---- Bringing a voice in ---------------------------------------------------------------------------------------
+
+    private sealed class TempFolder : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "insert-coin-voice-tests", Guid.NewGuid().ToString("N"));
+        public TempFolder() => Directory.CreateDirectory(Path);
+        public string File(string name, byte[]? content = null)
+        {
+            var file = System.IO.Path.Combine(Path, name);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!);
+            System.IO.File.WriteAllBytes(file, content ?? [1, 2, 3]);
+            return file;
+        }
+        public void Dispose() => Directory.Delete(Path, recursive: true);
+    }
+
+    private static byte[] Silence(double seconds) => WavBytes(new short[(int)(32000 * seconds)]);
+
+    /// <summary>How community GPT-SoVITS models come: weights by version, numbered clips and the training list.</summary>
+    private static void CommunityModel(TempFolder download)
+    {
+        download.File("GPT_weights_v4/Kai_V4-e5.ckpt");
+        download.File("GPT_weights_v4/Kai_V4-e10.ckpt");
+        download.File("SoVITS_weights_v4/Kai_V4_e10_s164_l32.pth");
+        download.File("logs/D_2333.pth");
+        download.File("clips/1.wav", Silence(2));
+        download.File("clips/5.wav", Silence(7));
+        download.File("clips/8.wav", Silence(4.5));
+        download.File("Li.list", Encoding.UTF8.GetBytes(
+            "output/slicer_opt/1_vocals.wav|slicer_opt|ZH|今天天气很好\noutput/slicer_opt/5_vocals.wav|slicer_opt|ZH|我们明天见。\n"));
+        download.File("README.md", Encoding.UTF8.GetBytes("---\nlicense: mit\n---\n示例角色 GPT-SoVITS模型\n声音归属：someone"));
+    }
+
+    [Fact]
+    public void A_downloaded_model_comes_in_with_its_latest_weights_and_its_best_clip()
+    {
+        using var download = new TempFolder();
+        using var home = new TempFolder();
+        CommunityModel(download);
+        var folder = System.IO.Path.Combine(home.Path, "kai.voice");
+
+        var voice = VoiceProfile.Import(download.Path, folder);
+
+        Assert.Equal(("Kai_V4-e10.ckpt", "Kai_V4_e10_s164_l32.pth", "v4", "zh"), (voice.Gpt, voice.Sovits, voice.Version, voice.Language));
+        Assert.Equal("我们明天见。", voice.ClipFor(null)!.Text);       // 5.wav: 7 s and its words are known
+        Assert.Equal(7, voice.ClipFor(null)!.Seconds!.Value, 1);
+        Assert.Null(voice.Missing);
+        Assert.True(voice.Slow);
+        Assert.StartsWith("Licence: mit", voice.About);
+        Assert.True(File.Exists(System.IO.Path.Combine(folder, voice.ClipFor(null)!.File)));
+        Assert.Equal(voice, VoiceProfile.Load(folder)! with { Clips = voice.Clips });
+        Assert.Equal(voice.Clips, VoiceProfile.Load(folder)!.Clips);
+    }
+
+    [Fact]
+    public void A_zipped_model_imports_too_and_an_rvc_model_is_turned_away_with_a_reason()
+    {
+        using var download = new TempFolder();
+        using var home = new TempFolder();
+        CommunityModel(download);
+        var zip = System.IO.Path.Combine(home.Path, "Li.zip");
+        ZipFile.CreateFromDirectory(download.Path, zip);
+        Assert.True(VoiceProfile.LooksLikeVoice(zip));
+        Assert.Equal("v4", VoiceProfile.Import(zip, System.IO.Path.Combine(home.Path, "kai.voice")).Version);
+
+        using var rvc = new TempFolder();
+        rvc.File("Elowen/model.pth");
+        rvc.File("Elowen/added_IVF256_Flat_nprobe_1.index");
+        var error = Assert.Throws<InvalidDataException>(() => VoiceProfile.Import(rvc.Path, System.IO.Path.Combine(home.Path, "elowen.voice")));
+        Assert.Contains("RVC", error.Message);
+    }
+
+    [Fact]
+    public void A_clip_alone_is_cloned_and_its_name_can_carry_its_words_and_mood()
+    {
+        using var download = new TempFolder();
+        using var home = new TempFolder();
+        var folder = System.IO.Path.Combine(home.Path, "kai.voice");
+
+        var voice = VoiceProfile.Import(download.File("【开心】今天也要加油哦.wav", Silence(4)), folder);
+        Assert.Equal(("今天也要加油哦", "happy", "zh"), (voice.Clips[0].Text, voice.Clips[0].Mood, voice.Language));
+        Assert.Null(voice.Gpt);
+        Assert.True(voice.Slow);                                  // cloned with the base v4 model
+        Assert.Null(voice.Missing);
+
+        var unnamed = VoiceProfile.Import(download.File("sample01.wav", Silence(5)), folder);
+        Assert.Equal("the words spoken in its clip", unnamed.Missing);
+    }
+
+    [Fact]
+    public void A_clip_dropped_on_a_model_without_clips_joins_it()
+    {
+        using var download = new TempFolder();
+        using var home = new TempFolder();
+        download.File("GPT_weights_v2ProPlus/Sample_JA-e15.ckpt");
+        download.File("SoVITS_weights_v2ProPlus/Sample_JA_e8_s400.pth");
+        var folder = System.IO.Path.Combine(home.Path, "sample.voice");
+
+        var model = VoiceProfile.Import(download.Path, folder);
+        Assert.Equal("a 3 to 10 second clip of the voice", model.Missing);
+        Assert.False(model.Slow);
+
+        var voice = VoiceProfile.Import(download.File("[happy] こんにちは、いい朝だね.wav", Silence(5)), folder);
+        Assert.Equal(("Sample_JA-e15.ckpt", "v2ProPlus", "ja"), (voice.Gpt, voice.Version, voice.Clips.Single().Language));
+        Assert.Equal("happy", voice.ClipFor("happy")!.Mood);
+        Assert.Equal(voice.Clips[0], voice.ClipFor("sad"));        // no sad clip: her only one
+    }
+
+    // ---- The engine --------------------------------------------------------------------------------------------------
+
+    /// <summary>A GPT-SoVITS server that answers from a script and keeps what it was asked.</summary>
+    private sealed class FakeServer(Func<HttpRequestMessage, HttpResponseMessage> answer) : HttpMessageHandler
+    {
+        public List<string> Asked { get; } = [];
+        public List<string> Bodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Asked.Add(request.RequestUri!.PathAndQuery);
+            Bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+            return answer(request);
+        }
+    }
+
+    [Fact]
+    public async Task The_engine_loads_a_voice_once_and_streams_its_speech()
+    {
+        short[] samples = [.. Enumerable.Range(0, 1000).Select(i => (short)(i * 30))];
+        var server = new FakeServer(request => request.RequestUri!.AbsolutePath == "/tts"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(WavBytes(samples, 48000, 0)) }
+            : new HttpResponseMessage(HttpStatusCode.OK));
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+        var clip = new VoiceClip("clips/5.wav", "谁建造它？", "zh");
+
+        await engine.Load(@"D:\kai.voice\a.ckpt", @"D:\kai.voice\b.pth");
+        await engine.Load(@"D:\kai.voice\a.ckpt", @"D:\kai.voice\b.pth");
+        var heard = new List<float>();
+        await foreach (var audio in engine.Speak("おかえり！", "ja", @"D:\kai.voice\clips\5.wav", clip, 16))
+        {
+            Assert.Equal(48000, audio.SampleRate);
+            heard.AddRange(audio.Samples);
+        }
+
+        Assert.Equal(["/set_gpt_weights?weights_path=D%3A%5Ckai.voice%5Ca.ckpt", "/set_sovits_weights?weights_path=D%3A%5Ckai.voice%5Cb.pth", "/tts"], server.Asked);
+        Assert.Equal(samples.Length, heard.Count);
+        var body = server.Bodies[^1];
+        Assert.Contains("\"text_lang\":\"ja\"", body);
+        Assert.Contains("\"prompt_lang\":\"zh\"", body);
+        Assert.Contains("\"sample_steps\":16", body);
+        Assert.Contains("\"streaming_mode\":2", body);
+    }
+
+    [Fact]
+    public async Task What_the_engine_says_went_wrong_comes_through()
+    {
+        var server = new FakeServer(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("""{"message": "tts failed", "Exception": "ref_audio_path not exists"}"""),
+        });
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+
+        var error = await Assert.ThrowsAsync<VoiceException>(async () =>
+        {
+            await foreach (var _ in engine.Speak("hi", "en", "x.wav", new VoiceClip("x.wav", "hello", "en"), 16)) { }
+        });
+        Assert.Equal("tts failed: ref_audio_path not exists", error.Message);
+    }
+}

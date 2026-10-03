@@ -146,22 +146,40 @@ public sealed class Chat : IDisposable
         }
     }
 
-    /// <summary>Sends what the user said and plays her answer on <paramref name="view"/>.</summary>
-    public async Task Ask(string said, string situation, CompanionView view)
+    /// <summary>
+    /// Sends what the user said and plays her answer on <paramref name="view"/>; with <paramref name="speech"/>, her
+    /// voice says it too (and she is told how her voice works).
+    /// </summary>
+    public async Task Ask(string said, string situation, CompanionView view, Speech? speech = null)
     {
         if (_client is null || _conversation is null || _answering is not null)
             return;
         var client = _client;
         var conversation = _conversation;
+        conversation.VoiceLanguage = speech?.Language;
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         try
         {
             view.BeginReply();
             await conversation.Answer(client, said, situation,
-                                      words => { if (Here()) view.Continue(words); },
-                                      (name, _) => { if (Here()) Act(view, name); },
+                                      words =>
+                                      {
+                                          if (!Here())
+                                              return;
+                                          view.Continue(words);
+                                          speech?.Text(words);
+                                      },
+                                      (name, payload) =>
+                                      {
+                                          if (!Here())
+                                              return;
+                                          Act(view, name);
+                                          speech?.Direction(name, payload);
+                                      },
                                       answering.Token);
+            if (Here())
+                speech?.Finish();
         }
         catch (Exception e)
         {

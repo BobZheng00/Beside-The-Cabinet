@@ -19,6 +19,8 @@ public sealed record AppSettings
     public string? ChatBaseUrl { get; init; }           // the provider's server; the API key is stored apart, encrypted
     public string? ChatModel { get; init; }
     public string? MemorySearch { get; init; }          // a local model's name, "words" for shared words only; unset: the best one present
+    public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
+    public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
 }

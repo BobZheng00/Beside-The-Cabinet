@@ -66,5 +66,13 @@ Seams that exist today: `Lines.For` / `Lines.Status` produce what she says, `Com
 4. Embeddings for memory search: the provider's embeddings endpoint, or a small local model.
 5. Speech: which text-to-speech (provider or local), a voice per character, and speech-to-text for
    voice-to-voice.
+   *Researched:* [../research/2026-10-02-companion-voice.md](../research/2026-10-02-companion-voice.md).
+   *Decided:* as with 3D models, players recreate anime and game characters. They either **download a voice
+   model someone else made** or, if they can, **clone one themselves**; that is the main path. **No
+   lower-quality voices** (Windows voices, small fixed-voice models): without a proper voice she stays
+   text-only. Bringing a key for ElevenLabs or another supported platform is a secondary path. Voice comes
+   first; listening (voice-to-voice) follows. Each character's voice speaks a language the player sets
+   (Japanese, English or Chinese), and the bubble stays in the language the player wrote in, like a subtitled
+   anime.
 6. Unprompted remarks: how often, and whether she ever starts a conversation herself.
 7. Showing the user what is sent and what it costs.
