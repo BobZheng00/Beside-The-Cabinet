@@ -87,6 +87,7 @@ public partial class Main : Node2D
         AddChild(_cabinet);
         _cabinet.Build(skin);
         _chat = new Chat(dataDir);
+        _chat.UseSearch(_settings.MemorySearch);           // remembered first, so connecting loads the right model
         _chat.Connect(ChatProvider());
         ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();
@@ -353,7 +354,7 @@ public partial class Main : Node2D
             try
             {
                 _companion.Build(_cabinet.Skin, character);
-                _chat.Seat(character.Id, character.Persona());
+                _chat.Seat(character.Id, character.Persona(_charactersDir, _settings.Username));
             }
             catch (Exception e)
             {
@@ -390,7 +391,9 @@ public partial class Main : Node2D
             Access = FileDialog.AccessEnum.Filesystem,
             UseNativeDialog = true,
             CurrentDir = OS.GetSystemDir(OS.SystemDir.Downloads),
-            Filters = ["*.vrm, *.glb, *.gltf, *.zip ; 3D characters (VRM, glTF, or a zip holding one)"],
+            Filters = ["*.vrm, *.glb, *.gltf, *.zip, *.png, *.json ; Characters and character cards",
+                       "*.vrm, *.glb, *.gltf, *.zip ; 3D characters (VRM, glTF, or a zip holding one)",
+                       "*.png, *.json ; Character cards (SillyTavern style) for whoever is on the stool"],
         };
         dialog.FileSelected += path =>
         {
@@ -404,14 +407,23 @@ public partial class Main : Node2D
         dialog.PopupCentered();
     }
 
-    /// <summary>Copies models (picked or dropped) into the user's characters folder and seats the first of them.</summary>
+    /// <summary>
+    /// Copies models (picked or dropped) into the user's characters folder and seats the first of them. A character
+    /// card goes to whoever is on the stool instead (a model dropped with it first), who then greets as the card says.
+    /// </summary>
     private void AddCharacters(string[] paths)
     {
         var added = new List<string>();
-        foreach (var path in paths)
+        var cards = new List<string>();
+        foreach (var path in paths.OrderBy(p => Path.GetExtension(p).ToLowerInvariant() is ".png" or ".json"))     // models first
             try
             {
-                if (CharacterFiles.Import(path, _charactersDir) is { } id)
+                if (Path.GetExtension(path).ToLowerInvariant() is ".png" or ".json")
+                {
+                    if ((added.FirstOrDefault() ?? OnStool()?.Id) is { } who && CharacterFiles.ImportCard(path, _charactersDir, who) is { } name)
+                        cards.Add(name);
+                }
+                else if (CharacterFiles.Import(path, _charactersDir) is { } id)
                     added.Add(id);
             }
             catch (Exception e)
@@ -419,16 +431,28 @@ public partial class Main : Node2D
                 // an unreadable or half-downloaded file must not take the cabinet down with it
                 GD.PrintErr($"Adding '{path}': {e.Message}");
             }
-        if (added.Count == 0)
+        if (added.Count == 0 && cards.Count == 0)
         {
-            _cabinet.Screen.Flash("NO GO", "ONLY .VRM, .GLB OR .GLTF", 4.0);
+            _cabinet.Screen.Flash("NO GO", "ONLY .VRM, .GLB, .GLTF OR A CHARACTER CARD", 4.0);
             return;
         }
-        _tray.SetCharacters(Characters(), added[0]);
+        if (added.Count > 0)
+            _tray.SetCharacters(Characters(), added[0]);
         SaveSettings(_settings with { ShowCompanion = true });
-        Seat(added[0]);
+        Seat(added.FirstOrDefault() ?? OnStool()!.Value.Id);        // seated again, so a new card takes effect
         Lively(6);
         _companion?.Play(Moment.Greet);
+        if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)
+            GetTree().CreateTimer(0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
+    }
+
+    /// <summary>The first sentence of a card's greeting, without its *actions*, if it is short enough for the bubble.</summary>
+    private static string? FirstLine(string greeting)
+    {
+        var spoken = System.Text.RegularExpressions.Regex.Replace(greeting, @"\*[^*]*\*", " ").Trim();
+        var end = spoken.IndexOfAny(['.', '!', '?', '。', '！', '？', '\n']);
+        var line = (end >= 0 ? spoken[..(end + 1)] : spoken).Trim();
+        return line.Length is > 1 and <= 140 ? line : null;
     }
 
     /// <summary>A line in her speech bubble, unless the user has asked for quiet.</summary>
@@ -496,10 +520,14 @@ public partial class Main : Node2D
             return;
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Name);
-        _chatSettings.Saved += provider =>
+        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.MemorySearch);
+        _chatSettings.Saved += (provider, search) =>
         {
-            SaveSettings(_settings with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
+            SaveSettings(_settings with
+            {
+                ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
+            });
+            _chat.UseSearch(search);
             _chat.Connect(provider);
         };
         _chatSettings.Open();

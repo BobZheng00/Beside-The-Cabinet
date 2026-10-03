@@ -6,11 +6,14 @@ namespace InsertCoin.Mind;
 /// <summary>Something remembered for the moment, as it is put in front of her.</summary>
 public sealed record Memory(string Text, long? FactId = null);
 
+/// <summary>What the player said and what her facts and episodes mean, as vectors from one embedding model.</summary>
+public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]> Episodes);
+
 /// <summary>
-/// Picks what she remembers when the player says something: facts, episodes and old lines of the conversation that
-/// share words with it, ranked by relevance + recency + importance (Generative Agents). Words are compared as
-/// they are written; Chinese and Japanese, which have no spaces, as overlapping pairs of characters. Search by
-/// meaning (embeddings) can replace the relevance part later without changing the rest.
+/// Picks what she remembers when the player says something: facts, episodes and old lines of the conversation,
+/// ranked by relevance + retention + importance (Generative Agents, with MemoryBank's forgetting curve in place of
+/// plain recency). Relevance is the stronger of shared words (Chinese and Japanese, which have no spaces, as
+/// overlapping pairs of characters) and, when a local model is loaded, closeness in meaning. Faded facts are left out.
 /// </summary>
 public static class Recall
 {
@@ -26,41 +29,48 @@ public static class Recall
     ];
 
     public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Episode> episodes, IReadOnlyList<Line> oldLines,
-                                             string name, DateTimeOffset now)
+                                             string name, DateTimeOffset now, Meaning? meaning = null)
     {
         var query = Terms(said).ToHashSet();
         query.ExceptWith(Terms(name));                      // her own name says nothing about what to remember
-        var candidates = new List<(Memory Memory, HashSet<string> Terms, DateTimeOffset At, int Importance, bool Old, bool Pinned)>();
-        foreach (var fact in facts)
-            candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), fact.Recalled ?? fact.Learned, fact.Importance, false, fact.Pinned));
+        var candidates = new List<(Memory Memory, HashSet<string> Terms, float[]? Vector, double Retention, int Importance, bool Old, bool Pinned)>();
+        foreach (var fact in facts.Where(f => !f.Faded(now)))
+            candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
+                            fact.Retention(now), fact.Importance, false, fact.Pinned));
         foreach (var episode in episodes)
-            candidates.Add((new Memory($"{episode.At.ToString("ddd d MMM", English)}: {episode.Text}"), Terms(episode.Text).ToHashSet(), episode.At, 5, false, false));
+            candidates.Add((new Memory($"{(episode.Week ? "Week of " + episode.At.ToString("d MMM", English) : episode.At.ToString("ddd d MMM", English))}: {episode.Text}"),
+                            Terms(episode.Text).ToHashSet(),
+                            meaning?.Episodes.GetValueOrDefault(episode.Id), Math.Exp(-(now - episode.At).TotalDays / 60), 5, false, false));
         foreach (var line in oldLines.Where(l => l.Speaker != Speaker.Cabinet))
             candidates.Add((new Memory($"On {line.At.ToString("ddd d MMM", English)} {(line.Speaker == Speaker.User ? "the player" : name)} said: \"{line.Text}\""),
-                            Terms(line.Text).ToHashSet(), line.At, 3, true, false));
+                            Terms(line.Text).ToHashSet(), null, Math.Exp(-(now - line.At).TotalDays / 60), 3, true, false));
         if (candidates.Count == 0)
             return [];
 
-        // rarer words count for more
+        // shared words: rarer words count for more, scored against the best match
         var documents = candidates.Count;
         var seenIn = new Dictionary<string, int>();
         foreach (var term in candidates.SelectMany(c => c.Terms))
             seenIn[term] = seenIn.GetValueOrDefault(term) + 1;
         double Weight(string term) => Math.Log(1 + documents / (double)seenIn.GetValueOrDefault(term, 1));
+        var overlaps = candidates.Select(c => c.Terms.Where(query.Contains).Sum(Weight) / Math.Sqrt(Math.Max(c.Terms.Count, 1))).ToList();
+        var bestOverlap = overlaps.Max();
+        // meaning: closeness to the query, read against the best match (see EmbeddingModel)
+        var cosines = candidates.Select(c => c.Vector is { } v && meaning is not null ? LocalEmbedder.Cosine(meaning.Query, v) : (float?)null).ToList();
+        var bestCosine = cosines.Max() ?? 0;
 
-        var scored = candidates.Select(c =>
+        var scored = candidates.Select((c, i) =>
         {
-            var overlap = c.Terms.Where(query.Contains).Sum(Weight) / Math.Sqrt(Math.Max(c.Terms.Count, 1));
-            return (c.Memory, c.Old, c.Pinned, Overlap: overlap, c.At, c.Importance);
+            var words = bestOverlap > 0 ? overlaps[i] / bestOverlap : 0;
+            var meant = cosines[i] is { } cos ? meaning!.Model.Relevance(cos, bestCosine) : 0;
+            return (c.Memory, c.Old, c.Pinned, Relevance: Math.Max(words, meant), c.Retention, c.Importance);
         }).ToList();
-        var best = scored.Max(s => s.Overlap);
         var chosen = new List<Memory>();
         var used = 0;
         var quoted = 0;
         foreach (var s in scored
-                     .Where(s => s.Pinned || (best > 0 && s.Overlap / best >= 0.3))
-                     .OrderByDescending(s => (s.Pinned ? 2 : 0) + (best > 0 ? s.Overlap / best : 0)
-                                             + 0.5 * Math.Exp(-(now - s.At).TotalDays / 30) + 0.3 * s.Importance / 10.0))
+                     .Where(s => s.Pinned || s.Relevance >= 0.3)
+                     .OrderByDescending(s => (s.Pinned ? 2 : 0) + s.Relevance + 0.5 * s.Retention + 0.3 * s.Importance / 10.0))
         {
             if (s.Old && ++quoted > MaxOldLines)
                 continue;

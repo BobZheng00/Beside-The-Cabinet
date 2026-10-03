@@ -129,7 +129,9 @@ public partial class SpeechBubble : Node2D
         Position = _tip;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
         _label.Size = new Vector2(width, size.Y);
-        _shape = Outline(rect, Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf));
+        // no room above her head for the tail (the box had to stop at the top of the canvas): a plain box, not a folded tail
+        var tail = rect.End.Y <= -TailHeight / 2 ? Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf) : (float?)null;
+        _shape = Outline(rect, tail);
         QueueRedraw();
     }
 
@@ -168,8 +170,8 @@ public partial class SpeechBubble : Node2D
         _tween.TweenCallback(Callable.From(() => Visible = false));
     }
 
-    /// <summary>A rounded box with a tail from its bottom edge down to the origin, as one clockwise outline.</summary>
-    private static Vector2[] Outline(Rect2 box, float tailX)
+    /// <summary>A rounded box with a tail from its bottom edge down to the origin (unless there is none), as one clockwise outline.</summary>
+    private static Vector2[] Outline(Rect2 box, float? tailX)
     {
         var points = new List<Vector2>();
         void Round(Vector2 centre, float fromDegrees)
@@ -183,9 +185,12 @@ public partial class SpeechBubble : Node2D
         Round(box.Position + new Vector2(Corner, Corner), 180);
         Round(new Vector2(box.End.X - Corner, box.Position.Y + Corner), 270);
         Round(box.End - new Vector2(Corner, Corner), 0);
-        points.Add(new Vector2(tailX + TailHalf, box.End.Y));
-        points.Add(new Vector2(0, -2));
-        points.Add(new Vector2(tailX - TailHalf, box.End.Y));
+        if (tailX is { } x)
+        {
+            points.Add(new Vector2(x + TailHalf, box.End.Y));
+            points.Add(new Vector2(0, -2));
+            points.Add(new Vector2(x - TailHalf, box.End.Y));
+        }
         Round(new Vector2(box.Position.X + Corner, box.End.Y - Corner), 90);
         return [.. points];
     }

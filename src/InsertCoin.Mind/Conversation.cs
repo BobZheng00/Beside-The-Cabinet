@@ -14,8 +14,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public const int FoldAbove = 4000, KeepVerbatim = 1500;
     /// <summary>How long a conversation stays quiet before upkeep reads it, and how much it reads at once (tokens).</summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
+    /// <summary>How old day-by-day moments get before they are combined into weekly ones.</summary>
+    public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14);
     public const int DigestAtOnce = 3000;
-    private const int KeepLines = 6, SummaryLimit = 2400, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3;
+    private const int KeepLines = 6, SummaryLimit = 2400, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
@@ -25,6 +27,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     public string Character => character;
     public Persona Persona => persona;
+
+    /// <summary>The local model for search by meaning, when one is loaded; without it she recalls by shared words.</summary>
+    public LocalEmbedder? Embedder { get; set; }
 
     /// <summary>
     /// Streams her answer to <paramref name="said"/>: shown text through <paramref name="text"/>, stage directions
@@ -39,10 +44,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var folded = summary?.Through ?? 0;
         // what she remembers: facts, episodes and old lines no longer in the verbatim part of the conversation
         var memories = Recall.Find(said, store.Facts(character), store.Episodes(character).Where(e => e.Last <= folded).ToList(),
-                                   folded > 0 ? store.Through(character, folded, 3000) : [], persona.Name, now);
+                                   folded > 0 ? store.Through(character, folded, 3000) : [], persona.Name, now, await MeaningOf(said, cancel));
         store.Recalled(memories.Where(m => m.FactId is not null).Select(m => m.FactId!.Value), now);
+        var recent = store.After(character, folded);
+        // a character card's lorebook: background whose keys came up just now (or in the last couple of lines)
+        var lore = new List<Memory>();
+        var loreUsed = 0;
+        foreach (var entry in persona.LoreFor(string.Join("\n", recent.TakeLast(2).Select(l => l.Text).Append(said))))
+            if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
+                lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, store.After(character, folded), situation, said, memories);
+                                    summary, recent, situation, said, [.. lore, .. memories]);
         store.Add(character, Speaker.User, said.Trim(), now);
 
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep
@@ -103,6 +115,45 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return false;
         store.Fold(character, folded.Length > SummaryLimit ? folded[..SummaryLimit] : folded, fold[^1].Id, _clock.GetLocalNow());
         return true;
+    }
+
+    /// <summary>What the player said and her stored facts and episodes as vectors, or null without a model (or if it fails).</summary>
+    private async Task<Meaning?> MeaningOf(string said, CancellationToken cancel)
+    {
+        if (Embedder is not { } embedder)
+            return null;
+        try
+        {
+            var query = await Task.Run(() => embedder.Embed(said, query: true), cancel);
+            return new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name),
+                               store.Vectors(MindStore.EpisodeKind, embedder.Model.Name));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return null;                    // the model being swapped, say: shared words will do for this once
+        }
+    }
+
+    /// <summary>
+    /// Gives facts and episodes without a vector from the loaded model one, a batch at a time (the model runs off the
+    /// calling thread; the store is written on it). Returns how many were done.
+    /// </summary>
+    public async Task<int> Index(int batch = 64, CancellationToken cancel = default)
+    {
+        if (Embedder is not { } embedder)
+            return 0;
+        var model = embedder.Model.Name;
+        var haveFacts = store.Vectors(MindStore.FactKind, model);
+        var haveEpisodes = store.Vectors(MindStore.EpisodeKind, model);
+        var todo = store.Facts(character).Where(f => !haveFacts.ContainsKey(f.Id)).Select(f => (Kind: MindStore.FactKind, f.Id, f.Text))
+            .Concat(store.Episodes(character).Where(e => !haveEpisodes.ContainsKey(e.Id)).Select(e => (Kind: MindStore.EpisodeKind, e.Id, e.Text)))
+            .Take(batch).ToList();
+        if (todo.Count == 0)
+            return 0;
+        var vectors = await Task.Run(() => todo.Select(t => embedder.Embed(t.Text, query: false)).ToList(), cancel);
+        for (var i = 0; i < todo.Count; i++)
+            store.SetVector(todo[i].Kind, todo[i].Id, model, vectors[i]);
+        return todo.Count;
     }
 
     /// <summary>The player has said something upkeep has not read yet, and the conversation has been quiet for <paramref name="quiet"/>.</summary>
@@ -177,6 +228,33 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         foreach (var scope in touched)
             await RewriteNote(client, scope, cancel);
         return true;
+    }
+
+    /// <summary>
+    /// Weekly digest: day-by-day moments older than <see cref="WeeksAfter"/> are combined, the oldest week first and
+    /// one week per call, into a single moment for that week. Returns false when there was nothing to combine.
+    /// </summary>
+    public async Task<bool> Consolidate(IChatClient client, CancellationToken cancel = default)
+    {
+        var now = _clock.GetLocalNow();
+        var week = store.Episodes(character).Where(e => !e.Week && now - e.At > WeeksAfter)
+            .GroupBy(e => MondayOf(e.At)).Where(g => g.Count() >= 2).OrderBy(g => g.Key).FirstOrDefault();
+        if (week is null)
+            return false;
+        var response = await client.GetResponseAsync(Upkeep.Week(persona, week.Key, week), FoldOptions, cancel);
+        var text = response.Text.Trim();
+        if (text.Length == 0)
+            return false;
+        store.AddEpisode(character, text, week.Min(e => e.First), week.Max(e => e.Last), week.Min(e => e.At), week: true);
+        foreach (var moment in week)
+            store.DeleteEpisode(moment.Id);
+        return true;
+    }
+
+    public static DateOnly MondayOf(DateTimeOffset at)
+    {
+        var day = DateOnly.FromDateTime(at.DateTime);
+        return day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
     }
 
     /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it.</summary>

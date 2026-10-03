@@ -11,16 +11,17 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class ChatSettings : Window
 {
-    /// <summary>The provider chosen (null: none) after Save; the key is already stored by then.</summary>
-    public event Action<Provider?>? Saved;
+    /// <summary>The provider chosen (null: none) and the memory search (see <see cref="Chat.UseSearch"/>) after Save; the key is already stored by then.</summary>
+    public event Action<Provider?, string>? Saved;
 
     private Chat _chat = null!;
-    private OptionButton _preset = null!;
+    private OptionButton _preset = null!, _search = null!;
+    private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
     private Label _result = null!;
     private Protocol _protocol;
 
-    public void Build(Chat chat, Provider? current, string characterName)
+    public void Build(Chat chat, Provider? current, string characterName, string? search)
     {
         _chat = chat;
         Title = $"Talk with {characterName}";
@@ -62,6 +63,25 @@ public partial class ChatSettings : Window
         test.AddChild(_result);
         column.AddChild(test);
 
+        // how she finds what to remember: a local model (by meaning, any language it knows) or shared words only
+        column.AddChild(new HSeparator());
+        var memory = new GridContainer { Columns = 2 };
+        memory.AddThemeConstantOverride("h_separation", 12);
+        _search = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        foreach (var model in Chat.Searchable())
+        {
+            _search.AddItem(model.Label);
+            _searches.Add(model.Name);
+        }
+        _search.AddItem("Shared words only (no model, least memory)");
+        _searches.Add(Chat.WordsOnly);
+        var chosen = _searches.IndexOf(search ?? "");
+        _search.Select(chosen >= 0 ? chosen : 0);
+        Row(memory, "Memory search", _search);
+        column.AddChild(memory);
+        column.AddChild(Hint("How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
+                             "The multilingual model understands the most languages; the small one uses less memory."));
+
         column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 10);
@@ -88,7 +108,7 @@ public partial class ChatSettings : Window
         }
     }
 
-    public void Open() => Paper.Open(this, new Vector2(540, 400));
+    public void Open() => Paper.Open(this, new Vector2(540, 500));
 
     private void UsePreset(Preset preset, bool keepFields)
     {
@@ -132,7 +152,7 @@ public partial class ChatSettings : Window
     {
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
-        Saved?.Invoke(Chosen());
+        Saved?.Invoke(Chosen(), _searches[_search.Selected]);
         QueueFree();
     }
 

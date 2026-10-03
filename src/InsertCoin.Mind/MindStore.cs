@@ -13,12 +13,25 @@ public sealed record Summary(string Text, long Through);
 
 /// <summary>
 /// Something she knows: about the player (<see cref="MindStore.Shared"/> scope, every character knows it) or about
-/// the two of them (a character's id). Importance 1–10; recalled is when it last came up in a conversation.
+/// the two of them (a character's id). Importance 1–10; recalled is when it last came up in a conversation, recalls
+/// how often it has.
 /// </summary>
-public sealed record Fact(long Id, string Scope, string Text, int Importance, DateTimeOffset Learned, DateTimeOffset? Recalled, bool Pinned);
+public sealed record Fact(long Id, string Scope, string Text, int Importance, DateTimeOffset Learned, DateTimeOffset? Recalled, bool Pinned,
+                          int Recalls = 0)
+{
+    /// <summary>
+    /// How well she still remembers it, 1 down to 0: MemoryBank's forgetting curve, e^(-t/S), where t is the days
+    /// since it last came up and the strength S grows with importance and with every recall.
+    /// </summary>
+    public double Retention(DateTimeOffset now) =>
+        Pinned || Importance >= 9 ? 1 : Math.Exp(-(now - (Recalled ?? Learned)).TotalDays / (10.0 * Importance * (1 + Recalls)));
 
-/// <summary>A dated summary of one stretch of conversation, lines <see cref="First"/> to <see cref="Last"/>.</summary>
-public sealed record Episode(long Id, string Text, long First, long Last, DateTimeOffset At);
+    /// <summary>Faded: left out of what she recalls (it stays in the memory book, and pinning brings it back).</summary>
+    public bool Faded(DateTimeOffset now) => Retention(now) < 0.1;
+}
+
+/// <summary>A dated summary of one stretch of conversation, lines <see cref="First"/> to <see cref="Last"/>; a week's worth when <see cref="Week"/>.</summary>
+public sealed record Episode(long Id, string Text, long First, long Last, DateTimeOffset At, bool Week = false);
 
 /// <summary>
 /// Everything she remembers, in one SQLite file in the profile folder: each character's conversation (one continuous
@@ -53,8 +66,58 @@ public sealed class MindStore : IDisposable
             CREATE TABLE IF NOT EXISTS episodes (
                 id INTEGER PRIMARY KEY, character TEXT NOT NULL, text TEXT NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL, at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS digested (character TEXT PRIMARY KEY, through INTEGER NOT NULL);
-            PRAGMA user_version = 2;
+            CREATE TABLE IF NOT EXISTS vectors (
+                kind TEXT NOT NULL, id INTEGER NOT NULL, model TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (kind, id, model));
             """);
+        // version 3: facts count their recalls (a file from version 2 gets the column)
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('facts') WHERE name = 'recalls'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE facts ADD COLUMN recalls INTEGER NOT NULL DEFAULT 0");
+        // version 4: episodes can be a week's digest
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('episodes') WHERE name = 'week'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE episodes ADD COLUMN week INTEGER NOT NULL DEFAULT 0");
+        Run("PRAGMA user_version = 4");
+    }
+
+    // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
+
+    public const string FactKind = "fact", EpisodeKind = "episode";
+
+    public void SetVector(string kind, long id, string model, float[] vector)
+    {
+        var bytes = new byte[vector.Length * sizeof(float)];
+        Buffer.BlockCopy(vector, 0, bytes, 0, bytes.Length);
+        using var command = Command("INSERT OR REPLACE INTO vectors (kind, id, model, vector) VALUES ($k, $i, $m, $v)",
+            ("$k", kind), ("$i", id), ("$m", model), ("$v", bytes));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>The vectors a model has made for facts or episodes, by id.</summary>
+    public Dictionary<long, float[]> Vectors(string kind, string model)
+    {
+        using var command = Command("SELECT id, vector FROM vectors WHERE kind = $k AND model = $m", ("$k", kind), ("$m", model));
+        using var reader = command.ExecuteReader();
+        var vectors = new Dictionary<long, float[]>();
+        while (reader.Read())
+        {
+            var bytes = (byte[])reader[1];
+            var vector = new float[bytes.Length / sizeof(float)];
+            Buffer.BlockCopy(bytes, 0, vector, 0, bytes.Length);
+            vectors[reader.GetInt64(0)] = vector;
+        }
+        return vectors;
+    }
+
+    /// <summary>Drops vectors whose fact or episode is gone or has changed (it gets a new one at the next indexing).</summary>
+    private void DropVectors(string kind, long? id = null)
+    {
+        using var command = id is { } one
+            ? Command("DELETE FROM vectors WHERE kind = $k AND id = $i", ("$k", kind), ("$i", one))
+            : Command(kind == FactKind
+                ? "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM facts)"
+                : "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM episodes)", ("$k", kind));
+        command.ExecuteNonQuery();
     }
 
     // ---- Facts -----------------------------------------------------------------------------------------------------
@@ -71,6 +134,7 @@ public sealed class MindStore : IDisposable
         using var command = Command("UPDATE facts SET text = $t, importance = coalesce($i, importance) WHERE id = $id",
             ("$id", id), ("$t", text.Trim()), ("$i", importance is { } i ? Math.Clamp(i, 1, 10) : DBNull.Value));
         command.ExecuteNonQuery();
+        DropVectors(FactKind, id);
     }
 
     public void PinFact(long id, bool pinned)
@@ -83,46 +147,48 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("DELETE FROM facts WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
+        DropVectors(FactKind, id);
     }
 
     /// <summary>What this character knows: facts about the player and about the two of them.</summary>
     public IReadOnlyList<Fact> Facts(string character)
     {
-        using var command = Command("SELECT id, scope, text, importance, learned, recalled, pinned FROM facts WHERE scope IN ($s, $c) ORDER BY id",
+        using var command = Command("SELECT id, scope, text, importance, learned, recalled, pinned, recalls FROM facts WHERE scope IN ($s, $c) ORDER BY id",
             ("$s", Shared), ("$c", character));
         using var reader = command.ExecuteReader();
         var facts = new List<Fact>();
         while (reader.Read())
             facts.Add(new Fact(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3), Parse(reader.GetString(4)),
-                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), reader.GetInt32(6) != 0));
+                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), reader.GetInt32(6) != 0, reader.GetInt32(7)));
         return facts;
     }
 
+    /// <summary>These facts came up again: they count as fresh and a little stronger.</summary>
     public void Recalled(IEnumerable<long> ids, DateTimeOffset at)
     {
         foreach (var id in ids)
         {
-            using var command = Command("UPDATE facts SET recalled = $a WHERE id = $id", ("$id", id), ("$a", Stamp(at)));
+            using var command = Command("UPDATE facts SET recalled = $a, recalls = recalls + 1 WHERE id = $id", ("$id", id), ("$a", Stamp(at)));
             command.ExecuteNonQuery();
         }
     }
 
     // ---- Episodes and upkeep ---------------------------------------------------------------------------------------
 
-    public long AddEpisode(string character, string text, long first, long last, DateTimeOffset at)
+    public long AddEpisode(string character, string text, long first, long last, DateTimeOffset at, bool week = false)
     {
-        using var command = Command("INSERT INTO episodes (character, text, first, last, at) VALUES ($c, $t, $f, $l, $a) RETURNING id",
-            ("$c", character), ("$t", text.Trim()), ("$f", first), ("$l", last), ("$a", Stamp(at)));
+        using var command = Command("INSERT INTO episodes (character, text, first, last, at, week) VALUES ($c, $t, $f, $l, $a, $w) RETURNING id",
+            ("$c", character), ("$t", text.Trim()), ("$f", first), ("$l", last), ("$a", Stamp(at)), ("$w", week ? 1 : 0));
         return (long)command.ExecuteScalar()!;
     }
 
     public IReadOnlyList<Episode> Episodes(string character)
     {
-        using var command = Command("SELECT id, text, first, last, at FROM episodes WHERE character = $c ORDER BY id", ("$c", character));
+        using var command = Command("SELECT id, text, first, last, at, week FROM episodes WHERE character = $c ORDER BY at, id", ("$c", character));
         using var reader = command.ExecuteReader();
         var episodes = new List<Episode>();
         while (reader.Read())
-            episodes.Add(new Episode(reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), Parse(reader.GetString(4))));
+            episodes.Add(new Episode(reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), Parse(reader.GetString(4)), reader.GetInt32(5) != 0));
         return episodes;
     }
 
@@ -130,6 +196,7 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("DELETE FROM episodes WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
+        DropVectors(EpisodeKind, id);
     }
 
     /// <summary>The last line of this character's conversation that upkeep has read (0: none).</summary>
@@ -224,6 +291,8 @@ public sealed class MindStore : IDisposable
             DELETE FROM facts WHERE scope = $c; DELETE FROM episodes WHERE character = $c; DELETE FROM digested WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
+        DropVectors(FactKind);
+        DropVectors(EpisodeKind);
     }
 
     /// <summary>Forgets what every character knows about the player: the shared note and facts.</summary>
@@ -231,6 +300,7 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s;", ("$s", Shared));
         command.ExecuteNonQuery();
+        DropVectors(FactKind);
     }
 
     public void Dispose() => _db.Dispose();

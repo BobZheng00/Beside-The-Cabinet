@@ -82,6 +82,12 @@ public partial class MemoryBook : Window
         var whose = new Label { Text = fact.Scope == MindStore.Shared ? "you" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) };
         var text = new LineEdit { Text = fact.Text, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = $"Learned {Day(fact.Learned)}, importance {fact.Importance}/10" };
         var pin = new CheckBox { Text = "pin", ButtonPressed = fact.Pinned, TooltipText = "Always in mind, and upkeep leaves it alone" };
+        if (fact.Faded(DateTimeOffset.Now))
+        {
+            // forgotten for now: it has not come up in a long time; pinning brings it back
+            text.Modulate = new Color(1, 1, 1, 0.5f);
+            text.TooltipText += ". Faded: it has not come up in a long time, so she no longer recalls it. Pin it to keep it.";
+        }
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this" };
         delete.Pressed += () => { _deletedFacts.Add(fact.Id); row.QueueFree(); };
         row.AddChild(whose);
@@ -96,7 +102,8 @@ public partial class MemoryBook : Window
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-        row.AddChild(new Label { Text = Day(episode.At), ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0) });
+        var when = episode.Week ? "Week of " + episode.At.ToString("d MMM", CultureInfo.InvariantCulture) : Day(episode.At);
+        row.AddChild(new Label { Text = when, ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart });
         row.AddChild(new Label { Text = episode.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
         delete.Pressed += () => { _deletedEpisodes.Add(episode.Id); row.QueueFree(); };

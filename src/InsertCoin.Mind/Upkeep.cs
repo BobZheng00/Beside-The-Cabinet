@@ -82,6 +82,15 @@ public static class Upkeep
         new(ChatRole.User, $"The note now:\n{(note.Trim().Length > 0 ? note.Trim() : "(empty)")}\n\nFacts:\n{string.Join("\n", facts.Select(f => $"- {f.Text}"))}"),
     ];
 
+    /// <summary>The request that combines a week's moments into one (weekly digest).</summary>
+    public static List<ChatMessage> Week(Persona persona, DateOnly monday, IEnumerable<Episode> moments) =>
+    [
+        new(ChatRole.System, $"""
+            You keep the memory of a player and {persona.Name}, a companion who sits beside the player's arcade cabinet. Combine the moments below, all from the week starting {monday.ToString("dddd d MMMM yyyy", English)}, into one summary of two to four sentences. Keep what will matter later (events, plans, feelings, how the two got along), in the language the moments are in. Output only the summary.
+            """),
+        new(ChatRole.User, string.Join("\n", moments.Select(e => $"- {e.At.ToString("ddd d MMM", English)}: {e.Text}"))),
+    ];
+
     private static string Transcript(Persona persona, IEnumerable<Line> lines) => string.Join("\n", lines.Select(line =>
         $"[{line.At.ToString("ddd d MMM yyyy HH:mm", English)}] " + line.Speaker switch
         {

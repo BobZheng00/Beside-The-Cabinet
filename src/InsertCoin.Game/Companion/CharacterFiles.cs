@@ -60,6 +60,26 @@ public static class CharacterFiles
         }
     }
 
+    /// <summary>
+    /// Gives a character a card (a SillyTavern-style .png or .json): copied into the characters folder as
+    /// <c>&lt;id&gt;.card.png</c> or <c>.json</c>, replacing any card it had. Returns the card's name, or null when the
+    /// file holds no card (a plain picture, say).
+    /// </summary>
+    public static string? ImportCard(string path, string userFolder, string characterId)
+    {
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        if (extension is not (".png" or ".json") || InsertCoin.Mind.CharacterCard.Read(File.ReadAllBytes(path)) is not { } card)
+            return null;
+        var target = Path.Combine(userFolder, characterId + ".card" + extension);
+        if (Same(path, target))
+            return card.Name;                       // that is the card she has already
+        Directory.CreateDirectory(userFolder);
+        foreach (var old in new[] { ".card.png", ".card.json" }.Select(e => Path.Combine(userFolder, characterId + e)).Where(File.Exists))
+            File.Delete(old);                       // one card per character: the new one replaces it
+        File.Copy(path, target, overwrite: true);
+        return card.Name;
+    }
+
     /// <summary>The first model in a folder or below, preferring the formats that carry the most.</summary>
     private static string? FindModel(string folder) =>
         CompanionView.Formats.SelectMany(format => Directory.EnumerateFiles(folder, format, SearchOption.AllDirectories)).FirstOrDefault();

@@ -141,8 +141,13 @@ whose output does not parse is skipped and retried later; nothing is lost becaus
 2. **Remember** (built 2026-10-02, tested with a fake model and a local mock server): `[note]` with its motion
    (a notebook and pencil), upkeep (episodes, facts, reconcile, core rewrite), search over facts, episodes and the
    raw log (word overlap, Chinese by character pairs), memory book.
-3. **Remember better:** local embeddings (after a spike in the export), forgetting curve, weekly digests,
-   character card + lorebook import.
+3. **Remember better** (built 2026-10-02): local embeddings, forgetting curve, weekly digests, character card +
+   lorebook import. The user chose the multilingual model (multilingual-e5-small, 113 MB) as the default and asked
+   for bge-small-zh-v1.5 (23 MB) as a lighter choice; both run in-process with ONNX Runtime. Measured: both rank a
+   related fact above an unrelated one in 6 of 6 English, Chinese and mixed cases; 4.8 and 2.5 ms a text; the
+   app's working set grows by about 200 and 50 MB (after loading from a file with basic graph optimisation and no
+   weight prepacking, which halved the multilingual model's cost). Their scores are read relative to the best match
+   with a per-model floor, since absolute levels move a lot between queries.
 4. **Later:** agent tools (calendar, reminders) through function calling, possibly on Agent Framework;
    text-to-speech, then voice-to-voice.
 

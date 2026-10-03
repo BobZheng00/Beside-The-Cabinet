@@ -474,12 +474,14 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
     public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..].Replace('_', ' ').Replace('-', ' ') : Id;
 
     /// <summary>
-    /// Who they are, in their author's words: <c>persona.md</c> in a built-in character's folder or in a user
-    /// character's own folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without one, a plain friendly
-    /// companion.
+    /// Who they are, in their author's words. A character card in the user's characters folder comes first
+    /// (<see cref="CardIn"/>); then <c>persona.md</c> in a built-in character's folder or in a user character's own
+    /// folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without either, a plain friendly companion.
     /// </summary>
-    public InsertCoin.Mind.Persona Persona()
+    public InsertCoin.Mind.Persona Persona(string userFolder, string? playerName)
     {
+        if (CardIn(userFolder) is { } cardFile && InsertCoin.Mind.CharacterCard.Read(File.ReadAllBytes(cardFile)) is { } card)
+            return card.ToPersona(playerName);
         string? text = null;
         if (BuiltIn)
         {
@@ -496,6 +498,15 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
         }
         return string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) : new InsertCoin.Mind.Persona(Name, text.Trim());
     }
+
+    /// <summary>
+    /// This character's card, if one has been given: <c>&lt;id&gt;.card.png</c> or <c>.json</c> in the user's
+    /// characters folder, or <c>card.png</c> / <c>card.json</c> in the character's own folder there. Built-in
+    /// characters can have one too.
+    /// </summary>
+    public string? CardIn(string userFolder) =>
+        new[] { $"{Id}.card.png", $"{Id}.card.json", System.IO.Path.Combine(Id, "card.png"), System.IO.Path.Combine(Id, "card.json") }
+            .Select(name => System.IO.Path.Combine(userFolder, name)).FirstOrDefault(File.Exists);
 
     /// <summary>Built-in characters were imported when the app was built; the user's own are read from disk now.</summary>
     public Node3D? Load()

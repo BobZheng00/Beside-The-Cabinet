@@ -18,8 +18,14 @@ public sealed class Chat : IDisposable
 {
     private static readonly TimeSpan AnswerTimeout = TimeSpan.FromSeconds(90);
 
+    /// <summary>The <see cref="UseSearch"/> choice for no local model: recall by shared words only.</summary>
+    public const string WordsOnly = "words";
+
     private IChatClient? _client;
     private Conversation? _conversation;
+    private LocalEmbedder? _embedder;
+    private string? _search;
+    private int _searchLoads;
     private CancellationTokenSource? _answering;
     private bool _folding, _upkeeping;
     private DateTimeOffset _upkeepAfter;
@@ -44,13 +50,100 @@ public sealed class Chat : IDisposable
     {
         _client?.Dispose();
         _client = provider?.Connect(Keys.Load());
+        UseSearch(_search);
     }
 
     /// <summary>Someone else is on the stool: talk continues in their own conversation.</summary>
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona);
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder };
+    }
+
+    /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
+    public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => Godot.FileAccess.FileExists($"res://models/{m.Name}/model.onnx"))];
+
+    /// <summary>The model searching now, if any (it may still be loading).</summary>
+    public EmbeddingModel? Searching => _embedder?.Model;
+
+    /// <summary>
+    /// Search by meaning with this model (a name from <see cref="Searchable"/>, <see cref="WordsOnly"/>, or null for
+    /// the best one present). It loads in the background, a second or two, and only while a provider is set up:
+    /// someone who never chats does not pay for it in memory.
+    /// </summary>
+    public async void UseSearch(string? choice)
+    {
+        _search = choice;
+        var model = _client is null || choice == WordsOnly ? null : Searchable().FirstOrDefault(m => m.Name == choice) ?? Searchable().FirstOrDefault();
+        if (model?.Name == _embedder?.Model.Name)
+            return;
+        var load = ++_searchLoads;
+        LocalEmbedder? loaded = null;
+        if (model is not null)
+            try
+            {
+                loaded = await Task.Run(() =>
+                {
+                    var folder = $"res://models/{model.Name}/";
+                    using var tokenizer = new MemoryStream(Godot.FileAccess.GetFileAsBytes(folder + model.TokenizerFile));
+                    return new LocalEmbedder(model, OnDisk(folder + "model.onnx", model.Name), tokenizer);
+                });
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr($"Chat: could not load {model.Name}, recalling by shared words: {e.Message}");
+            }
+        if (load != _searchLoads)
+        {
+            loaded?.Dispose();                  // a newer choice came in while this one loaded
+            return;
+        }
+        var old = _embedder;
+        _embedder = loaded;
+        if (_conversation is not null)
+            _conversation.Embedder = loaded;
+        old?.Dispose();
+        GD.Print(loaded is null ? "Chat: recalling by shared words" : $"Chat: recalling by meaning with {loaded.Model.Name}");
+        await Index();
+    }
+
+    /// <summary>
+    /// A real file for a model packed into the app: run from source it is the project's own file; in the built app,
+    /// which keeps it inside its package, a copy in the local cache (%LOCALAPPDATA%\InsertCoin\models), made once.
+    /// </summary>
+    private static string OnDisk(string resource, string name)
+    {
+        var project = ProjectSettings.GlobalizePath(resource);
+        if (File.Exists(project))
+            return project;
+        var cached = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "InsertCoin", "models", name,
+                                  Path.GetFileName(resource));
+        using var source = Godot.FileAccess.Open(resource, Godot.FileAccess.ModeFlags.Read)
+                           ?? throw new FileNotFoundException($"{resource} is not in this build");
+        if (File.Exists(cached) && new FileInfo(cached).Length == (long)source.GetLength())
+            return cached;
+        Directory.CreateDirectory(Path.GetDirectoryName(cached)!);
+        var partial = cached + ".part";
+        using (var copy = File.Create(partial))
+            while (source.GetPosition() < source.GetLength())
+                copy.Write(source.GetBuffer(1 << 20));                  // a megabyte at a time, never the whole model in memory
+        File.Move(partial, cached, overwrite: true);
+        return cached;
+    }
+
+    /// <summary>Gives what she knows vectors from the loaded model, a batch at a time.</summary>
+    private async Task Index()
+    {
+        if (_conversation is not { Embedder: not null } conversation)
+            return;
+        try
+        {
+            await conversation.Index();
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Chat: indexing memories failed, will try again later: {e.Message}");
+        }
     }
 
     /// <summary>Sends what the user said and plays her answer on <paramref name="view"/>.</summary>
@@ -86,6 +179,7 @@ public sealed class Chat : IDisposable
                 view.EndReply();
         }
 
+        await Index();                          // a note she just took becomes searchable by meaning
         if (_folding || !conversation.NeedsFolding)
             return;
         _folding = true;
@@ -113,12 +207,16 @@ public sealed class Chat : IDisposable
         if (_client is null || _conversation is not { } conversation || _answering is not null || _upkeeping || _folding
             || (!now && DateTimeOffset.Now < _upkeepAfter))
             return;
-        if (!now && !conversation.NeedsDigest(gameRunning ? TimeSpan.FromMinutes(2) : Conversation.Quiet))
-            return;
+        var digest = now || conversation.NeedsDigest(gameRunning ? TimeSpan.FromMinutes(2) : Conversation.Quiet);
         _upkeeping = true;
         try
         {
-            await conversation.Digest(_client);
+            // something new to read; else old moments to combine into a week; and vectors for whatever has none yet
+            if (digest)
+                await conversation.Digest(_client);
+            else
+                await conversation.Consolidate(_client);
+            await conversation.Index();
         }
         catch (Exception e)
         {
@@ -152,6 +250,7 @@ public sealed class Chat : IDisposable
     {
         _answering?.Cancel();
         _client?.Dispose();
+        _embedder?.Dispose();
         Store.Dispose();
     }
 
