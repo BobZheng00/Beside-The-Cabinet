@@ -110,8 +110,9 @@ public sealed partial record VoiceProfile
     /// <summary>
     /// Brings a voice into <paramref name="folder"/>. A downloaded GPT-SoVITS model (a folder or .zip with a .ckpt
     /// and a .pth) replaces whatever voice was there; its best clips come along with their words when a training
-    /// list (<c>.list</c>), a <c>.lab</c> beside the clip or the clip's file name says them. A clip on its own is added
-    /// to a model that has no clip yet, or else becomes a voice cloned from that clip. What is still missing (the
+    /// list (<c>.list</c>), a <c>.lab</c> beside the clip or the clip's file name says them. A folder of clips without
+    /// weights (a dataset) becomes a voice cloned from its best clips. A clip on its own is added to a model that has
+    /// no clip yet, or else becomes a voice cloned from that clip. What is still missing (the
     /// words, the language) is listed in <see cref="Missing"/> for the player to fill in.
     /// </summary>
     public static VoiceProfile Import(string source, string folder)
@@ -141,14 +142,15 @@ public sealed partial record VoiceProfile
         var files = Directory.EnumerateFiles(from, "*.*", SearchOption.AllDirectories).ToList();
         var gpt = Latest(files.Where(f => Path.GetExtension(f).Equals(".ckpt", StringComparison.OrdinalIgnoreCase)));
         var sovits = Latest(files.Where(f => Path.GetExtension(f).Equals(".pth", StringComparison.OrdinalIgnoreCase) && !TrainingOnly(f)));
-        if (gpt is null || sovits is null)
+        if (gpt is null != sovits is null)
         {
             if (sovits is not null && files.Any(f => f.EndsWith(".index", StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidDataException("this is an RVC voice model; she speaks with GPT-SoVITS voices (a .ckpt and a .pth)");
-            if (gpt is null && sovits is null && files.FirstOrDefault(IsAudio) is { } clip)
-                return FromClip(clip, folder);
             throw new InvalidDataException("a GPT-SoVITS voice needs both its .ckpt (GPT) and .pth (SoVITS) files");
         }
+        if (gpt is null && !files.Any(IsAudio))
+            throw new InvalidDataException("no voice in it: no GPT-SoVITS model (.ckpt and .pth) and no clips");
+        // no weights, only clips (a dataset, say): cloned with the engine's base model from its best clips
 
         var transcripts = Transcripts(files);
         (string Text, string? Language, string? Mood) Said(string clip) =>
@@ -163,8 +165,11 @@ public sealed partial record VoiceProfile
 
         Clear(folder);
         Directory.CreateDirectory(Path.Combine(folder, "clips"));
-        File.Copy(gpt, Path.Combine(folder, Path.GetFileName(gpt)));
-        File.Copy(sovits, Path.Combine(folder, Path.GetFileName(sovits)));
+        if (gpt is not null && sovits is not null)
+        {
+            File.Copy(gpt, Path.Combine(folder, Path.GetFileName(gpt)));
+            File.Copy(sovits, Path.Combine(folder, Path.GetFileName(sovits)));
+        }
         var kept = new List<VoiceClip>();
         foreach (var (file, said, seconds) in clips)
         {
@@ -188,9 +193,9 @@ public sealed partial record VoiceProfile
         {
             Name = Tidy(name),
             Language = Majority(kept.Select(c => c.Language)) ?? "",
-            Gpt = Path.GetFileName(gpt),
-            Sovits = Path.GetFileName(sovits),
-            Version = VersionOf(Path.GetRelativePath(from, sovits)) ?? VersionOf(Path.GetRelativePath(from, gpt)),
+            Gpt = gpt is null ? null : Path.GetFileName(gpt),
+            Sovits = sovits is null ? null : Path.GetFileName(sovits),
+            Version = gpt is null || sovits is null ? null : VersionOf(Path.GetRelativePath(from, sovits)) ?? VersionOf(Path.GetRelativePath(from, gpt)),
             Clips = kept,
             About = about,
         };

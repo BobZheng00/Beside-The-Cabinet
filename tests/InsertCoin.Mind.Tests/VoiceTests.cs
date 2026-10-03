@@ -228,6 +228,26 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_folder_of_clips_and_their_list_is_cloned_from_its_best_clips()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        dataset.File("clips/hana_001.wav", Silence(2.5));
+        dataset.File("clips/hana_002.wav", Silence(6.2));
+        dataset.File("clips/hana_003.wav", Silence(12));
+        dataset.File("hana.list", Encoding.UTF8.GetBytes(
+            "clips/hana_001.wav|hana|JA|はい。\nclips/hana_002.wav|hana|JA|この道は、どこまでも続いています。\nclips/hana_003.wav|hana|JA|長い。\n"));
+
+        var voice = VoiceProfile.Import(dataset.Path, System.IO.Path.Combine(home.Path, "hana.voice"));
+
+        Assert.Equal((null, null, null, "ja"), (voice.Gpt, voice.Sovits, voice.Version, voice.Language));
+        Assert.Equal("この道は、どこまでも続いています。", voice.ClipFor(null)!.Text);
+        Assert.Equal(3, voice.Clips.Count);
+        Assert.True(voice.Slow);
+        Assert.Null(voice.Missing);
+    }
+
+    [Fact]
     public void A_clip_dropped_on_a_model_without_clips_joins_it()
     {
         using var download = new TempFolder();
