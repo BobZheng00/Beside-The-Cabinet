@@ -198,6 +198,18 @@ Some newer zero-shot models clone from a clip as well as GPT-SoVITS does:
 - **[IndexTTS 2.5](https://huggingface.co/IndexTeam/IndexTTS-2.5)**.
 - **[Fish Audio S2](https://fish.audio/s2/)** (4.4B; too big next to a game).
 
+Checked again 2026-10-03, for what would run on the development laptop:
+- **Qwen3-TTS through [faster-qwen3-tts](https://github.com/andimarafioti/faster-qwen3-tts)** (MIT; CUDA graphs, no
+  FlashAttention, native Windows setup, streams): 0.41 s first audio and 2.26× real time for 0.6B on an RTX 4060.
+  The official package is slow without FlashAttention 2, and vLLM-Omni has no online serving yet. Its Base models
+  can be fine-tuned, and its cross-lingual cloning
+  [beats CosyVoice 3](https://arxiv.org/html/2601.15621v1). **The one to try first.**
+- **[dots.tts](https://github.com/rednote-hilab/dots.tts)** (rednote, June 2026, Apache, 2B, 24 languages, 48 kHz):
+  85 ms first audio streaming on the authors' hardware; heavier, and no Windows notes.
+- **IndexTTS 2.5** (Japanese added) needs [about 6 GB](https://huggingface.co/IndexTeam/IndexTTS-2.5), doesn't
+  stream, and has bilibili's own licence.
+- **Qwen-Audio-3.0-TTS** (July 2026) is [hosted only](https://openrouter.ai/qwen/qwen-audio-3.0-tts-plus).
+
 None of them has a community of trained character models, so each would only be another way to "clone from a
 clip". Worth adding later if one clearly beats GPT-SoVITS's zero-shot quality. Most expose an OpenAI-style
 `/v1/audio/speech` server (via [vLLM-Omni](https://github.com/QwenLM/Qwen3-TTS), Speaches and others), so one
