@@ -8,13 +8,16 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
 {
     public List<List<ChatMessage>> Requests { get; } = [];
     public Exception? Fails { get; init; }
+    /// <summary>Answers for non-streamed requests, one per request, before falling back to the pieces.</summary>
+    public Queue<string> Answers { get; } = new();
 
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         Requests.Add([.. messages]);
         if (Fails is not null)
             throw Fails;
-        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, string.Concat(pieces))));
+        var text = Answers.Count > 0 ? Answers.Dequeue() : string.Concat(pieces);
+        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text)));
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,

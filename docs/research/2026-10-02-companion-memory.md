@@ -138,8 +138,9 @@ whose output does not parse is skipped and retried later; nothing is lost becaus
    Anthropic servers, not yet with a real provider): provider settings (base URL, key, model), chat box on click,
    streamed replies with stage tags, canned lines as fallback, one continuous conversation log with
    auto-compaction, persona and capped core blocks (edited by hand at first).
-2. **Remember:** `[note]` with its motion, upkeep (episodes, facts, reconcile, core rewrite), search over facts
-   and the raw log, memory book.
+2. **Remember** (built 2026-10-02, tested with a fake model and a local mock server): `[note]` with its motion
+   (a notebook and pencil), upkeep (episodes, facts, reconcile, core rewrite), search over facts, episodes and the
+   raw log (word overlap, Chinese by character pairs), memory book.
 3. **Remember better:** local embeddings (after a spike in the export), forgetting curve, weekly digests,
    character card + lorebook import.
 4. **Later:** agent tools (calendar, reminders) through function calling, possibly on Agent Framework;

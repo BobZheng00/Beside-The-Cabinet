@@ -21,7 +21,7 @@ public static class Prompt
     private static readonly TimeSpan Gap = TimeSpan.FromHours(2);       // a pause long enough to say when talk resumed
 
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
-                                          string situation, string said)
+                                          string situation, string said, IReadOnlyList<Memory>? memories = null)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -34,7 +34,9 @@ public static class Prompt
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
 
-            Lines starting with [cabinet], and the <cabinet> block, come from the cabinet itself, not from the player.
+            Lines starting with [cabinet], and the <cabinet> block, come from the cabinet itself, not from the player. The <memories> block holds things you remember that may matter now: use them naturally, never recite them.
+
+            Remembering: when the player's message is mainly telling you something worth keeping (a plan, a date, a goal, a like or dislike, something about their life), start your reply with [note: the fact in one short third-person sentence, dates made absolute] and say briefly that you'll remember it. Don't do this when it comes up in the middle of something else, for small talk, or for the cabinet's numbers; you remember those anyway.
 
             What you know about the player:
             {(aboutUser.Trim().Length > 0 ? aboutUser.Trim() : "Nothing yet.")}
@@ -67,7 +69,8 @@ public static class Prompt
                 default: Put(ChatRole.User, $"[cabinet] {line.Text}"); break;
             }
         }
-        Put(ChatRole.User, $"<cabinet>\n{situation.Trim()}\n</cabinet>\n\n{said.Trim()}");
+        var remembered = memories is { Count: > 0 } ? $"<memories>\n{string.Join("\n", memories.Select(m => $"- {m.Text}"))}\n</memories>\n" : "";
+        Put(ChatRole.User, $"<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));

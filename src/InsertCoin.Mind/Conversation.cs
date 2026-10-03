@@ -12,11 +12,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 {
     /// <summary>Verbatim conversation (tokens) that triggers folding, and how much of the newest is kept verbatim.</summary>
     public const int FoldAbove = 4000, KeepVerbatim = 1500;
-    private const int KeepLines = 6, SummaryLimit = 2400;
+    /// <summary>How long a conversation stays quiet before upkeep reads it, and how much it reads at once (tokens).</summary>
+    public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
+    public const int DigestAtOnce = 3000;
+    private const int KeepLines = 6, SummaryLimit = 2400, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
+    private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+    private (long From, int Times) _failed;
 
     public string Character => character;
     public Persona Persona => persona;
@@ -29,12 +34,24 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public async Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
                                      CancellationToken cancel = default)
     {
+        var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
+        var folded = summary?.Through ?? 0;
+        // what she remembers: facts, episodes and old lines no longer in the verbatim part of the conversation
+        var memories = Recall.Find(said, store.Facts(character), store.Episodes(character).Where(e => e.Last <= folded).ToList(),
+                                   folded > 0 ? store.Through(character, folded, 3000) : [], persona.Name, now);
+        store.Recalled(memories.Where(m => m.FactId is not null).Select(m => m.FactId!.Value), now);
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, store.After(character, summary?.Through ?? 0), situation, said);
-        store.Add(character, Speaker.User, said.Trim(), _clock.GetLocalNow());
+                                    summary, store.After(character, folded), situation, said, memories);
+        store.Add(character, Speaker.User, said.Trim(), now);
 
-        var stage = new StageDirections(direction);
+        // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep
+        var stage = new StageDirections((name, payload) =>
+        {
+            if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
+                store.AddFact(MindStore.Shared, payload, NoteImportance, now);
+            direction(name, payload);
+        });
         var reply = new StringBuilder();
         void Show(string piece)
         {
@@ -86,6 +103,93 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return false;
         store.Fold(character, folded.Length > SummaryLimit ? folded[..SummaryLimit] : folded, fold[^1].Id, _clock.GetLocalNow());
         return true;
+    }
+
+    /// <summary>The player has said something upkeep has not read yet, and the conversation has been quiet for <paramref name="quiet"/>.</summary>
+    public bool NeedsDigest(TimeSpan quiet)
+    {
+        var lines = store.After(character, store.Digested(character));
+        return lines.Any(l => l.Speaker == Speaker.User) && _clock.GetLocalNow() - lines[^1].At >= quiet;
+    }
+
+    /// <summary>
+    /// Upkeep: reads the next stretch of conversation not yet digested, files a dated episode, adds, updates and
+    /// deletes facts, and rewrites the always-present notes when something important about them changed. Returns
+    /// false when there was nothing to read or the answer could not be used (it is tried again next time, and a
+    /// stretch that fails three times is skipped so it cannot block everything after it).
+    /// </summary>
+    public async Task<bool> Digest(IChatClient client, CancellationToken cancel = default)
+    {
+        var from = store.Digested(character);
+        var pending = store.After(character, from);
+        if (pending.Count == 0)
+            return false;
+        var chunk = new List<Line>();
+        var used = 0;
+        foreach (var line in pending)
+        {
+            if (chunk.Count > 0 && used + Prompt.Tokens(line.Text) > DigestAtOnce)
+                break;
+            chunk.Add(line);
+            used += Prompt.Tokens(line.Text) + 4;
+        }
+
+        var known = store.Facts(character);
+        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk), DigestOptions, cancel);
+        if (Upkeep.Parse(response.Text) is not { } digestion)
+        {
+            _failed = _failed.From == from ? (from, _failed.Times + 1) : (from, 1);
+            if (_failed.Times >= GiveUpAfter)
+                store.SetDigested(character, chunk[^1].Id);
+            return false;
+        }
+
+        var now = _clock.GetLocalNow();
+        var byId = known.ToDictionary(f => f.Id);
+        var touched = new HashSet<string>();                // scopes whose important facts changed
+        foreach (var change in digestion.Changes)
+        {
+            switch (change.Op)
+            {
+                case "add" when change.Text is { Length: > 2 } text && !store.Facts(character).Any(f => Recall.Same(f.Text, text)):
+                    var scope = change.About == "us" ? character : MindStore.Shared;
+                    var importance = change.Importance ?? 5;
+                    store.AddFact(scope, text, importance, now);
+                    if (importance >= CoreFrom)
+                        touched.Add(scope);
+                    break;
+                case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text:
+                    store.UpdateFact(id, text, change.Importance);
+                    if (Math.Max(old.Importance, change.Importance ?? 0) >= CoreFrom)
+                        touched.Add(old.Scope);
+                    break;
+                case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned:
+                    store.DeleteFact(id);
+                    if (gone.Importance >= CoreFrom)
+                        touched.Add(gone.Scope);
+                    break;
+            }
+        }
+        if (digestion.Episode is { } episode)
+            store.AddEpisode(character, episode, chunk[0].Id, chunk[^1].Id, chunk[0].At);      // dated when it happened
+        store.SetDigested(character, chunk[^1].Id);
+
+        foreach (var scope in touched)
+            await RewriteNote(client, scope, cancel);
+        return true;
+    }
+
+    /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it.</summary>
+    private async Task RewriteNote(IChatClient client, string scope, CancellationToken cancel)
+    {
+        var name = scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us;
+        var facts = store.Facts(character).Where(f => f.Scope == scope && (f.Importance >= CoreFrom || f.Pinned))
+            .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).Take(CoreFacts).ToList();
+        var subject = scope == MindStore.Shared ? "the player" : $"the player and {persona.Name}";
+        var response = await client.GetResponseAsync(Upkeep.Rewrite(subject, store.Note(scope, name), facts), FoldOptions, cancel);
+        var note = response.Text.Trim();
+        if (note.Length > 0)
+            store.SetNote(scope, name, note.Length > Prompt.NoteLimit ? note[..Prompt.NoteLimit] : note);
     }
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.SummaryOf(character)?.Through ?? 0);

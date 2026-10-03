@@ -3,7 +3,7 @@ using Godot;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>Things the companion reacts to. The app decides when; the puppet decides how.</summary>
-public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake }
+public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note }
 
 /// <summary>
 /// The companion's body language. Three layers, in this order every frame:
@@ -40,6 +40,11 @@ internal sealed class Puppet
 
     private static readonly Hand FistAtChest = new(new(0.12f, 0.40f, 0.22f), new(0, 1, 0.2f), new(-1, 0, 0), new(0.5f, -1, -0.5f));
 
+    // Taking a note: the left hand holds a little pad up in front of her, palm up and tipped towards her; the right
+    // hand writes on it.
+    private static readonly Hand PadHand = new(new(0.09f, 0.36f, 0.26f), new(-0.5f, 0.25f, 0.8f), new(0.05f, 0.85f, 0.4f), new(0.8f, -0.6f, -0.2f));
+    private static readonly Hand PenHand = new(new(-0.04f, 0.40f, 0.29f), new(0.45f, -0.45f, 0.75f), new(0.25f, -0.85f, -0.3f), new(-0.8f, -0.6f, -0.1f));
+
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
         // wind-up before a cheer: a quick crouch with fists drawn in
@@ -57,6 +62,9 @@ internal sealed class Puppet
         ["wave"] = new(new Pose().Set("Spine", 0, 0, 2).Set("Head", -3, 0, 6).Set("RightShoulder", 0, 0, -8),
             Right: new(new(-0.34f, 0.70f, 0.12f), new(-0.1f, 1, 0), new(0.5f, 0, 1), new(-0.5f, -1, -0.2f)), Curl: 3),
         ["worry"] = new(new Pose().Set("Spine", 6, 0, 0).Set("Chest", 4, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 5, 0, 4).Both("Shoulder", 0, 0, -5)),
+        // head bowed over the pad, a little tilted, shoulders relaxed
+        ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
+            PadHand, PenHand, Curl: 35),
         ["doze"] = new(new Pose().Set("Spine", 3, 0, 2).Set("Chest", 2, 0, 2).Set("Neck", 4, 0, 5).Set("Head", 7, 0, 11)),
         // idle fidgets
         ["tiltLeft"] = new(new Pose().Set("Neck", -3, 0, -3).Set("Head", -4, 0, -9)),
@@ -66,7 +74,7 @@ internal sealed class Puppet
         ["sigh"] = new(new Pose().Set("Spine", 1, 0, 0).Set("Chest", -3, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -6, 0, 0).Both("Shoulder", 0, 0, 7)),
     };
 
-    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "tiltLeft", "tiltRight", "shift", "sigh"];
+    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "note", "tiltLeft", "tiltRight", "shift", "sigh"];
     private static readonly string[] Sides = ["Left", "Right"];
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
@@ -96,7 +104,7 @@ internal sealed class Puppet
     private readonly RandomNumberGenerator _random = new();
 
     private double _time, _busyUntil, _gazeUntil, _nextWander = 7, _nextFidget = 5, _nextSaccade;
-    private double _cheerAt = -100, _waveAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
+    private double _cheerAt = -100, _waveAt = -100, _noteAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
     private string _kickSide = "Left";
     private Vector3 _gaze;
     private Vector2 _eye, _jitter;
@@ -116,6 +124,9 @@ internal sealed class Puppet
 
     /// <summary>Where her head is, in the skeleton's space.</summary>
     public Vector3 Head => _rig.PositionOf("Head");
+
+    /// <summary>How far she is into taking a note (0: not at all, 1: pad up, writing), for showing the pad and pencil.</summary>
+    public float Noting => _shown["note"];
 
     /// <param name="footRestDrop">How far below the seat the stool's foot ring is, metres.</param>
     public Puppet(Rig rig, Face face, float footRestDrop)
@@ -202,6 +213,15 @@ internal sealed class Puppet
                 _face.Show("surprised", 0.5f, 0.8);
                 Look(Viewer, 2);
                 break;
+            case Moment.Note:
+                // pad up, eyes on it, a few quick strokes, then a satisfied look back up
+                Interrupt(3.6);
+                _on["note"] = 1;
+                _noteAt = _time;
+                _face.Show("relaxed", 0.7f, 2.6);
+                Look(PadHand.Wrist * _size + new Vector3(-0.03f, 0.02f, 0.03f) * _size, 2.5);
+                After(2.55, () => { _on["note"] = 0; _face.Show("happy", 0.8f, 1.4); Look(Viewer, 2); });
+                break;
         }
     }
 
@@ -276,6 +296,7 @@ internal sealed class Puppet
         foreach (var side in Sides)
             Arm(side, hips, dt);
         Wave(t);
+        Write();
         Eyes(dt);
 
         _rig.PlaceHips(hips);
@@ -608,6 +629,23 @@ internal sealed class Puppet
         Swing("RightUpperArm", axis, 3.5f * Mathf.Sin(phase + 0.5f) * strength);
         Swing("RightLowerArm", axis, 15 * Mathf.Sin(phase) * strength);
         Swing("RightHand", axis, 17 * Mathf.Sin(phase - 1.2f) * strength);
+    }
+
+    /// <summary>
+    /// Writing: small quick strokes from the wrist, the forearm following a little behind, and every so often the
+    /// pen lifts and moves along to the next word.
+    /// </summary>
+    private void Write()
+    {
+        var since = (float)(_time - _noteAt) - 0.45f;
+        if (since is < 0 or > 2.0f)
+            return;
+        var strength = Envelope(since, 0.15f, 1.75f, 2.0f) * _shown["note"];
+        var phase = since * Mathf.Tau * 3.4f;
+        var lift = Mathf.Max(0, Mathf.Sin(since * Mathf.Tau * 1.1f));            // the pen leaves the paper between words
+        Swing("RightHand", Vector3.Up, 7 * Mathf.Sin(phase) * strength);
+        Swing("RightLowerArm", Vector3.Up, 2.5f * Mathf.Sin(phase - 0.7f) * strength);
+        Swing("RightHand", Vector3.Right, (-3 - 4 * lift) * strength);
     }
 
     // ---- Helpers -------------------------------------------------------------------------------------------------

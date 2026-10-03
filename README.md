@@ -25,10 +25,19 @@ off, silences her, picks another character or adds one; a model file dropped on 
 She can also talk. In tray → "Chat settings…" pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
 local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key and name a model. Then clicking
 her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
-it out. She knows the cabinet's numbers, remembers the conversation (older parts are folded into a summary as it
-grows), and keeps two short notes you can edit there: about you (shared by every character) and about the two of
-you. Everything stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows account.
-Without a provider she keeps to her canned lines.
+it out. She knows the cabinet's numbers and remembers:
+
+- the conversation itself, one continuous thread per character; older parts are folded into a summary as it grows;
+- facts about you (shared by every character) and about the two of you, plus dated moments. When you just tell her
+  something worth keeping she says she'll remember it and jots it in a little notebook; everything else is picked
+  up quietly by upkeep, which reads the conversation once it has been quiet for ten minutes (two while a game
+  runs);
+- two short notes she always has in mind, rewritten by upkeep when something important changes;
+- and before each reply, whatever of all that shares words with what you said (Chinese too).
+
+Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything, or
+forget everything. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
+account. Without a provider she keeps to her canned lines.
 
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).
@@ -41,7 +50,9 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
-menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip) and `chatsettings`.
+menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
+`memorybook`, `upkeep` (digest the conversation now) and `moment:note`. `--offscreen` opens the app's windows off
+every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout
 
@@ -109,8 +120,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   themselves out; replies from her mind start as thinking dots and grow as they stream in. `ChatBox` is the slip
   you type on, `Paper` the shared look (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
-  `[wave]`, `[worry]`…), logs cabinet events into the conversation, folds it when it grows. `App/ChatSettings.cs`
-  is the provider, key and notes window. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
+  `[wave]`, `[worry]`, `[note: …]`…), logs cabinet events into the conversation, folds it when it grows, runs
+  upkeep every minute. `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
+  `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser

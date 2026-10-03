@@ -41,6 +41,7 @@ public partial class Main : Node2D
     private Chat _chat = null!;
     private ChatBox _chatBox = null!;
     private ChatSettings? _chatSettings;
+    private MemoryBook? _memoryBook;
     private string _charactersDir = "";
     private readonly Random _random = new();
     private TimeSpan _livelyUntil;
@@ -70,6 +71,7 @@ public partial class Main : Node2D
 
         var args = OS.GetCmdlineUserArgs().Select(a => a.TrimStart('-').Split('=', 2)).ToDictionary(a => a[0], a => a.Length > 1 ? a[1] : "");
         var dataDir = args.TryGetValue("data", out var dir) && dir.Length > 0 ? dir : DefaultDataDir;
+        Paper.OffScreen = args.ContainsKey("offscreen");
         _charactersDir = Path.Combine(dataDir, "characters");
         _settingsStore = new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json"));
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
@@ -131,6 +133,7 @@ public partial class Main : Node2D
                 _companion?.Hush();
         };
         _tray.ChatSettings += OpenChatSettings;
+        _tray.MemoryBook += OpenMemoryBook;
         _tray.AddCharacter += PickCharacter;
         _tray.OpenCharacters += () =>
         {
@@ -164,6 +167,7 @@ public partial class Main : Node2D
         AddTimer(5.0, Tick);
         AddTimer(1.0, RefreshScreen);
         AddTimer(5.0, () => { if (DateTimeOffset.Now >= _nextPoll) Poll(); });
+        AddTimer(60.0, () => _ = _chat.Upkeep(gameRunning: _state.Session is not null));
         Tick();
         Poll();
         if (args.ContainsKey("diag"))
@@ -449,11 +453,13 @@ public partial class Main : Node2D
     private Provider? ChatProvider() => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel);
 
     /// <summary>Opens the slip at the foot of the stool for the user to type to her, once she can answer.</summary>
-    private void OpenChat()
+    /// <param name="focus">Bring the window forward for typing (the user clicked her); dev actions leave focus alone.</param>
+    private void OpenChat(bool focus = true)
     {
         if (!_chat.Ready || _companion is null)
             return;
-        DisplayServer.WindowMoveToForeground();
+        if (focus)
+            DisplayServer.WindowMoveToForeground();
         _chatBox.Open(new Vector2(14, _cabinet.Skin.Canvas.Y - ChatBox.Height - 14), $"Say something to {_chat.Conversation!.Persona.Name}…");
     }
 
@@ -478,7 +484,7 @@ public partial class Main : Node2D
         }
     }
 
-    /// <summary>Provider, key and the notes she keeps, for whoever is on the stool.</summary>
+    /// <summary>Provider, server, key and model.</summary>
     private void OpenChatSettings()
     {
         if (IsInstanceValid(_chatSettings))
@@ -486,19 +492,42 @@ public partial class Main : Node2D
             _chatSettings!.GrabFocus();
             return;
         }
-        var characters = CompanionView.Available(_charactersDir);
-        var character = characters.FirstOrDefault(c => c.Id == _settings.Companion) ?? characters.FirstOrDefault();
-        if (character is null)
+        if (OnStool() is not { } character)
             return;
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Id, _chat.Conversation?.Persona.Name ?? character.Name);
+        _chatSettings.Build(_chat, ChatProvider(), character.Name);
         _chatSettings.Saved += provider =>
         {
             SaveSettings(_settings with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
             _chat.Connect(provider);
         };
         _chatSettings.Open();
+    }
+
+    /// <summary>What whoever is on the stool remembers: notes, facts, moments.</summary>
+    private void OpenMemoryBook()
+    {
+        if (IsInstanceValid(_memoryBook))
+        {
+            _memoryBook!.GrabFocus();
+            return;
+        }
+        if (OnStool() is not { } character)
+            return;
+        _memoryBook = new MemoryBook();
+        AddChild(_memoryBook);
+        _memoryBook.Build(_chat.Store, character.Id, character.Name);
+        _memoryBook.Open();
+    }
+
+    /// <summary>The character chosen for the stool (whether shown or not), with the name their persona goes by.</summary>
+    private (string Id, string Name)? OnStool()
+    {
+        if (_chat.Conversation is { } conversation)
+            return (conversation.Character, conversation.Persona.Name);
+        var characters = CompanionView.Available(_charactersDir);
+        return (characters.FirstOrDefault(c => c.Id == _settings.Companion) ?? characters.FirstOrDefault()) is { } c ? (c.Id, c.Name) : null;
     }
 
     /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
@@ -607,18 +636,28 @@ public partial class Main : Node2D
         }
         if (action.StartsWith("chat:"))              // chat:text sends a line to her as if typed (underscores for spaces)
         {
-            OpenChat();
+            OpenChat(focus: false);
             _chatBox.DevSend(action["chat:".Length..].Replace('_', ' '));
             return;
         }
         if (action is "chatbox")                      // opens the slip to type to her
         {
-            OpenChat();
+            OpenChat(focus: false);
             return;
         }
         if (action is "chatsettings")                 // the "Chat settings…" window
         {
             OpenChatSettings();
+            return;
+        }
+        if (action is "memorybook")                   // the "Memory book…" window
+        {
+            OpenMemoryBook();
+            return;
+        }
+        if (action is "upkeep")                       // her upkeep now, without waiting for the conversation to go quiet
+        {
+            _ = _chat.Upkeep(gameRunning: false, now: true);
             return;
         }
         if (action is "pick")                         // the "Add a character…" file dialog

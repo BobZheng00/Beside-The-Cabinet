@@ -12,9 +12,11 @@
 # -Model    file(s) copied into the profile's characters folder (wildcards allowed)
 # -Window   also capture the app's own window with this title (a settings window, a dialog) at each shot, from the
 #           window itself (PrintWindow), so nothing else on screen is ever captured
+# -Hidden   keep the app off every monitor (and not on top) and capture it from the window itself: nothing appears on
+#           screen, so it is safe while the user is busy (in a game, say); transparent parts come out black
 # Output: <Out>\<Tag>-<n>.png (and <Tag>-<n>-window.png), plus the app's log and errors.
 param([string]$Script = "", [double[]]$Shots = @(6), [string]$Tag = "shot", [string]$Bg = "#F2EFF7", [string]$Size = "M",
-      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$Exe = "", [string]$Window = "",
+      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-shots"),
       [string]$Godot = "<tools>\Godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe")
 
@@ -22,11 +24,14 @@ $repo = Split-Path (Split-Path $PSScriptRoot)
 New-Item -ItemType Directory $Out -Force | Out-Null
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
+if (Test-Path (Join-Path $profile "companion")) { Remove-Item (Join-Path $profile "companion") -Recurse -Force }   # her memory starts fresh too
 if ($Model -ne "") {
   New-Item -ItemType Directory (Join-Path $profile "characters") -Force | Out-Null
   Copy-Item $Model (Join-Path $profile "characters") -Force
 }
-"{ `"Username`": `"BobSmith`", `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": true, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }" |
+if ($Hidden) { $X = -4000; $Y = 100; $Bg = "none" }
+$onTop = if ($Hidden) { "false" } else { "true" }
+"{ `"Username`": `"BobSmith`", `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": $onTop, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }" |
   Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 Add-Type -AssemblyName System.Drawing
@@ -59,6 +64,7 @@ if ($Bg -ne "none") {
 }
 
 $userArgs = "--data=`"$profile`" --no-steam"
+if ($Hidden) { $userArgs += " --offscreen" }
 if ($Script -ne "") { $userArgs += " --script=$Script" }
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 if ($Exe -ne "") {
@@ -82,7 +88,9 @@ foreach ($s in $Shots) {
   if ($w -le 0) { "no window yet at ${s}s"; continue }
   $bmp = New-Object System.Drawing.Bitmap $w, $h; $g = [System.Drawing.Graphics]::FromImage($bmp)
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
-  $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
+  if ($Hidden) { $dc = $g.GetHdc(); [Shoot]::PrintWindow($app.MainWindowHandle, $dc, 2) | Out-Null; $g.ReleaseHdc($dc) }
+  else { $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size) }
+  $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
   "$file  at ${s}s: ${w}x$h, working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"
   if ($Window -ne "") {
     $h2 = [Shoot]::Find([uint32]$app.Id, $Window)

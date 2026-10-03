@@ -21,7 +21,8 @@ public sealed class Chat : IDisposable
     private IChatClient? _client;
     private Conversation? _conversation;
     private CancellationTokenSource? _answering;
-    private bool _folding;
+    private bool _folding, _upkeeping;
+    private DateTimeOffset _upkeepAfter;
 
     public Chat(string dataDir)
     {
@@ -102,6 +103,34 @@ public sealed class Chat : IDisposable
         }
     }
 
+    /// <summary>
+    /// Her sleep time, called every minute: once the conversation has been quiet for a while (sooner while a game
+    /// runs, since she has nothing else to do) the part she has not digested yet becomes an episode and facts. A
+    /// failure (offline, say) waits ten minutes before the next try.
+    /// </summary>
+    public async Task Upkeep(bool gameRunning, bool now = false)
+    {
+        if (_client is null || _conversation is not { } conversation || _answering is not null || _upkeeping || _folding
+            || (!now && DateTimeOffset.Now < _upkeepAfter))
+            return;
+        if (!now && !conversation.NeedsDigest(gameRunning ? TimeSpan.FromMinutes(2) : Conversation.Quiet))
+            return;
+        _upkeeping = true;
+        try
+        {
+            await conversation.Digest(_client);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Chat: upkeep failed, will try again later: {e.Message}");
+            _upkeepAfter = DateTimeOffset.Now.AddMinutes(10);
+        }
+        finally
+        {
+            _upkeeping = false;
+        }
+    }
+
     /// <summary>Logs what happened at the cabinet, for her to know about later.</summary>
     public void Witness(IEnumerable<LedgerEvent> events, Rules rules)
     {
@@ -137,6 +166,7 @@ public sealed class Chat : IDisposable
             "look" => Moment.Glance,
             "gasp" => Moment.Alarm,
             "worry" => Moment.Worry,
+            "note" => Moment.Note,
             _ => null,
         };
         if (moment is { } m)

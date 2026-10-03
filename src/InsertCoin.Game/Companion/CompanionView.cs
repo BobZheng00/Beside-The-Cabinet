@@ -95,6 +95,7 @@ public partial class CompanionView : Node2D
         var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _puppet = new Puppet(_rig, new Face(_character), footRestDrop) { Viewer = _camera.Position, Screen = screen, Followers = followers };
+        BuildPadAndPencil(viewport);
 
         _lastMouse = DisplayServer.MouseGetPosition();
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
@@ -126,6 +127,79 @@ public partial class CompanionView : Node2D
 
     /// <summary>Stops talking mid-sentence: the bubble goes away now.</summary>
     public void Hush() => _bubble.Clear();
+
+    // ---- The pad and pencil she takes notes with -------------------------------------------------------------------
+
+    private static readonly string[] HandJoints = ["Hand", "IndexProximal", "MiddleProximal", "LittleProximal"];
+    private Node3D? _pad, _pencil;
+
+    /// <summary>
+    /// A little paper pad with a pink binding and a yellow pencil, flat colours with an ink outline like hers. Only
+    /// for characters with finger bones: the props are placed from the hands' joints every frame.
+    /// </summary>
+    private void BuildPadAndPencil(SubViewport viewport)
+    {
+        if (!HandJoints.All(j => _rig.Has("Left" + j) && _rig.Has("Right" + j)))
+            return;
+        var size = _rig.Size;
+        _pad = new Node3D { Visible = false };
+        // a small notebook, big enough to read as one at the cabinet's scale
+        Inked(_pad, new BoxMesh { Size = new Vector3(0.10f, 0.008f, 0.13f) * size }, Paper.Sheet, Vector3.Zero);
+        Inked(_pad, new BoxMesh { Size = new Vector3(0.102f, 0.011f, 0.018f) * size }, new Color("FF76C3"), new Vector3(0, 0.001f, 0.058f) * size);
+        _pencil = new Node3D { Visible = false };
+        Inked(_pencil, new CylinderMesh { TopRadius = 0.005f * size, BottomRadius = 0.005f * size, Height = 0.10f * size, RadialSegments = 8 },
+              new Color("FFC94D"), Vector3.Zero);
+        Inked(_pencil, new CylinderMesh { TopRadius = 0.005f * size, BottomRadius = 0.001f * size, Height = 0.016f * size, RadialSegments = 8 },
+              new Color("F2D2A9"), new Vector3(0, -0.058f, 0) * size);
+        viewport.AddChild(_pad);
+        viewport.AddChild(_pencil);
+    }
+
+    /// <summary>A flat-coloured part with an inverted-hull outline in the cabinet's ink.</summary>
+    private static void Inked(Node3D parent, PrimitiveMesh mesh, Color colour, Vector3 at)
+    {
+        parent.AddChild(new MeshInstance3D { Mesh = mesh, Position = at, MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = colour } });
+        var extent = mesh.GetAabb().Size;
+        const float ink = 0.0016f;
+        var grow = new Vector3((extent.X + 2 * ink) / extent.X, (extent.Y + 2 * ink) / extent.Y, (extent.Z + 2 * ink) / extent.Z);
+        parent.AddChild(new MeshInstance3D
+        {
+            Mesh = mesh, Position = at, Scale = grow,
+            MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = Paper.Ink, CullMode = BaseMaterial3D.CullModeEnum.Front },
+        });
+    }
+
+    /// <summary>
+    /// Holds the notebook between her hands, tipped up towards the viewer so it reads as a notebook at this size
+    /// (hands are only roughly where a pose puts them, so it is placed from the pose's intent, not from the palm),
+    /// and runs the pencil from her right hand's grip down to the page. Both pop in and out with the pose.
+    /// </summary>
+    private void PlacePadAndPencil()
+    {
+        if (_pad is null || _pencil is null)
+            return;
+        var shown = Mathf.SmoothStep(0.35f, 0.9f, _puppet.Noting);
+        _pad.Visible = _pencil.Visible = shown > 0.01f;
+        if (!_pad.Visible)
+            return;
+        var size = _rig.Size;
+        var leftGrip = _rig.PositionOf("LeftMiddleProximal");
+        var rightGrip = _rig.PositionOf("RightIndexProximal");
+
+        // her frame: she faces +z, +x is her left
+        var centre = leftGrip.Lerp(rightGrip, 0.4f) + new Vector3(0, -0.02f, 0.02f) * size;
+        var toViewer = (_camera.Position - centre).Normalized();
+        var face = (Vector3.Up * 0.8f + toViewer * 0.6f).Normalized();                 // the page faces up and towards the viewer
+        var upPage = (Vector3.Up - face * Vector3.Up.Dot(face)).Normalized();            // where the binding is
+        var across = face.Cross(upPage).Normalized();
+        _pad.GlobalTransform = new Transform3D(new Basis(across, face, upPage).Scaled(Vector3.One * shown), centre);
+
+        var tip = centre + face * 0.006f * size + across * 0.012f * size - upPage * 0.01f * size;
+        var down = (tip - rightGrip).Normalized();                                      // from the grip to the paper
+        var side = down.Cross(Vector3.Up).Normalized();
+        var penBasis = new Basis(side, -down, side.Cross(-down).Normalized()).Scaled(Vector3.One * shown);
+        _pencil.GlobalTransform = new Transform3D(penBasis, tip - down * 0.066f * size);
+    }
 
     /// <summary>Canvas point just above the top of her hair, where a speech bubble's tail points.</summary>
     private Vector2 OverHead()
@@ -364,6 +438,7 @@ public partial class CompanionView : Node2D
             return;
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
+        PlacePadAndPencil();
         // A faint, uneven draught keeps hair and skirt from ever hanging dead still.
         var t = Time.GetTicksMsec() / 1000f;
         var draught = new Vector3(0.07f * Mathf.Sin(t * 0.83f) + 0.04f * Mathf.Sin(t * 2.1f + 1), 0, 0.04f * Mathf.Sin(t * 0.61f + 2));
