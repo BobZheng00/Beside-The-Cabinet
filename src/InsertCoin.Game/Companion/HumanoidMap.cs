@@ -97,11 +97,18 @@ internal static partial class HumanoidMap
         return map;
     }
 
+    /// <summary>
+    /// 3ds Max Biped numbers its fingers instead of naming them: Finger0 is the thumb, Finger1 to Finger4 the index
+    /// to the little finger, and Finger11, Finger12 the next joints ("Bip001 L Finger2", "Bip001LFinger2_078").
+    /// </summary>
+    private static readonly string[] BipedFingers = ["Thumb", "Index", "Middle", "Ring", "Little"];
+
     private static void Fingers(Skeleton3D skeleton, List<Bone> bones, int hand, string side, Dictionary<string, int> map)
     {
         foreach (var root in skeleton.GetBoneChildren(hand))
             foreach (var (finger, words) in FingerWords)
-                if (words.Any(bones[root].Core.Contains))
+                if (words.Any(bones[root].Core.Contains)
+                    || BipedFinger().Match(bones[root].Name) is { Success: true } numbered && BipedFingers[int.Parse(numbered.Groups[1].Value)] == finger)
                 {
                     var bone = root;
                     foreach (var joint in finger == "Thumb" ? new[] { "Metacarpal", "Proximal", "Distal" } : ["Proximal", "Intermediate", "Distal"])
@@ -146,4 +153,7 @@ internal static partial class HumanoidMap
     private static partial Regex Prefix();
     [GeneratedRegex(@"[^A-Za-z0-9]")]
     private static partial Regex NotLetter();
+    // a finger's first bone: "Finger" and one digit, not two ("Finger21" is the middle finger's second joint)
+    [GeneratedRegex(@"(?i)finger[\s_]?([0-4])(?!\d)")]
+    private static partial Regex BipedFinger();
 }

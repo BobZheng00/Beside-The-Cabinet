@@ -66,13 +66,16 @@ internal sealed class Rig
     }
 
     /// <summary>
-    /// Works out the rest pose the poses are written against: arms along x, legs along -y. A model resting in an
-    /// A-pose has its limbs turned there; everything hanging off them (fingers, twist bones) turns with them.
+    /// Works out the rest pose the poses are written against: arms along x, legs along -y, hands flat with the palm
+    /// down and the index finger's side to the front. A model resting in an A-pose has its limbs turned there, and a
+    /// hand its rig left rolled some other way (a game's rig, say) is rolled flat; everything hanging off them
+    /// (fingers, twist bones) turns with them.
     /// </summary>
     private void Straighten()
     {
         var count = _raw.Length;
         var aims = new Dictionary<int, (int Child, Vector3 Direction)>();
+        var rolls = new Dictionary<int, (int Index, int Little)>();
         void Aim(string bone, string child, Vector3 direction)
         {
             if (_index.TryGetValue(bone, out var b) && _index.TryGetValue(child, out var c))
@@ -85,6 +88,9 @@ internal sealed class Rig
             Aim(side + "Hand", side + "MiddleProximal", outwards);
             Aim(side + "UpperLeg", side + "LowerLeg", Vector3.Down);
             Aim(side + "LowerLeg", side + "Foot", Vector3.Down);
+            if (_index.TryGetValue(side + "Hand", out var hand) && _index.TryGetValue(side + "IndexProximal", out var index)
+                && _index.TryGetValue(side + "LittleProximal", out var little))
+                rolls[hand] = (index, little);
         }
 
         var at = new Vector3[count];
@@ -107,6 +113,18 @@ internal sealed class Rig
                 var now = inherited * (at[aim.Child] - at[i]);
                 if (now.Length() > 1e-5f && now.Normalized().Dot(aim.Direction) > -0.99f)
                     turned[i] = (new Quaternion(now.Normalized(), aim.Direction) * inherited).Normalized();
+                // roll the hand about its length until the knuckles run from the little finger to the index towards the front
+                if (rolls.TryGetValue(i, out var knuckles))
+                {
+                    var across = turned[i] * (at[knuckles.Index] - at[knuckles.Little]);
+                    across -= aim.Direction * across.Dot(aim.Direction);
+                    if (across.Length() > 1e-5f)
+                    {
+                        across = across.Normalized();
+                        var roll = across.Dot(Vector3.Back) < -0.99f ? new Quaternion(aim.Direction, Mathf.Pi) : new Quaternion(across, Vector3.Back);
+                        turned[i] = (roll * turned[i]).Normalized();
+                    }
+                }
             }
             _rest[i] = (turned[i] * _turn * _raw[i]).Normalized();
         }

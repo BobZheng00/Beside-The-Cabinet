@@ -236,6 +236,15 @@ blend shapes. She sat, waved and cheered on the first run. What that model chang
   only far enough to lay the hem on the thigh (`Puppet.Followers`). A sphere standing in for the seat was tried
   and dropped: it threw skirt and coat tails upwards.
 
+- Her fingers (found by the player, 2026-10-03): with a fist or a pencil to hold her hands stayed open and flat,
+  palms turned the wrong ways, and the notebook never appeared. Biped numbers fingers instead of naming them
+  (`Finger0` the thumb, `Finger1`–`Finger4` index to little, `Finger11`, `Finger12` the next joints), so none
+  were mapped: no curl, no hand straightened along its fingers, and the pad and pencil (placed from finger
+  joints) were left out. `HumanoidMap` now reads the numbers. `Rig` also rolls each hand flat at rest, palm down
+  with the index side to the front (VRMs are already; a game rig's hand bone can be rolled any way), and the
+  thumb now folds in as the fingers close (it stuck straight out of every character's fist). Checked on her, a
+  VRM and a Mixamo model: fist, notebook and pencil, and resting hands unchanged on the other two.
+
 Still missing for such a model: blinking and expressions (no blend shapes, the eyes are painted), eye movement
 (no eye bones).
 

@@ -600,6 +600,12 @@ internal sealed class Puppet
         foreach (var finger in Fingers)
             foreach (var joint in Joints)
                 _frame[side + finger + joint] = Rig.Euler(0, 0, (left ? -1 : 1) * _curl[side] * (joint == "Proximal" ? 0.75f : 1.05f));
+        // the thumb folds in over the fingers as they close: about the hand's length, from its front edge down
+        // towards the palm (left at rest it lies along the fingers, not sticking out of a fist)
+        var thumb = Mathf.Clamp((_curl[side] - RestCurl) / 60f, 0, 1);
+        _frame[side + "ThumbMetacarpal"] = Rig.Euler(22 * thumb, 0, 0);
+        _frame[side + "ThumbProximal"] = Rig.Euler(28 * thumb, 0, 0);
+        _frame[side + "ThumbDistal"] = Rig.Euler(38 * thumb, 0, 0);
     }
 
     /// <summary>Two-bone reach: bends the arm so the wrist lands on the target and lays the hand as asked.</summary>
