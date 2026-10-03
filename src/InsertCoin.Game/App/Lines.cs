@@ -4,8 +4,8 @@ using InsertCoin.Core;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// What the companion says about what just happened. Plain canned lines built from the ledger's own numbers;
-/// this is the seam where a language model can take over later.
+/// What the companion says about what just happened. Plain canned lines built from the ledger's own numbers: instant,
+/// free and offline. Her mind (App/Chat.cs) answers when spoken to; these remain her remarks on events.
 /// </summary>
 public static class Lines
 {

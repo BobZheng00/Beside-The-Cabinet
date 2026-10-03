@@ -22,6 +22,14 @@ what the cabinet does: cheers for coins, glances at the screen, worries about de
 paused. She says a line about it in a speech bubble; click her for where things stand. The tray menu switches her
 off, silences her, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
+She can also talk. In tray → "Chat settings…" pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
+local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key and name a model. Then clicking
+her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
+it out. She knows the cabinet's numbers, remembers the conversation (older parts are folded into a summary as it
+grows), and keeps two short notes you can edit there: about you (shared by every character) and about the two of
+you. Everything stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows account.
+Without a provider she keeps to her canned lines.
+
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).
 
@@ -32,20 +40,23 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
-(as if the file were dropped on the window), `pick` (the "Add a character…" dialog) and `tray:x:y` (open the tray
-menu at that screen point).
+(as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
+menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip) and `chatsettings`.
 
 ## Layout
 
 ```
 src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no clock
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
+src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
+                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key
 src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
-tests/                    xUnit: every rule with a fake clock; adapters with recorded responses
+tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
                           app_icon.py — the app icon (.ico for the .exe, .png for the window)
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
-tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it; sheet.ps1 makes contact sheets
+tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
+                          own windows too); sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
 
@@ -94,8 +105,13 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `ToonMaterials` + `toon.gdshaderinc` replace the model's materials: two flat tones from one fixed light, texture
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
-- `SpeechBubble` draws what she says; the lines themselves come from `App/Lines.cs`, canned text built from the
-  ledger's numbers (the seam for a language model later).
+- `SpeechBubble` draws what she says: canned lines from `App/Lines.cs` (built from the ledger's numbers) type
+  themselves out; replies from her mind start as thinking dots and grow as they stream in. `ChatBox` is the slip
+  you type on, `Paper` the shared look (cream paper, the cabinet's ink, Fredoka).
+- `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
+  `[wave]`, `[worry]`…), logs cabinet events into the conversation, folds it when it grows. `App/ChatSettings.cs`
+  is the provider, key and notes window. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
+  memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser
   towards the hand, so moves overshoot and settle), and life on top (breathing, sway, head drift, fidgets, eyes
@@ -118,6 +134,9 @@ when the character itself is moved or turned.
   `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
 
 Either way `"Companion": "<id>"` in `settings.json` selects it (the id is the file name).
+
+Who they are when they talk is a plain-text description: `persona.md` in the character's folder (built-in ones
+ship one), or `<file name>.md` beside a loose model file. Without one they are a plain friendly companion.
 
 What each kind of file gets:
 
@@ -144,4 +163,5 @@ original, generated by the tools above.
 
 Companion: the VRM importer and MToon shader are [godot-vrm](https://github.com/V-Sekai/godot-vrm) (MIT, licences in
 `src/InsertCoin.Game/addons`). The characters are VRoid's samples "Sendagaya Shino" and "Sakurada Fumiriya",
-released by pixiv under CC0 (see `SOURCE.txt` in each folder under `src/InsertCoin.Game/characters`).
+released by pixiv under CC0 (see `SOURCE.txt` in each folder under `src/InsertCoin.Game/characters`); their
+`persona.md` descriptions are ours.

@@ -28,6 +28,10 @@ window/subwindows/embed_subwindows=false
 
 project/assembly_name="InsertCoin.Game"
 
+[internationalization]
+
+locale/include_text_server_data=true
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

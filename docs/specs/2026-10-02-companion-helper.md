@@ -58,7 +58,8 @@ Seams that exist today: `Lines.For` / `Lines.Status` produce what she says, `Com
    "borrow its design".
    *Researched:* [../research/2026-10-02-companion-memory.md](../research/2026-10-02-companion-memory.md)
    recommends our own memory in-process (SQLite), built from Letta's, mem0's and Generative Agents' designs, on
-   Microsoft.Extensions.AI for providers. Awaiting the user's go-ahead.
+   Microsoft.Extensions.AI for providers. Accepted, with memory + auto-compaction (like Claude and ChatGPT)
+   as the baseline and Hermes Agent as the reference for the agent phase; the decisions are listed there.
 2. What she may remember about the user, and how the user reviews and erases it.
 3. Persona format: our own, or the community "character card" format used by SillyTavern-style apps (to be
    checked), so users can bring a card along with a model.

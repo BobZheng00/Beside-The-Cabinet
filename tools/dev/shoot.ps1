@@ -10,9 +10,11 @@
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma
 # -Model    file(s) copied into the profile's characters folder (wildcards allowed)
-# Output: <Out>\<Tag>-<n>.png, plus the app's log and errors.
+# -Window   also capture the app's own window with this title (a settings window, a dialog) at each shot, from the
+#           window itself (PrintWindow), so nothing else on screen is ever captured
+# Output: <Out>\<Tag>-<n>.png (and <Tag>-<n>-window.png), plus the app's log and errors.
 param([string]$Script = "", [double[]]$Shots = @(6), [string]$Tag = "shot", [string]$Bg = "#F2EFF7", [string]$Size = "M",
-      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$Exe = "",
+      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$Exe = "", [string]$Window = "",
       [string]$Out = (Join-Path $env:TEMP "insert-coin-shots"),
       [string]$Godot = "<tools>\Godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe")
 
@@ -33,7 +35,17 @@ Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class Shoot { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr ctx);
-  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r); }
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+  public delegate bool EnumProc(IntPtr h, IntPtr p);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr p);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, System.Text.StringBuilder s, int n);
+  public static IntPtr Find(uint pid, string title) { IntPtr found = IntPtr.Zero;
+    EnumWindows((h, p) => { uint owner; GetWindowThreadProcessId(h, out owner); var t = new System.Text.StringBuilder(256); GetWindowText(h, t, 256);
+      if (owner == pid && IsWindowVisible(h) && t.ToString().Contains(title)) { found = h; return false; } return true; }, IntPtr.Zero);
+    return found; } }
 "@
 [Shoot]::SetThreadDpiAwarenessContext([IntPtr](-4)) | Out-Null       # true pixels on every monitor
 
@@ -71,7 +83,17 @@ foreach ($s in $Shots) {
   $bmp = New-Object System.Drawing.Bitmap $w, $h; $g = [System.Drawing.Graphics]::FromImage($bmp)
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
   $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
-  "$file  at ${s}s: ${w}x$h, working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"; $i++
+  "$file  at ${s}s: ${w}x$h, working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"
+  if ($Window -ne "") {
+    $h2 = [Shoot]::Find([uint32]$app.Id, $Window)
+    if ($h2 -eq [IntPtr]::Zero) { "  no window titled '$Window' at ${s}s" } else {
+      $r2 = New-Object Shoot+RECT; [Shoot]::GetWindowRect($h2, [ref]$r2) | Out-Null
+      $bmp = New-Object System.Drawing.Bitmap ($r2.R - $r2.L), ($r2.B - $r2.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $dc = $g.GetHdc()
+      [Shoot]::PrintWindow($h2, $dc, 2) | Out-Null; $g.ReleaseHdc($dc)
+      $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $bmp.Save($file2); $g.Dispose(); $bmp.Dispose(); "  $file2"
+    }
+  }
+  $i++
 }
 
 Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

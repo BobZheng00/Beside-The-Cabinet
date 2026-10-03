@@ -7,6 +7,7 @@ using InsertCoin.Game.Cabinet;
 using InsertCoin.Game.Companion;
 using InsertCoin.Game.Desktop;
 using InsertCoin.Game.Skins;
+using InsertCoin.Mind;
 
 namespace InsertCoin.Game;
 
@@ -37,6 +38,9 @@ public partial class Main : Node2D
     private IGameDetector _games = null!;
     private CabinetView _cabinet = null!;
     private CompanionView? _companion;
+    private Chat _chat = null!;
+    private ChatBox _chatBox = null!;
+    private ChatSettings? _chatSettings;
     private string _charactersDir = "";
     private readonly Random _random = new();
     private TimeSpan _livelyUntil;
@@ -80,6 +84,8 @@ public partial class Main : Node2D
         _cabinet = new CabinetView();
         AddChild(_cabinet);
         _cabinet.Build(skin);
+        _chat = new Chat(dataDir);
+        _chat.Connect(ChatProvider());
         ShowCompanion(_settings.ShowCompanion);
         _audio = new AudioBank();
         AddChild(_audio);
@@ -92,17 +98,17 @@ public partial class Main : Node2D
         AddChild(_window);
         _window.Build(skin.Layers["base"], skin.Scale, skin.Canvas);
         _window.Hover += p => _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
-        _window.AlsoSolid = p => _companion?.Hits(p) == true;
+        _chatBox = new ChatBox();
+        AddChild(_chatBox);
+        _chatBox.Submitted += said => _ = Ask(said);
+        _window.AlsoSolid = p => _companion?.Hits(p) == true || _chatBox.Hits(p);
+        _window.KeepsMouse = _chatBox.Hits;
         _window.Clicked += p =>
         {
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
             else if (_companion?.Hits(p) == true)
-            {
-                Lively(6);
-                _companion.Play(Moment.Greet);
-                Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
-            }
+                ClickedHer();
         };
         GetWindow().FilesDropped += AddCharacters;             // a model dropped on the cabinet or on her
         _cabinet.CheckPressed += OnCheck;
@@ -124,6 +130,7 @@ public partial class Main : Node2D
             if (!on)
                 _companion?.Hush();
         };
+        _tray.ChatSettings += OpenChatSettings;
         _tray.AddCharacter += PickCharacter;
         _tray.OpenCharacters += () =>
         {
@@ -248,7 +255,8 @@ public partial class Main : Node2D
             Lively(6);
         foreach (var e in result.Events)
             _director.Play(e);
-        if (Lines.For(result.Events, _state, _rules, _random) is { } line)
+        _chat.Witness(result.Events, _rules);
+        if (Lines.For(result.Events, _state, _rules, _random) is { } line && !_chat.Answering)
             Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
         if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or SessionEnded or WeeklyReset))
@@ -341,6 +349,7 @@ public partial class Main : Node2D
             try
             {
                 _companion.Build(_cabinet.Skin, character);
+                _chat.Seat(character.Id, character.Persona());
             }
             catch (Exception e)
             {
@@ -421,8 +430,75 @@ public partial class Main : Node2D
     /// <summary>A line in her speech bubble, unless the user has asked for quiet.</summary>
     private void Say(string line)
     {
-        if (_settings.SpeechBubbles)
-            _companion?.Say(line);
+        if (!_settings.SpeechBubbles || _companion is null)
+            return;
+        _companion.Say(line);
+        _chat.Said(line);
+    }
+
+    /// <summary>She waves and says where things stand; when she can talk, the slip to type to her opens too.</summary>
+    private void ClickedHer()
+    {
+        Lively(6);
+        _companion?.Play(Moment.Greet);
+        if (!_chat.Answering)
+            Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+        OpenChat();
+    }
+
+    private Provider? ChatProvider() => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel);
+
+    /// <summary>Opens the slip at the foot of the stool for the user to type to her, once she can answer.</summary>
+    private void OpenChat()
+    {
+        if (!_chat.Ready || _companion is null)
+            return;
+        DisplayServer.WindowMoveToForeground();
+        _chatBox.Open(new Vector2(14, _cabinet.Skin.Canvas.Y - ChatBox.Height - 14), $"Say something to {_chat.Conversation!.Persona.Name}…");
+    }
+
+    private async Task Ask(string said)
+    {
+        if (_companion is null)
+            return;
+        _chatBox.SetWaiting(true);
+        Lively(120);                                     // keep her lively while she thinks and talks
+        try
+        {
+            await _chat.Ask(said, Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username), _companion);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Chat: {e}");                  // nobody awaits this task: say what went wrong here
+        }
+        finally
+        {
+            _chatBox.SetWaiting(false);
+            Lively(10);
+        }
+    }
+
+    /// <summary>Provider, key and the notes she keeps, for whoever is on the stool.</summary>
+    private void OpenChatSettings()
+    {
+        if (IsInstanceValid(_chatSettings))
+        {
+            _chatSettings!.GrabFocus();
+            return;
+        }
+        var characters = CompanionView.Available(_charactersDir);
+        var character = characters.FirstOrDefault(c => c.Id == _settings.Companion) ?? characters.FirstOrDefault();
+        if (character is null)
+            return;
+        _chatSettings = new ChatSettings();
+        AddChild(_chatSettings);
+        _chatSettings.Build(_chat, ChatProvider(), character.Id, _chat.Conversation?.Persona.Name ?? character.Name);
+        _chatSettings.Saved += provider =>
+        {
+            SaveSettings(_settings with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
+            _chat.Connect(provider);
+        };
+        _chatSettings.Open();
     }
 
     /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
@@ -464,10 +540,13 @@ public partial class Main : Node2D
 
     public override void _Notification(int what)
     {
+        if (what == NotificationApplicationFocusOut && _chatBox?.IsOpen == true && _chatBox.IsEmpty)
+            _chatBox.Close();                           // clicked away without typing
         if (what == NotificationWMCloseRequest || what == NotificationPredelete)
         {
             if (_stateStore is not null)
                 Save();
+            _chat?.Dispose();
             _singleInstance?.Dispose();
         }
     }
@@ -485,6 +564,12 @@ public partial class Main : Node2D
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
+        if (key.Keycode == Key.Escape && _chatBox.IsOpen)
+        {
+            _chatBox.Close();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (key.Keycode == Key.Escape)
         {
             Save();
@@ -520,6 +605,22 @@ public partial class Main : Node2D
             AddCharacters([action["add:".Length..]]);
             return;
         }
+        if (action.StartsWith("chat:"))              // chat:text sends a line to her as if typed (underscores for spaces)
+        {
+            OpenChat();
+            _chatBox.DevSend(action["chat:".Length..].Replace('_', ' '));
+            return;
+        }
+        if (action is "chatbox")                      // opens the slip to type to her
+        {
+            OpenChat();
+            return;
+        }
+        if (action is "chatsettings")                 // the "Chat settings…" window
+        {
+            OpenChatSettings();
+            return;
+        }
         if (action is "pick")                         // the "Add a character…" file dialog
         {
             PickCharacter();
@@ -545,9 +646,7 @@ public partial class Main : Node2D
         }
         if (action is "click")                        // as if she had been clicked
         {
-            Lively(6);
-            _companion?.Play(Moment.Greet);
-            Say(Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)));
+            ClickedHer();
             return;
         }
         if (action is "saver")                        // toggles the energy saver

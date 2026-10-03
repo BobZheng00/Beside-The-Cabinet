@@ -7,12 +7,12 @@ public enum TrayMood { Fine, Low, Debt }
 /// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, AddCharacter, OpenCharacters, Quit;
+    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, AddCharacter, OpenCharacters, Quit;
     public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, EnergySaverChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
-        AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, CharacterId = 20;
+        AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, CharacterId = 20;
     private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, EnergyId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
@@ -82,6 +82,7 @@ public partial class TrayIcon : Node
         _menu.AddSeparator();
         Check("Companion", CompanionId);
         Check("Speech bubbles", SpeechId);
+        _menu.AddItem("Chat settings…", ChatId);
         _characters = [.. characters.Select(c => c.Id)];
         foreach (var ((id, name), i) in characters.Select((c, i) => (c, i)))
             Radio($"Companion: {name}", CharacterId + i, id == character);
@@ -121,6 +122,7 @@ public partial class TrayIcon : Node
             case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
             case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case SpeechId: SpeechChanged?.Invoke(Toggle(SpeechId)); break;
+            case ChatId: ChatSettings?.Invoke(); break;
             case AddId: AddCharacter?.Invoke(); break;
             case FolderId: OpenCharacters?.Invoke(); break;
             case EnergyId: EnergySaverChanged?.Invoke(Toggle(EnergyId)); break;

@@ -16,6 +16,8 @@ public partial class DesktopWindow : Node
     public event Action<Vector2?>? Hover;
     /// <summary>Anything solid besides the art's opaque pixels (things drawn live), tested with a canvas point.</summary>
     public Func<Vector2, bool>? AlsoSolid { get; set; }
+    /// <summary>Controls that take the mouse themselves (a text field): pressing there neither clicks nor drags the window.</summary>
+    public Func<Vector2, bool>? KeepsMouse { get; set; }
 
     private Bitmap _hitMask = null!;
     private float _maskScale;
@@ -63,7 +65,7 @@ public partial class DesktopWindow : Node
     {
         switch (e)
         {
-            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }:
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } when KeepsMouse?.Invoke(CursorCanvas()) != true:
                 _pressed = true;
                 _dragging = false;
                 _pressAt = DisplayServer.MouseGetPosition();

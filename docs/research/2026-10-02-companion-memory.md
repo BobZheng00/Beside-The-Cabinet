@@ -44,6 +44,31 @@ conversation verbatim (best quality, and a companion's daily volume is small) an
   carry a persona and a keyword-triggered lorebook; people already share them, so importing them gives the
   role-play use case content on day one.
 
+## Baseline: Claude, ChatGPT and Hermes (read)
+
+The user set the floor: at least "a regular memory + auto compact system like Claude and ChatGPT".
+
+- **ChatGPT** keeps two layers: *saved memories*, a visible list of facts you can edit and delete, and *chat
+  history*, a summary of what it has learned from past chats, put into the context at the start of every new chat
+  ([OpenAI](https://openai.com/index/memory-and-new-controls-for-chatgpt/), [explainer](https://memx.app/blog/chatgpt-reference-chat-history-vs-saved-memories/)).
+- **Claude** compacts: when a conversation nears the context limit, earlier messages are replaced by a summary, and
+  the API offers the same as a server-side step triggered at a token threshold
+  ([cookbook](https://platform.claude.com/cookbook/tool-use-automatic-context-compaction)).
+- **Hermes Agent** (Nous Research, MIT, Python) is the personal-agent reference. Its memory
+  ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory)) is two small files always in the
+  prompt: `MEMORY.md`, the agent's own notes (2,200 characters), and `USER.md`, the user's profile (1,375
+  characters). They are injected once per session and not changed mid-session, "to preserve the LLM's prefix
+  cache"; a write that would exceed the cap fails instead of silently dropping something, which forces curation.
+  Every conversation is also kept in SQLite with FTS5, searchable in about 20 ms, so old exchanges can be found
+  word for word. For agent work it adds *skills* (Markdown procedures it writes after solving something, loaded
+  only when needed) and scheduled jobs ([skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills)).
+  Its memory writes are tool calls by the chat model, like Letta's.
+
+What changes in the proposal: she has **one continuous conversation** (per character), compacted automatically like
+Claude's; the core blocks get **hard caps** and stay fixed between upkeep runs (Hermes); the **raw conversation
+log is searchable** too, not only the facts extracted from it (Hermes); and skills plus scheduled jobs are the
+model for the agent phase (reminders).
+
 ## Off-the-shelf plumbing (read, untested here)
 
 - **Microsoft.Extensions.AI** `IChatClient` / `IEmbeddingGenerator`: one interface for every provider, with
@@ -68,7 +93,7 @@ conversation verbatim (best quality, and a companion's daily volume is small) an
 |---|---|---|---|
 | Persona | Who she is: built-in, or the character card next to the model | yes | the character's author |
 | Core | "About you" (name, goals, schedule, likes) and "Us" (how she calls you, running jokes, tone), a few hundred words each, rewritten when facts change | yes | background upkeep; editable by you |
-| Recent | The last conversation turns, verbatim, up to a token budget | yes | the chat itself |
+| Recent | One continuous conversation: the latest turns verbatim, older ones folded into a running summary when they pass a token budget (auto-compaction); cabinet events are logged into it too | yes | the chat itself / compaction |
 | Episodes | One dated summary per conversation, plus cabinet milestones (first Hard, a week over budget, a 7-day combo) written straight from ledger events with no model call; weekly digests roll them up | when relevant | background upkeep / the ledger |
 | Facts | Short statements with importance, scope, when learned and last recalled | when relevant | background upkeep (extract, then reconcile) |
 | Lore | Keyword-triggered entries from a character card's lorebook, and notes you pin | when a keyword appears | card author / you |
@@ -102,21 +127,29 @@ whose output does not parse is skipped and retried later; nothing is lost becaus
 - Everything lives in the profile folder (`companion/memory.db`); only what one request needs is sent, and only
   to the provider you chose. The key is encrypted with Windows DPAPI.
 - A "memory book" window lists what she knows (core, facts, episodes): edit, pin, delete, forget everything.
-- Optionally she mentions when she notes something important ("I'll remember your exam is Friday").
+- **"I'll remember that"** only when you are just telling her something worth keeping: she says so and makes a
+  note-taking motion. When the information comes in the middle of something else, she does not announce it;
+  upkeep picks it up quietly. Model-agnostic: the reply starts with a `[note: …]` tag carrying the fact, which the
+  app stores at once and strips from the text.
 
 ### Order of work
 
-1. **Talk:** provider settings (base URL, key, model), chat box on click, streamed replies with stage tags,
-   canned lines as fallback, conversation log, persona and core blocks (edited by hand at first).
-2. **Remember:** upkeep (episodes, facts, reconcile, core rewrite), keyword search, memory book.
+1. **Talk** (built 2026-10-02: `src/InsertCoin.Mind`, tested with a fake model and against local mock OpenAI and
+   Anthropic servers, not yet with a real provider): provider settings (base URL, key, model), chat box on click,
+   streamed replies with stage tags, canned lines as fallback, one continuous conversation log with
+   auto-compaction, persona and capped core blocks (edited by hand at first).
+2. **Remember:** `[note]` with its motion, upkeep (episodes, facts, reconcile, core rewrite), search over facts
+   and the raw log, memory book.
 3. **Remember better:** local embeddings (after a spike in the export), forgetting curve, weekly digests,
    character card + lorebook import.
 4. **Later:** agent tools (calendar, reminders) through function calling, possibly on Agent Framework;
    text-to-speech, then voice-to-voice.
 
-## Open questions for the user
+## Decided (2026-10-02)
 
-1. Facts about you: shared by every character, or does each character get to know you separately?
-2. Should she say out loud when she notes something, or remember silently (the memory book always shows it)?
-3. Ship the small local embedding model (about 16 MB plus the ONNX runtime) in step 3, or rely on keyword
-   search only?
+1. Facts about the user are shared by every character; "Us", episodes and lore belong to one character.
+2. She says "I'll remember that" (with a note-taking motion) only when the user is just telling her something;
+   otherwise she remembers silently.
+3. The small local embedding model ships in step 3, after a spike in the exported build.
+4. Baseline: memory plus auto-compaction like Claude and ChatGPT; Hermes Agent is the reference for the agent
+   phase.

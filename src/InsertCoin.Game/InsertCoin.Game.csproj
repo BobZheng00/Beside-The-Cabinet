@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\InsertCoin.Core\InsertCoin.Core.csproj" />
     <ProjectReference Include="..\InsertCoin.Adapters\InsertCoin.Adapters.csproj" />
+    <ProjectReference Include="..\InsertCoin.Mind\InsertCoin.Mind.csproj" />
   </ItemGroup>
 </Project>

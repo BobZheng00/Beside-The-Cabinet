@@ -3,29 +3,30 @@ using Godot;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
-/// What the companion says: a paper bubble over her head, drawn in the cabinet's ink. The text types itself out,
-/// stays long enough to read, then fades.
+/// What the companion says: a paper bubble over her head, drawn in the cabinet's ink. A canned line types itself
+/// out; a reply from her mind starts as thinking dots and grows as its words arrive. Either way it stays long
+/// enough to read, then fades.
 /// </summary>
 public partial class SpeechBubble : Node2D
 {
-    private static readonly Color Paper = new("FFF7EC"), Ink = new("1E1630"), Letters = new("3B2E5E");
-    private static readonly Font Face = new FontVariation
-    {
-        BaseFont = GD.Load<FontFile>("res://fonts/Fredoka-Variable.ttf"),
-        VariationOpentype = new Godot.Collections.Dictionary { [TextServerManager.GetPrimaryInterface().NameToTag("wght")] = 560 },
-    };
+    private static readonly Font Face = Paper.Font(560);
     private const int FontSize = 17;
     private const float MaxTextWidth = 190, PadX = 12, PadY = 8, Corner = 12, TailHeight = 13, TailHalf = 7, Stroke = 2;
+    private const string Dots = "...";
 
     private Label _label = null!;
     private Vector2[] _shape = [];
     private Tween? _tween;
+    private Vector2 _tip, _canvas;
+    private string _text = "";
+    private bool _streaming;
+    private double _thinking;
 
     public override void _Ready()
     {
         _label = new Label
         {
-            LabelSettings = new LabelSettings { Font = Face, FontSize = FontSize, FontColor = Letters },
+            LabelSettings = new LabelSettings { Font = Face, FontSize = FontSize, FontColor = Paper.Letters },
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         AddChild(_label);
@@ -36,30 +37,49 @@ public partial class SpeechBubble : Node2D
     /// <param name="canvas">Canvas size; the bubble stays inside it.</param>
     public void Say(string text, Vector2 tip, Vector2 canvas)
     {
-        var size = Face.GetMultilineStringSize(text, HorizontalAlignment.Left, MaxTextWidth, FontSize);
-        var box = size + new Vector2(2 * PadX, 2 * PadY);
-        // Above her head and mostly to the left of it: the cabinet is on her other side.
-        var left = Mathf.Clamp(tip.X - box.X * 0.62f, 6, canvas.X - box.X - 6);
-        var top = Mathf.Max(tip.Y - TailHeight - box.Y, 4);
-        var rect = new Rect2(new Vector2(left, top) - tip, box);       // local: the node sits on the tail's tip
-
-        Position = tip;
-        _label.Text = text;
-        _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
-        _label.Size = new Vector2(MaxTextWidth, size.Y);
-        _shape = Outline(rect, Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf));
-        QueueRedraw();
-
-        _tween?.Kill();
-        Visible = true;
-        Scale = Vector2.One * 0.6f;
-        Modulate = new Color(1, 1, 1, 0);
+        _streaming = false;
+        _tip = tip;
+        _canvas = canvas;
+        Place(text);
+        Pop();
         _label.VisibleRatio = 0;
+        _tween!.Parallel().TweenProperty(_label, "visible_ratio", 1f, 0.15 + text.Length / 55.0);
+        HoldThenFade(text);
+    }
+
+    /// <summary>Opens a bubble with thinking dots; the reply's words follow through <see cref="Append"/>.</summary>
+    public void Begin(Vector2 tip, Vector2 canvas)
+    {
+        _streaming = true;
+        _text = "";
+        _tip = tip;
+        _canvas = canvas;
+        _thinking = 0;
+        Place(Dots);
+        Pop();
+    }
+
+    public void Append(string piece)
+    {
+        if (!_streaming || piece.Length == 0)
+            return;
+        _text += piece;
+        Place(_text);
+    }
+
+    /// <summary>The reply is complete: let it be read, then fade.</summary>
+    public void End()
+    {
+        if (!_streaming)
+            return;
+        _streaming = false;
+        _tween?.Kill();
         _tween = CreateTween();
-        _tween.TweenProperty(this, "scale", Vector2.One, 0.24).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        _tween.Parallel().TweenProperty(this, "modulate:a", 1f, 0.12);
-        _tween.Parallel().TweenProperty(_label, "visible_ratio", 1f, 0.15 + text.Length / 55.0);
-        _tween.TweenInterval(2.4 + text.Length * 0.055);
+        if (_text.Length > 0)
+        {
+            HoldThenFade(_text);
+            return;
+        }
         _tween.TweenProperty(this, "modulate:a", 0f, 0.3);
         _tween.TweenCallback(Callable.From(() => Visible = false));
     }
@@ -67,16 +87,64 @@ public partial class SpeechBubble : Node2D
     /// <summary>Takes back whatever is showing, at once.</summary>
     public void Clear()
     {
+        _streaming = false;
         _tween?.Kill();
         Visible = false;
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!_streaming || _text.Length > 0)
+            return;
+        _thinking += delta;
+        _label.Text = Dots[..(1 + (int)(_thinking * 3) % 3)];        // . .. ... while she thinks
     }
 
     public override void _Draw()
     {
         if (_shape.Length == 0)
             return;
-        DrawColoredPolygon(_shape, Paper);
-        DrawPolyline([.. _shape, _shape[0]], Ink, Stroke, antialiased: true);
+        DrawColoredPolygon(_shape, Paper.Sheet);
+        DrawPolyline([.. _shape, _shape[0]], Paper.Ink, Stroke, antialiased: true);
+    }
+
+    /// <summary>Sizes the bubble around the text, above her head and mostly to the left of it (the cabinet is on her other side).</summary>
+    private void Place(string text)
+    {
+        // measured with the label's own rules (WordSmart: break between words, inside a word only if it cannot fit)
+        var size = Face.GetMultilineStringSize(text, HorizontalAlignment.Left, MaxTextWidth, FontSize,
+            brkFlags: TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive);
+        var box = size + new Vector2(2 * PadX, 2 * PadY);
+        box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."
+        var left = Mathf.Clamp(_tip.X - box.X * 0.62f, 6, _canvas.X - box.X - 6);
+        var top = Mathf.Max(_tip.Y - TailHeight - box.Y, 4);
+        var rect = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
+
+        Position = _tip;
+        _label.Text = text;
+        _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
+        _label.Size = new Vector2(MaxTextWidth, size.Y);
+        _shape = Outline(rect, Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf));
+        QueueRedraw();
+    }
+
+    private void Pop()
+    {
+        _tween?.Kill();
+        Visible = true;
+        Scale = Vector2.One * 0.6f;
+        Modulate = new Color(1, 1, 1, 0);
+        _label.VisibleRatio = 1;
+        _tween = CreateTween();
+        _tween.TweenProperty(this, "scale", Vector2.One, 0.24).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        _tween.Parallel().TweenProperty(this, "modulate:a", 1f, 0.12);
+    }
+
+    private void HoldThenFade(string text)
+    {
+        _tween!.TweenInterval(Math.Min(2.4 + text.Length * 0.055, 14));
+        _tween.TweenProperty(this, "modulate:a", 0f, 0.3);
+        _tween.TweenCallback(Callable.From(() => Visible = false));
     }
 
     /// <summary>A rounded box with a tail from its bottom edge down to the origin, as one clockwise outline.</summary>

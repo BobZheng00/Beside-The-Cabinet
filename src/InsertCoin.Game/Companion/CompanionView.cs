@@ -109,16 +109,32 @@ public partial class CompanionView : Node2D
     /// <summary>Shows a line in a speech bubble over her head.</summary>
     public void Say(string line)
     {
-        if (!_active)
-            return;
-        var neck = _rig.PositionOf(_rig.Has("Neck") ? "Neck" : "Spine");
-        var head = _rig.PositionOf("Head");
-        var crown = head + (head - neck).Normalized() * (0.24f * _rig.Size);     // top of her hair, roughly
-        _bubble.Say(line, _camera.UnprojectPosition(crown) / _skin.Scale - new Vector2(0, 4), _skin.Canvas);
+        if (_active)
+            _bubble.Say(line, OverHead(), _skin.Canvas);
     }
+
+    /// <summary>A reply is on its way: thinking dots over her head until <see cref="Continue"/> brings its words.</summary>
+    public void BeginReply()
+    {
+        if (_active)
+            _bubble.Begin(OverHead(), _skin.Canvas);
+    }
+
+    public void Continue(string words) => _bubble.Append(words);
+
+    public void EndReply() => _bubble.End();
 
     /// <summary>Stops talking mid-sentence: the bubble goes away now.</summary>
     public void Hush() => _bubble.Clear();
+
+    /// <summary>Canvas point just above the top of her hair, where a speech bubble's tail points.</summary>
+    private Vector2 OverHead()
+    {
+        var neck = _rig.PositionOf(_rig.Has("Neck") ? "Neck" : "Spine");
+        var head = _rig.PositionOf("Head");
+        var crown = head + (head - neck).Normalized() * (0.24f * _rig.Size);     // top of her hair, roughly
+        return _camera.UnprojectPosition(crown) / _skin.Scale - new Vector2(0, 4);
+    }
 
     /// <summary>
     /// Characters that can sit on the stool: the ones built in (every folder in res://characters holding a .vrm of
@@ -377,10 +393,34 @@ public partial class CompanionView : Node2D
     }
 }
 
-/// <summary>A character that can sit on the stool: built into the app, or a .vrm file in the user's folder.</summary>
+/// <summary>A character that can sit on the stool: built into the app, or a model file in the user's folder.</summary>
 public sealed record Character(string Id, string Path, bool BuiltIn)
 {
     public string Name => Id.Length > 0 ? char.ToUpperInvariant(Id[0]) + Id[1..].Replace('_', ' ').Replace('-', ' ') : Id;
+
+    /// <summary>
+    /// Who they are, in their author's words: <c>persona.md</c> in a built-in character's folder or in a user
+    /// character's own folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without one, a plain friendly
+    /// companion.
+    /// </summary>
+    public InsertCoin.Mind.Persona Persona()
+    {
+        string? text = null;
+        if (BuiltIn)
+        {
+            var file = $"res://characters/{Id}/persona.md";
+            if (Godot.FileAccess.FileExists(file))
+                text = Godot.FileAccess.GetFileAsString(file);
+        }
+        else
+        {
+            var folder = System.IO.Path.GetDirectoryName(Path)!;
+            var candidates = new[] { System.IO.Path.ChangeExtension(Path, ".md") }
+                .Concat(System.IO.Path.GetFileName(folder).Equals(Id, StringComparison.OrdinalIgnoreCase) ? [System.IO.Path.Combine(folder, "persona.md")] : []);
+            text = candidates.Where(File.Exists).Select(File.ReadAllText).FirstOrDefault();
+        }
+        return string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) : new InsertCoin.Mind.Persona(Name, text.Trim());
+    }
 
     /// <summary>Built-in characters were imported when the app was built; the user's own are read from disk now.</summary>
     public Node3D? Load()

@@ -2,9 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/InsertCoin.Adapters/InsertCoin.Adapters.csproj" />
     <Project Path="src/InsertCoin.Core/InsertCoin.Core.csproj" />
+    <Project Path="src/InsertCoin.Mind/InsertCoin.Mind.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/InsertCoin.Adapters.Tests/InsertCoin.Adapters.Tests.csproj" />
     <Project Path="tests/InsertCoin.Core.Tests/InsertCoin.Core.Tests.csproj" />
+    <Project Path="tests/InsertCoin.Mind.Tests/InsertCoin.Mind.Tests.csproj" />
   </Folder>
 </Solution>

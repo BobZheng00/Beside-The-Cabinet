@@ -7,3 +7,5 @@ Downloaded 2026-10-02 from https://opengameart.org/content/vroid-studio-cc0-mode
 which mirrors the files from VRoid's help page on sample model terms.
 
 In the app his colours are remapped onto the cabinet's palette by the toon shader; the file itself is unmodified.
+
+persona.md (how the character talks when chatting) is original to this project, not from pixiv.
