@@ -59,10 +59,21 @@ public partial class MemoryBook : Window
         foreach (var episode in episodes)
             AddEpisodeRow(episode);
 
+        var forget = new HBoxContainer();
+        forget.AddThemeConstantOverride("separation", 8);
+        var chat = Twice("Clear the chat", () => { _store.ForgetConversation(_character); QueueFree(); });
+        chat.TooltipText = $"Starts the conversation with {characterName} afresh. What she remembers (notes, facts, moments) stays.";
+        forget.AddChild(chat);
+        var all = Twice($"Forget all with {characterName}", () => { _store.Forget(_character); QueueFree(); });
+        all.TooltipText = "The conversation and everything about the two of you.";
+        forget.AddChild(all);
+        var me = Twice("Forget all about me", () => { _store.ForgetPlayer(); QueueFree(); });
+        me.TooltipText = "What every character knows about you. Conversations stay.";
+        forget.AddChild(me);
+        column.AddChild(forget);
+
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 8);
-        buttons.AddChild(Twice($"Forget all with {characterName}", () => { _store.Forget(_character); QueueFree(); }));
-        buttons.AddChild(Twice("Forget all about me", () => { _store.ForgetPlayer(); QueueFree(); }));
         buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var cancel = new Button { Text = "Cancel", ThemeTypeVariation = "Quiet" };
         var save = new Button { Text = "Save" };

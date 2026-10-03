@@ -125,4 +125,31 @@ public class ConversationTests
         Assert.Equal("", temp.Store.Note("shino", MindStore.Us));
         Assert.Equal("Likes Hades.", temp.Store.Note(MindStore.Shared, MindStore.AboutUser));
     }
+
+    [Fact]
+    public void Clearing_the_conversation_starts_it_afresh_and_keeps_what_she_remembers()
+    {
+        using var temp = new TempStore();
+        temp.Store.SetNote("shino", MindStore.Us, "Friends.");
+        temp.Store.AddFact("shino", "Bob has an interview on Friday.", 4, Friday);
+        var first = temp.Store.Add("shino", Speaker.User, "I have an interview on Friday", Friday);
+        var last = temp.Store.Add("shino", Speaker.Her, "Good luck!", Friday);
+        temp.Store.AddEpisode("shino", "Bob told her about his interview.", first, last, Friday);
+        temp.Store.Fold("shino", "They talked about the interview.", last, Friday);
+        temp.Store.SetDigested("shino", last);
+
+        temp.Store.ForgetConversation("shino");
+
+        Assert.Empty(temp.Store.After("shino", 0));
+        Assert.Null(temp.Store.SummaryOf("shino"));
+        Assert.Equal(0, temp.Store.Digested("shino"));
+        Assert.Equal("Friends.", temp.Store.Note("shino", MindStore.Us));
+        Assert.Single(temp.Store.Facts("shino"));
+        // the moment is from before the conversation now: recallable even though nothing has been folded yet
+        Assert.Equal((0, 0), temp.Store.Episodes("shino").Select(e => (e.First, e.Last)).Single());
+
+        var again = temp.Store.Add("shino", Speaker.User, "hello again", Friday);
+        Assert.Equal(["hello again"], temp.Store.After("shino", 0).Select(l => l.Text));
+        Assert.True(again > 0);
+    }
 }

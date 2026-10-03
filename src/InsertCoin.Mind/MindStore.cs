@@ -295,6 +295,21 @@ public sealed class MindStore : IDisposable
         DropVectors(EpisodeKind);
     }
 
+    /// <summary>
+    /// Clears the conversation with this character (its lines, their summary, and upkeep's place in them) and keeps
+    /// everything she took from it: notes, facts and dated moments. The moments now count as from before the
+    /// conversation, so they can be recalled at once whatever ids the new lines get (ids are reused once a table is
+    /// empty). Lines upkeep had not yet read are lost with the rest.
+    /// </summary>
+    public void ForgetConversation(string character)
+    {
+        using var command = Command("""
+            DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM digested WHERE character = $c;
+            UPDATE episodes SET first = 0, last = 0 WHERE character = $c;
+            """, ("$c", character));
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>Forgets what every character knows about the player: the shared note and facts.</summary>
     public void ForgetPlayer()
     {

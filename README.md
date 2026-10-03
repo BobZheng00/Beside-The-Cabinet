@@ -82,8 +82,10 @@ apart by itself): about a tenth of a second for a sentence. The microphone is op
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
 it does in the app in front.
 
-Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything, or
-forget everything. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
+Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything.
+"Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
+conversation and everything about the two of you; "Forget all about me" clears what every character knows about
+you. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
 account. Without a provider she keeps to her canned lines.
 
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
