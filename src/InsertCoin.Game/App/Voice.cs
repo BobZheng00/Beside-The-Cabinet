@@ -16,7 +16,7 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class Voice : Node
 {
-    public enum Phase { NotSetUp, Off, Resting, NoVoice, Starting, Loading, Ready, Failed }
+    public enum Phase { NotSetUp, Off, Resting, Training, NoVoice, Starting, Loading, Ready, Failed }
 
     private const float BufferSeconds = 0.3f;
     private const int LevelFrames = 800;                // loudness measured every ~20 ms of audio, for her mouth
@@ -46,7 +46,7 @@ public partial class Voice : Node
     private GptSoVits? _engine;
     private VoiceProfile? _profile, _warm;
     private string _folder = "";
-    private bool _enabled = true, _gameRunning;
+    private bool _enabled = true, _gameRunning, _training;
     private int _refreshes;
     private CancellationTokenSource? _refreshing;
     private string? _problem;
@@ -79,6 +79,7 @@ public partial class Voice : Node
         Phase.NotSetUp => "Not set up: choose where GPT-SoVITS is.",
         Phase.Off => "Switched off (tray menu: Voice).",
         Phase.Resting => "Resting while your game runs, to leave it the graphics card.",
+        Phase.Training => "Resting while a voice is trained (it takes the whole graphics card).",
         Phase.NoVoice => _profile is null ? "No voice yet." : $"The voice still needs {_profile.Missing}.",
         Phase.Starting => "Starting GPT-SoVITS… (a first start can take a minute)",
         Phase.Loading => $"Loading {_profile?.Name}…",
@@ -118,6 +119,18 @@ public partial class Voice : Node
         }
     }
 
+    /// <summary>A voice is being trained: the server is stopped, as training takes the whole graphics card.</summary>
+    public bool Training
+    {
+        set
+        {
+            if (_training == value)
+                return;
+            _training = value;
+            Refresh();
+        }
+    }
+
     /// <summary>Mute sounds mutes her too; her mouth still moves.</summary>
     public bool Muted
     {
@@ -141,7 +154,7 @@ public partial class Voice : Node
         Refresh();
     }
 
-    private bool Wanted => _enabled && !_gameRunning && _server is not null && _profile is { Missing: null };
+    private bool Wanted => _enabled && !_gameRunning && !_training && _server is not null && _profile is { Missing: null };
 
     /// <summary>She can say something right now.</summary>
     public bool CanSpeak => Now == Phase.Ready && Wanted;
@@ -156,7 +169,7 @@ public partial class Voice : Node
             Stop();
             _server?.Stop();
             _engine?.Forget();
-            Set(_server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : Phase.NoVoice);
+            Set(_server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
             return;
         }
         if (Now == Phase.Ready && _server!.Ready && ReferenceEquals(_warm, _profile))

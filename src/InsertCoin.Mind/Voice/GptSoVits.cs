@@ -77,11 +77,11 @@ public sealed class GptSoVits(HttpClient http)
         }
     }
 
-    /// <summary>Loads the voice's own weights (its files are in <paramref name="folder"/>), or the base model it is cloned with.</summary>
+    /// <summary>Loads the voice's trained model (its files are in <paramref name="folder"/>), or the base model it is cloned with.</summary>
     public Task Load(VoiceProfile profile, string folder, CancellationToken cancel = default)
     {
-        var (gpt, sovits) = profile.Gpt is { } g && profile.Sovits is { } s
-            ? (Path.GetFullPath(Path.Combine(folder, g)), Path.GetFullPath(Path.Combine(folder, s)))
+        var (gpt, sovits) = profile.SpeaksTrained
+            ? (Path.GetFullPath(Path.Combine(folder, profile.Gpt!)), Path.GetFullPath(Path.Combine(folder, profile.Sovits!)))
             : Base(profile.Runs);
         return Load(gpt, sovits, cancel);
     }

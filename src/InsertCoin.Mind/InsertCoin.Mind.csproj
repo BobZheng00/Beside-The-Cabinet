@@ -14,6 +14,11 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- trains a voice's own GPT-SoVITS model, run with GPT-SoVITS's Python: written out when a voice is trained -->
+    <EmbeddedResource Include="Voice\train_voice.py" LogicalName="train_voice.py" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

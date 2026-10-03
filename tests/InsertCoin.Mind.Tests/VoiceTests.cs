@@ -256,9 +256,10 @@ public class VoiceTests
         Assert.True(clone.Slow);
         Assert.EndsWith("s2Gv4.pth", GptSoVits.Base(clone.Runs).Sovits);
 
-        var quick = clone with { Version = "v2ProPlus" };
+        var quick = clone with { CloneWith = "v2ProPlus" };
         Assert.False(quick.Slow);
         Assert.Equal(("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"), GptSoVits.Base(quick.Runs));
+        Assert.Equal("v4", (clone with { CloneWith = "1.7B" }).Runs);  // saved for Qwen3-TTS while it was offered
 
         var trained = clone with { Gpt = "a.ckpt", Sovits = "b.pth", Version = null };
         Assert.Null(trained.Runs);                                // a model of unknown version: not taken for v4
@@ -266,12 +267,49 @@ public class VoiceTests
     }
 
     [Fact]
-    public void A_clone_saved_for_Qwen3_TTS_while_it_was_offered_runs_on_v4()
+    public void A_voice_with_a_trained_model_can_speak_as_a_clone_instead()
     {
-        var clone = new VoiceProfile { Engine = "qwen3-tts", Version = "1.7B", Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
-        Assert.Equal("v4", clone.Runs);
-        Assert.Equal("v4", (clone with { Version = "0.6B" }).Runs);
-        Assert.Equal("v2ProPlus", (clone with { Version = "v2ProPlus" }).Runs);
+        var voice = new VoiceProfile { Gpt = "hana-e15.ckpt", Sovits = "hana_e8_s224.pth", Version = "v2ProPlus", Language = "ja",
+                                       Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
+        Assert.Equal((true, true, "v2ProPlus"), (voice.Trained, voice.SpeaksTrained, voice.Runs));
+
+        var clone = voice with { CloneWith = "v4" };
+        Assert.Equal((true, false, "v4", true), (clone.Trained, clone.SpeaksTrained, clone.Runs, clone.Slow));
+        Assert.Equal("v2ProPlus", (clone with { CloneWith = null }).Runs);     // and back
+    }
+
+    [Fact]
+    public void A_clone_saved_before_a_voice_could_have_both_keeps_its_base_model()
+    {
+        using var old = new TempFolder();
+        old.File("voice.json", Encoding.UTF8.GetBytes("""{ "name": "hana-ja", "language": "ja", "version": "v2ProPlus", "clips": [] }"""));
+        using var trained = new TempFolder();
+        trained.File("voice.json", Encoding.UTF8.GetBytes("""{ "name": "li", "gpt": "a.ckpt", "sovits": "b.pth", "version": "v2ProPlus" }"""));
+
+        Assert.Equal(("v2ProPlus", null, "v2ProPlus"), (VoiceProfile.Load(old.Path)!.CloneWith, VoiceProfile.Load(old.Path)!.Version, VoiceProfile.Load(old.Path)!.Runs));
+        Assert.Equal((null, "v2ProPlus", true), (VoiceProfile.Load(trained.Path)!.CloneWith, VoiceProfile.Load(trained.Path)!.Version, VoiceProfile.Load(trained.Path)!.SpeaksTrained));
+    }
+
+    [Fact]
+    public void A_dataset_keeps_every_clip_with_its_words_the_best_to_speak_with_first()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        var list = new StringBuilder();
+        double[] lengths = [2, 4, 5.5, 6.5, 9, 11, 14, 3, 7];
+        for (var i = 0; i < lengths.Length; i++)
+        {
+            dataset.File($"wavs/{i:000}.wav", Silence(lengths[i]));
+            list.Append($"wavs/{i:000}.wav|hana|JA|せりふ{i}。\n");
+        }
+        dataset.File("wavs/no-words.wav", Silence(6));
+        dataset.File("esd.list", Encoding.UTF8.GetBytes(list.ToString()));
+
+        var voice = VoiceProfile.Import(dataset.Path, System.IO.Path.Combine(home.Path, "hana.voice"));
+
+        Assert.Equal(lengths.Length, voice.Clips.Count);                        // all with words, none without
+        Assert.Equal([5.5, 6.5, 7, 4, 9, 3, 2, 11, 14], voice.Clips.Select(c => Math.Round(c.Seconds!.Value, 1)));
+        Assert.Equal("せりふ2。", voice.ClipFor(null)!.Text);
     }
 
     [Fact]
@@ -358,12 +396,12 @@ public class VoiceTests
         foreach (var name in names.Where(n => n != "gone"))
             home.File($"clips/{name}.wav", Silence(5));
         var clips = names.Select(n => new VoiceClip($"clips/{n}.wav", "はい。", "ja")).ToList();
-        var clone = new VoiceProfile { Language = "ja", Version = "v2ProPlus", Clips = clips };
+        var clone = new VoiceProfile { Language = "ja", CloneWith = "v2ProPlus", Clips = clips };
         var server = Speaking([1, 2, 3], 32000);
         var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
 
         await foreach (var _ in engine.Speak("やっほー！", clone, home.Path, clips[^1])) { }
-        await foreach (var _ in engine.Speak("やっほー！", clone with { Version = "v4" }, home.Path, clips[0])) { }
+        await foreach (var _ in engine.Speak("やっほー！", clone with { CloneWith = "v4" }, home.Path, clips[0])) { }
 
         // the same first few whichever clip speaks (so the server prepares them once), and only clips that are there
         Assert.Equal(GptSoVits.BlendClips, Blended(server.Bodies[0]).Length);
@@ -399,10 +437,13 @@ public class VoiceTests
         var trained = new VoiceProfile { Gpt = "kai-e15.ckpt", Sovits = "kai_e8.pth", Version = "v2ProPlus" };
 
         await engine.Load(trained, @"C:\voices\kai.voice");
-        await engine.Load(new VoiceProfile { Version = "v2ProPlus" }, @"C:\voices\hana.voice");
+        await engine.Load(new VoiceProfile { CloneWith = "v2ProPlus" }, @"C:\voices\hana.voice");
+        await engine.Load(trained with { CloneWith = "v4" }, @"C:\voices\kai.voice");             // a trained voice speaking as a clone
 
         Assert.Equal(["/set_gpt_weights?weights_path=C%3A%5Cvoices%5Ckai.voice%5Ckai-e15.ckpt", "/set_sovits_weights?weights_path=C%3A%5Cvoices%5Ckai.voice%5Ckai_e8.pth",
                       "/set_gpt_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fs1v3.ckpt",
-                      "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fv2Pro%2Fs2Gv2ProPlus.pth"], server.Asked);
+                      "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fv2Pro%2Fs2Gv2ProPlus.pth",
+                      "/set_gpt_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fs1v3.ckpt",
+                      "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fgsv-v4-pretrained%2Fs2Gv4.pth"], server.Asked);
     }
 }

@@ -43,6 +43,7 @@ public partial class Main : Node2D
     private ChatSettings? _chatSettings;
     private MemoryBook? _memoryBook;
     private Voice _voice = null!;
+    private VoiceTrainer _trainer = null!;
     private VoiceSettings? _voiceSettings;
     private string _charactersDir = "";
     private readonly Random _random = new();
@@ -94,6 +95,10 @@ public partial class Main : Node2D
         _voice = new Voice();
         AddChild(_voice);
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => _companion);
+        _trainer = new VoiceTrainer();
+        AddChild(_trainer);
+        _trainer.Build(Path.Combine(dataDir, "companion"));
+        _trainer.Finished += TrainingEnded;
         _voice.Muted = _settings.Muted;
         _voice.Testing += line =>                           // only the bubble: she is already saying it in her own language
         {
@@ -271,6 +276,8 @@ public partial class Main : Node2D
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
         _voice.GameRunning = _state.Session is not null;      // her voice gives the game the graphics card
+        if (_state.Session is not null && _trainer.Running)    // and so does training
+            _trainer.Stop("Training stopped: a game started (training takes the whole graphics card). Train again when you're done.");
         if (result.Events.Count > 0)
             Lively(6);
         foreach (var e in result.Events)
@@ -527,6 +534,33 @@ public partial class Main : Node2D
         dialog.PopupCentered();
     }
 
+    /// <summary>Asks for a voice's folder (clips with their words, maybe a model; see <see cref="VoiceSettings.FolderGuide"/>), then adds it.</summary>
+    private void PickVoiceFolder()
+    {
+        var dialog = new FileDialog
+        {
+            Title = "Add a voice's folder",
+            ModeOverridesTitle = false,
+            FileMode = FileDialog.FileModeEnum.OpenDir,
+            Access = FileDialog.AccessEnum.Filesystem,
+            UseNativeDialog = true,
+            CurrentDir = OS.GetSystemDir(OS.SystemDir.Downloads),
+        };
+        dialog.DirSelected += path =>
+        {
+            dialog.QueueFree();
+            if (VoiceProfile.LooksLikeVoice(path))
+                AddCharacters([path]);
+            else
+                _cabinet.Screen.Flash("VOICE", "NO CLIPS OR MODEL IN THAT FOLDER", 4.0);
+        };
+        dialog.Canceled += dialog.QueueFree;
+        AddChild(dialog);
+        _window.Rise(4, _settings.AlwaysOnTop);
+        DisplayServer.WindowMoveToForeground();
+        dialog.PopupCentered();
+    }
+
     /// <summary>The GPT-SoVITS that runs her voice, and the voice of whoever is on the stool.</summary>
     private void OpenVoiceSettings()
     {
@@ -539,25 +573,67 @@ public partial class Main : Node2D
             return;
         _voiceSettings = new VoiceSettings();
         AddChild(_voiceSettings);
-        _voiceSettings.Build(_voice, _settings.VoiceEngine, character.Name);
+        _voiceSettings.Build(_voice, _trainer, _settings.VoiceEngine, character.Name);
         _voiceSettings.Saved += engine =>
         {
             var changed = engine != _settings.VoiceEngine;
             SaveSettings(_settings with { VoiceEngine = engine });
             if (changed)
                 _voice.UseEngine(engine);
-            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words or quality may have changed
+            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words, model or quality may have changed
         };
         _voiceSettings.AddVoice += PickVoice;
+        _voiceSettings.AddFolder += PickVoiceFolder;
+        _voiceSettings.Train += Train;
+        _voiceSettings.StopTraining += () => _trainer.Stop("You stopped the training.");
         _voiceSettings.RemoveVoice += () =>
         {
             var folder = VoiceFolder(character.Id);
+            if (_trainer.Running && _trainer.Folder == folder)
+                _trainer.Stop("The voice was removed.");
             if (Directory.Exists(folder))
                 Directory.Delete(folder, recursive: true);
             _voice.Seat(folder);
             OpenVoiceSettings();
         };
         _voiceSettings.Open();
+    }
+
+    /// <summary>Trains the voice of whoever is on the stool a model of its own (her voice rests meanwhile), or says why not.</summary>
+    private void Train()
+    {
+        if (_trainer.Check(_settings.VoiceEngine, _voice.Profile, _state.Session is not null) is { } problem)
+        {
+            _trainer.Refuse(_voice.Folder, problem);
+            return;
+        }
+        _voice.Training = true;
+        _trainer.Start(_settings.VoiceEngine!, _voice.Folder, _voice.Profile!);
+        if (_trainer.Running)
+            _cabinet.Screen.Flash("VOICE", "TRAINING - SHE RESTS HER VOICE", 4.0);
+    }
+
+    /// <summary>Training ended: her voice comes back, with its new model when it worked.</summary>
+    private void TrainingEnded(string folder, VoiceProfile? trained)
+    {
+        _voice.Training = false;
+        if (trained is null)
+        {
+            _cabinet.Screen.Flash("VOICE", "TRAINING STOPPED: SEE VOICE SETTINGS", 4.0);
+            return;
+        }
+        if (Path.GetFullPath(folder) != Path.GetFullPath(_voice.Folder))
+            return;                                     // someone else is on the stool now: their voice is untouched
+        _voice.Seat(folder);
+        _cabinet.Screen.Flash("VOICE", $"{trained.Name} TRAINED - HAVE A LISTEN".ToUpperInvariant(), 4.0);
+        Lively(20);
+        if (IsInstanceValid(_voiceSettings))
+        {
+            _voiceSettings!.QueueFree();                // open again, to show its trained model
+            _voiceSettings = null;
+            Callable.From(OpenVoiceSettings).CallDeferred();
+        }
+        _ = _voice.Test();
     }
 
     /// <summary>The first sentence of a card's greeting, without its *actions*, if it is short enough for the bubble.</summary>
@@ -815,13 +891,24 @@ public partial class Main : Node2D
             Say(action["voice:".Length..].Replace('_', ' '));
             return;
         }
-        if (action.StartsWith("voicemodel:"))        // voicemodel:v2ProPlus clones her voice with that base model, as Save in the window does
+        if (action.StartsWith("voicemodel:"))        // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own, as the window does
         {
-            if (_voice.Profile is { Gpt: null } clone && action["voicemodel:".Length..] is var version && VoiceProfile.CloneVersions.Contains(version))
+            var model = action["voicemodel:".Length..];
+            if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(model) || model == "trained" && voice.Trained))
             {
-                (clone with { Version = version }).Save(_voice.Folder);
+                (voice with { CloneWith = model == "trained" ? null : model }).Save(_voice.Folder);
                 _voice.Seat(_voice.Folder);
             }
+            return;
+        }
+        if (action is "voicetrain")                   // trains her voice a model of its own, as the window's Train does
+        {
+            Train();
+            return;
+        }
+        if (action is "voicetrainstop")
+        {
+            _trainer.Stop("Stopped by a dev action.");
             return;
         }
         if (action is "upkeep")                       // her upkeep now, without waiting for the conversation to go quiet

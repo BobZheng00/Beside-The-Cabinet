@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 
@@ -20,7 +19,6 @@ public sealed class VoiceServer : IDisposable
 
     private readonly string _folder, _log;
     private Process? _process;
-    private IntPtr _job;
     private StreamWriter? _logWriter;
 
     public VoiceServer(string folder, string logFile)
@@ -100,7 +98,7 @@ public sealed class VoiceServer : IDisposable
             start.ArgumentList.Add(arg);
         start.Environment["PYTHONIOENCODING"] = "utf-8";
         var process = _process = Process.Start(start) ?? throw new InvalidOperationException("GPT-SoVITS did not start");
-        TieToCabinet(process);
+        CabinetJob.Tie(process, "GPT-SoVITS");
         var writer = _logWriter;
         void Log(string? line)
         {
@@ -144,13 +142,7 @@ public sealed class VoiceServer : IDisposable
         _logWriter = null;
     }
 
-    public void Dispose()
-    {
-        Stop();
-        if (_job != IntPtr.Zero)
-            CloseHandle(_job);
-        _job = IntPtr.Zero;
-    }
+    public void Dispose() => Stop();
 
     private static int FreePort()
     {
@@ -160,68 +152,4 @@ public sealed class VoiceServer : IDisposable
         listener.Stop();
         return port;
     }
-
-    /// <summary>A job that ends the server when the cabinet's handle to it closes, and no background throttling.</summary>
-    private void TieToCabinet(Process process)
-    {
-        try
-        {
-            if (_job == IntPtr.Zero)
-            {
-                _job = CreateJobObject(IntPtr.Zero, null);
-                var limits = new ExtendedLimits { Basic = new BasicLimits { LimitFlags = KillOnJobClose } };
-                SetInformationJobObject(_job, ExtendedLimitInformation, ref limits, Marshal.SizeOf<ExtendedLimits>());
-            }
-            AssignProcessToJobObject(_job, process.Handle);
-            var throttling = new PowerThrottling { Version = 1, ControlMask = 1, StateMask = 0 };    // execution speed: not throttled
-            SetProcessInformation(process.Handle, ProcessPowerThrottling, ref throttling, Marshal.SizeOf<PowerThrottling>());
-        }
-        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
-        {
-            Godot.GD.PrintErr($"Voice: could not tie GPT-SoVITS to the cabinet: {e.Message}");
-        }
-    }
-
-    private const int ExtendedLimitInformation = 9, ProcessPowerThrottling = 4;
-    private const uint KillOnJobClose = 0x2000;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct BasicLimits
-    {
-        public long PerProcessUserTimeLimit, PerJobUserTimeLimit;
-        public uint LimitFlags;
-        public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
-        public uint ActiveProcessLimit;
-        public UIntPtr Affinity;
-        public uint PriorityClass, SchedulingClass;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ExtendedLimits
-    {
-        public BasicLimits Basic;
-        public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount;
-        public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PowerThrottling
-    {
-        public uint Version, ControlMask, StateMask;
-    }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr CreateJobObject(IntPtr attributes, string? name);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref ExtendedLimits info, int length);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool SetProcessInformation(IntPtr process, int infoClass, ref PowerThrottling info, int length);
-
-    [DllImport("kernel32.dll")]
-    private static extern bool CloseHandle(IntPtr handle);
 }

@@ -47,14 +47,27 @@ up when its keywords are mentioned); she greets you as the card says.
 
 She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
 graphics card starts each sentence in about a second). Tray → "Voice settings…": point it at the GPT-SoVITS folder,
-then give her a voice: drop on the cabinet a GPT-SoVITS model someone shared (a folder or `.zip` with a `.ckpt` and
-a `.pth`, usually with clips of the voice; v2 to v4 all work), a 3 to 10 second clip to clone her voice from, or
-a folder of clips with their training list (a dataset), which is cloned from its best clips. A clone runs on
-GPT-SoVITS's v4 base model (the clearest; it makes each sentence whole before she says it, 1.5–3.5 s) or, chosen
-in the window, v2ProPlus (streams, so she starts in about half a second; a little less sure of hard words). v2
-models also blend the tone of the voice's first four clips into the one speaking, which makes her more like herself
-for about 0.1 s more per sentence. The clips' words come from the model's training list, a `.lab` beside a clip, or the clip's file name
-("【开心】今天也要加油哦.wav"); if they can't be found the window asks for them. A voice speaks one language
+then give her a voice: drop on the cabinet (or add in the window) a voice's folder or `.zip`, or a single clip.
+A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
+trained on them (a `.ckpt` and a `.pth`; v2 to v4 all work). The words come from a training list (any `.list`,
+one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab` beside a clip, or the clip's file name
+("【开心】今天也要加油哦.wav", the mood in brackets picking it for that mood); if none says them the window asks.
+"What goes in a voice folder?" in the window says the same. For example:
+
+```
+hana/
+  hana.list
+  clips/hana_001.wav, hana_002.wav, …
+```
+
+Without a model she speaks as a clone: GPT-SoVITS's base model copies the tone of her speaking clip (the one nearest
+6 seconds, or the one chosen and listened to in the window). The base model is v4 (the clearest; it makes each
+sentence whole before she says it, 1.5–3.5 s) or v2ProPlus (streams, so she starts in about half a second; a little
+less sure of hard words), which also blends in the tone of her first four clips for about 0.1 s more per sentence.
+With a minute or more of clips (five sounds better), "Train a model on its clips" trains her own: v2ProPlus, the way
+GPT-SoVITS's web UI does it, about a second per second of speech plus a minute (Hana's five minutes took 5.4 on a
+laptop graphics card with 8 GB, which it all but fills); her voice rests meanwhile, and a game starting stops it. The model
+(about 0.3 GB) goes into the voice's folder, and the window swaps between it and the clones. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
 like a subtitled anime (the model writes `[say: …]` before each sentence). While a game runs she rests her voice:
 the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
@@ -78,7 +91,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
 `memorybook`, `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
-`voicemodel:v2ProPlus` (a clone's base model switched, as saving the window does). `--offscreen` opens the app's windows off
+`voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
+window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`. `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 
 ## Layout
@@ -88,7 +102,8 @@ src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no 
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
                           store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
-                          a reply is spoken, voice profiles and their import, the GPT-SoVITS client
+                          a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
+                          (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python)
 src/InsertCoin.Game       Godot 4.7 (.NET) app: cabinet scene, companion, director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
@@ -159,7 +174,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
 - `App/Voice.cs` is her voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
   with it), `Speech` (in `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` streams each sentence's
-  audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceSettings.cs` is its window. Measurements:
+  audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
+  run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its window. Measurements:
   [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
   short timelines, hands placed by two-bone IK), springs (every joint follows its pose as a damped spring, looser

@@ -297,6 +297,37 @@ Training SoVITS moves her tone a little closer; blending had already got most of
 and style, which a speaker model doesn't measure, so that is for the ear. Misheard characters swung between 8 and 17%
 within one model over 6 takes, too noisy to read. In the cabinet the trained voice started each line in 0.68–0.78 s.
 
+The player listened and preferred both halves trained (fewer odd breaths than trained SoVITS alone, a smoother
+tune), which is also how community models are made, so the cabinet trains both.
+
+**Training in the cabinet (2026-10-03).** Voice settings → "Train a model on its clips" runs `train_voice.py` (in
+`InsertCoin.Mind`, written out to the companion folder) with GPT-SoVITS's Python: the same steps and defaults, batch
+from the card's memory, working files in GPT-SoVITS's own `logs\insert-coin-<voice>` and deleted afterwards, the
+model into the voice's folder. Her voice server is stopped first (training wants the whole card), and a game
+starting stops training. A voice now keeps every clip with its words (Hana's dataset: 55, 306 s), and `CloneWith`
+says whether it speaks with its trained model or as a clone, so the window swaps between them. Run hidden in a
+scratch cabinet: import, 5.5 minutes of training with the cabinet open beside it (graphics memory 7.8 of 8 GB),
+then her voice came back trained and said the Test line 0.70 s after it was asked; swapping trained → v2ProPlus
+clone → v4 clone → trained loaded the right weights each time.
+
+**Which clip should a clone speak with? (2026-10-03)** `bench_pick_clip.py`: v2ProPlus, no blending, eight of
+Hana's clips from 3 to 10 s in turn as the speaking clip.
+
+| Clip | Length | How typical of her (voiceprint against all 55) | Speech made from it, like her |
+|---|---|---|---|
+| hana_051 | 3.1 s | 0.88 | 0.82 |
+| hana_030 | 4.0 s | 0.90 | 0.77 |
+| hana_020 | 5.0 s | 0.88 | 0.82 |
+| hana_035 | 6.0 s | 0.93 | 0.82 |
+| hana_041 | 7.0 s | 0.91 | 0.76 |
+| hana_025 | 7.9 s | 0.92 | 0.83 |
+| hana_014 | 8.6 s | 0.93 | 0.81 |
+| hana_034 | 9.7 s | 0.96 | 0.84 |
+
+The clip matters (0.76 to 0.84), but neither its length (correlation 0.28) nor how typical it is (0.32) predicts
+which is best, so the cabinet keeps the simple rule (the clip nearest 6 s within 3 to 10 s) and lets the player
+choose and listen in the window; a v2ProPlus clone blending in four clips evens out an unlucky choice.
+
 **Qwen3-TTS dropped (2026-10-03).** Too inconsistent to hold a character's voice, and it can't be trained on this
 class of graphics card (below). The cabinet speaks with GPT-SoVITS only.
 
