@@ -7,6 +7,9 @@ namespace InsertCoin.Mind;
 /// <summary>One change upkeep asks for: add a fact (about the player or about "us"), update one, or delete one.</summary>
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
+/// <summary>One change to the agenda upkeep asks for: add an item, update one, or cancel one.</summary>
+public sealed record PlanChange(string Op, long? Id, string? When, string? Text, bool Remind);
+
 /// <summary>Facts a review folds into one (one id: a rewrite).</summary>
 public sealed record Merge(IReadOnlyList<long> Ids, string Text, int? Importance);
 
@@ -21,6 +24,9 @@ public sealed record Digestion(string? Episode, IReadOnlyList<FactChange> Change
 {
     /// <summary>The moment of the day the episode rewrites (it continues it), or null for a new one.</summary>
     public long? Continues { get; init; }
+
+    /// <summary>Changes to the agenda: things ahead with a date.</summary>
+    public IReadOnlyList<PlanChange> Plans { get; init; } = [];
 }
 
 /// <summary>
@@ -35,7 +41,9 @@ public static class Upkeep
 
     /// <param name="known">The facts to reconcile against: those related to these lines (see <see cref="Recall.Related"/>).</param>
     /// <param name="today">The moments already filed for the day these lines are from: the new part may continue one of them.</param>
-    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Line> lines, IReadOnlyList<Episode>? today = null)
+    /// <param name="agenda">What is on the agenda now, so the new part's plans are added once and changes reach the right item.</param>
+    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Line> lines, IReadOnlyList<Episode>? today = null,
+                                            IReadOnlyList<Plan>? agenda = null)
     {
         var facts = known.Count == 0
             ? "(none yet)"
@@ -50,21 +58,30 @@ public static class Upkeep
                   : "The day already has as many moments as it may: rewrite the one the new part is closest to. ") +
               "If it adds nothing worth remembering, \"episode\": null.";
         var day = today is not { Count: > 0 } ? "" : $"The day's moments so far:\n{string.Join("\n", today.Select(e => $"#{e.Id} {e.Text}"))}\n\n";
+        var plans = agenda is not { Count: > 0 }
+            ? "(empty)"
+            : string.Join("\n", agenda.Select(p => $"#{p.Id} {p.At.ToString(p.AllDay ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", English)}{(p.Remind ? " [reminder]" : "")} {p.Text}"));
         return
         [
             new(ChatRole.System, $$"""
                 You maintain the long-term memory of {{persona.Name}}, a companion who sits beside the player's arcade cabinet and chats with them. Read the new part of their conversation and answer with JSON only, in this form:
 
                 {"episode": "...", "continues": null, "facts": [
-                  {"op": "add", "about": "player", "text": "The player has a job interview on Tuesday 6 October 2026.", "importance": 8},
+                  {"op": "add", "about": "player", "text": "The player is looking for a backend developer job.", "importance": 8},
                   {"op": "update", "id": 12, "text": "...", "importance": 6},
-                  {"op": "delete", "id": 5}]}
+                  {"op": "delete", "id": 5}],
+                 "plans": [
+                  {"op": "add", "when": "2026-10-06 15:00", "text": "Job interview at Acme", "remind": false},
+                  {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
+                  {"op": "cancel", "id": 4}]}
 
                 {{episode}}
 
-                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, plans, dates, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (dates, goals, strong likes and dislikes), 10 essential (their name). Update a known fact when the conversation changes it, delete one that is no longer true, and never add one that is already known. Turn relative dates ("tomorrow", "next week") into dates, using the timestamps. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
+                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Update a known fact when the conversation changes it, delete one that is no longer true, and never add one that is already known. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
+
+                Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn relative dates ("tomorrow", "next Friday") into dates using the timestamps. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded, and "when" is then when the reminder should go off. If there are none, give an empty list.
                 """),
-            new(ChatRole.User, $"{day}Known facts that may relate:\n{facts}\n\nNew part of the conversation:\n{Transcript(persona, lines)}"),
+            new(ChatRole.User, $"{day}The agenda:\n{plans}\n\nKnown facts that may relate:\n{facts}\n\nNew part of the conversation:\n{Transcript(persona, lines)}"),
         ];
     }
 
@@ -90,7 +107,16 @@ public static class Upkeep
                         Text(f, "text"),
                         f.TryGetProperty("importance", out var i) && i.ValueKind == JsonValueKind.Number && i.TryGetInt32(out var level) ? level : null));
             var continues = root.TryGetProperty("continues", out var c) && c.ValueKind == JsonValueKind.Number && c.TryGetInt64(out var moment) ? moment : (long?)null;
-            return new Digestion(string.IsNullOrWhiteSpace(episode) ? null : episode.Trim(), changes) { Continues = continues };
+            var plans = new List<PlanChange>();
+            if (root.TryGetProperty("plans", out var list) && list.ValueKind == JsonValueKind.Array)
+                foreach (var p in list.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.Object))
+                    plans.Add(new PlanChange(
+                        Text(p, "op")?.ToLowerInvariant() ?? "",
+                        p.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n) ? n : null,
+                        Text(p, "when"),
+                        Text(p, "text")?.Trim(),
+                        p.TryGetProperty("remind", out var r) && r.ValueKind == JsonValueKind.True));
+            return new Digestion(string.IsNullOrWhiteSpace(episode) ? null : episode.Trim(), changes) { Continues = continues, Plans = plans };
         }
         catch (JsonException)
         {

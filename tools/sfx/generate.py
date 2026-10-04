@@ -96,6 +96,10 @@ SOUNDS = {
     "key": tone(1800, 0.02, vol=0.25, decay=4),
     "error": tone(130, 0.26, vol=0.4, duty=0.3, decay=1.5),
     "hello": arp(["E5", "G5", "C6", "E6", "G6"], 0.08, "triangle", 0.45, decay=2.0),
+    # a reminder: a soft two-note door chime, twice; friendly, unlike the low-time alarms
+    "remind": seq(*[seq(mix(tone(NOTE["E6"], 0.3, "sine", 0.45, decay=3.5), tone(NOTE["E7"], 0.18, "triangle", 0.08, decay=6)),
+                        mix(tone(NOTE["C6"], 0.55, "sine", 0.45, decay=3.0), tone(NOTE["C7"], 0.22, "triangle", 0.08, decay=6)),
+                        silence(0.16)) for _ in range(2)]),
 }
 
 

@@ -16,6 +16,23 @@ public static class Lines
         return said.Count == 0 ? null : said.MaxBy(x => x.Weight).Line;
     }
 
+    /// <summary>
+    /// Reminders going off: "Reminder: call Mum." One that came due while the cabinet was closed says when:
+    /// "While you were away (Fri 2 Oct 21:00): call Mum."
+    /// </summary>
+    public static string Reminder(IReadOnlyList<InsertCoin.Mind.Plan> due, DateTimeOffset now)
+    {
+        string When(InsertCoin.Mind.Plan p) => p.At.Date == now.Date ? p.At.ToString("HH:mm", CultureInfo.InvariantCulture) : p.Label;
+        var late = due.Where(p => now - p.At > InsertCoin.Mind.Agenda.Missed).ToList();
+        var onTime = due.Except(late).ToList();
+        var said = new List<string>();
+        if (onTime.Count > 0)
+            said.Add($"{(onTime.Count == 1 ? "Reminder" : "Reminders")}: {string.Join("; ", onTime.Select(p => p.Text.TrimEnd('.')))}.");
+        if (late.Count > 0)
+            said.Add($"While you were away: {string.Join("; ", late.Select(p => $"{p.Text.TrimEnd('.')} ({When(p)})"))}.");
+        return string.Join(" ", said);
+    }
+
     /// <summary>Where things stand, for when she is asked (clicked).</summary>
     public static string Status(LedgerState state, Rules rules, int streak)
     {

@@ -99,7 +99,10 @@ cache at a tenth of that or less.
    provider; Anthropic's cache flag checked against a fake endpoint).
 2. **Bounded memory:** moments (small talk, one a day, month and year roll-ups) and facts reconciled against the
    related ones. *Built 2026-10-04* (tests).
-3. **The agenda and reminders.**
+3. **The agenda and reminders.** *The agenda built 2026-10-04:* `[plan: …]` and `[remind: …]` in her replies,
+   upkeep's "plans" (add, update, cancel), coming up and just past in every turn, past items leaving after two
+   days, reminders on a ticket, in her bubble and voice and with an optional chime, missed ones going off at the
+   next start, and the memory book's "Coming up" to read, add, edit and delete. Delivery elsewhere: section 10.
 
 ## Second pass (decided with the player, 2026-10-04)
 

@@ -149,6 +149,17 @@ public partial class Stool : Node2D
     /// <summary>What just happened on the cabinet, for her mind to take note of.</summary>
     public void Witness(IEnumerable<LedgerEvent> events, Rules rules) => _chat.Witness(events, rules);
 
+    /// <summary>Her memory, the agenda among it (shared by every character).</summary>
+    public MindStore Store => _chat.Store;
+
+    /// <summary>Reminders going off: she gets the player's attention and says them.</summary>
+    public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now)
+    {
+        _lively(6);
+        Her?.Play(Moment.Greet);
+        Say(Lines.Reminder(due, now));
+    }
+
     /// <summary>A line in her speech bubble, said aloud too when her voice can, unless the user has asked for quiet.</summary>
     public void Say(string line)
     {
@@ -344,6 +355,10 @@ public partial class Stool : Node2D
         _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
         var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
         _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
+        // the agenda: a plan, a reminder, and something just past
+        _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, remind: false, now, character.Id);
+        _chat.Store.AddPlan("Leave for the interview", now.Date.AddDays(3).AddHours(9), allDay: false, remind: true, now, character.Id);
+        _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, remind: false, now, null);
         // and what a review would have retired
         _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
         _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);

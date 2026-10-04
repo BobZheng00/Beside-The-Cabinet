@@ -12,7 +12,7 @@ public partial class AudioBank : Node
     private static readonly string[] Names =
     [
         "coin", "jackpot", "token", "paid", "cashbox", "warn5", "warn1", "continue_tick", "credits_out", "printer",
-        "game_on", "game_over", "check", "key", "error", "hello",
+        "game_on", "game_over", "check", "key", "error", "hello", "remind",
     ];
 
     private readonly Dictionary<string, AudioStream> _streams = [];

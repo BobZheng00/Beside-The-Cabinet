@@ -100,6 +100,12 @@ public sealed class MindStore : IDisposable
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE facts ADD COLUMN retired TEXT; ALTER TABLE facts ADD COLUMN retired_why TEXT");
         Run("CREATE TABLE IF NOT EXISTS marks (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        // the player's agenda (see Agenda): shared by every character, like what she knows about the player
+        Run("""
+            CREATE TABLE IF NOT EXISTS agenda (
+                id INTEGER PRIMARY KEY, text TEXT NOT NULL, at TEXT NOT NULL, all_day INTEGER NOT NULL, remind INTEGER NOT NULL,
+                reminded TEXT, added TEXT NOT NULL, by TEXT, closed TEXT)
+            """);
         Run("PRAGMA user_version = 5");
     }
 
@@ -270,6 +276,63 @@ public sealed class MindStore : IDisposable
         DropVectors(EpisodeKind, id);
     }
 
+    // ---- The agenda ------------------------------------------------------------------------------------------------
+
+    public long AddPlan(string text, DateTimeOffset at, bool allDay, bool remind, DateTimeOffset added, string? by)
+    {
+        using var command = Command("INSERT INTO agenda (text, at, all_day, remind, added, by) VALUES ($t, $a, $d, $r, $n, $b) RETURNING id",
+            ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", remind ? 1 : 0), ("$n", Stamp(added)), ("$b", (object?)by ?? DBNull.Value));
+        return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>What is on the agenda, by time: items not yet closed (see <see cref="ClosePast"/>).</summary>
+    public IReadOnlyList<Plan> Agenda()
+    {
+        using var command = Command("SELECT id, text, at, all_day, remind, reminded, added, by FROM agenda WHERE closed IS NULL ORDER BY at, id");
+        using var reader = command.ExecuteReader();
+        var plans = new List<Plan>();
+        while (reader.Read())
+            plans.Add(new Plan(reader.GetInt64(0), reader.GetString(1), Parse(reader.GetString(2)), reader.GetInt32(3) != 0, reader.GetInt32(4) != 0,
+                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), Parse(reader.GetString(6)), reader.IsDBNull(7) ? null : reader.GetString(7)));
+        return plans;
+    }
+
+    /// <summary>Changes an item; a reminder moved to a new time goes off again.</summary>
+    public void UpdatePlan(long id, string text, DateTimeOffset at, bool allDay, bool remind)
+    {
+        using var command = Command("""
+            UPDATE agenda SET text = $t, all_day = $d, remind = $r, reminded = CASE WHEN at = $a THEN reminded ELSE NULL END, at = $a WHERE id = $id
+            """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", remind ? 1 : 0), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    public void DeletePlan(long id)
+    {
+        using var command = Command("DELETE FROM agenda WHERE id = $id", ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>The reminder went off (or, missed, was mentioned).</summary>
+    public void Reminded(long id, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE agenda SET reminded = $a WHERE id = $id", ("$a", Stamp(at)), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Items over for longer than <see cref="Mind.Agenda.Behind"/> leave the agenda; a year on they are deleted.</summary>
+    public int ClosePast(DateTimeOffset now)
+    {
+        var closed = 0;
+        foreach (var plan in Agenda().Where(p => p.End <= now - Mind.Agenda.Behind && (!p.Remind || p.Reminded is not null)))
+        {
+            using var command = Command("UPDATE agenda SET closed = $n WHERE id = $id", ("$n", Stamp(now)), ("$id", plan.Id));
+            closed += command.ExecuteNonQuery();
+        }
+        using (var old = Command("DELETE FROM agenda WHERE closed IS NOT NULL AND closed < $y", ("$y", Stamp(now.AddYears(-1)))))
+            old.ExecuteNonQuery();
+        return closed;
+    }
+
     // ---- Passages (the whole conversation, searchable; see History) -------------------------------------------------
 
     public long AddPassage(string character, long first, long last, DateTimeOffset at, string text)
@@ -417,7 +480,7 @@ public sealed class MindStore : IDisposable
     /// <summary>Forgets what every character knows about the player: the shared note and facts.</summary>
     public void ForgetPlayer()
     {
-        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s;", ("$s", Shared));
+        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s; DELETE FROM agenda;", ("$s", Shared));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
     }

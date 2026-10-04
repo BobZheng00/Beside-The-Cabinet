@@ -19,8 +19,10 @@ public partial class AlertTicket : Node
     private Window? _window;
     private Tween? _tween;
 
-    public void Show(string title, string detail, double seconds = 5)
+    /// <param name="tall">Room for a few lines of detail (a reminder), not one.</param>
+    public void Show(string title, string detail, double seconds = 5, bool tall = false)
     {
+        var size = tall ? new Vector2I(340, 132) : Size;
         // A newer ticket replaces the current one: stop its animation before freeing its window.
         _tween?.Kill();
         if (_window is not null && IsInstanceValid(_window))
@@ -32,7 +34,7 @@ public partial class AlertTicket : Node
             TransparentBg = true,
             AlwaysOnTop = true,
             Unfocusable = true,
-            Size = Size,
+            Size = size,
             Title = "INSERT COIN ticket",
         };
         var panel = new PanelContainer();
@@ -46,7 +48,15 @@ public partial class AlertTicket : Node
         });
         var rows = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         rows.AddChild(Line(title, Pixel, 20, new Color("c2185b")));
-        rows.AddChild(Line(detail, Round, 20, new Color("6a1c5e")));
+        var text = Line(detail, Round, tall ? 17 : 20, new Color("6a1c5e"));
+        if (tall)
+        {
+            text.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+            text.MaxLinesVisible = 3;
+            text.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            text.CustomMinimumSize = new Vector2(size.X - 36, 0);
+        }
+        rows.AddChild(text);
         panel.AddChild(rows);
         panel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         window.AddChild(panel);
@@ -57,8 +67,10 @@ public partial class AlertTicket : Node
         var screen = DisplayServer.GetPrimaryScreen();
         var usable = DisplayServer.ScreenGetUsableRect(screen);
         var bottomMargin = usable.Size == DisplayServer.ScreenGetSize(screen) ? 72 : 24;
-        var shown = usable.End - Size - new Vector2I(24, bottomMargin);
+        var shown = usable.End - size - new Vector2I(24, bottomMargin);
         var hidden = new Vector2I(usable.End.X + 8, shown.Y);
+        if (Companion.Paper.OffScreen)
+            (shown, hidden) = (new Vector2I(-6000, 900), new Vector2I(-5600, 900));     // a test run kept off every screen (--offscreen): the ticket too
         window.Position = hidden;
         window.Show();
 

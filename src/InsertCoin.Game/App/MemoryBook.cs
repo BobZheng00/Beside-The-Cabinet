@@ -6,8 +6,9 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Everything she remembers, in the open: the two notes she always has in mind, the facts upkeep and her own notes
-/// have collected (edit, pin to keep it always in mind, or delete), and the dated moments of past conversations.
+/// Everything she remembers, in the open: the two notes she always has in mind, the agenda (plans and reminders),
+/// the facts upkeep and her own notes have collected (edit, pin to keep it always in mind, or delete), and the dated
+/// moments of past conversations.
 /// Nothing changes until Save; the forget buttons ask twice and act at once, and the page then shows what is left,
 /// keeping unsaved changes to the rest.
 /// </summary>
@@ -17,7 +18,9 @@ public partial class MemoryBook : Window
     private string _character = "", _name = "";
     private TextEdit _about = null!, _us = null!;
     private readonly List<(Fact Fact, LineEdit Text, CheckBox Pin, Control Row)> _facts = [];
-    private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [];
+    private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [], _deletedPlans = [];
+    private readonly List<(Plan? Plan, LineEdit When, LineEdit Text, CheckBox Remind, Control Row)> _plans = [];
+    private VBoxContainer _planList = null!;
     private VBoxContainer _factList = null!, _episodeList = null!, _retiredList = null!;
     private Button _retiredToggle = null!;
     private Label? _noFacts;
@@ -39,9 +42,15 @@ public partial class MemoryBook : Window
         var page = new PanelContainer();
         page.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(page);
-        var column = new VBoxContainer();
+        // the page scrolls when it holds more than the window; Cancel and Save stay at the bottom
+        var outer = new VBoxContainer();
+        outer.AddThemeConstantOverride("separation", 8);
+        page.AddChild(outer);
+        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        outer.AddChild(scroll);
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         column.AddThemeConstantOverride("separation", 8);
-        page.AddChild(column);
+        scroll.AddChild(column);
 
         var heading = new HBoxContainer();
         heading.AddChild(new Label { Text = $"What {characterName} remembers", ThemeTypeVariation = "Heading", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
@@ -55,8 +64,17 @@ public partial class MemoryBook : Window
                       store.Note(MindStore.Shared, MindStore.AboutUser));
         _us = Note(column, $"You and {characterName}", "How you two get along, what to call you, running jokes…", store.Note(characterId, MindStore.Us));
 
+        var agenda = new HBoxContainer();
+        agenda.AddChild(new Label { Text = "Coming up", ThemeTypeVariation = "Subheading", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        var add = new Button { Text = "+ Add", ThemeTypeVariation = "Quiet", TooltipText = "Something on your agenda, or a reminder" };
+        add.Pressed += () => AddPlanRow(null);
+        agenda.AddChild(add);
+        column.AddChild(agenda);
+        _planList = List(column, 122);
+        ShowPlans();
+
         column.AddChild(new Label { Text = "Things learned", ThemeTypeVariation = "Subheading" });
-        _factList = List(column, 150);
+        _factList = List(column, 130);
         var facts = store.Facts(characterId).OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).ToList();
         foreach (var fact in facts)
             AddFactRow(fact);
@@ -94,6 +112,7 @@ public partial class MemoryBook : Window
             _store.ForgetPlayer();
             _about.Text = "";
             ShowWhatIsLeft();
+            ShowPlans();
         });
         me.TooltipText = "What every character knows about you. Conversations stay.";
         forget.AddChild(me);
@@ -108,7 +127,7 @@ public partial class MemoryBook : Window
         save.Pressed += Save;
         buttons.AddChild(cancel);
         buttons.AddChild(save);
-        column.AddChild(buttons);
+        outer.AddChild(buttons);
     }
 
     public void Open() => Paper.Open(this, new Vector2(600, 760));
@@ -181,6 +200,61 @@ public partial class MemoryBook : Window
         }
     }
 
+    private void ShowPlans()
+    {
+        foreach (var child in _planList.GetChildren())
+            child.QueueFree();
+        _plans.Clear();
+        _deletedPlans.Clear();
+        var plans = _store.Agenda();
+        if (plans.Count == 0)
+            _planList.AddChild(Hint("Nothing yet. Tell her about plans and dates, or ask her to remind you of something."));
+        foreach (var plan in plans)
+            AddPlanRow(plan);
+    }
+
+    /// <summary>One item: when ("2026-10-09 15:00", or a date alone for a whole day), what, and whether it reminds you.</summary>
+    private void AddPlanRow(Plan? plan)
+    {
+        if (plan is null && _plans.Count == 0)
+            foreach (var child in _planList.GetChildren())
+                child.QueueFree();                          // the "nothing yet" hint
+        var now = DateTimeOffset.Now;
+        var at = plan?.At ?? now.Date.AddDays(1).AddHours(9);
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 6);
+        var when = new LineEdit
+        {
+            Text = at.ToString(plan?.AllDay == true ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+            CustomMinimumSize = new Vector2(150, 0),
+            TooltipText = "YYYY-MM-DD HH:MM, or YYYY-MM-DD for a whole day",
+        };
+        var text = new LineEdit { Text = plan?.Text ?? "", PlaceholderText = "What it is", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var remind = new CheckBox { Text = "remind", ButtonPressed = plan?.Remind ?? true, TooltipText = "A reminder goes off at that time (see Reminders… in the tray)" };
+        when.TextChanged += t => when.Modulate = Agenda.ParseWhen(t, now) is null ? new Color(1, 0.5f, 0.5f) : Colors.White;
+        if (plan is not null && plan.End <= now)
+        {
+            text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
+            text.TooltipText = "Just past: she may ask how it went. It leaves the agenda two days after.";
+        }
+        var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Take it off the agenda" };
+        delete.Pressed += () =>
+        {
+            if (plan is not null)
+                _deletedPlans.Add(plan.Id);
+            _plans.RemoveAll(p => p.Row == row);
+            row.QueueFree();
+        };
+        row.AddChild(when);
+        row.AddChild(text);
+        row.AddChild(remind);
+        row.AddChild(delete);
+        _planList.AddChild(row);
+        _plans.Add((plan, when, text, remind, row));
+        if (plan is null)
+            text.GrabFocus();
+    }
+
     private void AddEpisodeRow(Episode episode)
     {
         var row = new HBoxContainer();
@@ -248,6 +322,21 @@ public partial class MemoryBook : Window
             _store.DeleteFact(id);
         foreach (var id in _deletedEpisodes)
             _store.DeleteEpisode(id);
+        var now = DateTimeOffset.Now;
+        foreach (var (plan, whenEdit, textEdit, remind, _) in _plans)
+        {
+            // a time that cannot be read, or nothing said: that row is left as it was
+            if (Agenda.ParseWhen(whenEdit.Text, now) is not { } when || textEdit.Text.Trim().Length < 2)
+                continue;
+            if (remind.ButtonPressed && when.AllDay)
+                when = (when.At + Agenda.MorningOf, false);         // a reminder for a whole day goes off that morning
+            if (plan is null)
+                _store.AddPlan(textEdit.Text, when.At, when.AllDay, remind.ButtonPressed, now, null);
+            else if (textEdit.Text.Trim() != plan.Text || when.At != plan.At || when.AllDay != plan.AllDay || remind.ButtonPressed != plan.Remind)
+                _store.UpdatePlan(plan.Id, textEdit.Text, when.At, when.AllDay, remind.ButtonPressed);
+        }
+        foreach (var id in _deletedPlans)
+            _store.DeletePlan(id);
         QueueFree();
     }
 

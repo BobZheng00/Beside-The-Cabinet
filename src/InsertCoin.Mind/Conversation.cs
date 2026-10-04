@@ -78,14 +78,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage, Window, now);
+                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now));
         store.Add(character, Speaker.User, said.Trim(), now);
 
-        // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep
+        // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
+        // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
         var stage = new StageDirections((name, payload) =>
         {
             if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
                 store.AddFact(MindStore.Shared, payload, NoteImportance, now);
+            if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now) is { } plan)
+                AddPlan(plan.At, plan.AllDay, plan.Text, name == "remind", now);
             direction(name, payload);
         });
         var reply = new StringBuilder();
@@ -104,6 +107,22 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         if (answer.Length > 0)
             store.Add(character, Speaker.Her, answer, _clock.GetLocalNow());
         return answer;
+    }
+
+    /// <summary>
+    /// Puts something on the agenda unless it is there already (the same kind, on the same day, saying the same
+    /// thing, or at the same time about the same thing); a reminder for a time already past is not set. Returns the
+    /// item's id, or null.
+    /// </summary>
+    private long? AddPlan(DateTimeOffset at, bool allDay, string text, bool remind, DateTimeOffset now)
+    {
+        if (remind && at <= now)
+            return null;
+        var words = Recall.Terms(text).ToHashSet();
+        if (store.Agenda().Any(p => p.Remind == remind && p.At.Date == at.Date
+                                    && (Recall.Same(p.Text, text) || p.At == at && Recall.Terms(p.Text).Any(words.Contains))))
+            return null;
+        return store.AddPlan(text, at, allDay, remind, now, character);
     }
 
     /// <summary>Something the cabinet did, for her to know about later.</summary>
@@ -230,7 +249,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var known = all.Count <= DigestFacts ? all : Recall.Related(transcript, all, DigestFacts, await MeaningOf(transcript[..Math.Min(transcript.Length, 2000)], cancel));
         // a few moments a day at most: a later stretch rewrites the moment it carries on, or adds one if it is something else
         var today = store.Episodes(character).Where(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date).ToList();
-        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today), DigestOptions, cancel);
+        var agenda = store.Agenda();
+        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today, agenda), DigestOptions, cancel);
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {
             _failed = _failed.From == from ? (from, _failed.Times + 1) : (from, 1);
@@ -268,6 +288,26 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     store.DeleteFact(id);
                     if (gone.Importance >= CoreFrom)
                         touched.Add(gone.Scope);
+                    break;
+            }
+        }
+        // things ahead with a date: on the agenda (relative dates were made absolute from the lines' timestamps)
+        var plans = agenda.ToDictionary(p => p.Id);
+        foreach (var change in digestion.Plans)
+        {
+            var when = change.When is { } w ? Agenda.ParseWhen(w, now) : null;
+            switch (change.Op)
+            {
+                case "add" when when is { } at && change.Text is { Length: > 1 } text:
+                    var (time, allDay) = change.Remind && at.AllDay ? (at.At + Agenda.MorningOf, false) : at;
+                    AddPlan(time, allDay, text, change.Remind, now);
+                    break;
+                case "update" when change.Id is { } id && plans.TryGetValue(id, out var plan):
+                    var moved = when ?? (plan.At, plan.AllDay);
+                    store.UpdatePlan(id, change.Text is { Length: > 1 } renamed ? renamed : plan.Text, moved.At, moved.AllDay, plan.Remind);
+                    break;
+                case "cancel" when change.Id is { } id && plans.ContainsKey(id):
+                    store.DeletePlan(id);
                     break;
             }
         }

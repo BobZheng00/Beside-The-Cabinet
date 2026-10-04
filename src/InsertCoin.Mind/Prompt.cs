@@ -26,9 +26,10 @@ public static class Prompt
     /// <param name="voiceLanguage">The language her voice speaks (see <see cref="SpokenLanguage"/>), or null when she has no voice.</param>
     /// <param name="window">Tokens of the conversation sent word for word at most (the newest).</param>
     /// <param name="now">The time now; without it the turn says nothing about time.</param>
+    /// <param name="agenda">What is coming up and what has just passed (see <see cref="Agenda.Block"/>), or empty.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
-                                          int window = DefaultWindow, DateTimeOffset? now = null)
+                                          int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "")
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -41,9 +42,11 @@ public static class Prompt
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
 
-            Lines starting with [cabinet], and the <now>, <cabinet> and <character> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
+            Lines starting with [cabinet], and the <now>, <agenda>, <cabinet> and <character> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
             Remembering: when the player's message is mainly telling you something worth keeping (a plan, a date, a goal, a like or dislike, something about their life), start your reply with [note: the fact in one short third-person sentence, dates made absolute] and say briefly that you'll remember it. Don't do this when it comes up in the middle of something else, for small talk, or for the cabinet's numbers; you remember those anyway.
+
+            Plans and reminders: when the player tells you about something ahead with a date (an appointment, an exam, a deadline), start your reply with [plan: YYYY-MM-DD HH:MM | what it is] instead of a note (just YYYY-MM-DD for a whole day; dates made absolute from the <now> block). When they ask you to remind them of something, use [remind: YYYY-MM-DD HH:MM | what to remind them of] with the time it should go off, and say when you will: the cabinet reminds them at that time, by itself, even if they are away. The <agenda> block lists what is coming up and what has just passed: bring it up when it fits, and once something is past, ask how it went.
 
             What you know about the player:
             {(aboutUser.Trim().Length > 0 ? aboutUser.Trim() : "Nothing yet.")}
@@ -83,7 +86,7 @@ public static class Prompt
         // last of all, after what the player said: who she is, so a long conversation doesn't wear her character down
         // (character-card apps' post-history instructions; here in the turn, which is never cached anyway)
         var steady = persona.Steady ?? $"Reply as {persona.Name}, in character: {persona.Name}'s own voice, manner and way of speaking, as described at the start.";
-        Put(ChatRole.User, $"{time}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>");
+        Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));

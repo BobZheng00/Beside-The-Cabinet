@@ -46,6 +46,7 @@ public partial class Main : Node2D
     private Onboarding _onboarding = null!;
     private AudioBank _audio = null!;
     private AlertTicket _ticket = null!;
+    private Reminders _reminders = null!;
     private System.Threading.Mutex? _singleInstance;
 
     private TimeSpan _lastTick;
@@ -97,6 +98,7 @@ public partial class Main : Node2D
                      status: () => Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)),
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
+        _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
@@ -153,6 +155,7 @@ public partial class Main : Node2D
 
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
+        AddTimer(5.0, () => _reminders.Tick(DateTimeOffset.Now));
         AddTimer(1.0, RefreshScreen);
         AddTimer(5.0, () => { if (DateTimeOffset.Now >= _nextPoll) Poll(); });
         Tick();
@@ -418,6 +421,18 @@ public partial class Main : Node2D
         {
             foreach (var c in action["type:".Length..])
                 _onboarding.Key(new InputEventKey { Pressed = true, Unicode = c });
+            return;
+        }
+        if (action.StartsWith("remind:"))                   // remind:text goes off now, as the reminder settings' "Try it"
+        {
+            _reminders.Try(action["remind:".Length..].Replace('_', ' '), DateTimeOffset.Now);              // underscores for spaces
+            return;
+        }
+        if (action.StartsWith("remindin:") && action.Split(':', 3) is [_, var after, var what])
+        {
+            // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
+            var at = DateTimeOffset.Now.AddSeconds(double.Parse(after, System.Globalization.CultureInfo.InvariantCulture));
+            _stool.Store.AddPlan(what.Replace('_', ' '), at, allDay: false, remind: true, DateTimeOffset.Now, null);
             return;
         }
         switch (action)
