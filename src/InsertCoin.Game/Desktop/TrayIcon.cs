@@ -7,13 +7,13 @@ public enum TrayMood { Fine, Low, Debt }
 /// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, ChatHistory, VoiceSettings, AddCharacter, OpenCharacters, Quit;
+    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, ChatHistory, Reminders, VoiceSettings, AddCharacter, OpenCharacters, Quit;
     public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
         AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
-        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000;     // characters take the ids from 20 up
+        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001;     // characters take the ids from 20 up
     private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
@@ -88,6 +88,7 @@ public partial class TrayIcon : Node
         _menu.AddItem("Voice settings…", VoiceSettingsId);
         _menu.AddItem("Memory book…", MemoryId);
         _menu.AddItem("Chat history…", HistoryId);
+        _menu.AddItem("Reminders…", RemindersId);
         _characters = [.. characters.Select(c => c.Id)];
         foreach (var ((id, name), i) in characters.Select((c, i) => (c, i)))
             Radio($"Companion: {name}", CharacterId + i, id == character);
@@ -132,6 +133,7 @@ public partial class TrayIcon : Node
             case ChatId: ChatSettings?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;
             case HistoryId: ChatHistory?.Invoke(); break;
+            case RemindersId: Reminders?.Invoke(); break;
             case AddId: AddCharacter?.Invoke(); break;
             case FolderId: OpenCharacters?.Invoke(); break;
             case EnergyId: EnergySaverChanged?.Invoke(Toggle(EnergyId)); break;

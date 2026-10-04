@@ -43,7 +43,9 @@ it out. She knows the cabinet's numbers and remembers:
   upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum"). What is coming up in the next
   week, and what has just passed (so she can ask how it went), is in every turn; two days after, an item leaves the
   agenda. A reminder goes off at its time on a ticket at the screen corner, in her bubble and voice, and, if you
-  chose it, with a chime; one that came due while the cabinet was closed goes off when it next starts, saying so;
+  chose it (tray → "Reminders…"), with a chime, a Windows notification, and on your phone or elsewhere through
+  [ntfy](https://ntfy.sh), a Discord webhook, a Telegram bot or any webhook (addresses and tokens stored encrypted,
+  "Try it" to check); one that came due while the cabinet was closed goes off when it next starts, saying so;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
@@ -118,7 +120,9 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
 `memorybook` (`memorybook:retired` with the retired facts open), `chathistory`, `memoryseed` (a few notes, facts,
 agenda items, retired facts and a moment to try it on), `remind:some_text` (a reminder goes off now),
-`remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed), `forget:chat|all|me` (its three forget
+`remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed), `remindersettings`,
+`remindertry` (its "Try it"), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
+server), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the

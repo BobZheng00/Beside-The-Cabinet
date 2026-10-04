@@ -15,6 +15,7 @@ public sealed record AppSettings
     public bool InGameTickets { get; init; } = true;
     public bool ReminderSound { get; init; }            // reminders chime too (the ticket and her bubble always show)
     public bool ReminderWindows { get; init; }          // reminders also raise a Windows notification
+    public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // and go to the phone or another app (secrets apart, encrypted)
     public string Companion { get; init; } = "shino";   // character folder under res://characters
     public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
     public bool SpeechBubbles { get; init; } = true;    // false: she still reacts, but says nothing

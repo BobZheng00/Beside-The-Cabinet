@@ -170,3 +170,10 @@ the reminder settings, it can also:
   are stored encrypted, like the chat key.
 
 A reminder that came due while the cabinet was closed is mentioned when it next starts.
+
+*Built 2026-10-04* (tray → "Reminders…"; `Couriers`, `WindowsNotice`). The Windows notification is a balloon from
+the cabinet's own tray icon (Windows 10 and 11 show it as a toast and keep it in the notification centre): Godot
+registers its tray icon on the main window with the indicator's number as its id, so `Shell_NotifyIcon` can ask
+that icon for a balloon; no app registration or installer needed. ntfy is sent as JSON (any language in the title
+and text); Discord never pings anyone; every body is sent with its length (small webhook receivers cannot read a
+chunked one). Checked against a local receiver; the Windows notification itself is not yet seen working.

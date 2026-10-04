@@ -47,6 +47,9 @@ public partial class Main : Node2D
     private AudioBank _audio = null!;
     private AlertTicket _ticket = null!;
     private Reminders _reminders = null!;
+    private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
+    private ReminderSettings? _reminderSettings;
+    private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
     private TimeSpan _lastTick;
@@ -99,6 +102,8 @@ public partial class Main : Node2D
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
+        _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
+        _reminders.Sent += (due, now) => _ = SendOut(Reminders.NoticeFor(due, now));
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
@@ -127,6 +132,7 @@ public partial class Main : Node2D
         _tray.VoiceSettings += _stool.OpenVoiceSettings;
         _tray.MemoryBook += _stool.OpenMemoryBook;
         _tray.ChatHistory += _stool.OpenChatHistory;
+        _tray.Reminders += OpenReminderSettings;
         _tray.AddCharacter += _stool.PickCharacter;
         _tray.OpenCharacters += _stool.OpenCharactersFolder;
         _tray.CharacterChanged += _stool.Seat;
@@ -428,6 +434,14 @@ public partial class Main : Node2D
             _reminders.Try(action["remind:".Length..].Replace('_', ' '), DateTimeOffset.Now);              // underscores for spaces
             return;
         }
+        if (action.StartsWith("elsewhere:"))
+        {
+            // elsewhere:http://127.0.0.1:port points ntfy (topic "test") and the webhook (/hook) at a local test server
+            var server = action["elsewhere:".Length..];
+            SaveSettings(_settings with { ReminderElsewhere = new Elsewhere { Ntfy = true, NtfyServer = server, Webhook = true } });
+            _elsewhereKeys.Save(new ElsewhereSecrets { NtfyTopic = "test", WebhookUrl = server + "/hook" }.ToJson());
+            return;
+        }
         if (action.StartsWith("remindin:") && action.Split(':', 3) is [_, var after, var what])
         {
             // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
@@ -440,6 +454,8 @@ public partial class Main : Node2D
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
+            case "remindersettings": OpenReminderSettings(); break;
+            case "remindertry": if (IsInstanceValid(_reminderSettings)) _reminderSettings!.DevTry(); break;
             case "easy": DevSolve(Difficulty.Easy); break;
             case "medium": DevSolve(Difficulty.Medium); break;
             case "hard": DevSolve(Difficulty.Hard); break;
@@ -466,6 +482,37 @@ public partial class Main : Node2D
     private sealed class NoGames : IGameDetector
     {
         public IReadOnlyList<RunningGame> RunningGames() => [];
+    }
+
+    /// <summary>A reminder going off, sent beyond the cabinet as the player chose: a Windows notification, their phone…</summary>
+    private async Task SendOut(Notice notice)
+    {
+        if (_settings.ReminderWindows)
+            WindowsNotice.Show(notice.Title, notice.Text);
+        if (!_settings.ReminderElsewhere.Any)
+            return;
+        foreach (var (name, error) in await Couriers.Send(Couriered, _settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), notice))
+            if (error is not null)
+                GD.PrintErr($"Reminders: could not reach {name}: {error}");
+    }
+
+    private void OpenReminderSettings()
+    {
+        if (IsInstanceValid(_reminderSettings))
+        {
+            _reminderSettings!.GrabFocus();
+            return;
+        }
+        _reminderSettings = new ReminderSettings();
+        AddChild(_reminderSettings);
+        _reminderSettings.Build(_settings.ReminderSound, _settings.ReminderWindows, _settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
+        _reminderSettings.Tried += chime => _reminders.Try("This is how a reminder reaches you.", DateTimeOffset.Now, chime);
+        _reminderSettings.Saved += (sound, windows, elsewhere, secrets) =>
+        {
+            SaveSettings(_settings with { ReminderSound = sound, ReminderWindows = windows, ReminderElsewhere = elsewhere });
+            _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
+        };
+        _reminderSettings.Open();
     }
 
     private void AddTimer(double seconds, Action action)

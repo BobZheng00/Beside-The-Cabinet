@@ -38,23 +38,36 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
         Sent?.Invoke(due, now);
     }
 
-    /// <summary>Goes off as if due now: the settings window's "Try it", and dev actions.</summary>
-    public void Try(string text, DateTimeOffset now)
+    /// <summary>
+    /// Goes off as if due now (dev actions). With <paramref name="chime"/> (the settings window's "Try it", which
+    /// sends elsewhere itself, as filled in), only in the cabinet, chiming or not as given.
+    /// </summary>
+    public void Try(string text, DateTimeOffset now, bool? chime = null)
     {
         var plan = new Plan(0, text, now, false, true, null, now, null);
         Show([plan], now);
-        if (settings().ReminderSound)
+        if (chime ?? settings().ReminderSound)
             audio.Alert("remind");
         say([plan], now);
-        Sent?.Invoke([plan], now);
+        if (chime is null)
+            Sent?.Invoke([plan], now);
     }
+
+    /// <summary>What goes out of the cabinet: "Reminder" (or "Missed reminder") and each one with its time, a line each.</summary>
+    public static Notice NoticeFor(IReadOnlyList<Plan> due, DateTimeOffset now)
+    {
+        var missed = due.All(p => now - p.At > Agenda.Missed);
+        var title = (missed ? "Missed reminder" : "Reminder") + (due.Count > 1 ? "s" : "");
+        return new Notice(title, string.Join("\n", due.Select(p => $"{When(p, now)}  {p.Text}")));
+    }
+
+    private static string When(Plan plan, DateTimeOffset now) =>
+        plan.At.Date == now.Date ? plan.At.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : plan.Label;
 
     private void Show(IReadOnlyList<Plan> due, DateTimeOffset now)
     {
         var missed = due.All(p => now - p.At > Agenda.Missed);
-        var first = due[0];
-        var when = first.At.Date == now.Date ? first.At.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : first.Label;
         var more = due.Count > 1 ? $"  (+{due.Count - 1} more)" : "";
-        ticket.Show(missed ? "MISSED" : "REMINDER", $"{when}  {first.Text}{more}", seconds: 12, tall: true);
+        ticket.Show(missed ? "MISSED" : "REMINDER", $"{When(due[0], now)}  {due[0].Text}{more}", seconds: 12, tall: true);
     }
 }
