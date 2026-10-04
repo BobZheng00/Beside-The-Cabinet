@@ -7,6 +7,15 @@ namespace InsertCoin.Mind;
 /// <summary>One change upkeep asks for: add a fact (about the player or about "us"), update one, or delete one.</summary>
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
+/// <summary>Facts a review folds into one (one id: a rewrite).</summary>
+public sealed record Merge(IReadOnlyList<long> Ids, string Text, int? Importance);
+
+/// <summary>A fact a review moves to the background, and why.</summary>
+public sealed record Retirement(long Id, string Why);
+
+/// <summary>What a review of her facts asks for.</summary>
+public sealed record Verdict(IReadOnlyList<Merge> Merges, IReadOnlyList<Retirement> Retirements);
+
 /// <summary>What upkeep drew from a stretch of conversation: a dated episode and changes to what she knows.</summary>
 public sealed record Digestion(string? Episode, IReadOnlyList<FactChange> Changes)
 {
@@ -112,6 +121,59 @@ public static class Upkeep
             """),
         new(ChatRole.User, string.Join("\n", moments.Select(e => $"- {e.Label}: {e.Text}"))),
     ];
+
+    /// <summary>
+    /// The request that reviews a batch of her facts (sleep time, about weekly): merge what says the same thing, and
+    /// retire what she no longer needs in mind. Retired facts are kept, to restore.
+    /// </summary>
+    public static List<ChatMessage> Review(Persona persona, IReadOnlyList<Fact> facts, DateTimeOffset now) =>
+    [
+        new(ChatRole.System, $$"""
+            You tend the long-term memory of {{persona.Name}}, a companion who sits beside the player's arcade cabinet. Today is {{now.ToString("dddd d MMMM yyyy", English)}}. Below are facts she keeps, each with its number, who it is about, its importance (1-10), when she learned it and when it last came up. Answer with JSON only:
+
+            {"merge": [{"ids": [3, 7], "text": "one fact saying what they both say", "importance": 6}], "retire": [{"id": 5, "why": "a few words"}]}
+
+            Merge facts that say the same thing or read better as one; a merge of a single fact rewrites it (a plan whose date has passed but which still matters, say, put in the past tense). Retire what she no longer needs in mind: plans and dates that have passed and no longer matter, facts another fact contradicts or replaces, and trivia that has not come up for months. Keep anything still true that could matter. Retiring is not deleting: the player can bring a fact back. Facts marked pinned stay as they are. When nothing needs doing, answer {"merge": [], "retire": []}.
+            """),
+        new(ChatRole.User, string.Join("\n", facts.Select(f =>
+            $"#{f.Id} [{(f.Scope == MindStore.Shared ? "player" : "us")}, {f.Importance}{(f.Pinned ? ", pinned" : "")}] {f.Text} " +
+            $"(learned {f.Learned.ToString("d MMM yyyy", English)}; last came up {(f.Recalled is { } at ? When.Ago(at, now) : "never")})"))),
+    ];
+
+    /// <summary>Reads a review's answer; null when it is not the JSON asked for.</summary>
+    public static Verdict? ParseReview(string answer)
+    {
+        var start = answer.IndexOf('{');
+        var end = answer.LastIndexOf('}');
+        if (start < 0 || end <= start)
+            return null;
+        try
+        {
+            using var json = JsonDocument.Parse(answer[start..(end + 1)]);
+            var root = json.RootElement;
+            var merges = new List<Merge>();
+            if (root.TryGetProperty("merge", out var merge) && merge.ValueKind == JsonValueKind.Array)
+                foreach (var m in merge.EnumerateArray().Where(m => m.ValueKind == JsonValueKind.Object))
+                {
+                    var ids = m.TryGetProperty("ids", out var list) && list.ValueKind == JsonValueKind.Array
+                        ? list.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Number && x.TryGetInt64(out _)).Select(x => x.GetInt64()).ToList()
+                        : [];
+                    if (ids.Count > 0 && Text(m, "text") is { Length: > 2 } text)
+                        merges.Add(new Merge(ids, text.Trim(),
+                            m.TryGetProperty("importance", out var i) && i.ValueKind == JsonValueKind.Number && i.TryGetInt32(out var level) ? level : null));
+                }
+            var retirements = new List<Retirement>();
+            if (root.TryGetProperty("retire", out var retire) && retire.ValueKind == JsonValueKind.Array)
+                foreach (var r in retire.EnumerateArray().Where(r => r.ValueKind == JsonValueKind.Object))
+                    if (r.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n))
+                        retirements.Add(new Retirement(n, Text(r, "why")?.Trim() is { Length: > 0 } why ? why : "no longer needed"));
+            return new Verdict(merges, retirements);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     private static string Transcript(Persona persona, IEnumerable<Line> lines) => string.Join("\n", lines.Select(line =>
         $"[{line.At.ToString("ddd d MMM yyyy HH:mm", English)}] " + line.Speaker switch

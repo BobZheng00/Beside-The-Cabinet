@@ -246,6 +246,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             switch (change.Op)
             {
+                // something she had retired has come up again: back to the foreground, not a second copy
+                case "add" when change.Text is { Length: > 2 } text && store.Retired(character).FirstOrDefault(f => Recall.Same(f.Text, text)) is { } back:
+                    store.Restore(back.Id, now);
+                    if (back.Importance >= CoreFrom)
+                        touched.Add(back.Scope);
+                    break;
                 case "add" when change.Text is { Length: > 2 } text && !store.Facts(character).Any(f => Recall.Same(f.Text, text)):
                     var scope = change.About == "us" ? character : MindStore.Shared;
                     var importance = change.Importance ?? 5;
@@ -315,6 +321,69 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         (Span.Month, MonthsAfter, at => new DateOnly(at.Year, at.Month, 1), first => first.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)),
         (Span.Year, YearsAfter, at => new DateOnly(at.Year, 1, 1), first => first.Year.ToString(System.Globalization.CultureInfo.InvariantCulture)),
     ];
+
+    /// <summary>How often her facts are reviewed (sooner when many new ones have come), and how many are read at once.</summary>
+    public static readonly TimeSpan ReviewEvery = TimeSpan.FromDays(7);
+    public const int ReviewAfterNew = 30, ReviewAtOnce = 80;
+
+    /// <summary>
+    /// Sleep-time review of what she knows (as ChatGPT has managed saved memories since 2025): about weekly, or once
+    /// many new facts have come, the model reads her facts a batch at a time, from where the last batch stopped, and
+    /// merges what says the same thing and retires what is obsolete (past plans, contradicted, trivia long unmentioned).
+    /// Retired facts are kept, to restore; pinned ones are never touched. Returns false when no review was due.
+    /// </summary>
+    public async Task<bool> Review(IChatClient client, CancellationToken cancel = default)
+    {
+        var now = _clock.GetLocalNow();
+        var key = $"review:{character}";
+        // the mark: when the last review finished, how many facts there were then, and where a review under way has got to
+        var (last, count, from) = store.Mark(key)?.Split('|') is [var a, var c, var f]
+            ? (DateTimeOffset.Parse(a, System.Globalization.CultureInfo.InvariantCulture), int.Parse(c), long.Parse(f))
+            : (DateTimeOffset.MinValue, 0, 0L);
+        var facts = store.Facts(character);
+        if (from == 0 && now - last < ReviewEvery && facts.Count - count < ReviewAfterNew)
+            return false;
+        var batch = facts.Where(x => x.Id > from).Take(ReviewAtOnce).ToList();
+        if (batch.Count == 0)
+        {
+            store.SetMark(key, $"{now:O}|{facts.Count}|0");
+            return false;
+        }
+        var response = await client.GetResponseAsync(Upkeep.Review(persona, batch, now), DigestOptions, cancel);
+        if (Upkeep.ParseReview(response.Text) is not { } verdict)
+            return false;                                   // tried again next time, from the same place
+
+        var mine = batch.Where(x => !x.Pinned).ToDictionary(x => x.Id);
+        var touched = new HashSet<string>();
+        foreach (var merge in verdict.Merges.Where(m => m.Ids.Distinct().Count() == m.Ids.Count && m.Ids.All(mine.ContainsKey) && m.Ids.Select(id => mine[id].Scope).Distinct().Count() == 1))
+        {
+            var merged = merge.Ids.Select(id => mine[id]).ToList();
+            var importance = merge.Importance ?? merged.Max(x => x.Importance);
+            if (merged.Count == 1)
+                store.UpdateFact(merged[0].Id, merge.Text, importance);
+            else
+            {
+                var into = store.AddFact(merged[0].Scope, merge.Text, importance, merged.Min(x => x.Learned));
+                var why = $"merged into \"{(merge.Text.Length > 60 ? merge.Text[..60] + "…" : merge.Text)}\"";
+                foreach (var old in merged)
+                    store.Retire(old.Id, why, now);
+            }
+            touched.UnionWith(merged.Where(x => Math.Max(x.Importance, importance) >= CoreFrom).Select(x => x.Scope));
+            foreach (var id in merge.Ids)
+                mine.Remove(id);
+        }
+        foreach (var retirement in verdict.Retirements.Where(r => mine.ContainsKey(r.Id)))
+        {
+            store.Retire(retirement.Id, retirement.Why, now);
+            if (mine[retirement.Id].Importance >= CoreFrom)
+                touched.Add(mine[retirement.Id].Scope);
+        }
+        var end = batch[^1].Id == facts[^1].Id;
+        store.SetMark(key, end ? $"{now:O}|{store.Facts(character).Count}|0" : $"{(last == DateTimeOffset.MinValue ? now : last):O}|{count}|{batch[^1].Id}");
+        foreach (var scope in touched)
+            await RewriteNote(client, scope, cancel);
+        return true;
+    }
 
     public static DateOnly MondayOf(DateTimeOffset at)
     {

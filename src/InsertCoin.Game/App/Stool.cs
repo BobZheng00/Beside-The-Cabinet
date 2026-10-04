@@ -344,6 +344,10 @@ public partial class Stool : Node2D
         _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
         var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
         _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
+        // and what a review would have retired
+        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
+        _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);
+        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob has an interview at the end of the week.", 7, now), "merged into \"Bob's interview is on Friday.\"", now);
     }
 
     /// <summary>Dev: a recording heard as if said holding the talk key, or into the slip's microphone (no microphone opened).</summary>
@@ -776,7 +780,11 @@ public partial class Stool : Node2D
             case "listen": Listen(Talk.Hold); break;        // listens as if held on her (opens the real microphone)…
             case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
-            case "memorybook": OpenMemoryBook(); break;
+            case "memorybook":                              // memorybook:retired opens it with the retired facts shown
+                OpenMemoryBook();
+                if (rest == "retired")
+                    _memoryBook?.DevShowRetired();
+                break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
             case "memoryseed": SeedMemory(); break;          // a few notes, facts, a moment and a line, to try the memory book on

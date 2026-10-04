@@ -18,7 +18,8 @@ public partial class MemoryBook : Window
     private TextEdit _about = null!, _us = null!;
     private readonly List<(Fact Fact, LineEdit Text, CheckBox Pin, Control Row)> _facts = [];
     private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [];
-    private VBoxContainer _factList = null!, _episodeList = null!;
+    private VBoxContainer _factList = null!, _episodeList = null!, _retiredList = null!;
+    private Button _retiredToggle = null!;
     private Label? _noFacts;
     private readonly Dictionary<string, Action> _forget = [];
 
@@ -61,6 +62,16 @@ public partial class MemoryBook : Window
             AddFactRow(fact);
         ShowNoFacts();
 
+        // what her review moved to the background: kept, out of mind, and the player can bring it back
+        _retiredToggle = new Button { ThemeTypeVariation = "Quiet", ToggleMode = true, Alignment = HorizontalAlignment.Left,
+                                      TooltipText = "Facts her weekly review retired: past plans, things since replaced, trivia long unmentioned. She no longer recalls them." };
+        column.AddChild(_retiredToggle);
+        _retiredList = new VBoxContainer { Visible = false };
+        _retiredList.AddThemeConstantOverride("separation", 4);
+        column.AddChild(_retiredList);
+        _retiredToggle.Toggled += on => { _retiredList.Visible = on; ShowRetired(); };
+        ShowRetired();
+
         column.AddChild(new Label { Text = "Moments", ThemeTypeVariation = "Subheading" });
         _episodeList = List(column, 100);
         ShowEpisodes();
@@ -102,6 +113,9 @@ public partial class MemoryBook : Window
 
     public void Open() => Paper.Open(this, new Vector2(600, 760));
 
+    /// <summary>Dev: opens the retired facts.</summary>
+    public void DevShowRetired() => _retiredToggle.ButtonPressed = true;
+
     /// <summary>Dev: as if a forget button ("chat", "all" or "me") were clicked twice.</summary>
     public void DevForget(string which)
     {
@@ -132,6 +146,41 @@ public partial class MemoryBook : Window
         _facts.Add((fact, text, pin, row));
     }
 
+    private void ShowRetired()
+    {
+        var retired = _store.Retired(_character).OrderByDescending(f => f.Retired).ToList();
+        _retiredToggle.Visible = retired.Count > 0;
+        _retiredToggle.Text = $"{(_retiredToggle.ButtonPressed ? "▾" : "▸")} Retired by her review ({retired.Count})";
+        foreach (var child in _retiredList.GetChildren())
+            child.QueueFree();
+        if (!_retiredToggle.ButtonPressed)
+            return;
+        foreach (var fact in retired)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 6);
+            row.AddChild(new Label { Text = fact.Scope == MindStore.Shared ? "you" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) });
+            var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Modulate = new Color(1, 1, 1, 0.6f) };
+            text.AddChild(new Label { Text = fact.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            text.AddChild(new Label { Text = $"{Day(fact.Retired!.Value)}: {fact.Why}", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            row.AddChild(text);
+            var back = new Button { Text = "Bring back", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin, TooltipText = "She keeps it in mind again" };
+            back.Pressed += () =>
+            {
+                _store.Restore(fact.Id, DateTimeOffset.Now);
+                if (IsInstanceValid(_noFacts))
+                    _noFacts.QueueFree();
+                AddFactRow(_store.Facts(_character).Single(f => f.Id == fact.Id));
+                ShowRetired();
+            };
+            var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this for good", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
+            delete.Pressed += () => { _store.DeleteFact(fact.Id); ShowRetired(); };
+            row.AddChild(back);
+            row.AddChild(delete);
+            _retiredList.AddChild(row);
+        }
+    }
+
     private void AddEpisodeRow(Episode episode)
     {
         var row = new HBoxContainer();
@@ -158,6 +207,7 @@ public partial class MemoryBook : Window
         }
         ShowNoFacts();
         ShowEpisodes();
+        ShowRetired();
     }
 
     private void ShowNoFacts()

@@ -17,7 +17,7 @@ public sealed record Summary(string Text, long Through);
 /// how often it has.
 /// </summary>
 public sealed record Fact(long Id, string Scope, string Text, int Importance, DateTimeOffset Learned, DateTimeOffset? Recalled, bool Pinned,
-                          int Recalls = 0)
+                          int Recalls = 0, DateTimeOffset? Retired = null, string? Why = null)
 {
     /// <summary>
     /// How well she still remembers it, 1 down to 0: MemoryBank's forgetting curve, e^(-t/S), where t is the days
@@ -95,7 +95,12 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('episodes') WHERE name = 'week'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE episodes ADD COLUMN week INTEGER NOT NULL DEFAULT 0");
-        Run("PRAGMA user_version = 4");
+        // version 5: facts can be retired (no longer recalled, kept to restore), and small marks such as when facts were last reviewed
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('facts') WHERE name = 'retired'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE facts ADD COLUMN retired TEXT; ALTER TABLE facts ADD COLUMN retired_why TEXT");
+        Run("CREATE TABLE IF NOT EXISTS marks (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        Run("PRAGMA user_version = 5");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -175,16 +180,50 @@ public sealed class MindStore : IDisposable
     }
 
     /// <summary>What this character knows: facts about the player and about the two of them.</summary>
-    public IReadOnlyList<Fact> Facts(string character)
+    /// <summary>What she knows, about the player and about the two of them: the facts not retired.</summary>
+    public IReadOnlyList<Fact> Facts(string character) => ReadFacts(character, retired: false);
+
+    /// <summary>Facts retired by a review (see <see cref="Conversation.Review"/>): no longer recalled, kept to restore.</summary>
+    public IReadOnlyList<Fact> Retired(string character) => ReadFacts(character, retired: true);
+
+    private List<Fact> ReadFacts(string character, bool retired)
     {
-        using var command = Command("SELECT id, scope, text, importance, learned, recalled, pinned, recalls FROM facts WHERE scope IN ($s, $c) ORDER BY id",
-            ("$s", Shared), ("$c", character));
+        using var command = Command($"SELECT id, scope, text, importance, learned, recalled, pinned, recalls, retired, retired_why FROM facts " +
+                                    $"WHERE scope IN ($s, $c) AND retired IS {(retired ? "NOT " : "")}NULL ORDER BY id", ("$s", Shared), ("$c", character));
         using var reader = command.ExecuteReader();
         var facts = new List<Fact>();
         while (reader.Read())
             facts.Add(new Fact(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3), Parse(reader.GetString(4)),
-                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), reader.GetInt32(6) != 0, reader.GetInt32(7)));
+                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), reader.GetInt32(6) != 0, reader.GetInt32(7),
+                               reader.IsDBNull(8) ? null : Parse(reader.GetString(8)), reader.IsDBNull(9) ? null : reader.GetString(9)));
         return facts;
+    }
+
+    /// <summary>Moves a fact to the background, saying why; pinned ones are left alone.</summary>
+    public void Retire(long id, string why, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE facts SET retired = $a, retired_why = $w WHERE id = $id AND pinned = 0", ("$a", Stamp(at)), ("$w", why), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Brings a retired fact back, fresh (it counts as just come up).</summary>
+    public void Restore(long id, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE facts SET retired = NULL, retired_why = NULL, recalled = $a WHERE id = $id", ("$a", Stamp(at)), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>A small value kept between runs (when facts were last reviewed, say), or null.</summary>
+    public string? Mark(string key)
+    {
+        using var command = Command("SELECT value FROM marks WHERE key = $k", ("$k", key));
+        return command.ExecuteScalar() as string;
+    }
+
+    public void SetMark(string key, string value)
+    {
+        using var command = Command("INSERT INTO marks (key, value) VALUES ($k, $v) ON CONFLICT (key) DO UPDATE SET value = excluded.value", ("$k", key), ("$v", value));
+        command.ExecuteNonQuery();
     }
 
     /// <summary>These facts came up again: they count as fresh and a little stronger.</summary>

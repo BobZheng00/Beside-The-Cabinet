@@ -120,6 +120,8 @@ never stored; a few hundred characters at most.
   (something else, while the day has fewer than three), or files nothing (small talk).
 - Rolled up: a week at most 80 words, a month 100, a year 150.
 
+*Built 2026-10-04* (`Upkeep.Request`'s "continues"; tests).
+
 ### 8. The whole conversation, searchable
 
 Rolled-up moments lose detail by design; the conversation itself is kept, so she should be able to find it. It is
@@ -145,6 +147,12 @@ updates and deletes:
   that never came up again).
 - **Retired is not deleted:** a retired fact is no longer recalled or reconciled against, and shows in the memory
   book under "Retired", where it can be restored.
+
+*Built 2026-10-04* (`Conversation.Review`): weekly, or after 30 new facts, 80 facts a request, carrying on from where
+the last batch stopped; pinned facts are never touched, and a merge keeps the oldest learned date. Upkeep runs it only
+when there is nothing to digest or roll up and the talk is quiet. A retired fact that upkeep would add again is
+restored instead. The memory book's "Retired by her review" lists each with when and why, to bring back or forget for
+good.
 
 ### 10. Reminders: where they reach the player
 
