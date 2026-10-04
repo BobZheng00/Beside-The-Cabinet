@@ -31,7 +31,22 @@ public sealed record Fact(long Id, string Scope, string Text, int Importance, Da
 }
 
 /// <summary>A dated summary of one stretch of conversation, lines <see cref="First"/> to <see cref="Last"/>; a week's worth when <see cref="Week"/>.</summary>
-public sealed record Episode(long Id, string Text, long First, long Last, DateTimeOffset At, bool Week = false);
+/// <summary>The stretch of time a moment covers: a day's talk, or older moments rolled up (see <see cref="Conversation.Consolidate"/>).</summary>
+public enum Span { Day, Week, Month, Year }
+
+public sealed record Episode(long Id, string Text, long First, long Last, DateTimeOffset At, Span Span = Span.Day)
+{
+    public bool Week => Span == Span.Week;
+
+    /// <summary>When it was, as the memory book and recall show it: "Fri 25 Sep", "Week of 7 Sep", "September 2026", "2026".</summary>
+    public string Label => Span switch
+    {
+        Span.Week => "Week of " + At.ToString("d MMM", CultureInfo.InvariantCulture),
+        Span.Month => At.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+        Span.Year => At.ToString("yyyy", CultureInfo.InvariantCulture),
+        _ => At.ToString("ddd d MMM", CultureInfo.InvariantCulture),
+    };
+}
 
 /// <summary>
 /// Everything she remembers, in one SQLite file in the profile folder: each character's conversation (one continuous
@@ -73,7 +88,7 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('facts') WHERE name = 'recalls'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE facts ADD COLUMN recalls INTEGER NOT NULL DEFAULT 0");
-        // version 4: episodes can be a week's digest
+        // version 4: episodes can be a week's digest; the column holds the span since (0 day, 1 week, 2 month, 3 year)
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('episodes') WHERE name = 'week'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE episodes ADD COLUMN week INTEGER NOT NULL DEFAULT 0");
@@ -175,11 +190,19 @@ public sealed class MindStore : IDisposable
 
     // ---- Episodes and upkeep ---------------------------------------------------------------------------------------
 
-    public long AddEpisode(string character, string text, long first, long last, DateTimeOffset at, bool week = false)
+    public long AddEpisode(string character, string text, long first, long last, DateTimeOffset at, Span span = Span.Day)
     {
         using var command = Command("INSERT INTO episodes (character, text, first, last, at, week) VALUES ($c, $t, $f, $l, $a, $w) RETURNING id",
-            ("$c", character), ("$t", text.Trim()), ("$f", first), ("$l", last), ("$a", Stamp(at)), ("$w", week ? 1 : 0));
+            ("$c", character), ("$t", text.Trim()), ("$f", first), ("$l", last), ("$a", Stamp(at)), ("$w", (int)span));
         return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>A moment rewritten to take in more of its day (its vector goes: it no longer means the same).</summary>
+    public void UpdateEpisode(long id, string text, long last)
+    {
+        using var command = Command("UPDATE episodes SET text = $t, last = $l WHERE id = $id", ("$t", text.Trim()), ("$l", last), ("$id", id));
+        command.ExecuteNonQuery();
+        DropVectors(EpisodeKind, id);
     }
 
     public IReadOnlyList<Episode> Episodes(string character)
@@ -188,7 +211,7 @@ public sealed class MindStore : IDisposable
         using var reader = command.ExecuteReader();
         var episodes = new List<Episode>();
         while (reader.Read())
-            episodes.Add(new Episode(reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), Parse(reader.GetString(4)), reader.GetInt32(5) != 0));
+            episodes.Add(new Episode(reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), Parse(reader.GetString(4)), (Span)reader.GetInt32(5)));
         return episodes;
     }
 

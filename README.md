@@ -35,15 +35,16 @@ it out. She knows the cabinet's numbers and remembers:
 - facts about you (shared by every character) and about the two of you, plus dated moments. When you just tell her
   something worth keeping she says she'll remember it and jots it in a little notebook; everything else is picked
   up quietly by upkeep, which reads the conversation once it has been quiet for ten minutes (two while a game
-  runs);
+  runs), checking it against the facts that relate to it. A day gets one moment at most (a later talk rewrites
+  it), and small talk none;
 - two short notes she always has in mind, rewritten by upkeep when something important changes;
 - and before each reply, whatever of all that relates to what you said: by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
   Chat settings → "Memory search" picks the multilingual model (about 100 languages, about 200 MB of memory while
   chatting), the small one (Chinese and English, about 50 MB) or shared words only;
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
-  longer; pinned and the most important ones never fade), and moments older than two weeks are combined a week
-  at a time.
+  longer; pinned and the most important ones never fade), and old moments are rolled up: days into weeks after
+  two weeks, into months after three months, into years after two years, so they stop piling up.
 
 A SillyTavern-style character card (`.png` or `.json`, V1 to V3) dropped on the cabinet or picked with "Add a
 character…" gives whoever is on the stool its personality, example dialogue and lorebook (background that comes

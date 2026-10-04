@@ -136,7 +136,7 @@ public partial class MemoryBook : Window
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-        var when = episode.Week ? "Week of " + episode.At.ToString("d MMM", CultureInfo.InvariantCulture) : Day(episode.At);
+        var when = episode.Label;
         row.AddChild(new Label { Text = when, ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart });
         row.AddChild(new Label { Text = episode.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };

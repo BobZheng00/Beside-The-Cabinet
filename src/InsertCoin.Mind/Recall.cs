@@ -38,7 +38,7 @@ public static class Recall
             candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
                             fact.Retention(now), fact.Importance, false, fact.Pinned));
         foreach (var episode in episodes)
-            candidates.Add((new Memory($"{(episode.Week ? "Week of " + episode.At.ToString("d MMM", English) : episode.At.ToString("ddd d MMM", English))} ({When.Ago(episode.At, now)}): {episode.Text}"),
+            candidates.Add((new Memory($"{episode.Label} ({When.Ago(episode.At, now)}): {episode.Text}"),
                             Terms(episode.Text).ToHashSet(),
                             meaning?.Episodes.GetValueOrDefault(episode.Id), Math.Exp(-(now - episode.At).TotalDays / 60), 5, false, false));
         foreach (var line in oldLines.Where(l => l.Speaker != Speaker.Cabinet))
@@ -81,6 +81,30 @@ public static class Recall
             chosen.Add(s.Memory);
         }
         return chosen;
+    }
+
+    /// <summary>
+    /// The facts that relate to <paramref name="text"/> (a stretch of conversation), for upkeep to reconcile it against
+    /// instead of everything she knows: the most related by shared words or meaning, and the pinned and most important
+    /// ones whatever the topic, <paramref name="count"/> in all.
+    /// </summary>
+    public static IReadOnlyList<Fact> Related(string text, IReadOnlyList<Fact> facts, int count, Meaning? meaning = null)
+    {
+        if (facts.Count <= count)
+            return facts;
+        var core = facts.Where(f => f.Pinned || f.Importance >= 8).OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance)
+                        .ThenByDescending(f => f.Learned).Take(count / 3).ToList();
+        var query = Terms(text).ToHashSet();
+        double Words(Fact f)
+        {
+            var terms = Terms(f.Text).ToHashSet();
+            return terms.Count == 0 ? 0 : terms.Count(query.Contains) / Math.Sqrt(terms.Count);
+        }
+        double Meant(Fact f) => meaning?.Facts.GetValueOrDefault(f.Id) is { } v ? LocalEmbedder.Cosine(meaning.Query, v) : 0;
+        var bestWords = Math.Max(facts.Max(Words), 1e-9);
+        var bestMeaning = Math.Max(facts.Max(Meant), 1e-9);
+        var related = facts.Except(core).OrderByDescending(f => Math.Max(Words(f) / bestWords, Meant(f) / bestMeaning)).Take(count - core.Count);
+        return [.. core, .. related];
     }
 
     /// <summary>Whether two facts say the same thing in nearly the same words (so a second telling is not kept twice).</summary>

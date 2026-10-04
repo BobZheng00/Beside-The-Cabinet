@@ -13,8 +13,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 {
     /// <summary>How long a conversation stays quiet before upkeep reads it, and how much it reads at once (tokens).</summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
-    /// <summary>How old day-by-day moments get before they are combined into weekly ones.</summary>
-    public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14);
+    /// <summary>
+    /// How old moments get before they are rolled up, the oldest first: days into weeks after two weeks, days and weeks
+    /// into months after three months, and anything shorter into years after two years. With at most one moment a day,
+    /// that keeps her moments to a couple of dozen recent ones plus one per older month and year.
+    /// </summary>
+    public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14), MonthsAfter = TimeSpan.FromDays(90), YearsAfter = TimeSpan.FromDays(730);
+    /// <summary>Facts upkeep reconciles a stretch of conversation against at most (the related ones, see <see cref="Recall.Related"/>).</summary>
+    public const int DigestFacts = 60;
     public const int DigestAtOnce = 3000;
     private const int KeepLines = 12, SummaryLimit = 3200, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
@@ -199,8 +205,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             used += Prompt.Tokens(line.Text) + 4;
         }
 
-        var known = store.Facts(character);
-        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk), DigestOptions, cancel);
+        // what she knows that relates to this stretch, not everything: the request stays the same size however much she knows
+        var all = store.Facts(character);
+        var transcript = string.Join('\n', chunk.Select(l => l.Text));
+        var known = all.Count <= DigestFacts ? all : Recall.Related(transcript, all, DigestFacts, await MeaningOf(transcript[..Math.Min(transcript.Length, 2000)], cancel));
+        // at most one moment a day: a later stretch rewrites the day's moment instead of adding another
+        var today = store.Episodes(character).LastOrDefault(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date);
+        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today), DigestOptions, cancel);
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {
             _failed = _failed.From == from ? (from, _failed.Times + 1) : (from, 1);
@@ -235,8 +246,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     break;
             }
         }
-        if (digestion.Episode is { } episode)
-            store.AddEpisode(character, episode, chunk[0].Id, chunk[^1].Id, chunk[0].At);      // dated when it happened
+        if (digestion.Episode is { Length: > 0 } episode)
+        {
+            if (today is not null)
+                store.UpdateEpisode(today.Id, episode, chunk[^1].Id);
+            else
+                store.AddEpisode(character, episode, chunk[0].Id, chunk[^1].Id, chunk[0].At);      // dated when it happened
+        }
         store.SetDigested(character, chunk[^1].Id);
 
         foreach (var scope in touched)
@@ -245,25 +261,38 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>
-    /// Weekly digest: day-by-day moments older than <see cref="WeeksAfter"/> are combined, the oldest week first and
-    /// one week per call, into a single moment for that week. Returns false when there was nothing to combine.
+    /// Rolls old moments up (see <see cref="WeeksAfter"/>): days into weeks, then days and weeks into months, then
+    /// anything shorter into years, one group per call, the oldest first. A group needs at least two moments; a lone
+    /// one waits for the next, longer roll-up. Returns false when there was nothing to combine.
     /// </summary>
     public async Task<bool> Consolidate(IChatClient client, CancellationToken cancel = default)
     {
         var now = _clock.GetLocalNow();
-        var week = store.Episodes(character).Where(e => !e.Week && now - e.At > WeeksAfter)
-            .GroupBy(e => MondayOf(e.At)).Where(g => g.Count() >= 2).OrderBy(g => g.Key).FirstOrDefault();
-        if (week is null)
-            return false;
-        var response = await client.GetResponseAsync(Upkeep.Week(persona, week.Key, week), FoldOptions, cancel);
-        var text = response.Text.Trim();
-        if (text.Length == 0)
-            return false;
-        store.AddEpisode(character, text, week.Min(e => e.First), week.Max(e => e.Last), week.Min(e => e.At), week: true);
-        foreach (var moment in week)
-            store.DeleteEpisode(moment.Id);
-        return true;
+        var episodes = store.Episodes(character);
+        foreach (var (into, after, key, period) in RollUps)
+        {
+            var group = episodes.Where(e => e.Span < into && now - e.At > after).GroupBy(e => key(e.At))
+                .Where(g => g.Count() >= 2).OrderBy(g => g.Key).FirstOrDefault();
+            if (group is null)
+                continue;
+            var response = await client.GetResponseAsync(Upkeep.Combine(persona, period(group.Key), into, group), FoldOptions, cancel);
+            var text = response.Text.Trim();
+            if (text.Length == 0)
+                return false;
+            store.AddEpisode(character, text, group.Min(e => e.First), group.Max(e => e.Last), group.Min(e => e.At), into);
+            foreach (var moment in group)
+                store.DeleteEpisode(moment.Id);
+            return true;
+        }
+        return false;
     }
+
+    private static readonly (Span Into, TimeSpan After, Func<DateTimeOffset, DateOnly> Key, Func<DateOnly, string> Period)[] RollUps =
+    [
+        (Span.Week, WeeksAfter, MondayOf, monday => "the week starting " + monday.ToString("dddd d MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)),
+        (Span.Month, MonthsAfter, at => new DateOnly(at.Year, at.Month, 1), first => first.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)),
+        (Span.Year, YearsAfter, at => new DateOnly(at.Year, 1, 1), first => first.Year.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+    ];
 
     public static DateOnly MondayOf(DateTimeOffset at)
     {
