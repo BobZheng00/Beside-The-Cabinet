@@ -8,7 +8,11 @@ namespace InsertCoin.Mind;
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
 /// <summary>What upkeep drew from a stretch of conversation: a dated episode and changes to what she knows.</summary>
-public sealed record Digestion(string? Episode, IReadOnlyList<FactChange> Changes);
+public sealed record Digestion(string? Episode, IReadOnlyList<FactChange> Changes)
+{
+    /// <summary>The moment of the day the episode rewrites (it continues it), or null for a new one.</summary>
+    public long? Continues { get; init; }
+}
 
 /// <summary>
 /// Her "sleep time" (Letta's term): after a conversation has gone quiet, a model reads the part she has not
@@ -21,22 +25,28 @@ public static class Upkeep
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
     /// <param name="known">The facts to reconcile against: those related to these lines (see <see cref="Recall.Related"/>).</param>
-    /// <param name="today">The moment already filed for the day these lines are from, to be rewritten rather than joined by another.</param>
-    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Line> lines, Episode? today = null)
+    /// <param name="today">The moments already filed for the day these lines are from: the new part may continue one of them.</param>
+    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Line> lines, IReadOnlyList<Episode>? today = null)
     {
         var facts = known.Count == 0
             ? "(none yet)"
             : string.Join("\n", known.Select(f => $"#{f.Id} [{(f.Scope == MindStore.Shared ? "player" : "us")}, {f.Importance}] {f.Text}"));
-        var episode = today is null
-            ? "\"episode\": one or two sentences on what happened (it is filed under its date already), or null when it was only greetings or small talk with nothing worth remembering."
-            : $"\"episode\": the day's moment so far is below; give it rewritten to take in the new part too (one to three sentences, the whole day), or null when the new part adds nothing worth remembering.";
-        var day = today is null ? "" : $"The day's moment so far:\n{today.Text}\n\n";
+        var length = $"one to three sentences, at most {Conversation.MomentWords} words";
+        var episode = today is not { Count: > 0 }
+            ? $"\"episode\": a moment on what happened ({length}; it is filed under its date already), or null when it was only greetings or small talk with nothing worth remembering. \"continues\": null."
+            : $"\"episode\" and \"continues\": the day's moments so far are below. If the new part carries on one of them, give that moment rewritten to take it in " +
+              $"(the whole of it, still {length}) and its number in \"continues\". " +
+              (today.Count < Conversation.DayMoments
+                  ? $"If it is about something else, give a new moment ({length}) and \"continues\": null. "
+                  : "The day already has as many moments as it may: rewrite the one the new part is closest to. ") +
+              "If it adds nothing worth remembering, \"episode\": null.";
+        var day = today is not { Count: > 0 } ? "" : $"The day's moments so far:\n{string.Join("\n", today.Select(e => $"#{e.Id} {e.Text}"))}\n\n";
         return
         [
             new(ChatRole.System, $$"""
                 You maintain the long-term memory of {{persona.Name}}, a companion who sits beside the player's arcade cabinet and chats with them. Read the new part of their conversation and answer with JSON only, in this form:
 
-                {"episode": "...", "facts": [
+                {"episode": "...", "continues": null, "facts": [
                   {"op": "add", "about": "player", "text": "The player has a job interview on Tuesday 6 October 2026.", "importance": 8},
                   {"op": "update", "id": 12, "text": "...", "importance": 6},
                   {"op": "delete", "id": 5}]}
@@ -66,11 +76,12 @@ public static class Upkeep
                 foreach (var f in facts.EnumerateArray().Where(f => f.ValueKind == JsonValueKind.Object))
                     changes.Add(new FactChange(
                         Text(f, "op")?.ToLowerInvariant() ?? "",
-                        f.TryGetProperty("id", out var id) && id.TryGetInt64(out var n) ? n : null,
+                        f.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n) ? n : null,
                         Text(f, "about")?.ToLowerInvariant(),
                         Text(f, "text"),
-                        f.TryGetProperty("importance", out var i) && i.TryGetInt32(out var level) ? level : null));
-            return new Digestion(string.IsNullOrWhiteSpace(episode) ? null : episode.Trim(), changes);
+                        f.TryGetProperty("importance", out var i) && i.ValueKind == JsonValueKind.Number && i.TryGetInt32(out var level) ? level : null));
+            var continues = root.TryGetProperty("continues", out var c) && c.ValueKind == JsonValueKind.Number && c.TryGetInt64(out var moment) ? moment : (long?)null;
+            return new Digestion(string.IsNullOrWhiteSpace(episode) ? null : episode.Trim(), changes) { Continues = continues };
         }
         catch (JsonException)
         {
@@ -97,7 +108,7 @@ public static class Upkeep
     public static List<ChatMessage> Combine(Persona persona, string period, Span into, IEnumerable<Episode> moments) =>
     [
         new(ChatRole.System, $"""
-            You keep the memory of a player and {persona.Name}, a companion who sits beside the player's arcade cabinet. Combine the moments below, all from {period}, into one summary of {(into == Span.Year ? "four to six" : "two to four")} sentences. Keep what will matter later (events, plans, feelings, how the two got along, what changed), in the language the moments are in. Output only the summary.
+            You keep the memory of a player and {persona.Name}, a companion who sits beside the player's arcade cabinet. Combine the moments below, all from {period}, into one summary of {(into == Span.Year ? "four to six" : "two to four")} sentences, at most {Conversation.RolledUpWords(into)} words. Keep what will matter later (events, plans, feelings, how the two got along, what changed), in the language the moments are in. Output only the summary.
             """),
         new(ChatRole.User, string.Join("\n", moments.Select(e => $"- {e.Label}: {e.Text}"))),
     ];

@@ -21,6 +21,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14), MonthsAfter = TimeSpan.FromDays(90), YearsAfter = TimeSpan.FromDays(730);
     /// <summary>Facts upkeep reconciles a stretch of conversation against at most (the related ones, see <see cref="Recall.Related"/>).</summary>
     public const int DigestFacts = 60;
+    /// <summary>Moments a day may have (one per distinct thing that happened), and how long each may be.</summary>
+    public const int DayMoments = 3, MomentWords = 60;
+
+    /// <summary>How long a rolled-up moment may be: a week 80 words, a month 100, a year 150.</summary>
+    public static int RolledUpWords(Span span) => span switch { Span.Week => 80, Span.Month => 100, _ => 150 };
     public const int DigestAtOnce = 3000;
     private const int KeepLines = 12, SummaryLimit = 3200, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
@@ -209,8 +214,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var all = store.Facts(character);
         var transcript = string.Join('\n', chunk.Select(l => l.Text));
         var known = all.Count <= DigestFacts ? all : Recall.Related(transcript, all, DigestFacts, await MeaningOf(transcript[..Math.Min(transcript.Length, 2000)], cancel));
-        // at most one moment a day: a later stretch rewrites the day's moment instead of adding another
-        var today = store.Episodes(character).LastOrDefault(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date);
+        // a few moments a day at most: a later stretch rewrites the moment it carries on, or adds one if it is something else
+        var today = store.Episodes(character).Where(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date).ToList();
         var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today), DigestOptions, cancel);
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {
@@ -248,8 +253,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         if (digestion.Episode is { Length: > 0 } episode)
         {
-            if (today is not null)
-                store.UpdateEpisode(today.Id, episode, chunk[^1].Id);
+            var continued = digestion.Continues is { } id ? today.FirstOrDefault(e => e.Id == id) : null;
+            if (continued is null && today.Count >= DayMoments)
+                continued = today[^1];                      // the day is full: the latest takes it in
+            if (continued is not null)
+                store.UpdateEpisode(continued.Id, episode, chunk[^1].Id);
             else
                 store.AddEpisode(character, episode, chunk[0].Id, chunk[^1].Id, chunk[0].At);      // dated when it happened
         }
