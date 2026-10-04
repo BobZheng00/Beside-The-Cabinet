@@ -95,7 +95,8 @@ cache at a tenth of that or less.
 ## Phases
 
 1. **The prompt and the window:** layout, window setting, folding while quiet, Anthropic caching, cached-token
-   logging, "now" and "last talked", time marks.
+   logging, "now" and "last talked", time marks. *Built 2026-10-04* (tests; the request checked against a mock
+   provider; Anthropic's cache flag checked against a fake endpoint).
 2. **Bounded memory:** moments (small talk, one a day, month and year roll-ups) and facts reconciled against the
-   related ones.
+   related ones. *Built 2026-10-04* (tests).
 3. **The agenda and reminders.**
