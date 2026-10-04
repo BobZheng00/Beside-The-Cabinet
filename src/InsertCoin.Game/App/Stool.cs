@@ -330,6 +330,20 @@ public partial class Stool : Node2D
         }
     }
 
+    /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>
+    private void SeedMemory()
+    {
+        if (OnStool() is not { } character)
+            return;
+        var now = DateTimeOffset.Now;
+        _chat.Store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob is getting ready for interviews.");
+        _chat.Store.SetNote(character.Id, MindStore.Us, "Friends since the cabinet arrived.");
+        _chat.Store.AddFact(MindStore.Shared, "Bob likes Hades.", 5, now);
+        _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
+        var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
+        _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
+    }
+
     /// <summary>Dev: a recording heard as if said holding the talk key, or into the slip's microphone (no microphone opened).</summary>
     private async Task HearFile(string path, Talk how)
     {
@@ -742,6 +756,8 @@ public partial class Stool : Node2D
             case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
             case "memorybook": OpenMemoryBook(); break;
+            case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
+            case "memoryseed": SeedMemory(); break;          // a few notes, facts, a moment and a line, to try the memory book on
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice

@@ -100,7 +100,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
-`memorybook`, `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
+`memorybook`, `memoryseed` (a few notes, facts and a moment to try it on), `forget:chat|all|me` (its three forget
+buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
 window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`

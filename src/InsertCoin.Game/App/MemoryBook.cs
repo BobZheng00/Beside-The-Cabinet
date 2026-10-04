@@ -8,7 +8,8 @@ namespace InsertCoin.Game.App;
 /// <summary>
 /// Everything she remembers, in the open: the two notes she always has in mind, the facts upkeep and her own notes
 /// have collected (edit, pin to keep it always in mind, or delete), and the dated moments of past conversations.
-/// Nothing changes until Save; the forget buttons ask twice and act at once.
+/// Nothing changes until Save; the forget buttons ask twice and act at once, and the page then shows what is left,
+/// keeping unsaved changes to the rest.
 /// </summary>
 public partial class MemoryBook : Window
 {
@@ -18,6 +19,8 @@ public partial class MemoryBook : Window
     private readonly List<(Fact Fact, LineEdit Text, CheckBox Pin, Control Row)> _facts = [];
     private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [];
     private VBoxContainer _factList = null!, _episodeList = null!;
+    private Label? _noFacts;
+    private readonly Dictionary<string, Action> _forget = [];
 
     public void Build(MindStore store, string characterId, string characterName)
     {
@@ -46,28 +49,33 @@ public partial class MemoryBook : Window
         column.AddChild(new Label { Text = "Things learned", ThemeTypeVariation = "Subheading" });
         _factList = List(column, 150);
         var facts = store.Facts(characterId).OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).ToList();
-        if (facts.Count == 0)
-            _factList.AddChild(Hint("Nothing yet. Facts appear here after you have talked a while."));
         foreach (var fact in facts)
             AddFactRow(fact);
+        ShowNoFacts();
 
         column.AddChild(new Label { Text = "Moments", ThemeTypeVariation = "Subheading" });
         _episodeList = List(column, 100);
-        var episodes = store.Episodes(characterId).Reverse().ToList();
-        if (episodes.Count == 0)
-            _episodeList.AddChild(Hint("Nothing yet."));
-        foreach (var episode in episodes)
-            AddEpisodeRow(episode);
+        ShowEpisodes();
 
         var forget = new HBoxContainer();
         forget.AddThemeConstantOverride("separation", 8);
-        var chat = Twice("Clear the chat", () => { _store.ForgetConversation(_character); QueueFree(); });
+        var chat = Twice("Clear the chat", _forget["chat"] = () => _store.ForgetConversation(_character));
         chat.TooltipText = $"Starts the conversation with {characterName} afresh. What she remembers (notes, facts, moments) stays.";
         forget.AddChild(chat);
-        var all = Twice($"Forget all with {characterName}", () => { _store.Forget(_character); QueueFree(); });
+        var all = Twice($"Forget all with {characterName}", _forget["all"] = () =>
+        {
+            _store.Forget(_character);
+            _us.Text = "";
+            ShowWhatIsLeft();
+        });
         all.TooltipText = "The conversation and everything about the two of you.";
         forget.AddChild(all);
-        var me = Twice("Forget all about me", () => { _store.ForgetPlayer(); QueueFree(); });
+        var me = Twice("Forget all about me", _forget["me"] = () =>
+        {
+            _store.ForgetPlayer();
+            _about.Text = "";
+            ShowWhatIsLeft();
+        });
         me.TooltipText = "What every character knows about you. Conversations stay.";
         forget.AddChild(me);
         column.AddChild(forget);
@@ -85,6 +93,13 @@ public partial class MemoryBook : Window
     }
 
     public void Open() => Paper.Open(this, new Vector2(600, 760));
+
+    /// <summary>Dev: as if a forget button ("chat", "all" or "me") were clicked twice.</summary>
+    public void DevForget(string which)
+    {
+        if (_forget.TryGetValue(which, out var forget))
+            forget();
+    }
 
     private void AddFactRow(Fact fact)
     {
@@ -122,6 +137,40 @@ public partial class MemoryBook : Window
         _episodeList.AddChild(row);
     }
 
+    /// <summary>After a forget: what is gone leaves the page; unsaved changes to the rest stay.</summary>
+    private void ShowWhatIsLeft()
+    {
+        var left = _store.Facts(_character).Select(f => f.Id).ToHashSet();
+        foreach (var gone in _facts.Where(f => !left.Contains(f.Fact.Id)).ToList())
+        {
+            if (IsInstanceValid(gone.Row))
+                gone.Row.QueueFree();
+            _facts.Remove(gone);
+            _deletedFacts.Remove(gone.Fact.Id);
+        }
+        ShowNoFacts();
+        ShowEpisodes();
+    }
+
+    private void ShowNoFacts()
+    {
+        if (_facts.Any(f => !_deletedFacts.Contains(f.Fact.Id)) || IsInstanceValid(_noFacts))
+            return;
+        _noFacts = Hint("Nothing yet. Facts appear here after you have talked a while.");
+        _factList.AddChild(_noFacts);
+    }
+
+    private void ShowEpisodes()
+    {
+        foreach (var child in _episodeList.GetChildren())
+            child.QueueFree();
+        var episodes = _store.Episodes(_character).Where(e => !_deletedEpisodes.Contains(e.Id)).Reverse().ToList();
+        if (episodes.Count == 0)
+            _episodeList.AddChild(Hint("Nothing yet."));
+        foreach (var episode in episodes)
+            AddEpisodeRow(episode);
+    }
+
     private void Save()
     {
         _store.SetNote(MindStore.Shared, MindStore.AboutUser, _about.Text.Trim());
@@ -144,27 +193,39 @@ public partial class MemoryBook : Window
         QueueFree();
     }
 
-    /// <summary>A button that only acts on a second click within a few seconds.</summary>
+    /// <summary>A button that only acts on a second click within a few seconds, then says it is done.</summary>
     private Button Twice(string label, Action act)
     {
         var button = new Button { Text = label, ThemeTypeVariation = "Quiet" };
         var armed = false;
+        var turn = 0;                                       // only the latest timer puts the button back
+        void Back(double after)
+        {
+            var mine = ++turn;
+            GetTree().CreateTimer(after).Timeout += () =>
+            {
+                if (IsInstanceValid(button) && mine == turn)
+                {
+                    armed = false;
+                    button.Text = label;
+                    button.Disabled = false;
+                }
+            };
+        }
         button.Pressed += () =>
         {
             if (armed)
             {
                 act();
+                armed = false;
+                button.Text = "Done";
+                button.Disabled = true;
+                Back(2);
                 return;
             }
             armed = true;
             button.Text = "Click again to forget";
-            GetTree().CreateTimer(4).Timeout += () =>
-            {
-                if (!IsInstanceValid(button))
-                    return;
-                armed = false;
-                button.Text = label;
-            };
+            Back(4);
         };
         return button;
     }
@@ -198,6 +259,7 @@ public partial class MemoryBook : Window
             count.Text = $"{field.Text.Length} / {Prompt.NoteLimit}";
         }
         field.TextChanged += Count;
+        field.TextSet += Count;
         Count();
         column.AddChild(field);
         return field;

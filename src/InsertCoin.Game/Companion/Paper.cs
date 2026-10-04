@@ -94,6 +94,9 @@ public static class Paper
         window.Theme = WindowTheme();
         var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
         window.Position = OffScreen ? new Vector2I(-6000, 100) : screen.Position + (screen.Size - window.Size) / 2;
+        // shown, Windows makes a window the active one: off screen it would take the keys someone types elsewhere
+        // (an Enter pressing its buttons), so it never takes focus there
+        window.Unfocusable = OffScreen;
         window.Show();
         if (!OffScreen)
             window.GrabFocus();
