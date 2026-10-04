@@ -6,18 +6,17 @@ namespace InsertCoin.Mind;
 /// <summary>
 /// One character's side of the never-ending conversation with the player: answers what the player says (streamed,
 /// with stage directions split off), logs what the cabinet does and what she says unprompted, and folds the
-/// older part of the thread into a summary once it grows past a budget (auto-compaction).
+/// older half of the window into a summary when it fills up: while the conversation is quiet if it can (a cold cache
+/// costs nothing extra then), at once if it must (auto-compaction; see docs/specs/2026-10-04-companion-memory-v2.md).
 /// </summary>
 public sealed class Conversation(MindStore store, string character, Persona persona, TimeProvider? clock = null)
 {
-    /// <summary>Verbatim conversation (tokens) that triggers folding, and how much of the newest is kept verbatim.</summary>
-    public const int FoldAbove = 4000, KeepVerbatim = 1500;
     /// <summary>How long a conversation stays quiet before upkeep reads it, and how much it reads at once (tokens).</summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
     /// <summary>How old day-by-day moments get before they are combined into weekly ones.</summary>
     public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14);
     public const int DigestAtOnce = 3000;
-    private const int KeepLines = 6, SummaryLimit = 2400, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
+    private const int KeepLines = 12, SummaryLimit = 3200, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
@@ -33,6 +32,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>The language her voice speaks while she has one that can talk; null leaves voice out of the prompt.</summary>
     public string? VoiceLanguage { get; set; }
+
+    /// <summary>How much of the conversation is kept word for word, in tokens (see <see cref="Prompt.DefaultWindow"/>).</summary>
+    public int Window { get; set; } = Prompt.DefaultWindow;
 
     /// <summary>
     /// Streams her answer to <paramref name="said"/>: shown text through <paramref name="text"/>, stage directions
@@ -57,7 +59,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage);
+                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage, Window, now);
         store.Add(character, Speaker.User, said.Trim(), now);
 
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep
@@ -91,22 +93,31 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>Something she said on her own (a canned line about an event).</summary>
     public void Said(string line) => store.Add(character, Speaker.Her, line, _clock.GetLocalNow());
 
-    public bool NeedsFolding => Prompt.Tokens(Unfolded()) > FoldAbove;
+    /// <summary>The window is full: fold it now, even mid-conversation.</summary>
+    public bool NeedsFolding => Prompt.Tokens(Unfolded()) > Window;
+
+    /// <summary>The window is three quarters full: fold it the next time the conversation is quiet.</summary>
+    public bool NeedsQuietFold => Prompt.Tokens(Unfolded()) > Window * 3 / 4;
+
+    /// <summary>Nothing has been said or has happened for <paramref name="quiet"/> (or ever).</summary>
+    public bool IsQuiet(TimeSpan quiet) => store.Through(character, long.MaxValue, 1) is not [var last] || _clock.GetLocalNow() - last.At >= quiet;
 
     /// <summary>
-    /// Folds all but the newest part of the verbatim conversation into the summary. Returns false when there was
-    /// nothing to fold or the model gave nothing back (the lines stay, and the next attempt includes them).
+    /// Folds the window's older part into the summary, keeping its newest half (and at least a dozen lines) word for
+    /// word. Returns false when there was nothing to fold or the model gave nothing back (the lines stay, and the next
+    /// attempt includes them).
     /// </summary>
-    public async Task<bool> Fold(IChatClient client, CancellationToken cancel = default)
+    /// <param name="quiet">Folding while quiet: from three quarters full; otherwise only a full window is folded.</param>
+    public async Task<bool> Fold(IChatClient client, bool quiet = false, CancellationToken cancel = default)
     {
         var summary = store.SummaryOf(character);
         var lines = store.After(character, summary?.Through ?? 0);
-        if (Prompt.Tokens(lines) <= FoldAbove)
+        if (Prompt.Tokens(lines) <= (quiet ? Window * 3 / 4 : Window))
             return false;
 
         var keep = 0;
         var kept = 0;
-        while (keep < lines.Count && (keep < KeepLines || kept + Prompt.Tokens(lines[^(keep + 1)].Text) + 4 <= KeepVerbatim))
+        while (keep < lines.Count && (keep < KeepLines || kept + Prompt.Tokens(lines[^(keep + 1)].Text) + 4 <= Window / 2))
             kept += Prompt.Tokens(lines[^++keep].Text) + 4;
         var fold = lines.Take(lines.Count - keep).ToList();
         if (fold.Count == 0)

@@ -27,7 +27,11 @@ local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API 
 her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
 it out. She knows the cabinet's numbers and remembers:
 
-- the conversation itself, one continuous thread per character; older parts are folded into a summary as it grows;
+- the conversation itself, one continuous thread per character. The newest part (Chat settings → "Word for word":
+  32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
+  providers serve it from their cache at a tenth of the price (Claude is asked to cache it); older talk is folded
+  into a summary, normally while the conversation is quiet. Each turn tells her the time and how long since you
+  last talked;
 - facts about you (shared by every character) and about the two of you, plus dated moments. When you just tell her
   something worth keeping she says she'll remember it and jots it in a little notebook; everything else is picked
   up quietly by upkeep, which reads the conversation once it has been quiet for ten minutes (two while a game

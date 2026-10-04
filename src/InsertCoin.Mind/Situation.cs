@@ -8,10 +8,10 @@ public static class Situation
 {
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
-    /// <summary>A few short lines on where things stand right now.</summary>
+    /// <summary>A few short lines on where things stand at the cabinet right now (the time itself is in the turn's own <c>now</c>, see <see cref="When"/>).</summary>
     public static string Describe(LedgerState s, Rules rules, DateTimeOffset now, string? player)
     {
-        var lines = new List<string> { $"Now: {now.ToString("dddd d MMMM, HH:mm", English)}." };
+        var lines = new List<string>();
         if (!string.IsNullOrWhiteSpace(player))
             lines.Add($"Player: {player} on LeetCode.");
 

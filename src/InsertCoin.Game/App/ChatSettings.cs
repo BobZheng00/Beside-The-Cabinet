@@ -15,17 +15,27 @@ public partial class ChatSettings : Window
     /// The provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>) and the talk key (see
     /// <see cref="TalkKey"/>) after Save; the API key is already stored by then.
     /// </summary>
-    public event Action<Provider?, string, string>? Saved;
+    public event Action<Provider?, string, string, int?>? Saved;
+
+    /// <summary>The window sizes offered: tokens (null: what suits the provider) and how each is described.</summary>
+    private static readonly (int? Tokens, string Label)[] Windows =
+    [
+        (null, "Automatic: 32k tokens, or 8k with a server on this PC"),
+        (8_000, "8k tokens: least to send, more is summarised"),
+        (32_000, "32k tokens: hours of talk, word for word"),
+        (100_000, "100k tokens: for long-context models; costs more after a break"),
+    ];
 
     private Chat _chat = null!;
-    private OptionButton _preset = null!, _search = null!, _talkKey = null!;
+    private OptionButton _preset = null!, _search = null!, _talkKey = null!, _window = null!;
     private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
     private Label _result = null!;
     private Protocol _protocol;
 
     /// <param name="hears">This build has her ears (the speech model), so she can be talked to aloud.</param>
-    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears)
+    /// <param name="window">Tokens of the conversation she keeps word for word, or null for what suits the provider.</param>
+    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears, int? window)
     {
         _chat = chat;
         Title = $"Talk with {characterName}";
@@ -82,9 +92,17 @@ public partial class ChatSettings : Window
         var chosen = _searches.IndexOf(search ?? "");
         _search.Select(chosen >= 0 ? chosen : 0);
         Row(memory, "Memory search", _search);
+        _window = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };
+        foreach (var (_, label) in Windows)
+            _window.AddItem(label);
+        _window.Select(Math.Max(0, Array.FindIndex(Windows, w => w.Tokens == window)));
+        Row(memory, "Word for word", _window);
         column.AddChild(memory);
+        var cached = chat.Cached is { } c ? $" Her last {c.Replies} {(c.Replies == 1 ? "reply" : "replies")}: {c.Share:P0} of what she read came from the provider's cache." : "";
         column.AddChild(Hint("How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
-                             "The multilingual model understands the most languages; the small one uses less memory."));
+                             "The multilingual model understands the most languages; the small one uses less memory. " +
+                             "Word for word: the newest part of your conversation, which she reads in full every time; older talk is summarised " +
+                             "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached));
 
         // talking to her aloud
         column.AddChild(new HSeparator());
@@ -128,7 +146,7 @@ public partial class ChatSettings : Window
         }
     }
 
-    public void Open() => Paper.Open(this, new Vector2(540, 640));
+    public void Open() => Paper.Open(this, new Vector2(540, 700));
 
     private void UsePreset(Preset preset, bool keepFields)
     {
@@ -172,7 +190,7 @@ public partial class ChatSettings : Window
     {
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
-        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name);
+        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, Windows[_window.Selected].Tokens);
         QueueFree();
     }
 

@@ -161,6 +161,12 @@ public partial class Voice : Node
 
     private bool Wanted => _enabled && !_gameRunning && !_training && _server is not null && _profile is { Missing: null };
 
+    /// <summary>
+    /// The language her voice speaks while she has a working voice switched on, whether or not it can speak this
+    /// moment (it rests during games): what her mind is told, kept steady so the start of its prompt stays cached.
+    /// </summary>
+    public string? Language => _enabled && _server is not null && _profile is { Missing: null } profile ? profile.Language : null;
+
     /// <summary>She has something still to say or still playing.</summary>
     public bool Speaking => _toSay.Count > 0 || _working || _audio.Count > 0 || _sentenceEnds.Count > 0;
 

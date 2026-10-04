@@ -49,7 +49,8 @@ public class ConversationTests
         Assert.Contains("[cabinet] The player solved \"Two Sum\"", sent[1].Text);
         Assert.Contains("[cabinet] Friday 2 October, 19:30", sent[1].Text);      // when the talk (re)started
         Assert.Equal("+1 coin!", sent[2].Text);
-        Assert.StartsWith("<cabinet>\nPlay time banked: 15 min.\n</cabinet>", sent[3].Text);
+        Assert.StartsWith("<now>\nFriday 2 October 2026, 19:30 (evening). You were talking a moment ago.\n</now>\n<cabinet>\nPlay time banked: 15 min.\n</cabinet>",
+                          sent[3].Text);
         Assert.EndsWith("hello", sent[3].Text);
     }
 
@@ -71,7 +72,7 @@ public class ConversationTests
     {
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
-        var conversation = new Conversation(temp.Store, "shino", Shino, clock);
+        var conversation = new Conversation(temp.Store, "shino", Shino, clock) { Window = 4000 };
         for (var i = 0; i < 60; i++)
         {
             clock.Now = Friday.AddMinutes(i);

@@ -7,6 +7,7 @@ namespace InsertCoin.Mind.Tests;
 internal sealed class FakeModel(params string[] pieces) : IChatClient
 {
     public List<List<ChatMessage>> Requests { get; } = [];
+    public List<ChatOptions?> Options { get; } = [];
     public Exception? Fails { get; init; }
     /// <summary>Answers for non-streamed requests, one per request, before falling back to the pieces.</summary>
     public Queue<string> Answers { get; } = new();
@@ -14,6 +15,7 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         Requests.Add([.. messages]);
+        Options.Add(options);
         if (Fails is not null)
             throw Fails;
         var text = Answers.Count > 0 ? Answers.Dequeue() : string.Concat(pieces);
@@ -24,6 +26,7 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
                                                                                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         Requests.Add([.. messages]);
+        Options.Add(options);
         if (Fails is not null)
             throw Fails;
         foreach (var piece in pieces)

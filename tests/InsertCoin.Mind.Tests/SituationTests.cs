@@ -23,7 +23,7 @@ public class SituationTests
 
         var text = Situation.Describe(state, Rules, Friday, "BobSmith");
 
-        Assert.Contains("Now: Friday 2 October, 19:30.", text);
+        Assert.DoesNotContain("Now:", text);                                // the time is the turn's own (When)
         Assert.Contains("Player: BobSmith on LeetCode.", text);
         Assert.Contains("Play time banked: 50 min. Unused time expires when the week ends, in 3 days.", text);
         Assert.Contains("Owed: nothing.", text);

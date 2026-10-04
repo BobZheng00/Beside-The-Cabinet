@@ -5,24 +5,30 @@ using Microsoft.Extensions.AI;
 namespace InsertCoin.Mind;
 
 /// <summary>
-/// What is sent to the model. Ordered from what never changes to what changes every turn (rules and persona, notes,
-/// summary, recent conversation, the cabinet right now), so providers that cache a prompt's start can reuse it.
+/// What is sent to the model, ordered from what never changes to what changes every turn, so that providers that
+/// cache a prompt's start reuse almost all of it (see docs/specs/2026-10-04-companion-memory-v2.md): rules and
+/// persona; the notes always in mind (rewritten only while the conversation is quiet); the summary of what came
+/// before the window (folded only while quiet); the window, word for word and only ever growing at its end; and
+/// this turn, never stored: the time now, the cabinet, what she recalls, and what the player said.
 /// </summary>
 public static class Prompt
 {
     /// <summary>Characters allowed in each always-present note (Hermes keeps its user profile to 1,375).</summary>
     public const int NoteLimit = 1400;
-    /// <summary>Tokens of verbatim conversation sent at most; older lines wait to be folded into the summary.</summary>
-    public const int HistoryBudget = 6000;
+    /// <summary>The conversation word for word, in tokens, unless a setting says otherwise (see <see cref="Conversation.Window"/>).</summary>
+    public const int DefaultWindow = 32_000, LocalWindow = 8_000;
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
     public static readonly string[] Moments = ["cheer", "pump", "wave", "look", "gasp", "worry"];
 
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
-    private static readonly TimeSpan Gap = TimeSpan.FromHours(2);       // a pause long enough to say when talk resumed
+    private static readonly TimeSpan Gap = TimeSpan.FromMinutes(30);    // a pause long enough to say when talk resumed
 
     /// <param name="voiceLanguage">The language her voice speaks (see <see cref="SpokenLanguage"/>), or null when she has no voice.</param>
+    /// <param name="window">Tokens of the conversation sent word for word at most (the newest).</param>
+    /// <param name="now">The time now; without it the turn says nothing about time.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
-                                          string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null)
+                                          string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
+                                          int window = DefaultWindow, DateTimeOffset? now = null)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -35,7 +41,7 @@ public static class Prompt
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
 
-            Lines starting with [cabinet], and the <cabinet> block, come from the cabinet itself, not from the player. The <memories> block holds things you remember that may matter now: use them naturally, never recite them.
+            Lines starting with [cabinet], and the <now> and <cabinet> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
             Remembering: when the player's message is mainly telling you something worth keeping (a plan, a date, a goal, a like or dislike, something about their life), start your reply with [note: the fact in one short third-person sentence, dates made absolute] and say briefly that you'll remember it. Don't do this when it comes up in the middle of something else, for small talk, or for the cabinet's numbers; you remember those anyway.
 
@@ -58,9 +64,9 @@ public static class Prompt
         }
 
         DateTimeOffset? previous = null;
-        foreach (var line in Recent(lines))
+        foreach (var line in Recent(lines, window))
         {
-            if (previous is null || line.At - previous > Gap)
+            if (previous is not { } before || line.At - before >= Gap || line.At.Date != before.Date)
                 Put(ChatRole.User, $"[cabinet] {line.At.ToString("dddd d MMMM, HH:mm", English)}");
             previous = line.At;
             switch (line.Speaker)
@@ -70,8 +76,11 @@ public static class Prompt
                 default: Put(ChatRole.User, $"[cabinet] {line.Text}"); break;
             }
         }
+        var time = now is { } at
+            ? $"<now>\n{When.Now(at)} {When.SinceTalked(lines, at) ?? "You are talking for the first time."}\n</now>\n"
+            : "";
         var remembered = memories is { Count: > 0 } ? $"<memories>\n{string.Join("\n", memories.Select(m => $"- {m.Text}"))}\n</memories>\n" : "";
-        Put(ChatRole.User, $"<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}");
+        Put(ChatRole.User, $"{time}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));
@@ -114,7 +123,7 @@ public static class Prompt
             new(ChatRole.System, $"""
                 You keep the memory of an ongoing conversation between a player and {persona.Name}, a companion who sits beside the player's arcade cabinet. Merge the summary so far with the new part of the conversation into one updated summary.
 
-                Keep what will matter later: facts about the player, plans and dates, promises, feelings, running jokes, how the two get along, and game sessions or solves worth remembering. Drop small talk and repetition. Write in the third person ("The player...", "{persona.Name}..."), in the language the conversation is mostly in, in at most 250 words. Output only the summary.
+                Keep what will matter later: facts about the player, plans and dates, promises, feelings, running jokes, how the two get along, and game sessions or solves worth remembering, with when they happened. Drop small talk and repetition. Write in the third person ("The player...", "{persona.Name}..."), in the language the conversation is mostly in, in at most 400 words, oldest first. Output only the summary.
                 """),
             new(ChatRole.User, $"Summary so far:\n{(summary?.Text.Trim() is { Length: > 0 } text ? text : "(none)")}\n\nNew part of the conversation:\n{transcript}"),
         ];
@@ -131,12 +140,12 @@ public static class Prompt
 
     public static int Tokens(IEnumerable<Line> lines) => lines.Sum(line => Tokens(line.Text) + 4);
 
-    /// <summary>The newest lines that fit the history budget.</summary>
-    private static IEnumerable<Line> Recent(IReadOnlyList<Line> lines)
+    /// <summary>The newest lines that fit the window (normally all of them: the window is folded before it overflows).</summary>
+    private static IEnumerable<Line> Recent(IReadOnlyList<Line> lines, int window)
     {
         var used = 0;
         var from = lines.Count;
-        while (from > 0 && used + Tokens(lines[from - 1].Text) + 4 <= HistoryBudget)
+        while (from > 0 && used + Tokens(lines[from - 1].Text) + 4 <= window)
             used += Tokens(lines[--from].Text) + 4;
         return lines.Skip(from);
     }

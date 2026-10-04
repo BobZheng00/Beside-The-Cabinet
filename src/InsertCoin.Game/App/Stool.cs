@@ -69,6 +69,7 @@ public partial class Stool : Node2D
 
         _chat = new Chat(dataDir);
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
+        _chat.UseWindow(settings.Now.ChatWindow);
         _chat.Connect(ChatProvider());
         _chatBox = new ChatBox();
         AddChild(_chatBox);
@@ -597,7 +598,7 @@ public partial class Stool : Node2D
         _lively(120);                                       // keep her lively while she thinks and talks
         try
         {
-            await _chat.Ask(said, _situation(), Her, _voice.Begin());
+            await _chat.Ask(said, _situation(), Her, _voice.Begin(), _voice.Language);
         }
         catch (Exception e)
         {
@@ -622,14 +623,15 @@ public partial class Stool : Node2D
             return;
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, HasEars);
-        _chatSettings.Saved += (provider, search, talkKey) =>
+        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, HasEars, _settings.Now.ChatWindow);
+        _chatSettings.Saved += (provider, search, talkKey, window) =>
         {
             _settings.Save(_settings.Now with
             {
                 ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
-                TalkKey = talkKey,
+                TalkKey = talkKey, ChatWindow = window,
             });
+            _chat.UseWindow(window);
             _chat.UseSearch(search);
             _chat.Connect(provider);
         };

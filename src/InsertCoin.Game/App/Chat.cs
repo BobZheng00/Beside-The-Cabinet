@@ -23,7 +23,10 @@ public sealed class Chat : IDisposable
     /// <summary>The <see cref="UseSearch"/> choice for no local model: recall by shared words only.</summary>
     public const string WordsOnly = "words";
 
-    private IChatClient? _client;
+    private IChatClient? _client, _talk;                // _talk: her replies, cached where the provider needs asking (see Provider.ForConversation)
+    private Provider? _provider;
+    private int? _window;
+    private readonly Queue<(long Input, long Cached)> _usage = new();
     private Conversation? _conversation;
     private LocalEmbedder? _embedder;
     private string? _search;
@@ -51,15 +54,40 @@ public sealed class Chat : IDisposable
     public void Connect(Provider? provider)
     {
         _client?.Dispose();
-        _client = provider?.Connect(Keys.Load()) is { } client ? new Timed(client) : null;
+        _provider = provider;
+        _client = provider?.Connect(Keys.Load()) is { } client ? new Timed(client, Used) : null;
+        _talk = _client is null ? null : provider!.ForConversation(_client);
+        _usage.Clear();
+        UseWindow(_window);
         UseSearch(_search);
+    }
+
+    /// <summary>How much of the conversation she keeps word for word (tokens); null: what suits the provider.</summary>
+    public void UseWindow(int? tokens)
+    {
+        _window = tokens;
+        if (_conversation is not null)
+            _conversation.Window = Window;
+    }
+
+    public int Window => _window ?? _provider?.DefaultWindow ?? Prompt.DefaultWindow;
+
+    /// <summary>Of the input her last replies read, the share the provider served from its cache (by its own count), and over how many replies; null before any.</summary>
+    public (double Share, int Replies)? Cached =>
+        _usage.Count == 0 || _usage.Sum(u => u.Input) == 0 ? null : ((double)_usage.Sum(u => u.Cached) / _usage.Sum(u => u.Input), _usage.Count);
+
+    private void Used(UsageDetails usage)
+    {
+        _usage.Enqueue((usage.InputTokenCount ?? 0, usage.CachedInputTokenCount ?? 0));
+        while (_usage.Count > 20)
+            _usage.Dequeue();
     }
 
     /// <summary>Someone else is on the stool: talk continues in their own conversation.</summary>
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder };
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window };
     }
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
@@ -128,13 +156,17 @@ public sealed class Chat : IDisposable
     /// Sends what the user said and plays her answer on <paramref name="view"/>; with <paramref name="speech"/>, her
     /// voice says it too (and she is told how her voice works).
     /// </summary>
-    public async Task Ask(string said, string situation, CompanionView view, Speech? speech = null)
+    /// <param name="voiceLanguage">
+    /// The language of her voice whenever she has one switched on, ready this moment or not: her instructions stay the
+    /// same while her voice rests (during a game), so the start of the prompt stays cached.
+    /// </param>
+    public async Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null)
     {
-        if (_client is null || _conversation is null || _answering is not null)
+        if (_talk is null || _conversation is null || _answering is not null)
             return;
-        var client = _client;
+        var client = _talk;
         var conversation = _conversation;
-        conversation.VoiceLanguage = speech?.Language;
+        conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
@@ -180,12 +212,12 @@ public sealed class Chat : IDisposable
         }
 
         await Index();                          // a note she just took becomes searchable by meaning
-        if (_folding || !conversation.NeedsFolding)
+        if (_folding || !conversation.NeedsFolding || _client is not { } plain)
             return;
         _folding = true;
         try
         {
-            await conversation.Fold(client);
+            await conversation.Fold(plain);         // the window is full: fold now (normally upkeep folds it while quiet)
         }
         catch (Exception e)
         {
@@ -217,6 +249,19 @@ public sealed class Chat : IDisposable
             else
                 await conversation.Consolidate(_client);
             await conversation.Index();
+            // the window three quarters full and the talk quiet: fold it now, when a 5-minute cache has gone cold anyway
+            if (conversation.IsQuiet(Conversation.Quiet) && conversation.NeedsQuietFold)
+            {
+                _folding = true;
+                try
+                {
+                    await conversation.Fold(_client, quiet: true);
+                }
+                finally
+                {
+                    _folding = false;
+                }
+            }
         }
         catch (Exception e)
         {
@@ -258,7 +303,7 @@ public sealed class Chat : IDisposable
     /// Logs how a reply streamed in: when the first piece came, when the first words did (a model that thinks first
     /// sends nothing to show until it has thought), when it ended, and the tokens it took when the provider says.
     /// </summary>
-    private sealed class Timed(IChatClient inner) : DelegatingChatClient(inner)
+    private sealed class Timed(IChatClient inner, Action<UsageDetails> used) : DelegatingChatClient(inner)
     {
         public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
                                                                                          [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -284,7 +329,10 @@ public sealed class Chat : IDisposable
             finally
             {
                 GD.Print($"Chat: reply streamed: first piece after {firstPiece} ms, first words after {firstWords} ms, done after {clock.ElapsedMilliseconds} ms, "
-                         + $"{pieces} pieces of words" + (usage is null ? "" : $"; {usage.OutputTokenCount} tokens out ({usage.ReasoningTokenCount ?? 0} of them thinking), {usage.InputTokenCount} in"));
+                         + $"{pieces} pieces of words" + (usage is null ? "" : $"; {usage.OutputTokenCount} tokens out ({usage.ReasoningTokenCount ?? 0} of them thinking), "
+                         + $"{usage.InputTokenCount} in ({usage.CachedInputTokenCount ?? 0} of them from the provider's cache)"));
+                if (usage is not null)
+                    used(usage);
             }
         }
     }

@@ -38,11 +38,11 @@ public static class Recall
             candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
                             fact.Retention(now), fact.Importance, false, fact.Pinned));
         foreach (var episode in episodes)
-            candidates.Add((new Memory($"{(episode.Week ? "Week of " + episode.At.ToString("d MMM", English) : episode.At.ToString("ddd d MMM", English))}: {episode.Text}"),
+            candidates.Add((new Memory($"{(episode.Week ? "Week of " + episode.At.ToString("d MMM", English) : episode.At.ToString("ddd d MMM", English))} ({When.Ago(episode.At, now)}): {episode.Text}"),
                             Terms(episode.Text).ToHashSet(),
                             meaning?.Episodes.GetValueOrDefault(episode.Id), Math.Exp(-(now - episode.At).TotalDays / 60), 5, false, false));
         foreach (var line in oldLines.Where(l => l.Speaker != Speaker.Cabinet))
-            candidates.Add((new Memory($"On {line.At.ToString("ddd d MMM", English)} {(line.Speaker == Speaker.User ? "the player" : name)} said: \"{line.Text}\""),
+            candidates.Add((new Memory($"On {line.At.ToString("ddd d MMM", English)} ({When.Ago(line.At, now)}) {(line.Speaker == Speaker.User ? "the player" : name)} said: \"{line.Text}\""),
                             Terms(line.Text).ToHashSet(), null, Math.Exp(-(now - line.At).TotalDays / 60), 3, true, false));
         if (candidates.Count == 0)
             return [];

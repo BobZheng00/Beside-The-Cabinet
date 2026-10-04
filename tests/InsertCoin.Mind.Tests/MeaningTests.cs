@@ -104,7 +104,7 @@ public class MeaningTests
         Assert.Equal([lonely, recent], episodes.Where(e => !e.Week).Select(e => e.Id));
         Assert.DoesNotContain(episodes, e => e.Id == a || e.Id == b);
         Assert.Contains("week starting Monday 7 September 2026", model.Requests[0][0].Text);
-        Assert.Contains(Recall.Find("exam week", [], episodes, [], "Shino", Friday), m => m.Text.StartsWith("Week of 7 Sep: "));
+        Assert.Contains(Recall.Find("exam week", [], episodes, [], "Shino", Friday), m => m.Text.StartsWith("Week of 7 Sep (3 weeks ago): "));
     }
 
     [Fact]

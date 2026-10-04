@@ -48,8 +48,8 @@ public class MemoryTests
 
         var found = Recall.Find("more graph problems today?", [], episodes, lines, "Shino", Friday);
 
-        Assert.Contains(found, m => m.Text == "Fri 25 Sep: Bob planned a graph problem marathon.");
-        Assert.Contains(found, m => m.Text == "On Fri 25 Sep the player said: \"graph problems scare me\"");
+        Assert.Contains(found, m => m.Text == "Fri 25 Sep (7 days ago): Bob planned a graph problem marathon.");
+        Assert.Contains(found, m => m.Text == "On Fri 25 Sep (7 days ago) the player said: \"graph problems scare me\"");
         Assert.DoesNotContain(found, m => m.Text.Contains("Cabinet"));
     }
 

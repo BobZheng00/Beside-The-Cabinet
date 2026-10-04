@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using Anthropic;
+using Anthropic.Models.Messages;
 using Microsoft.Extensions.AI;
 using OpenAI;
 
@@ -45,6 +46,38 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
                               new OpenAIClientOptions { Endpoint = new Uri(BaseUrl), NetworkTimeout = Timeout, RetryPolicy = new ClientRetryPolicy(maxRetries: 1) })
             .GetChatClient(Model).AsIChatClient(),
     };
+
+    /// <summary>A server on this PC (Ollama, LM Studio…): local models usually have small context windows.</summary>
+    public bool IsLocal => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var url) && (url.IsLoopback || url.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>How much of the conversation to keep word for word when the player hasn't chosen (see <see cref="Conversation.Window"/>).</summary>
+    public int DefaultWindow => IsLocal ? Prompt.LocalWindow : Prompt.DefaultWindow;
+
+    /// <summary>
+    /// The client for her replies. Anthropic caches only what it is asked to: automatic caching is turned on (its mark
+    /// follows the conversation as it grows; a read costs a tenth of fresh input). The others cache a stable prompt
+    /// start by themselves. Upkeep's one-off requests keep the plain client: their prompts are never reused, and
+    /// writing them to Anthropic's cache would cost a quarter more.
+    /// </summary>
+    public IChatClient ForConversation(IChatClient client) => Protocol == Protocol.Anthropic ? new CachedAnthropic(client, Model) : client;
+
+    private sealed class CachedAnthropic(IChatClient inner, string model) : DelegatingChatClient(inner)
+    {
+        public override Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+            base.GetResponseAsync(messages, Cached(options), cancellationToken);
+
+        public override IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+                                                                                       CancellationToken cancellationToken = default) =>
+            base.GetStreamingResponseAsync(messages, Cached(options), cancellationToken);
+
+        private ChatOptions Cached(ChatOptions? options)
+        {
+            var cached = options?.Clone() ?? new ChatOptions();
+            var tokens = cached.MaxOutputTokens ?? 1024;
+            cached.RawRepresentationFactory = _ => new MessageCreateParams { MaxTokens = tokens, Messages = [], Model = model, CacheControl = new CacheControlEphemeral() };
+            return cached;
+        }
+    }
 }
 
 public sealed record Preset(string Name, Protocol Protocol, string BaseUrl, string ModelHint, bool NeedsKey);
