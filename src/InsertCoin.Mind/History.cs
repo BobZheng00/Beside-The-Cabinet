@@ -48,17 +48,14 @@ public sealed class History(MindStore store, string character, string name)
         if (through <= from)
             return;
         var lines = store.Between(character, from + 1, through);
+        var made = new List<Passage>();
         var group = new List<Line>();
         var tokens = 0;
         void Close()
         {
             var spoken = group.Where(l => l.Speaker != Speaker.Cabinet).ToList();
             if (spoken.Count > 0)
-            {
-                var text = string.Join("\n", spoken.Select(Said));
-                var id = store.AddPassage(character, group[0].Id, group[^1].Id, spoken[0].At, text);
-                Passages.Add(new Passage(id, group[0].Id, group[^1].Id, spoken[0].At, text));
-            }
+                made.Add(new Passage(0, group[0].Id, group[^1].Id, spoken[0].At, string.Join("\n", spoken.Select(Said))));
             group.Clear();
             tokens = 0;
         }
@@ -70,6 +67,7 @@ public sealed class History(MindStore store, string character, string name)
             tokens += Prompt.Tokens(line.Text) + 4;
         }
         Close();
+        Passages.AddRange(store.AddPassages(character, made));     // a long history the first time: one transaction
     }
 
     /// <summary>Passages <paramref name="model"/> has not read yet, for upkeep to give vectors.</summary>

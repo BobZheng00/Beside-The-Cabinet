@@ -342,6 +342,24 @@ public sealed class MindStore : IDisposable
         return (long)command.ExecuteScalar()!;
     }
 
+    /// <summary>Many passages at once (a long history the first time), in one transaction; returns them with their ids.</summary>
+    public IReadOnlyList<Passage> AddPassages(string character, IReadOnlyList<Passage> passages)
+    {
+        if (passages.Count == 0)
+            return [];
+        using var transaction = _db.BeginTransaction();
+        var added = new List<Passage>();
+        foreach (var p in passages)
+        {
+            using var command = Command("INSERT INTO passages (character, first, last, at, text) VALUES ($c, $f, $l, $a, $t) RETURNING id",
+                ("$c", character), ("$f", p.First), ("$l", p.Last), ("$a", Stamp(p.At)), ("$t", p.Text));
+            command.Transaction = transaction;
+            added.Add(p with { Id = (long)command.ExecuteScalar()! });
+        }
+        transaction.Commit();
+        return added;
+    }
+
     public IReadOnlyList<Passage> Passages(string character)
     {
         using var command = Command("SELECT id, first, last, at, text FROM passages WHERE character = $c ORDER BY last", ("$c", character));
