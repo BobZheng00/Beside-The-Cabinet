@@ -124,9 +124,12 @@ never stored; a few hundred characters at most.
 
 Rolled-up moments lose detail by design; the conversation itself is kept, so she should be able to find it. It is
 split into passages (lines from one sitting, about 250 tokens each), each with a vector from the local model when
-one is loaded, and indexed for full-text search (SQLite FTS5, trigram, so Chinese and Japanese work). Each reply
-searches the passages before the window by meaning and by words, and the best one or two come into the turn's
-memories with their date. Passages are made and indexed during upkeep, the existing history a batch at a time.
+one is loaded. Each reply searches the passages before the window by meaning and by shared words (Chinese and
+Japanese as pairs of characters, as recall already does), and the best one or two come into the turn's memories
+as an excerpt (the line that matches and the one after) with their date. Scored in memory rather than with SQLite's
+full-text index: its trigram tokenizer cannot match two-character Chinese words, and a year of talk is a few
+thousand passages, milliseconds to score. Passages are made as lines leave the window; their vectors come during
+upkeep, the existing history a batch at a time. *Built 2026-10-04* (`History`; tests).
 
 ### 9. Memory that tends itself
 

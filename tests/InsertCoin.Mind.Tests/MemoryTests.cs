@@ -41,16 +41,41 @@ public class MemoryTests
     }
 
     [Fact]
-    public void Recall_quotes_old_lines_and_episodes_with_their_dates()
+    public void Recall_quotes_old_talk_and_episodes_with_their_dates()
     {
         var episodes = new[] { new Episode(1, "Bob planned a graph problem marathon.", 1, 5, Friday.AddDays(-7)) };
-        var lines = new[] { new Line(3, Speaker.User, "graph problems scare me", Friday.AddDays(-7)), new Line(4, Speaker.Cabinet, "graph", Friday) };
+        var excerpts = new[] { new Excerpt("Player: graph problems scare me\nShino: We'll start small.", Friday.AddDays(-7), null) };
 
-        var found = Recall.Find("more graph problems today?", [], episodes, lines, "Shino", Friday);
+        var found = Recall.Find("more graph problems today?", [], episodes, excerpts, "Shino", Friday);
 
         Assert.Contains(found, m => m.Text == "Fri 25 Sep (7 days ago): Bob planned a graph problem marathon.");
-        Assert.Contains(found, m => m.Text == "On Fri 25 Sep (7 days ago) the player said: \"graph problems scare me\"");
-        Assert.DoesNotContain(found, m => m.Text.Contains("Cabinet"));
+        Assert.Contains(found, m => m.Text == "Said on Fri 25 Sep (7 days ago): Player: graph problems scare me Shino: We'll start small.");
+    }
+
+    [Fact]
+    public async Task The_whole_conversation_before_the_window_can_be_found_again()
+    {
+        using var temp = new TempStore();
+        var clock = new FakeClock(Friday.AddDays(-200));
+        // two sittings long ago, then a long gap: the first mentions the dentist, the second does not
+        temp.Store.Add("shino", Speaker.User, "my dentist appointment is at 3", clock.Now);
+        temp.Store.Add("shino", Speaker.Her, "Good luck at the dentist!", clock.Now.AddMinutes(1));
+        temp.Store.Add("shino", Speaker.Cabinet, "The player solved \"Two Sum\" (Easy): +1 token.", clock.Now.AddMinutes(2));
+        temp.Store.Add("shino", Speaker.User, "what a day", clock.Now.AddHours(5));
+        var last = temp.Store.Add("shino", Speaker.Her, "Rest well.", clock.Now.AddHours(5).AddMinutes(1));
+        temp.Store.Fold("shino", "Long ago they talked about everyday things.", last, clock.Now.AddHours(6));
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel("Oh, the dentist!");
+
+        await conversation.Answer(model, "do you remember my dentist?", "", _ => { }, (_, _) => { });
+
+        Assert.Equal(2, temp.Store.Passages("shino").Count);                   // one per sitting, the cabinet's line left out
+        Assert.DoesNotContain("Two Sum", temp.Store.Passages("shino")[0].Text);
+        var turn = model.Requests.Single()[^1].Text;
+        Assert.Contains("Said on Mon 16 Mar (6 months ago): Player: my dentist appointment is at 3 Shino: Good luck at the dentist!", turn);
+
+        temp.Store.ForgetConversation("shino");
+        Assert.Empty(conversation.History.Search("dentist", long.MaxValue));   // cleared with the conversation
     }
 
     // ---- Notes taken during a reply --------------------------------------------------------------------------------

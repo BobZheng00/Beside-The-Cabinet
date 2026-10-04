@@ -47,6 +47,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>How much of the conversation is kept word for word, in tokens (see <see cref="Prompt.DefaultWindow"/>).</summary>
     public int Window { get; set; } = Prompt.DefaultWindow;
 
+    private History? _history;
+
+    /// <summary>The whole conversation, searchable.</summary>
+    public History History => _history ??= new History(store, character, persona.Name);
+
     /// <summary>
     /// Streams her answer to <paramref name="said"/>: shown text through <paramref name="text"/>, stage directions
     /// through <paramref name="direction"/>. Both lines are logged; a failed request leaves only the player's.
@@ -58,9 +63,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
         var folded = summary?.Through ?? 0;
-        // what she remembers: facts, episodes and old lines no longer in the verbatim part of the conversation
+        // what she remembers: facts, episodes, and the conversation before the window, searched as a whole
+        var meaning = await MeaningOf(said, cancel);
+        History.CatchUp(folded);
+        var excerpts = History.Search(said, folded, meaning?.Query, meaning?.Model);
         var memories = Recall.Find(said, store.Facts(character), store.Episodes(character).Where(e => e.Last <= folded).ToList(),
-                                   folded > 0 ? store.Through(character, folded, 3000) : [], persona.Name, now, await MeaningOf(said, cancel));
+                                   excerpts, persona.Name, now, meaning);
         store.Recalled(memories.Where(m => m.FactId is not null).Select(m => m.FactId!.Value), now);
         var recent = store.After(character, folded);
         // a character card's lorebook: background whose keys came up just now (or in the last couple of lines)
@@ -167,17 +175,23 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     {
         if (Embedder is not { } embedder)
             return 0;
+        History.CatchUp(store.SummaryOf(character)?.Through ?? 0);       // passages for what has left the window
         var model = embedder.Model.Name;
         var haveFacts = store.Vectors(MindStore.FactKind, model);
         var haveEpisodes = store.Vectors(MindStore.EpisodeKind, model);
         var todo = store.Facts(character).Where(f => !haveFacts.ContainsKey(f.Id)).Select(f => (Kind: MindStore.FactKind, f.Id, f.Text))
             .Concat(store.Episodes(character).Where(e => !haveEpisodes.ContainsKey(e.Id)).Select(e => (Kind: MindStore.EpisodeKind, e.Id, e.Text)))
+            .Concat(History.Unread(model).Select(p => (Kind: MindStore.PassageKind, p.Id, p.Text)))       // the old conversation, a batch at a time
             .Take(batch).ToList();
         if (todo.Count == 0)
             return 0;
         var vectors = await Task.Run(() => todo.Select(t => embedder.Embed(t.Text, query: false)).ToList(), cancel);
         for (var i = 0; i < todo.Count; i++)
+        {
             store.SetVector(todo[i].Kind, todo[i].Id, model, vectors[i]);
+            if (todo[i].Kind == MindStore.PassageKind)
+                History.Learned(model, todo[i].Id, vectors[i]);
+        }
         return todo.Count;
     }
 

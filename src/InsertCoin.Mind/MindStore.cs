@@ -81,6 +81,9 @@ public sealed class MindStore : IDisposable
             CREATE TABLE IF NOT EXISTS episodes (
                 id INTEGER PRIMARY KEY, character TEXT NOT NULL, text TEXT NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL, at TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS digested (character TEXT PRIMARY KEY, through INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS passages (
+                id INTEGER PRIMARY KEY, character TEXT NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL, at TEXT NOT NULL, text TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS passages_by_character ON passages (character, last);
             CREATE TABLE IF NOT EXISTS vectors (
                 kind TEXT NOT NULL, id INTEGER NOT NULL, model TEXT NOT NULL, vector BLOB NOT NULL, PRIMARY KEY (kind, id, model));
             """);
@@ -97,7 +100,10 @@ public sealed class MindStore : IDisposable
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
 
-    public const string FactKind = "fact", EpisodeKind = "episode";
+    public const string FactKind = "fact", EpisodeKind = "episode", PassageKind = "passage";
+
+    /// <summary>Counts clears and forgets, so what is cached from the store (see <see cref="History"/>) knows to read it again.</summary>
+    public int Changes { get; private set; }
 
     public void SetVector(string kind, long id, string model, float[] vector)
     {
@@ -129,9 +135,12 @@ public sealed class MindStore : IDisposable
     {
         using var command = id is { } one
             ? Command("DELETE FROM vectors WHERE kind = $k AND id = $i", ("$k", kind), ("$i", one))
-            : Command(kind == FactKind
-                ? "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM facts)"
-                : "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM episodes)", ("$k", kind));
+            : Command(kind switch
+            {
+                FactKind => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM facts)",
+                PassageKind => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM passages)",
+                _ => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM episodes)",
+            }, ("$k", kind));
         command.ExecuteNonQuery();
     }
 
@@ -220,6 +229,33 @@ public sealed class MindStore : IDisposable
         using var command = Command("DELETE FROM episodes WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
         DropVectors(EpisodeKind, id);
+    }
+
+    // ---- Passages (the whole conversation, searchable; see History) -------------------------------------------------
+
+    public long AddPassage(string character, long first, long last, DateTimeOffset at, string text)
+    {
+        using var command = Command("INSERT INTO passages (character, first, last, at, text) VALUES ($c, $f, $l, $a, $t) RETURNING id",
+            ("$c", character), ("$f", first), ("$l", last), ("$a", Stamp(at)), ("$t", text));
+        return (long)command.ExecuteScalar()!;
+    }
+
+    public IReadOnlyList<Passage> Passages(string character)
+    {
+        using var command = Command("SELECT id, first, last, at, text FROM passages WHERE character = $c ORDER BY last", ("$c", character));
+        using var reader = command.ExecuteReader();
+        var passages = new List<Passage>();
+        while (reader.Read())
+            passages.Add(new Passage(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), Parse(reader.GetString(3)), reader.GetString(4)));
+        return passages;
+    }
+
+    /// <summary>The character's lines from <paramref name="first"/> to <paramref name="last"/>, oldest first.</summary>
+    public IReadOnlyList<Line> Between(string character, long first, long last)
+    {
+        using var command = Command("SELECT id, speaker, text, at FROM lines WHERE character = $c AND id >= $f AND id <= $l ORDER BY id",
+            ("$c", character), ("$f", first), ("$l", last));
+        return ReadLines(command);
     }
 
     /// <summary>The last line of this character's conversation that upkeep has read (0: none).</summary>
@@ -312,10 +348,13 @@ public sealed class MindStore : IDisposable
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM notes WHERE scope = $c;
             DELETE FROM facts WHERE scope = $c; DELETE FROM episodes WHERE character = $c; DELETE FROM digested WHERE character = $c;
+            DELETE FROM passages WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
         DropVectors(EpisodeKind);
+        DropVectors(PassageKind);
+        Changes++;
     }
 
     /// <summary>
@@ -328,9 +367,12 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM digested WHERE character = $c;
+            DELETE FROM passages WHERE character = $c;
             UPDATE episodes SET first = 0, last = 0 WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
+        DropVectors(PassageKind);
+        Changes++;
     }
 
     /// <summary>Forgets what every character knows about the player: the shared note and facts.</summary>

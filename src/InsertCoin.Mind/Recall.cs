@@ -28,7 +28,8 @@ public static class Recall
         "why", "all", "any", "some", "one", "player",
     ];
 
-    public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Episode> episodes, IReadOnlyList<Line> oldLines,
+    /// <param name="excerpts">Lines from the conversation before the window that may relate (see <see cref="History.Search"/>).</param>
+    public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Episode> episodes, IReadOnlyList<Excerpt> excerpts,
                                              string name, DateTimeOffset now, Meaning? meaning = null)
     {
         var query = Terms(said).ToHashSet();
@@ -41,9 +42,9 @@ public static class Recall
             candidates.Add((new Memory($"{episode.Label} ({When.Ago(episode.At, now)}): {episode.Text}"),
                             Terms(episode.Text).ToHashSet(),
                             meaning?.Episodes.GetValueOrDefault(episode.Id), Math.Exp(-(now - episode.At).TotalDays / 60), 5, false, false));
-        foreach (var line in oldLines.Where(l => l.Speaker != Speaker.Cabinet))
-            candidates.Add((new Memory($"On {line.At.ToString("ddd d MMM", English)} ({When.Ago(line.At, now)}) {(line.Speaker == Speaker.User ? "the player" : name)} said: \"{line.Text}\""),
-                            Terms(line.Text).ToHashSet(), null, Math.Exp(-(now - line.At).TotalDays / 60), 3, true, false));
+        foreach (var excerpt in excerpts)
+            candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}"),
+                            Terms(excerpt.Text).ToHashSet(), excerpt.Vector, Math.Exp(-(now - excerpt.At).TotalDays / 60), 3, true, false));
         if (candidates.Count == 0)
             return [];
 
