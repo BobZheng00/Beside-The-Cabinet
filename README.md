@@ -82,7 +82,8 @@ apart by itself): about a tenth of a second for a sentence. The microphone is op
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
 it does in the app in front.
 
-Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything.
+Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the summary she works from
+above it). Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything.
 "Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
 conversation and everything about the two of you; "Forget all about me" clears what every character knows about
 you. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
@@ -100,7 +101,7 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
-`memorybook`, `memoryseed` (a few notes, facts and a moment to try it on), `forget:chat|all|me` (its three forget
+`memorybook`, `chathistory`, `memoryseed` (a few notes, facts and a moment to try it on), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
@@ -185,7 +186,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
 - `SpeechBubble` draws what she says: canned lines from `App/Lines.cs` (built from the ledger's numbers) type
-  themselves out; replies from her mind start as thinking dots and grow as they stream in. `ChatBox` is the slip
+  themselves out; replies from her mind start as thinking dots and grow as they stream in. A long one is shown a
+  page at a time, like subtitles: each page turns once her voice has said it (`Voice.Progress`), or, when she is not
+  speaking, once there has been time to read it, and the bubble fades only when she has finished. `ChatBox` is the slip
   you type on, `Paper` the shared look (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
   `[wave]`, `[worry]`, `[note: …]`…), logs cabinet events into the conversation, folds it when it grows, runs

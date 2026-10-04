@@ -22,6 +22,9 @@ public partial class MemoryBook : Window
     private Label? _noFacts;
     private readonly Dictionary<string, Action> _forget = [];
 
+    /// <summary>The user wants to read the conversation itself.</summary>
+    public event Action? History;
+
     public void Build(MindStore store, string characterId, string characterName)
     {
         _store = store;
@@ -39,7 +42,12 @@ public partial class MemoryBook : Window
         column.AddThemeConstantOverride("separation", 8);
         page.AddChild(column);
 
-        column.AddChild(new Label { Text = $"What {characterName} remembers", ThemeTypeVariation = "Heading" });
+        var heading = new HBoxContainer();
+        heading.AddChild(new Label { Text = $"What {characterName} remembers", ThemeTypeVariation = "Heading", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        var history = new Button { Text = "Chat history…", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        history.Pressed += () => History?.Invoke();
+        heading.AddChild(history);
+        column.AddChild(heading);
         column.AddChild(Hint("All of it stays on this PC. Change or delete anything here and it is gone from every conversation after."));
 
         _about = Note(column, "About you (every character knows this)", "Your name, what you're working towards, your exam dates…",

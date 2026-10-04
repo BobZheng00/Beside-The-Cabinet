@@ -63,6 +63,11 @@ public partial class Voice : Node
     private long _pushed;
     private readonly Queue<(long End, float Level)> _levels = new();
     private float _mouth, _loudest;
+    // how far through what she is saying she is: characters handed to her voice, characters heard, and where in the
+    // stream each spoken sentence's audio ends (frames queued since the stream opened)
+    private int _givenChars, _heardChars;
+    private long _queued;
+    private readonly Queue<(long End, int Chars)> _sentenceEnds = new();
 
     /// <summary>The phase changed (for the settings window's status line).</summary>
     public event Action? Changed;
@@ -155,6 +160,15 @@ public partial class Voice : Node
     }
 
     private bool Wanted => _enabled && !_gameRunning && !_training && _server is not null && _profile is { Missing: null };
+
+    /// <summary>She has something still to say or still playing.</summary>
+    public bool Speaking => _toSay.Count > 0 || _working || _audio.Count > 0 || _sentenceEnds.Count > 0;
+
+    /// <summary>
+    /// How much of what she is saying has been heard, 0 to 1 by characters (a whole sentence at a time), or null when
+    /// she is not speaking: for the speech bubble to turn its pages with her.
+    /// </summary>
+    public double? Progress => Speaking ? (_givenChars == 0 ? 0 : Math.Clamp((double)_heardChars / _givenChars, 0, 1)) : null;
 
     /// <summary>She can say something right now.</summary>
     public bool CanSpeak => Now == Phase.Ready && Wanted;
@@ -270,6 +284,9 @@ public partial class Voice : Node
         _player.Stop();                             // a playing buffer cannot be cleared: the next line opens a fresh stream
         _playback = null;
         _pushed = 0;
+        _givenChars = _heardChars = 0;
+        _queued = 0;
+        _sentenceEnds.Clear();
         ReportMouth("cut off: ");
     }
 
@@ -289,6 +306,7 @@ public partial class Voice : Node
 
     private void Say(string text, string? mood)
     {
+        _givenChars += text.Length;
         _toSay.Enqueue((text, mood));
         if (_working && _workingFor == _speaking.Token)
             return;
@@ -314,6 +332,12 @@ public partial class Voice : Node
                     first = false;
                     Queue(audio);
                 }
+                if (stop.IsCancellationRequested)
+                    break;
+                if (first)
+                    _heardChars += line.Text.Length;        // nothing came back to play: count it as said
+                else
+                    _sentenceEnds.Enqueue((_queued, line.Text.Length));
             }
         }
         catch (OperationCanceledException)
@@ -359,6 +383,7 @@ public partial class Voice : Node
         if (audio.SampleRate != _rate || _playback is null)
             Open(audio.SampleRate);
         _audio.Enqueue(audio.Samples);
+        _queued += audio.Samples.Length;
     }
 
     /// <summary>A stream at the voice's own sample rate (32 kHz for v2 models, 48 kHz for v4).</summary>
@@ -372,6 +397,9 @@ public partial class Voice : Node
         _capacity = _playback.GetFramesAvailable();
         _pushed = 0;
         _levels.Clear();
+        while (_sentenceEnds.TryDequeue(out var end))   // marks in the old stream will never be reached in this one
+            _heardChars += end.Chars;
+        _queued = 0;
     }
 
     public override void _Process(double delta)
@@ -407,6 +435,8 @@ public partial class Voice : Node
         var playing = _pushed - (_capacity - _playback.GetFramesAvailable());
         while (_levels.Count > 0 && _levels.Peek().End <= playing)
             _levels.Dequeue();
+        while (_sentenceEnds.Count > 0 && _sentenceEnds.Peek().End <= playing)
+            _heardChars += _sentenceEnds.Dequeue().Chars;
         var level = _levels.Count > 0 ? _levels.Peek().Level : 0;
         // voices differ in loudness (v2 models come out about half as loud as v4): open as wide as this voice has lately been loud
         _loudest = Mathf.Max(level, _loudest * (1 - (float)delta * 0.25f));

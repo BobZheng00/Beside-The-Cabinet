@@ -131,6 +131,12 @@ public partial class CompanionView : Node2D
 
     public void Continue(string words) => _bubble.Append(words);
 
+    /// <summary>How far her voice is through what it is saying (0 to 1), or null when silent: her bubble turns its pages with it.</summary>
+    public Func<double?> Spoken
+    {
+        set => _bubble.Spoken = value;
+    }
+
     public void EndReply() => _bubble.End();
 
     /// <summary>Stops talking mid-sentence: the bubble goes away now.</summary>

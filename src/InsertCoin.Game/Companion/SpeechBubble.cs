@@ -1,26 +1,37 @@
+using System.Text.RegularExpressions;
 using Godot;
 
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
 /// What the companion says: a paper bubble over her head, drawn in the cabinet's ink. A canned line types itself
-/// out; a reply from her mind starts as thinking dots and grows as its words arrive. Either way it stays long
-/// enough to read, then fades.
+/// out; a reply from her mind starts as thinking dots and grows as its words arrive. It never grows past a few lines:
+/// longer text is shown a page at a time, like subtitles, each page turning once her voice has said it (or, when she
+/// is not speaking, once there has been time to read it). It fades when the last page has been read and she has
+/// finished speaking. The whole reply is in the chat history.
 /// </summary>
 public partial class SpeechBubble : Node2D
 {
     private static readonly Font Face = Paper.Font(560);
-    private const int FontSize = 17;
+    private const int FontSize = 17, PageFontSize = 12, MaxLines = 6;
     private const float MaxTextWidth = 190, WidestText = 330, PadX = 12, PadY = 8, Corner = 12, TailHeight = 13, TailHalf = 7, Stroke = 2;
+    private const float PageMark = 14;                  // room under the text for "2/3"
+    private const double LeastOnPage = 1.2, AfterSpeech = 1.2;
     private const string Dots = "...";
 
     private Label _label = null!;
     private Vector2[] _shape = [];
+    private Rect2 _box;
     private Tween? _tween;
     private Vector2 _tip, _canvas;
     private string _text = "";
-    private bool _streaming;
-    private double _thinking;
+    private readonly List<int> _starts = [0];           // where each page starts in the text
+    private int _page;
+    private double _onPage, _quiet, _thinking;
+    private bool _streaming, _fading;
+
+    /// <summary>How far her voice is through what it is saying (0 to 1), or null when she is not speaking.</summary>
+    public Func<double?> Spoken { get; set; } = () => null;
 
     public override void _Ready()
     {
@@ -37,25 +48,19 @@ public partial class SpeechBubble : Node2D
     /// <param name="canvas">Canvas size; the bubble stays inside it.</param>
     public void Say(string text, Vector2 tip, Vector2 canvas)
     {
-        _streaming = false;
-        _tip = tip;
-        _canvas = canvas;
-        Place(text);
+        Start(tip, canvas, streaming: false);
+        _text = text;
+        Paginate();
         Pop();
-        _label.VisibleRatio = 0;
-        _tween!.Parallel().TweenProperty(_label, "visible_ratio", 1f, 0.15 + text.Length / 55.0);
-        HoldThenFade(text);
+        ShowPage(0, typed: true);
     }
 
     /// <summary>Opens a bubble with thinking dots; the reply's words follow through <see cref="Append"/>.</summary>
     public void Begin(Vector2 tip, Vector2 canvas)
     {
-        _streaming = true;
-        _text = "";
-        _tip = tip;
-        _canvas = canvas;
+        Start(tip, canvas, streaming: true);
         _thinking = 0;
-        Place(Dots);
+        Place(Dots, single: true);
         Pop();
     }
 
@@ -64,24 +69,20 @@ public partial class SpeechBubble : Node2D
         if (!_streaming || piece.Length == 0)
             return;
         _text += piece;
-        Place(_text);
+        Paginate();
+        if (Page(_page) != _label.Text)
+            ShowPage(_page, typed: false);                  // the page being written grows (or ends, when the next begins)
+        QueueRedraw();                                      // the page count
     }
 
-    /// <summary>The reply is complete: let it be read, then fade.</summary>
+    /// <summary>The reply is complete: its pages are read (and said) out, then the bubble fades.</summary>
     public void End()
     {
         if (!_streaming)
             return;
         _streaming = false;
-        _tween?.Kill();
-        _tween = CreateTween();
-        if (_text.Length > 0)
-        {
-            HoldThenFade(_text);
-            return;
-        }
-        _tween.TweenProperty(this, "modulate:a", 0f, 0.3);
-        _tween.TweenCallback(Callable.From(() => Visible = false));
+        if (_text.Length == 0)
+            Fade();
     }
 
     /// <summary>Takes back whatever is showing, at once.</summary>
@@ -94,10 +95,28 @@ public partial class SpeechBubble : Node2D
 
     public override void _Process(double delta)
     {
-        if (!_streaming || _text.Length > 0)
+        if (!Visible || _fading)
             return;
-        _thinking += delta;
-        _label.Text = Dots[..(1 + (int)(_thinking * 3) % 3)];        // . .. ... while she thinks
+        if (_streaming && _text.Length == 0)
+        {
+            _thinking += delta;
+            _label.Text = Dots[..(1 + (int)(_thinking * 3) % 3)];        // . .. ... while she thinks
+            return;
+        }
+        _onPage += delta;
+        var spoken = Spoken();
+        _quiet = spoken is null ? _quiet + delta : 0;
+        var last = _page == _starts.Count - 1;
+        if (!last)
+        {
+            // the next page once this one has been said, or (without her voice) read
+            var through = (double)_starts[_page + 1] / _text.Length;
+            if (_onPage >= LeastOnPage && (spoken is { } heard ? heard >= through - 0.02 : _onPage >= ReadingTime(Page(_page), last: false)))
+                ShowPage(_page + 1, typed: false);
+            return;
+        }
+        if (!_streaming && spoken is null && _quiet >= AfterSpeech && _onPage >= ReadingTime(Page(_page), last: true))
+            Fade();
     }
 
     public override void _Draw()
@@ -106,27 +125,120 @@ public partial class SpeechBubble : Node2D
             return;
         DrawColoredPolygon(_shape, Paper.Sheet);
         DrawPolyline([.. _shape, _shape[0]], Paper.Ink, Stroke, antialiased: true);
+        if (_starts.Count > 1)
+        {
+            var mark = $"{_page + 1}/{_starts.Count}{(_streaming ? "…" : "")}";
+            var width = Face.GetStringSize(mark, HorizontalAlignment.Left, -1, PageFontSize).X;
+            DrawString(Face, new Vector2(_box.End.X - PadX - width, _box.End.Y - 6), mark, HorizontalAlignment.Left, -1, PageFontSize, Paper.Faint);
+        }
+    }
+
+    private void Start(Vector2 tip, Vector2 canvas, bool streaming)
+    {
+        _streaming = streaming;
+        _fading = false;
+        _tip = tip;
+        _canvas = canvas;
+        _text = "";
+        _starts.Clear();
+        _starts.Add(0);
+        _page = 0;
+        _onPage = _quiet = 0;
+    }
+
+    private string Page(int page) => _text[_starts[page]..(page + 1 < _starts.Count ? _starts[page + 1] : _text.Length)].Trim();
+
+    private static double ReadingTime(string page, bool last) => last ? Math.Min(2.4 + page.Length * 0.055, 14) : 1.0 + page.Length * 0.05;
+
+    private void ShowPage(int page, bool typed)
+    {
+        var changed = page != _page;
+        _page = page;
+        if (changed)
+            _onPage = 0;
+        var text = Page(page);
+        Place(text, single: _starts.Count == 1);
+        if (!typed)
+            return;
+        _label.VisibleRatio = 0;
+        _tween!.Parallel().TweenProperty(_label, "visible_ratio", 1f, 0.15 + text.Length / 55.0);
+    }
+
+    /// <summary>
+    /// Splits the text into pages that fit the bubble at its widest, at sentence ends where it can (then at commas,
+    /// spaces or, in Chinese and Japanese, between characters). Pages before the last stay as they are, so a reply
+    /// streaming in only ever adds to its last page or starts new ones.
+    /// </summary>
+    private void Paginate()
+    {
+        var limit = MaxHeight();
+        bool Fits(string s) => Measure(s.Trim(), WidestText).Y <= limit;
+        if (_starts.Count == 1 && Fits(_text))
+            return;                                         // all on one page: it may be narrower (see Place)
+        var start = _starts[^1];
+        _starts.RemoveAt(_starts.Count - 1);
+        while (true)
+        {
+            _starts.Add(start);
+            var rest = _text[start..];
+            if (Fits(rest))
+                return;
+            var end = Fill(rest, Fits);
+            if (end <= 0 || end >= rest.Length)
+                return;                                     // nothing fits (a single huge word): leave it whole
+            start += end;
+        }
+    }
+
+    /// <summary>The length of the longest start of <paramref name="text"/> that fits, ending at the best break before it.</summary>
+    private static int Fill(string text, Func<string, bool> fits)
+    {
+        foreach (var breaks in new[] { SentenceEnd(), Pause(), Gap() })
+        {
+            var best = 0;
+            foreach (Match m in breaks.Matches(text))
+            {
+                var end = m.Index + m.Length;
+                if (end >= text.Length || !fits(text[..end]))
+                    break;
+                best = end;
+            }
+            if (best > 0)
+                return best;
+        }
+        return 0;
+    }
+
+    /// <summary>How tall a page may be: a few lines, and no more than there is room for above her head.</summary>
+    private float MaxHeight()
+    {
+        var room = _tip.Y - TailHeight - 4 - 2 * PadY - PageMark;
+        var lines = MaxLines * _label.GetLineHeight() + (MaxLines - 1) * _label.LabelSettings.LineSpacing;
+        return Mathf.Max(Mathf.Min(room, lines), 2 * _label.GetLineHeight());
     }
 
     /// <summary>Sizes the bubble around the text, above her head and mostly to the left of it (the cabinet is on her other side).</summary>
-    private void Place(string text)
+    private void Place(string text, bool single)
     {
-        // A long reply first grows wider, so it stays above her head instead of covering it.
+        // A short reply first grows wider, so it stays above her head instead of covering it; pages are at the widest.
         var room = _tip.Y - TailHeight - 4 - 2 * PadY;
-        var width = MaxTextWidth;
+        var width = single ? MaxTextWidth : WidestText;
         var size = Measure(text, width);
         while (size.Y > room && width < WidestText)
         {
             width = Mathf.Min(width + 40, WidestText);
             size = Measure(text, width);
         }
-        var box = size + new Vector2(2 * PadX, 2 * PadY);
+        var box = size + new Vector2(2 * PadX, 2 * PadY + (single ? 0 : PageMark));
+        if (!single)
+            box.X = WidestText + 2 * PadX;                   // pages keep one width, so the bubble doesn't jump about
         box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."
         var left = Mathf.Clamp(_tip.X - box.X * 0.62f, 6, _canvas.X - box.X - 6);
         var top = Mathf.Max(_tip.Y - TailHeight - box.Y, 4);
-        var rect = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
+        var rect = _box = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
 
         Position = _tip;
+        _label.Text = text;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
         _label.Size = new Vector2(width, size.Y);
         // no room above her head for the tail (the box had to stop at the top of the canvas): a plain box, not a folded tail
@@ -163,9 +275,11 @@ public partial class SpeechBubble : Node2D
         _tween.Parallel().TweenProperty(this, "modulate:a", 1f, 0.12);
     }
 
-    private void HoldThenFade(string text)
+    private void Fade()
     {
-        _tween!.TweenInterval(Math.Min(2.4 + text.Length * 0.055, 14));
+        _fading = true;
+        _tween?.Kill();
+        _tween = CreateTween();
         _tween.TweenProperty(this, "modulate:a", 0f, 0.3);
         _tween.TweenCallback(Callable.From(() => Visible = false));
     }
@@ -194,4 +308,12 @@ public partial class SpeechBubble : Node2D
         Round(new Vector2(box.Position.X + Corner, box.End.Y - Corner), 90);
         return [.. points];
     }
+
+    // where a page may end, best first: after a sentence, after a comma, between words (or CJK characters)
+    [GeneratedRegex(@"[。！？!?…]+[」』）)""']*\s*|[.;:]+[""')]*\s+|\n+")]
+    private static partial Regex SentenceEnd();
+    [GeneratedRegex(@"[，、,；]\s*")]
+    private static partial Regex Pause();
+    [GeneratedRegex(@"\s+|(?<=[\p{IsCJKUnifiedIdeographs}\p{IsHiragana}\p{IsKatakana}])")]
+    private static partial Regex Gap();
 }

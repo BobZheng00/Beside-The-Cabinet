@@ -35,6 +35,7 @@ public partial class Stool : Node2D
     private VoiceTrainer _trainer = null!;
     private ChatSettings? _chatSettings;
     private MemoryBook? _memoryBook;
+    private ChatHistory? _history;
     private VoiceSettings? _voiceSettings;
     private bool _gameRunning;
     private Ears _ears = null!;
@@ -400,6 +401,7 @@ public partial class Stool : Node2D
             try
             {
                 her.Build(_cabinet.Skin, character);
+                her.Spoken = () => _voice.Progress;
                 _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.Username));
                 _voice.Seat(VoiceFolder(character.Id));
             }
@@ -634,6 +636,22 @@ public partial class Stool : Node2D
         _chatSettings.Open();
     }
 
+    /// <summary>The conversation with whoever is on the stool, as stored.</summary>
+    public void OpenChatHistory()
+    {
+        if (IsInstanceValid(_history))
+        {
+            _history!.GrabFocus();
+            return;
+        }
+        if (OnStool() is not { } character)
+            return;
+        _history = new ChatHistory();
+        AddChild(_history);
+        _history.Build(_chat.Store, character.Id, character.Name);
+        _history.Open();
+    }
+
     /// <summary>What whoever is on the stool remembers: notes, facts, moments.</summary>
     public void OpenMemoryBook()
     {
@@ -647,6 +665,7 @@ public partial class Stool : Node2D
         _memoryBook = new MemoryBook();
         AddChild(_memoryBook);
         _memoryBook.Build(_chat.Store, character.Id, character.Name);
+        _memoryBook.History += OpenChatHistory;
         _memoryBook.Open();
     }
 
@@ -756,6 +775,7 @@ public partial class Stool : Node2D
             case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
             case "memorybook": OpenMemoryBook(); break;
+            case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
             case "memoryseed": SeedMemory(); break;          // a few notes, facts, a moment and a line, to try the memory book on
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet

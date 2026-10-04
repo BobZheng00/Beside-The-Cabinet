@@ -124,6 +124,7 @@ public partial class Main : Node2D
         _tray.ChatSettings += _stool.OpenChatSettings;
         _tray.VoiceSettings += _stool.OpenVoiceSettings;
         _tray.MemoryBook += _stool.OpenMemoryBook;
+        _tray.ChatHistory += _stool.OpenChatHistory;
         _tray.AddCharacter += _stool.PickCharacter;
         _tray.OpenCharacters += _stool.OpenCharactersFolder;
         _tray.CharacterChanged += _stool.Seat;
