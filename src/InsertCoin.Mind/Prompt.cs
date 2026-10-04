@@ -41,7 +41,7 @@ public static class Prompt
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
 
-            Lines starting with [cabinet], and the <now> and <cabinet> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
+            Lines starting with [cabinet], and the <now>, <cabinet> and <character> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
             Remembering: when the player's message is mainly telling you something worth keeping (a plan, a date, a goal, a like or dislike, something about their life), start your reply with [note: the fact in one short third-person sentence, dates made absolute] and say briefly that you'll remember it. Don't do this when it comes up in the middle of something else, for small talk, or for the cabinet's numbers; you remember those anyway.
 
@@ -80,7 +80,10 @@ public static class Prompt
             ? $"<now>\n{When.Now(at)} {When.SinceTalked(lines, at) ?? "You are talking for the first time."}\n</now>\n"
             : "";
         var remembered = memories is { Count: > 0 } ? $"<memories>\n{string.Join("\n", memories.Select(m => $"- {m.Text}"))}\n</memories>\n" : "";
-        Put(ChatRole.User, $"{time}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}");
+        // last of all, after what the player said: who she is, so a long conversation doesn't wear her character down
+        // (character-card apps' post-history instructions; here in the turn, which is never cached anyway)
+        var steady = persona.Steady ?? $"Reply as {persona.Name}, in character: {persona.Name}'s own voice, manner and way of speaking, as described at the start.";
+        Put(ChatRole.User, $"{time}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));

@@ -16,6 +16,13 @@ public sealed record CharacterCard(string Name, string Description, string Perso
 {
     /// <summary>Longest persona taken from a card (characters); some cards run to many thousands of words.</summary>
     public const int PersonaLimit = 8000;
+    /// <summary>Longest text kept from a card's post-history instructions and character's note together.</summary>
+    public const int SteadyLimit = 600;
+
+    /// <summary>The card's post-history instructions: what its author wants read after the conversation, just before each reply.</summary>
+    public string PostHistory { get; init; } = "";
+    /// <summary>The card's character's note (<c>extensions.depth_prompt</c>), which its apps put a few messages from the end.</summary>
+    public string DepthNote { get; init; } = "";
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     /// <summary>Reads a card from a .png or .json file's bytes; null when there is no card in it.</summary>
@@ -55,10 +62,12 @@ public sealed record CharacterCard(string Name, string Description, string Perso
         var description = string.Join("\n\n", parts.Where(p => p.Length > 0));
         if (description.Length > PersonaLimit)
             description = description[..PersonaLimit];
+        var steady = string.Join('\n', new[] { PostHistory, DepthNote }.Where(t => t.Trim().Length > 0).Select(Fill));
         return new Persona(Name, description)
         {
             Lore = [.. Lore.Select(l => l with { Content = Fill(l.Content) })],
             Greeting = Greeting.Trim().Length > 0 ? Fill(Greeting) : null,
+            Steady = steady.Length == 0 ? null : steady.Length > SteadyLimit ? steady[..SteadyLimit] : steady,
         };
     }
 
@@ -121,8 +130,16 @@ public sealed record CharacterCard(string Name, string Description, string Perso
                 if (content.Length > 0 && (keys.Count > 0 || constant))
                     lore.Add(new LoreEntry(keys, content, constant));
             }
+        var depth = data.TryGetProperty("extensions", out var extensions) && extensions.ValueKind == JsonValueKind.Object
+                    && extensions.TryGetProperty("depth_prompt", out var note) && note.ValueKind == JsonValueKind.Object
+            ? Text(note, "prompt")
+            : "";
         return new CharacterCard(name, Text(data, "description"), Text(data, "personality"), Text(data, "scenario"), Text(data, "first_mes"),
-                                 Text(data, "mes_example"), Text(data, "system_prompt"), lore);
+                                 Text(data, "mes_example"), Text(data, "system_prompt"), lore)
+        {
+            PostHistory = Text(data, "post_history_instructions"),
+            DepthNote = depth,
+        };
     }
 
     private static string Text(JsonElement element, string name) =>

@@ -58,6 +58,23 @@ public class CharacterCardTests
     }
 
     [Fact]
+    public async Task A_card_s_post_history_instructions_and_character_s_note_close_every_turn()
+    {
+        var json = """
+            {"spec": "chara_card_v2", "data": {"name": "Elowen", "description": "{{char}} leads Harbor Isle.",
+              "post_history_instructions": "Stay gentle and call {{user}} Doctor.",
+              "extensions": {"depth_prompt": {"prompt": "{{char}} never uses slang.", "depth": 4}}}}
+            """;
+        var persona = CharacterCard.Read(Encoding.UTF8.GetBytes(json))!.ToPersona("Bob");
+        Assert.Equal("Stay gentle and call Bob Doctor.\nElowen never uses slang.", persona.Steady);
+
+        using var temp = new TempStore();
+        var model = new FakeModel("Welcome back, Doctor.");
+        await new Conversation(temp.Store, "elowen", persona, new FakeClock(DateTimeOffset.Now)).Answer(model, "hi", "", _ => { }, (_, _) => { });
+        Assert.EndsWith("hi\n\n<character>\nStay gentle and call Bob Doctor.\nElowen never uses slang.\n</character>", model.Requests.Single()[^1].Text);
+    }
+
+    [Fact]
     public void A_v3_chunk_wins_and_plain_json_and_v1_cards_read_too()
     {
         var v3 = V2.Replace("chara_card_v2", "chara_card_v3").Replace("\"Elowen\"", "\"Elowen (V3)\"");

@@ -100,3 +100,59 @@ cache at a tenth of that or less.
 2. **Bounded memory:** moments (small talk, one a day, month and year roll-ups) and facts reconciled against the
    related ones. *Built 2026-10-04* (tests).
 3. **The agenda and reminders.**
+
+## Second pass (decided with the player, 2026-10-04)
+
+### 6. Her character held steady in a long window
+
+The card stays at the top of every request (never summarised, never pushed out), but with 32k–100k tokens of talk
+after it, a model drifts towards the conversation's voice. Character-card apps (SillyTavern and its kin) answer this
+with text placed *after* the history: the card's `post_history_instructions`, and its "character's note"
+(`extensions.depth_prompt`), which they insert a few messages from the end. Here both go into the turn itself, with a
+short reminder of our own when the card has neither: the turn is new every time anyway, so it never breaks the
+cached prefix (a note a few messages back would, for those messages, every turn). It is read on every reply and
+never stored; a few hundred characters at most.
+
+### 7. Moments: a clear length, and busy days
+
+- A day's moment: one to three sentences, at most 60 words. A day may have up to three, one per distinct thing that
+  happened; upkeep is shown the day's moments and either rewrites the one the new talk continues, adds a new one
+  (something else, while the day has fewer than three), or files nothing (small talk).
+- Rolled up: a week at most 80 words, a month 100, a year 150.
+
+### 8. The whole conversation, searchable
+
+Rolled-up moments lose detail by design; the conversation itself is kept, so she should be able to find it. It is
+split into passages (lines from one sitting, about 250 tokens each), each with a vector from the local model when
+one is loaded, and indexed for full-text search (SQLite FTS5, trigram, so Chinese and Japanese work). Each reply
+searches the passages before the window by meaning and by words, and the best one or two come into the turn's
+memories with their date. Passages are made and indexed during upkeep, the existing history a batch at a time.
+
+### 9. Memory that tends itself
+
+ChatGPT has managed saved memories itself since October 2025: what matters stays "top of mind", the rest moves to
+the background instead of being deleted, and the user can search, re-prioritise and restore
+([OpenAI](https://x.com/OpenAI/status/1978608684088643709)). Claude (since July 2026) keeps memory as separate
+entries that it reads and updates during conversations
+([memorylake](https://www.memorylake.ai/en/blogs/claude-new-memory-entries)). Here, beside fading and upkeep's
+updates and deletes:
+
+- **A review while quiet**, about weekly or when she has gathered many new facts: the model reads her facts a batch
+  at a time and merges duplicates, and retires what is obsolete (plans already past, things contradicted, trivia
+  that never came up again).
+- **Retired is not deleted:** a retired fact is no longer recalled or reconciled against, and shows in the memory
+  book under "Retired", where it can be restored.
+
+### 10. Reminders: where they reach the player
+
+Every reminder shows in the cabinet: a printed ticket popup (as for low time), her bubble, and her voice. Chosen in
+the reminder settings, it can also:
+
+- play the reminder sound;
+- raise a Windows notification;
+- go to the phone or another app: an [ntfy](https://ntfy.sh) topic (free phone push, no account), a Discord
+  webhook, a Telegram bot, or any webhook (a JSON POST). These are the usual choices for personal alerts
+  ([Big Iron](https://www.bigiron.cc/guides/gotify-vs-ntfy-vs-apprise-vs-pushover)). Tokens and webhook addresses
+  are stored encrypted, like the chat key.
+
+A reminder that came due while the cabinet was closed is mentioned when it next starts.

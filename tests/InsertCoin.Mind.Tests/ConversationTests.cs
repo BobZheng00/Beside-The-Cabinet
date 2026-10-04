@@ -51,7 +51,8 @@ public class ConversationTests
         Assert.Equal("+1 coin!", sent[2].Text);
         Assert.StartsWith("<now>\nFriday 2 October 2026, 19:30 (evening). You were talking a moment ago.\n</now>\n<cabinet>\nPlay time banked: 15 min.\n</cabinet>",
                           sent[3].Text);
-        Assert.EndsWith("hello", sent[3].Text);
+        Assert.EndsWith("hello\n\n<character>\nReply as Shino, in character: Shino's own voice, manner and way of speaking, as described at the start.\n</character>",
+                        sent[3].Text);
     }
 
     [Fact]

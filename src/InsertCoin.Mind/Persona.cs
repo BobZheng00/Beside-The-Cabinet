@@ -8,6 +8,11 @@ public sealed record Persona(string Name, string Description)
 {
     public IReadOnlyList<LoreEntry> Lore { get; init; } = [];
     public string? Greeting { get; init; }
+    /// <summary>
+    /// What keeps the character steady late in a long conversation: the card's post-history instructions and
+    /// character's note, read at the end of every turn (see <see cref="Prompt.Build"/>); null for the plain reminder.
+    /// </summary>
+    public string? Steady { get; init; }
 
     /// <summary>For a character nobody has described: friendly, and nothing assumed about who they are.</summary>
     public static Persona Plain(string name) => new(name,
