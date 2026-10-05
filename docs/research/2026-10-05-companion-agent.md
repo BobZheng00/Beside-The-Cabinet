@@ -81,6 +81,28 @@ A [2026 review](https://ai.ksopyla.com/posts/voice-to-voice-models-2026-review/)
 | GPT-SoVITS, to the first audio | 1.0–1.5 s (*measured*) |
 | **Total** | **about 2–3.5 s** |
 
+**Measured, 2026-10-05.** The test setup:
+- the cabinet, hidden and muted;
+- the test voice (hana, a trained v2ProPlus voice, which streams) on GPT-SoVITS on the laptop's graphics card;
+- a recorded question heard as if said with the talk key, three times for each kind of reply;
+- a mock model that answers after 0.6 s, as a fast provider does, at about 60 tokens a second.
+
+| Step (after the question was heard) | Japanese spoken, English subtitle | Japanese only |
+|---|---|---|
+| Speech to text (4.2 s of speech) | 0.10–0.12 s | 0.10–0.12 s |
+| The model's first word (the mock's 0.6 s) | 0.61–0.77 s | 0.61–0.72 s |
+| The first sentence to speak, complete | 0.91–1.19 s | 0.75–0.84 s |
+| GPT-SoVITS's first audio of it | +0.55–0.85 s | +0.55–0.66 s |
+| **Her first sound heard** | **1.49–1.85 s** | **1.34–1.52 s** |
+
+What this means:
+- **Faster than estimated.** With push-to-talk and a fast provider, she answers in about 1.5–2 s from the end of the player's speech. Hands-free will add the wait for the end of the turn (0.2–0.5 s).
+- **The provider is now the biggest part,** its first word. A real one varies from about 0.3 s to over 2 s with model and load. GPT-SoVITS comes next, at about 0.6 s; the earlier 1.0–1.5 s was a v4 voice, which doesn't stream.
+- **A shorter first sentence saves little.** "おかえり！" alone came about 0.15 s sooner than a two-sentence opening, and GPT-SoVITS took about as long for it. So speaking from the first clause would save only that much. Asking her to open with a short word or interjection would gain the same, free.
+- **Only something that doesn't wait for the model** can hide the rest: her body reacting, or a short sound in her own voice.
+
+The app now logs each spoken reply's "first sound was heard N ms after asking".
+
 Voice agents aim for 0.3–0.8 s ([LiveKit](https://livekit.com/blog/async-tools-voice-agents), [SignalWire](https://signalwire.com/blog/truth-about-voice-ai-latency), *read*). Ways to bridge the gap:
 - **Her body reacts at once:** a nod, a "thinking" look.
 - **A short sound in her own voice** ("mm?", "えっと", "嗯"), made once when her voice loads and played straight away.

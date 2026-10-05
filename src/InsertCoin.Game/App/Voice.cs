@@ -68,6 +68,7 @@ public partial class Voice : Node
     private int _givenChars, _heardChars;
     private long _queued;
     private readonly Queue<(long End, int Chars)> _sentenceEnds = new();
+    private Stopwatch? _asked;                          // since the reply now being spoken was asked for, until its first sound is heard
 
     /// <summary>The phase changed (for the settings window's status line).</summary>
     public event Action? Changed;
@@ -243,7 +244,7 @@ public partial class Voice : Node
         if (!CanSpeak)
             return null;
         Speech? speech = null;
-        var clock = Stopwatch.StartNew();
+        var clock = _asked = Stopwatch.StartNew();
         var first = true;
         speech = new Speech(_profile!.Language, sentence =>
         {
@@ -283,6 +284,7 @@ public partial class Voice : Node
     {
         _speaking.Cancel();
         _speaking = new CancellationTokenSource();
+        _asked = null;
         _toSay.Clear();
         _audio.Clear();
         _audioOffset = 0;
@@ -439,6 +441,11 @@ public partial class Voice : Node
 
         // her mouth follows what is heard now: what was pushed, less what still waits in the buffer
         var playing = _pushed - (_capacity - _playback.GetFramesAvailable());
+        if (_asked is not null && playing > 0)
+        {
+            GD.Print($"Voice: the reply's first sound was heard {_asked.ElapsedMilliseconds} ms after asking");
+            _asked = null;
+        }
         while (_levels.Count > 0 && _levels.Peek().End <= playing)
             _levels.Dequeue();
         while (_sentenceEnds.Count > 0 && _sentenceEnds.Peek().End <= playing)
