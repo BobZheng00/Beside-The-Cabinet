@@ -17,10 +17,10 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
     private DateTimeOffset _closed = DateTimeOffset.MinValue;
 
     /// <summary>Somewhere else a reminder goes (a Windows notification, the player's phone…).</summary>
-    public event Action<IReadOnlyList<Plan>, DateTimeOffset>? Sent;
+    public event Action<Notice>? Sent;
 
     /// <summary>The player's "remind me before things on my agenda", or null.</summary>
-    public TimeSpan? Lead => settings().ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
+    private TimeSpan? Lead => settings().ReminderLead;
 
     public void Tick(DateTimeOffset now)
     {
@@ -55,26 +55,28 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
             audio.Chime(settings().ReminderChimeWhenMuted);
         say(due, now);
         if (elsewhere)
-            Sent?.Invoke(due, now);
+            Sent?.Invoke(NoticeFor(due, now, Lead));
     }
 
     /// <summary>What goes out of the cabinet: "Reminder" (or "Missed reminder") and each one with its time, a line each.</summary>
-    public static Notice NoticeFor(IReadOnlyList<Plan> due, DateTimeOffset now)
+    public static Notice NoticeFor(IReadOnlyList<Plan> due, DateTimeOffset now, TimeSpan? lead = null)
     {
-        var missed = due.All(p => now - (p.RemindAt() ?? p.At) > Agenda.Missed);
-        var title = (missed ? "Missed reminder" : "Reminder") + (due.Count > 1 ? "s" : "");
+        var title = (Missed(due, now, lead) ? "Missed reminder" : "Reminder") + (due.Count > 1 ? "s" : "");
         return new Notice(title, string.Join("\n", due.Select(p => $"{When(p, now)}  {p.Text}")));
     }
+
+    /// <summary>All of them came due a while ago: while the cabinet was closed.</summary>
+    private static bool Missed(IReadOnlyList<Plan> due, DateTimeOffset now, TimeSpan? lead) =>
+        due.All(p => now - (p.RemindAt(lead) ?? p.At) > Agenda.Missed);
 
     private static string When(Plan plan, DateTimeOffset now) =>
         plan.At.Date == now.Date && !plan.AllDay ? plan.At.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : plan.Label;
 
     private void Show(IReadOnlyList<Plan> due, DateTimeOffset now)
     {
-        var missed = due.All(p => now - (p.RemindAt(Lead) ?? p.At) > Agenda.Missed);
         var more = due.Count > 1 ? $"  (+{due.Count - 1} more)" : "";
         var snooze = settings().ReminderSnoozeMinutes;
-        ticket.Show(missed ? "MISSED" : "REMINDER", $"{When(due[0], now)}  {due[0].Text}{more}", seconds: settings().ReminderTicketSeconds,
+        ticket.Show(Missed(due, now, Lead) ? "MISSED" : "REMINDER", $"{When(due[0], now)}  {due[0].Text}{more}", seconds: settings().ReminderTicketSeconds,
                     buttons: [($"Snooze {snooze} min", () => Snooze(due, snooze)), ("OK", () => { })]);
     }
 

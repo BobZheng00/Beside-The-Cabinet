@@ -284,7 +284,7 @@ public static partial class Agenda
     private static partial Regex WeeklyWord();
     [GeneratedRegex(@"\bmonthly\b|\bevery\s+month\b|\beach\s+month\b")]
     private static partial Regex MonthlyWord();
-    [GeneratedRegex(@"(?<n>\d+|an?)\s*(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)\s*(before|early|ahead|earlier)")]
+    [GeneratedRegex(@"(?<n>\d{1,4}|an?)\s*(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)\s*(before|early|ahead|earlier)")]
     private static partial Regex BeforeWords();
     [GeneratedRegex(@"\bat\s+the\s+time\b|\bon\s+time\b|\bremind\b")]
     private static partial Regex AtTheTime();

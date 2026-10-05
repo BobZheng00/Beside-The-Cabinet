@@ -28,7 +28,7 @@ public sealed class Calendars(MindStore store, KeyStore keys)
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     private readonly Dictionary<string, CalendarStatus> _status = [];
-    private bool _syncing;
+    private bool _syncing, _again;
 
     /// <summary>A calendar was read (or failed to be): the window showing them can say so.</summary>
     public event Action? Changed;
@@ -66,38 +66,54 @@ public sealed class Calendars(MindStore store, KeyStore keys)
         Changed?.Invoke();
     }
 
-    /// <summary>Reads every linked calendar and brings the agenda in step; one failing (offline, say) leaves its items as they were.</summary>
+    /// <summary>
+    /// Reads every linked calendar and brings the agenda in step; one failing (offline, say) leaves its items as they
+    /// were. Asked while a read is under way (a calendar just linked), it reads them all again once that one is done.
+    /// </summary>
     public async Task Sync()
     {
         if (_syncing)
+        {
+            _again = true;
             return;
+        }
         _syncing = true;
         try
         {
-            foreach (var link in Links)
+            do
             {
-                var now = DateTimeOffset.Now;
-                var from = now.AddDays(-1);                 // yesterday's are kept as they were, for "how did it go" and "just past"
-                try
-                {
-                    // a private link ("link"); signing in with Google or Microsoft would be another source, chosen by its kind
-                    ICalendarSource source = new IcsCalendar(Http, link.Name, link.Url);
-                    var events = await source.Read(from, now + CalendarSync.Ahead);
-                    var (added, changed, removed) = CalendarSync.Apply(store, link.Name, events, from, now);
-                    _status[link.Name] = new CalendarStatus(now, events.Count, null);
-                    GD.Print($"Calendars: {link.Name}: {events.Count} events in the next two weeks ({added} new, {changed} changed, {removed} gone)");
-                }
-                catch (Exception e) when (e is HttpRequestException or TaskCanceledException or FormatException or InvalidOperationException or UriFormatException)
-                {
-                    _status[link.Name] = new CalendarStatus(now, 0, e.GetBaseException().Message);
-                    GD.PrintErr($"Calendars: {link.Name} could not be read: {e.GetBaseException().Message}");   // never the address: it is a secret
-                }
+                _again = false;
+                await SyncAll();
             }
+            while (_again);
         }
         finally
         {
             _syncing = false;
             Changed?.Invoke();
+        }
+    }
+
+    private async Task SyncAll()
+    {
+        foreach (var link in Links)
+        {
+            var now = DateTimeOffset.Now;
+            var from = now.AddDays(-1);                     // yesterday's are kept as they were, for "how did it go" and "just past"
+            try
+            {
+                // a private link ("link"); signing in with Google or Microsoft would be another source, chosen by its kind
+                ICalendarSource source = new IcsCalendar(Http, link.Name, link.Url);
+                var events = await source.Read(from, now + CalendarSync.Ahead);
+                var (added, changed, removed) = CalendarSync.Apply(store, link.Name, events, from, now);
+                _status[link.Name] = new CalendarStatus(now, events.Count, null);
+                GD.Print($"Calendars: {link.Name}: {events.Count} events in the next two weeks ({added} new, {changed} changed, {removed} gone)");
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or FormatException or InvalidOperationException or UriFormatException)
+            {
+                _status[link.Name] = new CalendarStatus(now, 0, e.GetBaseException().Message);
+                GD.PrintErr($"Calendars: {link.Name} could not be read: {e.GetBaseException().Message}");   // never the address: it is a secret
+            }
         }
     }
 

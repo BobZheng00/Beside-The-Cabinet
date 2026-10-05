@@ -106,7 +106,7 @@ public partial class Main : Node2D
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
-        _reminders.Sent += (due, now) => _ = SendOut(Reminders.NoticeFor(due, now));
+        _reminders.Sent += notice => _ = SendOut(notice);
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
@@ -547,7 +547,6 @@ public partial class Main : Node2D
         _reminderSettings.Saved += (choices, secrets) =>
         {
             SaveSettings(choices.Into(_settings));
-            _stool.ReminderLead = choices.LeadMinutes;
             _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
         };
         _reminderSettings.Open();

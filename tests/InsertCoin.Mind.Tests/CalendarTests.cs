@@ -94,6 +94,46 @@ public class CalendarTests
     }
 
     [Fact]
+    public void A_meeting_repeating_for_years_still_shows_and_an_odd_event_spoils_only_itself()
+    {
+        // a stand-up every weekday since 2022 (over a thousand times before today), an event with a date written by
+        // hand, and a moved stand-up the feed lists twice
+        const string feed = """
+            BEGIN:VCALENDAR
+            BEGIN:VEVENT
+            DTSTART;TZID=Asia/Shanghai:20220103T093000
+            DTEND;TZID=Asia/Shanghai:20220103T094500
+            RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR
+            UID:standup
+            SUMMARY:Daily stand-up
+            END:VEVENT
+            BEGIN:VEVENT
+            DTSTART:2026-10-06 10:00
+            UID:by-hand
+            SUMMARY:Written by hand
+            END:VEVENT
+            BEGIN:VEVENT
+            RECURRENCE-ID;TZID=Asia/Shanghai:20261007T093000
+            DTSTART;TZID=Asia/Shanghai:20261007T140000
+            UID:standup
+            SUMMARY:Stand-up (moved)
+            END:VEVENT
+            BEGIN:VEVENT
+            RECURRENCE-ID;TZID=Asia/Shanghai:20261007T093000
+            DTSTART;TZID=Asia/Shanghai:20261007T140000
+            UID:standup
+            SUMMARY:Stand-up (moved)
+            END:VEVENT
+            END:VCALENDAR
+            """;
+
+        var events = Ics.Events(feed, Monday.AddHours(-8), Monday.AddDays(4), China);
+
+        Assert.Equal(["10-05 09:30 Daily stand-up", "10-06 09:30 Daily stand-up", "10-07 14:00 Stand-up (moved)", "10-08 09:30 Daily stand-up"],
+                     events.Select(e => $"{e.Start:MM-dd HH:mm} {e.Title}"));
+    }
+
+    [Fact]
     public void Synced_events_follow_the_calendar_and_keep_what_the_player_set()
     {
         using var temp = new TempStore();

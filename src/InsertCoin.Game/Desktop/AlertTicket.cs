@@ -25,11 +25,11 @@ public partial class AlertTicket : Node
 
     /// <summary>Shows a ticket, replacing any still showing.</summary>
     /// <param name="seconds">How long it stays; 0 or less: until one of its <paramref name="buttons"/> is pressed.</param>
-    /// <param name="tall">Room for a few lines of detail (a reminder), not one.</param>
     /// <param name="buttons">Buttons along its foot; each closes the ticket after doing what it does.</param>
-    public void Show(string title, string detail, double seconds = 5, bool tall = false, IReadOnlyList<(string Label, Action Pressed)>? buttons = null)
+    public void Show(string title, string detail, double seconds = 5, IReadOnlyList<(string Label, Action Pressed)>? buttons = null)
     {
-        var size = buttons is { Count: > 0 } ? new Vector2I(360, 176) : tall ? new Vector2I(340, 132) : Size;
+        var reminder = buttons is { Count: > 0 };
+        var size = reminder ? new Vector2I(360, 176) : Size;
         // A newer ticket replaces the current one: stop its animation before freeing its window.
         _tween?.Kill();
         if (_window is not null && IsInstanceValid(_window))
@@ -50,8 +50,8 @@ public partial class AlertTicket : Node
         var rows = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         rows.AddThemeConstantOverride("separation", 6);
         rows.AddChild(Line(title, Pixel, 20, Title));
-        var text = Line(detail, Round, tall || buttons is { Count: > 0 } ? 17 : 20, Words);
-        if (tall || buttons is { Count: > 0 })
+        var text = Line(detail, Round, reminder ? 17 : 20, Words);
+        if (reminder)
         {
             text.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             text.MaxLinesVisible = 3;

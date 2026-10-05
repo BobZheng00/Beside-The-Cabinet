@@ -109,20 +109,38 @@ public static class Ics
     {
         var events = Parse(text);
         // single occurrences moved or cancelled: by the event's id and the time they were planned for
-        var overrides = events.Where(e => e.Get("RECURRENCE-ID") is not null && e.Get("UID") is not null)
-            .ToDictionary(e => (e.Get("UID")!.Value, When(e.Get("RECURRENCE-ID")!, local).At.ToUniversalTime()), e => e);
+        var overrides = new Dictionary<(string Uid, DateTimeOffset At), Event>();
+        foreach (var e in events.Where(e => e.Get("RECURRENCE-ID") is not null && e.Get("UID") is not null))
+            try
+            {
+                overrides[(e.Get("UID")!.Value, When(e.Get("RECURRENCE-ID")!, local).At.ToUniversalTime())] = e;   // listed twice: the later wins
+            }
+            catch (Exception x) when (Unreadable(x))
+            {
+                // a change written in a way this reader cannot make out: the occurrence stays as planned
+            }
         var found = new List<CalendarEvent>();
         foreach (var e in events.Where(e => e.Get("RECURRENCE-ID") is null))
+            try
+            {
+                Occurrences(e);
+            }
+            catch (Exception x) when (Unreadable(x))
+            {
+                // one event written oddly spoils only itself, not the whole calendar
+            }
+        return [.. found.OrderBy(e => e.Start)];
+
+        void Occurrences(Event e)
         {
             if (e.Get("UID")?.Value is not { } uid || e.Get("DTSTART") is not { } dtstart || Cancelled(e))
-                continue;
+                return;
             var (start, allDay, zone) = When(dtstart, local);
             var length = Length(e, start, allDay, local);
             var title = Unescape(e.Get("SUMMARY")?.Value ?? "(no title)");
             var excluded = e.All("EXDATE").SelectMany(x => x.Value.Split(',').Select(v => When(x with { Value = v }, local).At.ToUniversalTime())).ToHashSet();
-            var occurrences = e.Get("RRULE") is { } rule ? Expand(rule.Value, start, zone, to) : [start];
             var repeats = e.Get("RRULE") is not null;
-            foreach (var at in occurrences)
+            foreach (var at in e.Get("RRULE") is { } rule ? Expand(rule.Value, start, zone, from - length, to) : [start])
             {
                 if (excluded.Contains(at.ToUniversalTime()))
                     continue;
@@ -138,7 +156,6 @@ public static class Ics
                 Add(occurrenceUid, title, at, at + length, allDay);
             }
         }
-        return [.. found.OrderBy(e => e.Start)];
 
         void Add(string uid, string title, DateTimeOffset start, DateTimeOffset end, bool allDay)
         {
@@ -207,6 +224,9 @@ public static class Ics
                 parameters[part[..eq]] = part[(eq + 1)..].Trim('"');
         return new Property(head[0].ToUpperInvariant(), parameters, line[(colon + 1)..]);
     }
+
+    /// <summary>What a value this reader cannot make out throws: a malformed date, number or rule.</summary>
+    private static bool Unreadable(Exception e) => e is FormatException or ArgumentException or OverflowException;
 
     private static bool Cancelled(Event e) => e.Get("STATUS")?.Value.Equals("CANCELLED", StringComparison.OrdinalIgnoreCase) == true;
 
@@ -284,8 +304,12 @@ public static class Ics
         return sign * total;
     }
 
-    /// <summary>The starts of a repeating event up to <paramref name="to"/>, counted in its own zone's wall-clock time (so summer time is right).</summary>
-    private static IEnumerable<DateTimeOffset> Expand(string rule, DateTimeOffset start, TimeZoneInfo zone, DateTimeOffset to)
+    /// <summary>
+    /// The starts of a repeating event from <paramref name="from"/> to <paramref name="to"/>, counted in its own zone's
+    /// wall-clock time (so summer time is right). Those before <paramref name="from"/> are counted (for COUNT) but not
+    /// given: a stand-up that has repeated since years ago still reaches today.
+    /// </summary>
+    private static IEnumerable<DateTimeOffset> Expand(string rule, DateTimeOffset start, TimeZoneInfo zone, DateTimeOffset from, DateTimeOffset to)
     {
         var parts = rule.Split(';').Select(p => p.Split('=', 2)).Where(p => p.Length == 2).ToDictionary(p => p[0].ToUpperInvariant(), p => p[1].ToUpperInvariant());
         var frequency = parts.GetValueOrDefault("FREQ");
@@ -301,8 +325,9 @@ public static class Ics
         var wall = TimeZoneInfo.ConvertTime(start, zone).DateTime;
         var byDay = parts.TryGetValue("BYDAY", out var d) ? d.Split(',') : [];
         var byMonthDay = parts.TryGetValue("BYMONTHDAY", out var md) ? md.Split(',').Select(x => int.Parse(x, Invariant)).ToArray() : [];
-        var produced = 0;
-        for (var step = 0; produced < MostOccurrences; step++)
+        var produced = 0;                                   // occurrences so far, for COUNT
+        var given = 0;
+        for (var step = 0; given < MostOccurrences; step++)
         {
             var candidates = frequency switch
             {
@@ -319,6 +344,9 @@ public static class Ics
                     yield break;
                 produced++;
                 any = true;
+                if (at < from)
+                    continue;
+                given++;
                 yield return at;
             }
             if (!any && step > 0 && new DateTimeOffset(Shift(wall, frequency, step * interval), zone.GetUtcOffset(wall)) > to)

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using InsertCoin.Adapters;
 
 namespace InsertCoin.Game.App;
@@ -41,6 +42,10 @@ public sealed record AppSettings
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
+
+    /// <summary><see cref="ReminderLeadMinutes"/> as a span of time, or null.</summary>
+    [JsonIgnore]
+    public TimeSpan? ReminderLead => ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
 }
 
 /// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>

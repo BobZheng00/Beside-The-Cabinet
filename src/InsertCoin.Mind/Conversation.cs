@@ -49,8 +49,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     private History? _history;
 
-    /// <summary>The player's "remind me before things on my agenda" (null: only the reminders asked for).</summary>
-    public TimeSpan? ReminderLead { get; set; }
+    /// <summary>The player's "remind me before things on my agenda", as set now (null: only the reminders asked for).</summary>
+    public Func<TimeSpan?> ReminderLead { get; init; } = () => null;
 
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
@@ -94,7 +94,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
                                     summary, recent, situation, fromCabinet ? $"[cabinet] {said.Trim()}" : said, [.. lore, .. memories],
-                                    VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead));
+                                    VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()));
         store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, said.Trim(), now);
 
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
@@ -127,8 +127,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>
     /// Puts something on the agenda. When it is there already (on the same day, saying the same thing, or at the same
-    /// time about the same thing) it only adds what is new: a reminder, a repeat. A reminder for something wholly
-    /// past is not set. Returns the item's id, or null.
+    /// time about the same thing) it only adds what is new: a reminder, a repeat (not to a calendar's item: whether
+    /// that repeats is the calendar's to say). A reminder for something wholly past is not set. Returns the item's id, or null.
     /// </summary>
     private long? AddPlan(PlanSpec spec, DateTimeOffset now)
     {
@@ -140,7 +140,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                                                && (Recall.Same(p.Text, spec.Text) || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
         {
             var before = spec.Before ?? same.Before;
-            var repeat = spec.Repeat != Repeat.Once ? spec.Repeat : same.Repeat;
+            var repeat = spec.Repeat != Repeat.Once && same.Source is null ? spec.Repeat : same.Repeat;
             if (before != same.Before || repeat != same.Repeat)
                 store.UpdatePlan(same.Id, same.Text, same.At, same.AllDay, before, repeat);
             return same.Id;
@@ -279,7 +279,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var known = all.Count <= DigestFacts ? all : Recall.Related(transcript, all, DigestFacts, await MeaningOf(transcript[..Math.Min(transcript.Length, 2000)], cancel));
         // a few moments a day at most: a later stretch rewrites the moment it carries on, or adds one if it is something else
         var today = store.Episodes(character).Where(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date).ToList();
-        var agenda = store.Agenda();
+        // the player's own items: a calendar's are its to change (and a busy one would fill every request)
+        var agenda = store.Agenda().Where(p => p.Source is null).ToList();
         var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today, agenda), DigestOptions, cancel);
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {

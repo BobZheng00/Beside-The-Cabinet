@@ -183,7 +183,8 @@ the cabinet's own tray icon (Windows 10 and 11 show it as a toast and keep it in
 registers its tray icon on the main window with the indicator's number as its id, so `Shell_NotifyIcon` can ask
 that icon for a balloon; no app registration or installer needed. ntfy is sent as JSON (any language in the title
 and text); Discord never pings anyone; every body is sent with its length (small webhook receivers cannot read a
-chunked one). Checked against a local receiver; the Windows notification itself is not yet seen working.
+chunked one). Checked against a local receiver; the Windows notification was seen working by the player on 2026-10-05
+(a reminder at 01:30). Not yet tried for real: ntfy, Discord and Telegram on a phone.
 
 ### 11. Check-ins, usage and calendars (decided 2026-10-05, built)
 

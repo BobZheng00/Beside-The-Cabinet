@@ -122,6 +122,26 @@ public class AgendaTests
     }
 
     [Fact]
+    public async Task A_calendar_s_items_are_the_calendar_s_to_change()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var sync = store.AddCalendarPlan("Work", "sync@work", "Team sync", Friday.AddDays(3), allDay: false, Friday);
+        store.Add("shino", Speaker.User, "the team sync is off this week, I think", Friday);
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel();
+        model.Answers.Enqueue($$"""{"episode": null, "facts": [], "plans": [{"op": "cancel", "id": {{sync}}}, {"op": "update", "id": {{sync}}, "when": "2026-10-09 10:00"}]}""");
+
+        Assert.True(await conversation.Digest(model));
+        Assert.Contains("The agenda:\n(empty)", model.Requests.Single()[1].Text);          // upkeep never sees them: a busy calendar would fill every request
+        Assert.Equal(Friday.AddDays(3), store.Agenda().Single().At);
+
+        // asked for a reminder and a repeat on it in conversation: the reminder is added, whether it repeats stays the calendar's
+        await conversation.Answer(new FakeModel("[plan: 2026-10-05 19:30 | Team sync | 10 min before, weekly] Got it."), "remind me before the team sync", "", _ => { }, (_, _) => { });
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Once), store.Agenda().Single() is var p ? (p.Before!.Value, p.Repeat) : default);
+    }
+
+    [Fact]
     public void Forgetting_all_about_the_player_clears_the_agenda()
     {
         using var temp = new TempStore();

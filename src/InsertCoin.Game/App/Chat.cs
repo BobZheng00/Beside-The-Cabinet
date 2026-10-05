@@ -92,19 +92,8 @@ public sealed class Chat : IDisposable
         _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead };
     }
 
-    private TimeSpan? _lead;
-
-    /// <summary>The player's "remind me before things on my agenda" (see <see cref="Conversation.ReminderLead"/>).</summary>
-    public TimeSpan? ReminderLead
-    {
-        get => _lead;
-        set
-        {
-            _lead = value;
-            if (_conversation is not null)
-                _conversation.ReminderLead = value;
-        }
-    }
+    /// <summary>The player's "remind me before things on my agenda", as set now (see <see cref="Conversation.ReminderLead"/>).</summary>
+    public Func<TimeSpan?> ReminderLead { get; init; } = () => null;
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
     public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => Godot.FileAccess.FileExists($"res://models/{m.Name}/model.onnx"))];

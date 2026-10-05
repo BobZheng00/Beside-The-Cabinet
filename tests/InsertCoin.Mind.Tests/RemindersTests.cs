@@ -20,6 +20,7 @@ public class RemindersTests
         Assert.Equal((null, Repeat.Weekdays), Agenda.ParseOptions("every weekday"));
         Assert.Equal((null, Repeat.Daily), Agenda.ParseOptions("Every day"));
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("whenever"));
+        Assert.Equal((TimeSpan.FromMinutes(9999), Repeat.Once), Agenda.ParseOptions("99999999999 min before"));     // nonsense, without throwing
 
         var spec = Agenda.ParseDirection("2026-10-08 10:00 | Job interview | 1 hour before", remind: false, Friday)!;
         Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (spec.Before, spec.Repeat));

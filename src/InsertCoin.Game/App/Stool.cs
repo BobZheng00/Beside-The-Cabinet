@@ -70,8 +70,7 @@ public partial class Stool : Node2D
         _lively = lively;
         _characters = Path.Combine(dataDir, "characters");
 
-        _chat = new Chat(dataDir);
-        ReminderLead = settings.Now.ReminderLeadMinutes;
+        _chat = new Chat(dataDir) { ReminderLead = () => settings.Now.ReminderLead };
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
         _chat.Connect(ChatProvider());
@@ -155,12 +154,6 @@ public partial class Stool : Node2D
 
     /// <summary>What just happened on the cabinet, for her mind to take note of.</summary>
     public void Witness(IEnumerable<LedgerEvent> events, Rules rules) => _chat.Witness(events, rules);
-
-    /// <summary>The player's "remind me before things on my agenda", in minutes: her turns mention those reminders too.</summary>
-    public int? ReminderLead
-    {
-        set => _chat.ReminderLead = value is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
-    }
 
     /// <summary>Her memory, the agenda among it (shared by every character).</summary>
     public MindStore Store => _chat.Store;
@@ -262,7 +255,7 @@ public partial class Stool : Node2D
         try
         {
             var now = DateTimeOffset.Now;
-            var lead = _settings.Now.ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : (TimeSpan?)null;
+            var lead = _settings.Now.ReminderLead;
             _lively(60);
             Her.Play(Moment.Greet);
             if (_chat.Ready && _settings.Now.ReminderSpoken)
@@ -472,28 +465,6 @@ public partial class Stool : Node2D
             GD.PrintErr($"Ears: {e.Message}");
             return null;
         }
-    }
-
-    /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>
-    private void SeedMemory()
-    {
-        if (OnStool() is not { } character)
-            return;
-        var now = DateTimeOffset.Now;
-        _chat.Store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob is getting ready for interviews.");
-        _chat.Store.SetNote(character.Id, MindStore.Us, "Friends since the cabinet arrived.");
-        _chat.Store.AddFact(MindStore.Shared, "Bob likes Hades.", 5, now);
-        _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
-        var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
-        _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
-        // the agenda: a plan, a reminder, and something just past
-        _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, TimeSpan.FromHours(1), now, character.Id);
-        _chat.Store.AddPlan("Take vitamins", now.Date.AddDays(1).AddHours(8), allDay: false, TimeSpan.Zero, now, character.Id, Repeat.Daily);
-        _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, before: null, now, null);
-        // and what a review would have retired
-        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
-        _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);
-        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob has an interview at the end of the week.", 7, now), "merged into \"Bob's interview is on Friday.\"", now);
     }
 
     /// <summary>Dev: a recording heard as if said holding the talk key, or into the slip's microphone (no microphone opened).</summary>
@@ -944,12 +915,12 @@ public partial class Stool : Node2D
                 break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
-            case "memoryseed": SeedMemory(); break;
+            case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment
                 var clock = System.Diagnostics.Stopwatch.StartNew();
                 GD.Print($"Presence: do not disturb {Presence.DoNotDisturb}, in a call {Presence.InCall}, idle {UserActivity.IdleFor().TotalSeconds:0} s ({clock.ElapsedMilliseconds} ms)");
-                break;          // a few notes, facts, a moment and a line, to try the memory book on
+                break;
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice
@@ -972,5 +943,27 @@ public partial class Stool : Node2D
             default: return false;
         }
         return true;
+    }
+
+    /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>
+    private void SeedMemory()
+    {
+        if (OnStool() is not { } character)
+            return;
+        var now = DateTimeOffset.Now;
+        _chat.Store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob is getting ready for interviews.");
+        _chat.Store.SetNote(character.Id, MindStore.Us, "Friends since the cabinet arrived.");
+        _chat.Store.AddFact(MindStore.Shared, "Bob likes Hades.", 5, now);
+        _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
+        var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
+        _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
+        // the agenda: a plan, a reminder, and something just past
+        _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, TimeSpan.FromHours(1), now, character.Id);
+        _chat.Store.AddPlan("Take vitamins", now.Date.AddDays(1).AddHours(8), allDay: false, TimeSpan.Zero, now, character.Id, Repeat.Daily);
+        _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, before: null, now, null);
+        // and what a review would have retired
+        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
+        _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);
+        _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob has an interview at the end of the week.", 7, now), "merged into \"Bob's interview is on Friday.\"", now);
     }
 }
