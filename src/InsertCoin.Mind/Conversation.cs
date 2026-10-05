@@ -103,7 +103,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
                 store.AddFact(MindStore.Shared, payload, NoteImportance, now);
-            if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now) is { } plan)
+            if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
             direction(name, payload);
         });
@@ -325,7 +325,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var plans = agenda.ToDictionary(p => p.Id);
         foreach (var change in digestion.Plans)
         {
-            var when = change.When is { } w ? Agenda.ParseWhen(w, now) : null;
+            var when = change.When is { } w ? Agenda.ParseWhen(w, now, _clock.LocalTimeZone) : null;
             switch (change.Op)
             {
                 case "add" when when is { } at && change.Text is { Length: > 1 } text:

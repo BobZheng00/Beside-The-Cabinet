@@ -272,7 +272,7 @@ public partial class MemoryBook : Window
             CustomMinimumSize = new Vector2(150, 0),
             TooltipText = "YYYY-MM-DD HH:MM, or YYYY-MM-DD for a whole day",
         };
-        when.TextChanged += t => when.Modulate = Agenda.ParseWhen(t, now) is null ? new Color(1, 0.5f, 0.5f) : Colors.White;
+        when.TextChanged += t => when.Modulate = Agenda.ParseWhen(t, now, TimeZoneInfo.Local) is null ? new Color(1, 0.5f, 0.5f) : Colors.White;
         var text = new LineEdit { Text = plan?.Text ?? "", PlaceholderText = "What it is", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Take it off the agenda" };
         first.AddChild(when);
@@ -300,6 +300,15 @@ public partial class MemoryBook : Window
         repeat.Selected = Array.FindIndex(Repeats, r => r.Repeat == (plan?.Repeat ?? Repeat.Once));
         second.AddChild(lead);
         second.AddChild(repeat);
+        if (plan?.Source is { } source)
+        {
+            // from a calendar: it says when and what; only her reminder for it is the player's to set here
+            when.Editable = text.Editable = false;
+            repeat.Disabled = true;
+            delete.Visible = false;
+            text.TooltipText = $"From your calendar “{source}”: change it there (tray → Calendars…).";
+            second.AddChild(new Label { Text = $"from {source}", ThemeTypeVariation = "Hint" });
+        }
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)
         {
             text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
@@ -392,7 +401,7 @@ public partial class MemoryBook : Window
         foreach (var row in _plans)
         {
             // a time that cannot be read, or nothing said: that item is left as it was
-            if (Agenda.ParseWhen(row.When.Text, now) is not { } when || row.Text.Text.Trim().Length < 2)
+            if (Agenda.ParseWhen(row.When.Text, now, TimeZoneInfo.Local) is not { } when || row.Text.Text.Trim().Length < 2)
                 continue;
             var before = row.Leads[row.Lead.Selected];
             var repeat = Repeats[row.Repeat.Selected].Repeat;

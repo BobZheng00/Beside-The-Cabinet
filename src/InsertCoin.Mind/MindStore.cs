@@ -328,6 +328,33 @@ public sealed class MindStore : IDisposable
         command.ExecuteNonQuery();
     }
 
+    /// <summary>An event from a calendar (see <see cref="CalendarSync"/>): marked with the calendar's name and the event's id there.</summary>
+    public long AddCalendarPlan(string source, string uid, string text, DateTimeOffset at, bool allDay, DateTimeOffset added)
+    {
+        using var command = Command("""
+            INSERT INTO agenda (text, at, all_day, remind, added, source, uid) VALUES ($t, $a, $d, 0, $n, $s, $u) RETURNING id
+            """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$n", Stamp(added)), ("$s", source), ("$u", uid));
+        return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>The open items read from <paramref name="source"/>, by the event's id there.</summary>
+    public Dictionary<string, long> CalendarUids(string source)
+    {
+        using var command = Command("SELECT uid, id FROM agenda WHERE source = $s AND uid IS NOT NULL AND closed IS NULL", ("$s", source));
+        using var reader = command.ExecuteReader();
+        var uids = new Dictionary<string, long>();
+        while (reader.Read())
+            uids[reader.GetString(0)] = reader.GetInt64(1);
+        return uids;
+    }
+
+    /// <summary>A calendar is no longer read: its items leave the agenda.</summary>
+    public void DeletePlansFrom(string source)
+    {
+        using var command = Command("DELETE FROM agenda WHERE source = $s", ("$s", source));
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>She asked how it went.</summary>
     public void Asked(long id, DateTimeOffset at)
     {
@@ -363,11 +390,12 @@ public sealed class MindStore : IDisposable
     /// reminder goes off). A one-off item over for longer than <see cref="Mind.Agenda.Behind"/> leaves the agenda,
     /// unless a reminder the player asked for has yet to be mentioned; a year on it is deleted.
     /// </summary>
-    public int ClosePast(DateTimeOffset now)
+    /// <param name="zone">The player's time zone, so a repeat keeps its time of day when the clocks change.</param>
+    public int ClosePast(DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         var plans = Agenda();
         foreach (var plan in plans.Where(p => p.Repeat != Repeat.Once && p.Before is null && p.End <= now))
-            Advance(plan.Id, Mind.Agenda.NextAfter(plan, now));
+            Advance(plan.Id, Mind.Agenda.NextAfter(plan, now, zone: zone));
         var closed = 0;
         foreach (var plan in plans.Where(p => p.Repeat == Repeat.Once && p.End <= now - Mind.Agenda.Behind
                                               && (p.Reminded is not null || p.RemindAt() is not { } at || p.Added > at)))

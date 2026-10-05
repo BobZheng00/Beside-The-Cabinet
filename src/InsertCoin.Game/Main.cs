@@ -49,6 +49,8 @@ public partial class Main : Node2D
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private ReminderSettings? _reminderSettings;
+    private Calendars _calendars = null!;
+    private CalendarSettings? _calendarSettings;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
@@ -103,6 +105,7 @@ public partial class Main : Node2D
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
+        _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
         _reminders.Sent += (due, now) => _ = SendOut(Reminders.NoticeFor(due, now));
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
@@ -133,6 +136,7 @@ public partial class Main : Node2D
         _tray.MemoryBook += _stool.OpenMemoryBook;
         _tray.ChatHistory += _stool.OpenChatHistory;
         _tray.Reminders += OpenReminderSettings;
+        _tray.Calendars += OpenCalendarSettings;
         _tray.AddCharacter += _stool.PickCharacter;
         _tray.OpenCharacters += _stool.OpenCharactersFolder;
         _tray.CharacterChanged += _stool.Seat;
@@ -162,6 +166,8 @@ public partial class Main : Node2D
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
         AddTimer(5.0, () => _reminders.Tick(DateTimeOffset.Now));
+        AddTimer(Calendars.Every.TotalSeconds, () => _ = _calendars.Sync());
+        GetTree().CreateTimer(3).Timeout += () => _ = _calendars.Sync();     // soon after starting: the agenda in step
         AddTimer(1.0, RefreshScreen);
         AddTimer(5.0, () => { if (DateTimeOffset.Now >= _nextPoll) Poll(); });
         Tick();
@@ -441,6 +447,11 @@ public partial class Main : Node2D
             _stool.Store.AddPlan(thing.Replace('_', ' '), ended, allDay: false, before: null, ended.AddDays(-1), null);
             return;
         }
+        if (action.StartsWith("calendar:"))                 // calendar:URL links a calendar named Test (a local test server's .ics)
+        {
+            _calendars.Add(new CalendarLink("Test", "link", action["calendar:".Length..]));
+            return;
+        }
         if (action.StartsWith("ticketpress:"))              // ticketpress:0 presses the showing ticket's first button (Snooze), 1 the next (OK)
         {
             _ticket.DevPress(int.Parse(action["ticketpress:".Length..]));
@@ -467,6 +478,7 @@ public partial class Main : Node2D
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "remindersettings": OpenReminderSettings(); break;
+            case "calendars": OpenCalendarSettings(); break;
             case "remindertry": if (IsInstanceValid(_reminderSettings)) _reminderSettings!.DevTry(); break;
             case "easy": DevSolve(Difficulty.Easy); break;
             case "medium": DevSolve(Difficulty.Medium); break;
@@ -506,6 +518,19 @@ public partial class Main : Node2D
         foreach (var (name, error) in await Couriers.Send(Couriered, _settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), notice))
             if (error is not null)
                 GD.PrintErr($"Reminders: could not reach {name}: {error}");
+    }
+
+    private void OpenCalendarSettings()
+    {
+        if (IsInstanceValid(_calendarSettings))
+        {
+            _calendarSettings!.GrabFocus();
+            return;
+        }
+        _calendarSettings = new CalendarSettings();
+        AddChild(_calendarSettings);
+        _calendarSettings.Build(_calendars);
+        _calendarSettings.Open();
     }
 
     private void OpenReminderSettings()

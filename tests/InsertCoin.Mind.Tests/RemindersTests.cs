@@ -38,6 +38,19 @@ public class RemindersTests
     }
 
     [Fact]
+    public void Times_after_the_clocks_change_keep_their_time_of_day()
+    {
+        var eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        var october = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.FromHours(-4));         // summer time
+
+        Assert.Equal(TimeSpan.FromHours(-5), Agenda.ParseWhen("2026-11-05 15:00", october, eastern)!.Value.At.Offset);   // after 1 November: winter time
+        Assert.Equal(TimeSpan.FromHours(-4), Agenda.ParseWhen("2026-10-25 15:00", october, eastern)!.Value.At.Offset);
+        var vitamins = new DateTimeOffset(2026, 10, 31, 8, 0, 0, TimeSpan.FromHours(-4));
+        var next = Agenda.Next(vitamins, Repeat.Daily, eastern);
+        Assert.Equal((8, TimeSpan.FromHours(-5)), (next.Hour, next.Offset));                      // still at 8 on the clock
+    }
+
+    [Fact]
     public void A_reminder_goes_off_ahead_of_its_item_and_the_default_lead_only_while_the_item_is_ahead()
     {
         var interview = P("Job interview", Friday.AddHours(2), TimeSpan.FromHours(1));

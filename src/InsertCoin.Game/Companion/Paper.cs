@@ -44,6 +44,7 @@ public static class Paper
             theme.SetStylebox("read_only", field, Box(Wash, line, 1, 8, 10, 6));
             theme.SetColor("font_color", field, Letters);
             theme.SetColor("font_placeholder_color", field, Faint);
+            theme.SetColor("font_uneditable_color", field, Letters);      // read-only (a calendar's entry) yet easy to read
             theme.SetColor("caret_color", field, Ink);
             theme.SetColor("selection_color", field, Pink);
         }

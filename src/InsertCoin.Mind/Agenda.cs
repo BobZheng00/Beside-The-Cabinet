@@ -51,6 +51,9 @@ public static partial class Agenda
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
     public static readonly TimeSpan Ahead = TimeSpan.FromDays(7), Behind = TimeSpan.FromDays(2);
 
+    /// <summary>Items coming up listed in her turn at most (a busy calendar has many): the soonest, and how many more.</summary>
+    public const int MostAhead = 12;
+
     /// <summary>A whole-day item's reminder is counted from this time of its day.</summary>
     public static readonly TimeSpan MorningOf = TimeSpan.FromHours(9);
 
@@ -60,16 +63,18 @@ public static partial class Agenda
     private static readonly string[] Formats = ["yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm", "yyyy-MM-ddTHH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss"];
 
     /// <summary>
-    /// Reads "2026-10-09 15:00" or "2026-10-09" (a whole day) as a local time, in the offset of <paramref name="now"/>.
+    /// Reads "2026-10-09 15:00" or "2026-10-09" (a whole day) as a local time: in <paramref name="zone"/>, with the
+    /// offset it has on that date (after the clocks change, the new one), or else in the offset of <paramref name="now"/>.
     /// Null when it is neither.
     /// </summary>
-    public static (DateTimeOffset At, bool AllDay)? ParseWhen(string when, DateTimeOffset now)
+    public static (DateTimeOffset At, bool AllDay)? ParseWhen(string when, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         when = when.Trim();
+        TimeSpan Offset(DateTime wall) => zone?.GetUtcOffset(wall) ?? now.Offset;
         if (DateTime.TryParseExact(when, Formats, English, DateTimeStyles.None, out var timed))
-            return (new DateTimeOffset(timed, now.Offset), false);
+            return (new DateTimeOffset(timed, Offset(timed)), false);
         if (DateTime.TryParseExact(when, "yyyy-MM-dd", English, DateTimeStyles.None, out var day))
-            return (new DateTimeOffset(day, now.Offset), true);
+            return (new DateTimeOffset(day, Offset(day)), true);
         return null;
     }
 
@@ -111,10 +116,10 @@ public static partial class Agenda
     /// A direction's payload, "2026-10-09 15:00 | the dentist" with optional "| 30 min before, weekly": what to put on
     /// the agenda. A [remind: …] goes off at its time (a whole day's, that morning). Null when it cannot be read.
     /// </summary>
-    public static PlanSpec? ParseDirection(string payload, bool remind, DateTimeOffset now)
+    public static PlanSpec? ParseDirection(string payload, bool remind, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         var parts = payload.Split('|', 3);
-        if (parts.Length < 2 || ParseWhen(parts[0], now) is not { } when)
+        if (parts.Length < 2 || ParseWhen(parts[0], now, zone) is not { } when)
             return null;
         var text = parts[1].Trim();
         if (text.Length < 2)
@@ -142,24 +147,31 @@ public static partial class Agenda
         _ => "",
     };
 
-    /// <summary>The next time a repeating item comes round after <paramref name="at"/>.</summary>
-    public static DateTimeOffset Next(DateTimeOffset at, Repeat repeat) => repeat switch
+    /// <summary>
+    /// The next time a repeating item comes round after <paramref name="at"/>: the same time of day on the clock, so
+    /// "every day at 8" stays at 8 when the clocks change (with <paramref name="zone"/>).
+    /// </summary>
+    public static DateTimeOffset Next(DateTimeOffset at, Repeat repeat, TimeZoneInfo? zone = null)
     {
-        Repeat.Daily => at.AddDays(1),
-        Repeat.Weekdays => at.AddDays(at.DayOfWeek switch { DayOfWeek.Friday => 3, DayOfWeek.Saturday => 2, _ => 1 }),
-        Repeat.Weekly => at.AddDays(7),
-        Repeat.Monthly => at.AddMonths(1),
-        _ => at,
-    };
+        var wall = repeat switch
+        {
+            Repeat.Daily => at.DateTime.AddDays(1),
+            Repeat.Weekdays => at.DateTime.AddDays(at.DayOfWeek switch { DayOfWeek.Friday => 3, DayOfWeek.Saturday => 2, _ => 1 }),
+            Repeat.Weekly => at.DateTime.AddDays(7),
+            Repeat.Monthly => at.DateTime.AddMonths(1),
+            _ => at.DateTime,
+        };
+        return new DateTimeOffset(wall, zone?.GetUtcOffset(wall) ?? at.Offset);
+    }
 
     /// <summary>A repeating item's first time after <paramref name="now"/> whose reminder (or, without one, whose end) is still ahead.</summary>
-    public static DateTimeOffset NextAfter(Plan plan, DateTimeOffset now, TimeSpan? lead = null)
+    public static DateTimeOffset NextAfter(Plan plan, DateTimeOffset now, TimeSpan? lead = null, TimeZoneInfo? zone = null)
     {
         if (plan.Repeat == Repeat.Once)
             return plan.At;
         var next = plan;
         do
-            next = next with { At = Next(next.At, plan.Repeat) };
+            next = next with { At = Next(next.At, plan.Repeat, zone) };
         while ((next.RemindAt(lead) ?? next.End) <= now);
         return next.At;
     }
@@ -175,7 +187,7 @@ public static partial class Agenda
         if (ahead.Count > 0)
         {
             block.Append("Coming up:\n");
-            foreach (var plan in ahead)
+            foreach (var plan in ahead.Take(MostAhead))
             {
                 var notes = new List<string>();
                 if (plan.Repeat != Repeat.Once)
@@ -188,6 +200,8 @@ public static partial class Agenda
                     notes.Add($"a reminder {Describe(lead!.Value)}");
                 block.Append($"- {plan.Label} ({Until(plan, now)}): {plan.Text}{(notes.Count > 0 ? $" ({string.Join("; ", notes)})" : "")}\n");
             }
+            if (ahead.Count > MostAhead)
+                block.Append($"- and {ahead.Count - MostAhead} more in the week\n");
         }
         if (past.Count > 0)
         {

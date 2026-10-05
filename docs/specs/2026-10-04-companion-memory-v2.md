@@ -184,3 +184,30 @@ registers its tray icon on the main window with the indicator's number as its id
 that icon for a balloon; no app registration or installer needed. ntfy is sent as JSON (any language in the title
 and text); Discord never pings anyone; every body is sent with its length (small webhook receivers cannot read a
 chunked one). Checked against a local receiver; the Windows notification itself is not yet seen working.
+
+### 11. Check-ins, usage and calendars (decided 2026-10-05, built)
+
+- **Check-ins.** She asks how something went once it has been over 15 minutes, only for things the player told her
+  about (not reminders to do something, repeats or calendar entries: a busy calendar would have her asking all
+  day), once, and not if they have talked since it ended (her turn had it under "Just past"). Only when the player
+  is back and free: at the PC for two minutes and active now; not in a call (another program has the microphone
+  or camera, from Windows' own record of their use: a start with no stop counts only within 12 hours and while
+  that program runs, as programs that end mid-call never record the stop); not when Windows holds notifications
+  back (`SHQueryUserNotificationState`: locked, full screen, presenting, quiet time); not in quiet hours
+  (22:00–08:00); not while she is busy. Gentle (default): one every three hours at most; Chatty; Off. A meeting
+  that runs over keeps its call going, so she waits. During a call her reminders are bubble-only.
+- **Usage.** Every request is counted from the provider's own report into a row a day per model and purpose
+  (replies, upkeep): input in all, cache reads, cache writes (Claude reports them; the Anthropic library passes
+  them as `CacheCreationInputTokens`, its input total including both), output and thinking. The cost needs the
+  player's prices for the model (from their provider; a proxy charges its own): input not from the cache at the
+  input price, cache reads and writes at theirs. No built-in price table: it would go stale.
+- **Calendars.** A calendar is a source (`ICalendarSource`); its events go on the agenda through one sync
+  (`CalendarSync`: added, changed, taken off; marked with the calendar's name; the player's reminder on one kept).
+  The first source is a private iCalendar link (Google's secret address, Outlook's published ICS), read every
+  15 minutes for two weeks ahead, by our own reader (zones by IANA or Windows name, whole days, repeats daily,
+  weekly on days, monthly on a day or "second Tuesday", yearly, left-out dates, moved and cancelled occurrences).
+  Signing in with Google (Calendar API; a sensitive scope: 7-day sign-ins while in Testing, a 100-user cap until
+  verified) or Microsoft (Graph, `Calendars.Read`, no review for personal accounts) would be another source.
+- **Dates in the player's zone.** Times she writes down take the offset of their own date, and repeats keep their
+  time of day across a clock change (this PC is on US Eastern time; the tests found an hour's slip after 1 November).
+

@@ -27,7 +27,7 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
         if (now - _closed > TimeSpan.FromHours(1))
         {
             _closed = now;
-            store.ClosePast(now);
+            store.ClosePast(now, TimeZoneInfo.Local);
         }
         var due = Agenda.Due(store.Agenda(), now, Lead);
         if (due.Count == 0)
@@ -36,7 +36,7 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
             if (plan.Repeat == Repeat.Once)
                 store.Reminded(plan.Id, now);
             else
-                store.Advance(plan.Id, Agenda.NextAfter(plan, now, Lead));
+                store.Advance(plan.Id, Agenda.NextAfter(plan, now, Lead, TimeZoneInfo.Local));
         GD.Print($"Reminders: {due.Count} going off");
         GoOff(due, now, settings().ReminderSound, elsewhere: true);
     }

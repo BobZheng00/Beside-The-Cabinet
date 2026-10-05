@@ -49,7 +49,13 @@ it out. She knows the cabinet's numbers and remembers:
   sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the agenda, a chime
   (even when muted), a Windows notification, and your phone or elsewhere through [ntfy](https://ntfy.sh), a Discord
   webhook, a Telegram bot or any webhook (addresses and tokens stored encrypted, "Try it" to check). One that came
-  due while the cabinet was closed goes off when it next starts, saying so;
+  due while the cabinet was closed goes off when it next starts, saying so. Tray → "Calendars…" links your Google
+  or Outlook calendar by its private address (read every 15 minutes, read-only, the address stored encrypted): its
+  next two weeks join the agenda;
+- she asks how things went: after something you told her about is over, once you are back at the PC and free (not
+  in a call, which she tells from another app using the microphone or camera, not in a full-screen game or
+  presentation, not outside 08:00–22:00), once, and only if you have not talked since. Gentle (at most one every
+  three hours), Chatty or Off in tray → "Reminders…". Not for each calendar meeting, nor for plain reminders;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
@@ -103,6 +109,10 @@ apart by itself): about a tenth of a second for a sentence. The microphone is op
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
 it does in the app in front.
 
+Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
+tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
+upkeep; with the model's prices entered (from your provider's price page), the cost too.
+
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the summary she works from
 above it). Tray → "Memory book…" shows all of it, a tab each (notes, agenda, facts, moments, forget): edit, pin
 (always in mind, upkeep leaves it alone) or delete anything.
@@ -128,7 +138,9 @@ menu at that screen point), `chat:some_text` (say something to her), `chatbox` (
 agenda items, retired facts and a moment to try it on), `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed), `remindersettings`,
 `remindertry` (its "Try it"), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
-server), `forget:chat|all|me` (its three forget
+server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
+`pastplan:minutes:some_text` (something on the agenda that ended that long ago), `usage` (the Usage tab),
+`calendar:URL` (links a calendar named Test), `calendars`, `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
