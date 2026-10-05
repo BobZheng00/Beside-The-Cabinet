@@ -112,7 +112,7 @@ The Windows notification was confirmed working on 2026-10-05. Everything waiting
 
 The research note is written: `docs/research/2026-10-05-companion-agent.md`. The user chose to start with:
 1. **A spike.** Windows' echo cancellation, plus Silero and Smart Turn v3, on their own voice and speakers.
-   - The test program is built in `<tools>gent-trial` (README there): `check`, `selftest`, `session`, `analyze <dir>`.
+   - The test program is built in `<tools>\agent-trial` (README there): `check`, `selftest`, `session`, `analyze <dir>`.
    - It waits for the user's 15-minute recording session.
    - Then run `analyze` on their `recordings\<date-time>` folder and put the results in the agent note.
 2. **Conversation mode.** Being interrupted, with her line in the history cut to what was heard and marked as cut off.

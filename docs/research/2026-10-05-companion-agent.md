@@ -124,7 +124,7 @@ Voice agents aim for 0.3–0.8 s ([LiveKit](https://livekit.com/blog/async-tools
 
 ## The spike, before any recording (2026-10-05)
 
-The test program is in `<tools>gent-trial` (README there). What it found on this PC without recording anything:
+The test program is in `<tools>\agent-trial` (README there). What it found on this PC without recording anything:
 
 - **Echo cancellation is available.** A microphone stream opened for communications gets Windows' acoustic echo cancellation, noise suppression, automatic gain and deep noise suppression. A plain stream, the way the cabinet records now, gets noise suppression only (*measured*: asked of Windows, stream never started).
 - **Ducking.** Windows is set to its default, "reduce other sounds by 80%" during communications. The session measures whether opting out of ducking keeps the player's game or music at full volume.
