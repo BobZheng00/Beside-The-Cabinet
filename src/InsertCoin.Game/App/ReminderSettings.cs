@@ -29,7 +29,9 @@ public partial class ReminderSettings : Window
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private CheckBox _spoken = null!, _sound = null!, _evenMuted = null!, _windows = null!, _ntfy = null!, _discord = null!, _telegram = null!, _webhook = null!;
-    private OptionButton _stays = null!, _snooze = null!, _lead = null!;
+    private OptionButton _stays = null!, _snooze = null!, _lead = null!, _checkIns = null!, _quietFrom = null!, _quietUntil = null!;
+    private static readonly (string Label, string Mode)[] CheckInModes =
+        [("Off", "Off"), ("Gentle: one every three hours at most", "Gentle"), ("Chatty: whenever there is something", "Chatty")];
     private LineEdit _ntfyServer = null!, _ntfyTopic = null!, _ntfyToken = null!, _discordUrl = null!, _telegramToken = null!, _telegramChat = null!, _webhookUrl = null!;
     private Label _result = null!;
 
@@ -74,6 +76,30 @@ public partial class ReminderSettings : Window
         column.AddChild(new Label { Text = "Before things on your agenda", ThemeTypeVariation = "Subheading" });
         _lead = Choice(Grid(column), "Remind me", Leads.Select(l => l.Label), Math.Max(0, Array.FindIndex(Leads, l => l.Minutes == choices.LeadMinutes)));
         column.AddChild(Hint("For every timed item on your agenda without a reminder of its own: an interview, a call, a class."));
+
+        column.AddChild(new Label { Text = "How did it go?", ThemeTypeVariation = "Subheading" });
+        column.AddChild(Hint("After something you told her about (not a reminder, not your calendar's entries), she asks how it went, once you are " +
+                             "back at the PC and free: not in a call, not in a full-screen game or presentation, not when Windows is holding " +
+                             "notifications back. A meeting that runs over keeps the call going, so she waits."));
+        var asking = Grid(column);
+        _checkIns = Choice(asking, "She asks", CheckInModes.Select(m => m.Label), Array.FindIndex(CheckInModes, m => m.Mode == choices.CheckIns));
+        var hours = Enumerable.Range(0, 24).Select(h => $"{h:00}:00").ToList();
+        asking.AddChild(new Label { Text = "Not from" });
+        var quiet = new HBoxContainer();
+        quiet.AddThemeConstantOverride("separation", 8);
+        _quietFrom = new OptionButton();
+        _quietUntil = new OptionButton();
+        foreach (var hour in hours)
+        {
+            _quietFrom.AddItem(hour);
+            _quietUntil.AddItem(hour);
+        }
+        _quietFrom.Selected = choices.QuietFrom;
+        _quietUntil.Selected = choices.QuietUntil;
+        quiet.AddChild(_quietFrom);
+        quiet.AddChild(new Label { Text = "until" });
+        quiet.AddChild(_quietUntil);
+        asking.AddChild(quiet);
 
         column.AddChild(new Label { Text = "Send to your phone or another app", ThemeTypeVariation = "Subheading" });
         column.AddChild(Hint("Addresses and tokens stay on this PC, encrypted for your Windows account."));
@@ -127,7 +153,7 @@ public partial class ReminderSettings : Window
 
     private ReminderChoices Choices() => new(
         _spoken.ButtonPressed, _sound.ButtonPressed, _evenMuted.ButtonPressed, _windows.ButtonPressed, Stays[_stays.Selected].Seconds,
-        Snoozes[_snooze.Selected], Leads[_lead.Selected].Minutes, Where());
+        Snoozes[_snooze.Selected], Leads[_lead.Selected].Minutes, Where(), CheckInModes[_checkIns.Selected].Mode, _quietFrom.Selected, _quietUntil.Selected);
 
     private Elsewhere Where() => new()
     {

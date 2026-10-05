@@ -19,6 +19,11 @@ public sealed record AppSettings
     public int ReminderTicketSeconds { get; init; } = 60;        // how long the reminder ticket stays; 0: until closed
     public int ReminderSnoozeMinutes { get; init; } = 10;
     public int? ReminderLeadMinutes { get; init; }      // a reminder this long before every timed item on the agenda; unset: only those asked for
+    public Dictionary<string, InsertCoin.Mind.Prices> ChatPrices { get; init; } = [];   // per model, per million tokens, as the player's provider charges
+    public string Currency { get; init; } = "$";
+    public string CheckIns { get; init; } = "Gentle";   // she asks how things went: Off, Gentle (one every three hours at most) or Chatty
+    public int QuietFrom { get; init; } = 22;           // no check-ins from this hour…
+    public int QuietUntil { get; init; } = 8;           // …until this one
     public bool ReminderWindows { get; init; }          // reminders also raise a Windows notification
     public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // and go to the phone or another app (secrets apart, encrypted)
     public string Companion { get; init; } = "shino";   // character folder under res://characters
@@ -40,16 +45,17 @@ public sealed record AppSettings
 
 /// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>
 public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes,
-                                     InsertCoin.Mind.Elsewhere Elsewhere)
+                                     InsertCoin.Mind.Elsewhere Elsewhere, string CheckIns, int QuietFrom, int QuietUntil)
 {
     public static ReminderChoices Of(AppSettings s) =>
         new(s.ReminderSpoken, s.ReminderSound, s.ReminderChimeWhenMuted, s.ReminderWindows, s.ReminderTicketSeconds, s.ReminderSnoozeMinutes,
-            s.ReminderLeadMinutes, s.ReminderElsewhere);
+            s.ReminderLeadMinutes, s.ReminderElsewhere, s.CheckIns, s.QuietFrom, s.QuietUntil);
 
     public AppSettings Into(AppSettings s) => s with
     {
         ReminderSpoken = Spoken, ReminderSound = Sound, ReminderChimeWhenMuted = ChimeWhenMuted, ReminderWindows = Windows,
         ReminderTicketSeconds = TicketSeconds, ReminderSnoozeMinutes = SnoozeMinutes, ReminderLeadMinutes = LeadMinutes, ReminderElsewhere = Elsewhere,
+        CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil,
     };
 }
 

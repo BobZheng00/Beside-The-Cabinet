@@ -434,6 +434,13 @@ public partial class Main : Node2D
             _reminders.Try(action["remind:".Length..].Replace('_', ' '), DateTimeOffset.Now);              // underscores for spaces
             return;
         }
+        if (action.StartsWith("pastplan:") && action.Split(':', 3) is [_, var ago, var thing])
+        {
+            // pastplan:minutes:text puts something on the agenda that ended that many minutes ago (told about yesterday)
+            var ended = DateTimeOffset.Now.AddMinutes(-double.Parse(ago, System.Globalization.CultureInfo.InvariantCulture));
+            _stool.Store.AddPlan(thing.Replace('_', ' '), ended, allDay: false, before: null, ended.AddDays(-1), null);
+            return;
+        }
         if (action.StartsWith("ticketpress:"))              // ticketpress:0 presses the showing ticket's first button (Snooze), 1 the next (OK)
         {
             _ticket.DevPress(int.Parse(action["ticketpress:".Length..]));

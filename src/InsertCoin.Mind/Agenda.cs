@@ -14,8 +14,10 @@ public enum Repeat { Once, Daily, Weekdays, Weekly, Monthly }
 /// </summary>
 /// <param name="Reminded">When the reminder went off (or was missed and mentioned later); null until then.</param>
 /// <param name="By">The character who wrote it down, or null when the player did.</param>
+/// <param name="Source">The calendar it was read from (see <see cref="CalendarSync"/>), or null when it was put on the agenda here.</param>
+/// <param name="Asked">When she asked how it went (see <see cref="Agenda.ToAskAbout"/>), or null.</param>
 public sealed record Plan(long Id, string Text, DateTimeOffset At, bool AllDay, TimeSpan? Before, DateTimeOffset? Reminded, DateTimeOffset Added,
-                          string? By, Repeat Repeat = Repeat.Once)
+                          string? By, Repeat Repeat = Repeat.Once, string? Source = null, DateTimeOffset? Asked = null)
 {
     /// <summary>It has a reminder of its own.</summary>
     public bool Remind => Before is not null;
@@ -214,6 +216,23 @@ public static partial class Agenda
             ? $"A reminder the player set is going off: {One(due[0])}. Tell them in one or two short sentences, in your own words."
             : $"Reminders the player set are going off: {string.Join("; ", due.Select(One))}. Tell them in one to three short sentences, in your own words.";
     }
+
+    /// <summary>
+    /// What she may ask about now (how did it go?), first over first: one-off things the player told her about (not a
+    /// reminder to do something, nor a calendar's entry: a busy calendar would have her asking all day), over for at
+    /// least <paramref name="after"/> and for at most <see cref="Behind"/>, not asked about yet, and not talked about
+    /// since: when the player and she have talked since it ended, she had the agenda before her and her chance.
+    /// </summary>
+    public static IReadOnlyList<Plan> ToAskAbout(IReadOnlyList<Plan> plans, DateTimeOffset now, DateTimeOffset? lastTalked, TimeSpan after) =>
+        plans.Where(p => p.Repeat == Repeat.Once && p.Source is null && p.Before != TimeSpan.Zero && p.Asked is null
+                         && p.End + after <= now && p.End > now - Behind && (lastTalked is not { } talked || talked < p.End))
+             .OrderBy(p => p.End)
+             .ToList();
+
+    /// <summary>What the cabinet tells her when the player is back and free after <paramref name="plan"/>, for her to ask about it.</summary>
+    public static string CheckIn(Plan plan, DateTimeOffset now) =>
+        $"The player is back at the cabinet and free. They had \"{plan.Text}\" ({plan.Label}, {When.Ago(plan.AllDay ? plan.At.AddHours(12) : plan.At, now)}) " +
+        "and you have not heard how it went. Ask them about it in one short, warm sentence, without pushing.";
 
     /// <summary>"today", "tomorrow", "in 3 hours", "in 5 days"…</summary>
     public static string Until(Plan plan, DateTimeOffset now)

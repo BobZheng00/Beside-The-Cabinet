@@ -148,6 +148,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return store.AddPlan(spec.Text, spec.At, spec.AllDay, spec.Before, now, character, spec.Repeat);
     }
 
+    /// <summary>When the player or she last said something (the cabinet's lines aside), or null.</summary>
+    public DateTimeOffset? LastTalked =>
+        store.Through(character, long.MaxValue, 40).Where(l => l.Speaker != Speaker.Cabinet).Select(l => (DateTimeOffset?)l.At).Max();
+
+    /// <summary>Something on the agenda she may ask about now, over for at least <paramref name="after"/> (see <see cref="Agenda.ToAskAbout"/>), or null.</summary>
+    public Plan? ToAskAbout(TimeSpan after) => Agenda.ToAskAbout(store.Agenda(), _clock.GetLocalNow(), LastTalked, after).FirstOrDefault();
+
     /// <summary>Something the cabinet did, for her to know about later.</summary>
     public void Witness(string what) => store.Add(character, Speaker.Cabinet, what, _clock.GetLocalNow());
 

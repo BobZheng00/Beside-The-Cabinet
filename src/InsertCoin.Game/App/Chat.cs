@@ -55,8 +55,10 @@ public sealed class Chat : IDisposable
     {
         _client?.Dispose();
         _provider = provider;
-        _client = provider?.Connect(Keys.Load()) is { } client ? new Timed(client, Used) : null;
-        _talk = _client is null ? null : provider!.ForConversation(_client);
+        // every request counted (see Metered, and the chat settings' Usage tab): her replies apart from her upkeep
+        var timed = provider?.Connect(Keys.Load()) is { } client ? new Timed(client, Used) : null;
+        _client = timed is null ? null : new Metered(timed, Store, provider!.Model, "upkeep");
+        _talk = timed is null ? null : new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies");
         _usage.Clear();
         UseWindow(_window);
         UseSearch(_search);
@@ -225,7 +227,10 @@ public sealed class Chat : IDisposable
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
             if (Here() && fallback is not null)
-                view.Continue(fallback);                    // a reminder still gets said, in the plain words
+            {
+                if (fallback.Length > 0)
+                    view.Continue(fallback);                // a reminder still gets said, in the plain words; a check-in just lapses
+            }
             else if (Here())
             {
                 view.Play(Moment.Worry);

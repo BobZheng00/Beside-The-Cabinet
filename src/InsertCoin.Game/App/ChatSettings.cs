@@ -27,6 +27,8 @@ public partial class ChatSettings : Window
     ];
 
     private Chat _chat = null!;
+    private UsagePage _usage = null!;
+    private TabContainer _tabs = null!;
     private OptionButton _preset = null!, _search = null!, _talkKey = null!, _window = null!;
     private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
@@ -35,7 +37,9 @@ public partial class ChatSettings : Window
 
     /// <param name="hears">This build has her ears (the speech model), so she can be talked to aloud.</param>
     /// <param name="window">Tokens of the conversation she keeps word for word, or null for what suits the provider.</param>
-    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears, int? window)
+    /// <param name="prices">What the player's provider charges, per model, as they entered it (see the Usage tab).</param>
+    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears, int? window,
+                      IReadOnlyDictionary<string, Prices> prices, string currency)
     {
         _chat = chat;
         Title = $"Talk with {characterName}";
@@ -46,9 +50,18 @@ public partial class ChatSettings : Window
         var page = new PanelContainer();
         page.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(page);
-        var column = new VBoxContainer();
+        var outer = new VBoxContainer();
+        outer.AddThemeConstantOverride("separation", 10);
+        page.AddChild(outer);
+        var tabs = _tabs = new TabContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        outer.AddChild(tabs);
+        var column = new VBoxContainer { Name = "Connection" };
         column.AddThemeConstantOverride("separation", 10);
-        page.AddChild(column);
+        tabs.AddChild(column);
+        var usage = new VBoxContainer { Name = "Usage" };
+        usage.AddThemeConstantOverride("separation", 8);
+        tabs.AddChild(usage);
+        _usage = new UsagePage(usage, chat.Store, current?.Model, prices, currency);
 
         column.AddChild(new Label { Text = $"Talk with {characterName}", ThemeTypeVariation = "Heading" });
         column.AddChild(Hint($"{characterName} answers through your own AI provider: pick it, paste your key, name a model. " +
@@ -128,7 +141,7 @@ public partial class ChatSettings : Window
         buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         buttons.AddChild(cancel);
         buttons.AddChild(save);
-        column.AddChild(buttons);
+        outer.AddChild(buttons);
 
         _preset.ItemSelected += index => UsePreset(Provider.Presets[index], keepFields: false);
         testButton.Pressed += () => _ = Test();
@@ -146,7 +159,13 @@ public partial class ChatSettings : Window
         }
     }
 
-    public void Open() => Paper.Open(this, new Vector2(540, 700));
+    public void Open() => Paper.Open(this, new Vector2(560, 720));
+
+    /// <summary>Dev: shows the Usage tab.</summary>
+    public void DevUsage() => _tabs.CurrentTab = 1;
+
+    /// <summary>The prices entered on the Usage tab, after Save: for this model (null: none), and the currency they are in.</summary>
+    public event Action<string, Prices?, string>? PricesSaved;
 
     private void UsePreset(Preset preset, bool keepFields)
     {
@@ -191,6 +210,8 @@ public partial class ChatSettings : Window
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
         Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, Windows[_window.Selected].Tokens);
+        if (_model.Text.Trim() is { Length: > 0 } model)
+            PricesSaved?.Invoke(model, _usage.Prices, _usage.Currency);
         QueueFree();
     }
 

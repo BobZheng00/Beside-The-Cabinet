@@ -127,6 +127,9 @@ public partial class Stool : Node2D
         var upkeep = new Godot.Timer { WaitTime = 60, Autostart = true };
         upkeep.Timeout += () => _ = _chat.Upkeep(_gameRunning);
         AddChild(upkeep);
+        var checkIns = new Godot.Timer { WaitTime = 15, Autostart = true };
+        checkIns.Timeout += () => MaybeCheckIn();
+        AddChild(checkIns);
         ShowHer(settings.Now.ShowCompanion);
     }
 
@@ -169,6 +172,68 @@ public partial class Stool : Node2D
     /// </summary>
     public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now) => _reminding.Enqueue((due, now));
 
+    // ---- Check-ins: how did it go? ---------------------------------------------------------------------------------
+
+    private static readonly TimeSpan CheckInAfter = TimeSpan.FromMinutes(15), BackFor = TimeSpan.FromMinutes(2), Away = TimeSpan.FromMinutes(5),
+        GentleGap = TimeSpan.FromHours(3);
+    private DateTimeOffset? _activeSince;                   // the player has been at the PC since then, with no break of five minutes
+    private DateTimeOffset _lastCheckIn = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// Every fifteen seconds: when something the player told her about has been over for a while (see
+    /// <see cref="Agenda.ToAskAbout"/>), she asks how it went, but only once they are back and free: at the PC for two
+    /// minutes and using it now, not in a call (another app has the microphone or camera), not in anything Windows
+    /// holds notifications back for (full screen, presenting, quiet time, locked), not in the quiet hours, and not while
+    /// she is busy. Gentle: one every three hours at most. A meeting that runs over keeps its call going, so she waits.
+    /// </summary>
+    private void MaybeCheckIn(bool force = false)
+    {
+        var now = DateTimeOffset.Now;
+        var idle = UserActivity.IdleFor();
+        if (idle >= Away)
+            _activeSince = null;
+        else
+            _activeSince ??= now - idle;
+        var mode = _settings.Now.CheckIns;
+        if (!force && (mode == "Off" || Quiet(now.Hour) || idle > TimeSpan.FromMinutes(1) || _activeSince is not { } since || now - since < BackFor
+                       || mode == "Gentle" && now - _lastCheckIn < GentleGap))
+            return;
+        if (!_chat.Ready || Her is null || !_settings.Now.SpeechBubbles || Busy || _reminding.Count > 0 || _chat.Conversation is not { } conversation)
+            return;
+        if (!force && (Presence.DoNotDisturb || Presence.InCall))
+            return;
+        if (conversation.ToAskAbout(CheckInAfter) is not { } plan)
+            return;
+        _chat.Store.Asked(plan.Id, now);                    // once, whatever comes of it
+        _lastCheckIn = now;
+        GD.Print("Check-in: she asks how something went");
+        _ = AskHowItWent(plan);
+    }
+
+    private bool Quiet(int hour) =>
+        _settings.Now.QuietFrom > _settings.Now.QuietUntil
+            ? hour >= _settings.Now.QuietFrom || hour < _settings.Now.QuietUntil
+            : hour >= _settings.Now.QuietFrom && hour < _settings.Now.QuietUntil;
+
+    private async Task AskHowItWent(Plan plan)
+    {
+        _announcing = true;
+        try
+        {
+            _lively(60);
+            Her!.Play(Moment.Greet);
+            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now), "", _situation(), Her, _voice.Begin(), _voice.Language);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Check-in: {e}");
+        }
+        finally
+        {
+            _announcing = false;
+        }
+    }
+
     /// <summary>She is answering, speaking, listening, or hearing what was just said.</summary>
     private bool Busy => _chat.Answering || _voice.Speaking || _talking != Talk.None || _understanding || _announcing;
 
@@ -201,7 +266,9 @@ public partial class Stool : Node2D
             _lively(60);
             Her.Play(Moment.Greet);
             if (_chat.Ready && _settings.Now.ReminderSpoken)
-                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), _situation(), Her, _voice.Begin(), _voice.Language);
+                // in a call, only her bubble: her voice would be heard by everyone in it
+                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), _situation(), Her,
+                                     Presence.InCall ? null : _voice.Begin(), _voice.Language);
             else
                 Say(Lines.Reminder(due, now));
         }
@@ -706,7 +773,17 @@ public partial class Stool : Node2D
             return;
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, HasEars, _settings.Now.ChatWindow);
+        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, HasEars, _settings.Now.ChatWindow,
+                            _settings.Now.ChatPrices, _settings.Now.Currency);
+        _chatSettings.PricesSaved += (model, prices, currency) =>
+        {
+            var all = new Dictionary<string, Prices>(_settings.Now.ChatPrices);
+            if (prices is null)
+                all.Remove(model);
+            else
+                all[model] = prices;
+            _settings.Save(_settings.Now with { ChatPrices = all, Currency = currency });
+        };
         _chatSettings.Saved += (provider, search, talkKey, window) =>
         {
             _settings.Save(_settings.Now with
@@ -859,6 +936,7 @@ public partial class Stool : Node2D
             case "listen": Listen(Talk.Hold); break;        // listens as if held on her (opens the real microphone)…
             case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
+            case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)
@@ -866,7 +944,12 @@ public partial class Stool : Node2D
                 break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
-            case "memoryseed": SeedMemory(); break;          // a few notes, facts, a moment and a line, to try the memory book on
+            case "memoryseed": SeedMemory(); break;
+            case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
+            case "presence":                                // logs what she would make of this moment
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                GD.Print($"Presence: do not disturb {Presence.DoNotDisturb}, in a call {Presence.InCall}, idle {UserActivity.IdleFor().TotalSeconds:0} s ({clock.ElapsedMilliseconds} ms)");
+                break;          // a few notes, facts, a moment and a line, to try the memory book on
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice

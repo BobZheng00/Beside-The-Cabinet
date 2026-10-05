@@ -110,7 +110,17 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('agenda') WHERE name = 'before_minutes'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE agenda ADD COLUMN before_minutes INTEGER; ALTER TABLE agenda ADD COLUMN repeat TEXT; UPDATE agenda SET before_minutes = 0 WHERE remind = 1");
-        Run("PRAGMA user_version = 6");
+        // version 7: what requests used, a row a day per model and purpose (see Metered); agenda items from a calendar,
+        // and when she asked how one went
+        Run("""
+            CREATE TABLE IF NOT EXISTS usage (
+                day TEXT NOT NULL, model TEXT NOT NULL, purpose TEXT NOT NULL, requests INTEGER NOT NULL, input INTEGER NOT NULL, cached INTEGER NOT NULL,
+                written INTEGER NOT NULL, output INTEGER NOT NULL, reasoning INTEGER NOT NULL, PRIMARY KEY (day, model, purpose))
+            """);
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('agenda') WHERE name = 'source'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE agenda ADD COLUMN source TEXT; ALTER TABLE agenda ADD COLUMN uid TEXT; ALTER TABLE agenda ADD COLUMN asked TEXT");
+        Run("PRAGMA user_version = 7");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -294,14 +304,15 @@ public sealed class MindStore : IDisposable
     /// <summary>What is on the agenda, by time: items not yet closed (see <see cref="ClosePast"/>).</summary>
     public IReadOnlyList<Plan> Agenda()
     {
-        using var command = Command("SELECT id, text, at, all_day, before_minutes, reminded, added, by, repeat FROM agenda WHERE closed IS NULL ORDER BY at, id");
+        using var command = Command("SELECT id, text, at, all_day, before_minutes, reminded, added, by, repeat, source, asked FROM agenda WHERE closed IS NULL ORDER BY at, id");
         using var reader = command.ExecuteReader();
         var plans = new List<Plan>();
         while (reader.Read())
             plans.Add(new Plan(reader.GetInt64(0), reader.GetString(1), Parse(reader.GetString(2)), reader.GetInt32(3) != 0,
                                reader.IsDBNull(4) ? null : TimeSpan.FromMinutes(reader.GetInt64(4)),
                                reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), Parse(reader.GetString(6)), reader.IsDBNull(7) ? null : reader.GetString(7),
-                               reader.IsDBNull(8) || !Enum.TryParse<Repeat>(reader.GetString(8), out var repeat) ? Repeat.Once : repeat));
+                               reader.IsDBNull(8) || !Enum.TryParse<Repeat>(reader.GetString(8), out var repeat) ? Repeat.Once : repeat,
+                               reader.IsDBNull(9) ? null : reader.GetString(9), reader.IsDBNull(10) ? null : Parse(reader.GetString(10))));
         return plans;
     }
 
@@ -314,6 +325,13 @@ public sealed class MindStore : IDisposable
             WHERE id = $id
             """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", before is null ? 0 : 1), ("$m", Minutes(before)),
             ("$p", Repeated(repeat)), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>She asked how it went.</summary>
+    public void Asked(long id, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE agenda SET asked = $a WHERE id = $id", ("$a", Stamp(at)), ("$id", id));
         command.ExecuteNonQuery();
     }
 
@@ -360,6 +378,32 @@ public sealed class MindStore : IDisposable
         using (var old = Command("DELETE FROM agenda WHERE closed IS NOT NULL AND closed < $y", ("$y", Stamp(now.AddYears(-1)))))
             old.ExecuteNonQuery();
         return closed;
+    }
+
+    // ---- Usage (see Metered) -----------------------------------------------------------------------------------------
+
+    public void AddUsage(DateOnly day, string model, string purpose, long input, long cached, long written, long output, long reasoning)
+    {
+        using var command = Command("""
+            INSERT INTO usage (day, model, purpose, requests, input, cached, written, output, reasoning) VALUES ($d, $m, $p, 1, $i, $c, $w, $o, $r)
+            ON CONFLICT (day, model, purpose) DO UPDATE SET requests = requests + 1, input = input + $i, cached = cached + $c, written = written + $w,
+                output = output + $o, reasoning = reasoning + $r
+            """, ("$d", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)), ("$m", model), ("$p", purpose), ("$i", input), ("$c", cached),
+            ("$w", written), ("$o", output), ("$r", reasoning));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>What requests used from <paramref name="from"/> on, by day.</summary>
+    public IReadOnlyList<UsageRow> Usage(DateOnly from)
+    {
+        using var command = Command("SELECT day, model, purpose, requests, input, cached, written, output, reasoning FROM usage WHERE day >= $d ORDER BY day, model, purpose",
+            ("$d", from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+        using var reader = command.ExecuteReader();
+        var rows = new List<UsageRow>();
+        while (reader.Read())
+            rows.Add(new UsageRow(DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture), reader.GetString(1), reader.GetString(2),
+                                  reader.GetInt64(3), reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7), reader.GetInt64(8)));
+        return rows;
     }
 
     // ---- Passages (the whole conversation, searchable; see History) -------------------------------------------------
