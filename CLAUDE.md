@@ -23,6 +23,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `2026-10-02-companion-helper.md`: the companion's decisions and open questions;
   - `2026-10-04-companion-memory-v2.md`: memory, agenda, reminders, check-ins, usage and calendars, with sections marked *Built*.
   - `2026-10-05-hands-free-listening.md`: follow-up listening, conversations, the MIC light.
+  - `2026-10-05-tools-and-abilities.md` (draft): built-in tools versus connectors, the first abilities, the order.
 - `docs/research`: research notes.
 
 ## Build and test
@@ -135,7 +136,10 @@ The research note is written: `docs/research/2026-10-05-companion-agent.md`. The
      - MIC shows on the CRT.
      - A wake word was declined for now.
      - Tested only through a pretend microphone (`fakemic`, `mictalk:`): never open the real one in tests.
-   - Next: wait for the user's real-voice checks and the spike, then decide what comes next (tools, or tuning turn-taking).
+   - Next: tools. The brainstorm happened on 2026-10-05: see the draft spec `2026-10-05-tools-and-abilities.md`.
+     - Decided: built-in tools versus connectors (local MCP allowed, no remote MCP); a bridging line the model writes itself.
+     - First abilities: LeetCode hints, focus sessions with stand-up and water nudges, web search, opening links and apps.
+     - Its *proposed* parts wait for the user's word.
 
 Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
 
