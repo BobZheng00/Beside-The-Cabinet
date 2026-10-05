@@ -103,6 +103,8 @@ What this means:
 
 The app now logs each spoken reply's "first sound was heard N ms after asking".
 
+**To check:** in one run, the first 2.4 s of her audio was nearly silent (her mouth never opened before a cut). GPT-SoVITS may sometimes start a line with a long silence. That would add to the delay the player feels, and "first sound" counts it as sound.
+
 Voice agents aim for 0.3–0.8 s ([LiveKit](https://livekit.com/blog/async-tools-voice-agents), [SignalWire](https://signalwire.com/blog/truth-about-voice-ai-latency), *read*). Ways to bridge the gap:
 - **Her body reacts at once:** a nod, a "thinking" look.
 - **A short sound in her own voice** ("mm?", "えっと", "嗯"), made once when her voice loads and played straight away.

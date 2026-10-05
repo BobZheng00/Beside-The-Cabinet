@@ -115,7 +115,11 @@ The research note is written: `docs/research/2026-10-05-companion-agent.md`. The
    - The test program is built in `<tools>\agent-trial` (README there): `check`, `selftest`, `session`, `analyze <dir>`.
    - It waits for the user's 15-minute recording session.
    - Then run `analyze` on their `recordings\<date-time>` folder and put the results in the agent note.
-2. **Conversation mode.** Being interrupted, with her line in the history cut to what was heard and marked as cut off.
+2. **Conversation mode.**
+   - *Built 2026-10-05:* being cut off. Her line keeps what was heard, and a cabinet line says what she hadn't said (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`).
+   - *Measured 2026-10-05:* her delay. About 1.5–2 s to her first sound, with a fast provider (agent note §5).
+   - Next: her body in conversation (thinking, interrupted, listening).
+   - Then discuss with the user how hands-free follow-up listening should behave. They weren't sure the proposed behaviour is what players expect.
 
 Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
 
