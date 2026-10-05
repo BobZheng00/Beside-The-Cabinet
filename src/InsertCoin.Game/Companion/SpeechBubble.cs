@@ -19,7 +19,7 @@ public partial class SpeechBubble : Node2D
     private const double LeastOnPage = 1.2, AfterSpeech = 1.2;
     private const string Dots = "...";
 
-    private Label _label = null!;
+    private Label _label = null!, _ruler = null!;          // the text shown; an unseen twin that measures, so measuring never changes what is shown
     private Vector2[] _shape = [];
     private Rect2 _box;
     private Tween? _tween;
@@ -41,6 +41,8 @@ public partial class SpeechBubble : Node2D
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         AddChild(_label);
+        _ruler = new Label { LabelSettings = _label.LabelSettings, AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false };
+        AddChild(_ruler);
         Visible = false;
     }
 
@@ -248,15 +250,17 @@ public partial class SpeechBubble : Node2D
     }
 
     /// <summary>
-    /// The text's size when wrapped at <paramref name="width"/>, as the label itself lays it out: its line count and
-    /// line height, plus the spacing it puts between lines (which measuring with the font alone leaves out).
+    /// The text's size when wrapped at <paramref name="width"/>, as a label lays it out: its line count and line
+    /// height, plus the spacing it puts between lines (which measuring with the font alone leaves out). Measured on the
+    /// unseen twin: measuring on the shown label left it holding the measured text, so a streaming reply looked
+    /// unchanged and its bubble stayed the size of the thinking dots while the words spilled out of it.
     /// </summary>
     private Vector2 Measure(string text, float width)
     {
-        _label.Text = text;
-        _label.Size = new Vector2(width, 0);
-        var lines = _label.GetLineCount();
-        var height = lines * _label.GetLineHeight() + (lines - 1) * _label.LabelSettings.LineSpacing;
+        _ruler.Text = text;
+        _ruler.Size = new Vector2(width, 0);
+        var lines = _ruler.GetLineCount();
+        var height = lines * _ruler.GetLineHeight() + (lines - 1) * _ruler.LabelSettings.LineSpacing;
         // widest line, for a snug bubble around short text (WordSmart: break between words, inside one only if it cannot fit)
         var widest = Face.GetMultilineStringSize(text, HorizontalAlignment.Left, width, FontSize,
             brkFlags: TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive).X;
