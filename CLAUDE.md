@@ -110,6 +110,6 @@ The Windows notification was confirmed working on 2026-10-05.
 - real tools, asking before acting outside the app;
 - her body during conversation.
 
-Claude writes a short research note (how current voice agents handle turn-taking and tools). The user and Claude then decide the scope together, as for memory v2. A brainstorm on which abilities she should have comes before calling the phase good.
+The research note is written: `docs/research/2026-10-05-companion-agent.md`. It is waiting on the user's answers to its "To decide together" questions; then the user and Claude decide the scope together, as for memory v2. A brainstorm on which abilities she should have comes before calling the phase good.
 
 **After that:** character import (community cards, plus your own 3D model and voice), and mini-games on the CRT. Steam comes last: the app should be mature before it goes public.
