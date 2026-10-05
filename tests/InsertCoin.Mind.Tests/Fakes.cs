@@ -32,6 +32,7 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
         foreach (var piece in pieces)
         {
             await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();      // as a real client stops when the reply is called off
             yield return new ChatResponseUpdate(ChatRole.Assistant, piece);
         }
     }

@@ -68,6 +68,9 @@ public partial class Voice : Node
     private int _givenChars, _heardChars;
     private long _queued;
     private readonly Queue<(long End, int Chars)> _sentenceEnds = new();
+    private int _heardLines;                            // lines of the reply heard in full
+    private long _lastEnd;                              // where in the stream the last of those ended
+    private Speech? _for;                               // the reply being spoken (see Begin)
     private Stopwatch? _asked;                          // since the reply now being spoken was asked for, until its first sound is heard
 
     /// <summary>The phase changed (for the settings window's status line).</summary>
@@ -177,6 +180,22 @@ public partial class Voice : Node
     /// </summary>
     public double? Progress => Speaking ? (_givenChars == 0 ? 0 : Math.Clamp((double)_heardChars / _givenChars, 0, 1)) : null;
 
+    /// <summary>She is saying (or about to say) the reply <paramref name="speech"/> belongs to.</summary>
+    public bool Saying(Speech speech) => Speaking && ReferenceEquals(_for, speech);
+
+    /// <summary>How much of what she is saying has been heard: whole lines, and how far into the one playing (0 to 1).</summary>
+    public (int Lines, double Into) Heard
+    {
+        get
+        {
+            if (_playback is null)
+                return (_heardLines, 0);
+            var playing = _pushed - (_capacity - _playback.GetFramesAvailable());
+            var end = _sentenceEnds.Count > 0 ? _sentenceEnds.Peek().End : _queued;     // the line playing may still be arriving
+            return (_heardLines, end > _lastEnd ? Math.Clamp((double)(playing - _lastEnd) / (end - _lastEnd), 0, 1) : 0);
+        }
+    }
+
     /// <summary>She can say something right now.</summary>
     public bool CanSpeak => Now == Phase.Ready && Wanted;
 
@@ -253,6 +272,7 @@ public partial class Voice : Node
             first = false;
             Say(sentence, speech!.Mood);
         });
+        _for = speech;
         return speech;
     }
 
@@ -285,6 +305,7 @@ public partial class Voice : Node
         _speaking.Cancel();
         _speaking = new CancellationTokenSource();
         _asked = null;
+        _for = null;
         _toSay.Clear();
         _audio.Clear();
         _audioOffset = 0;
@@ -292,8 +313,8 @@ public partial class Voice : Node
         _player.Stop();                             // a playing buffer cannot be cleared: the next line opens a fresh stream
         _playback = null;
         _pushed = 0;
-        _givenChars = _heardChars = 0;
-        _queued = 0;
+        _givenChars = _heardChars = _heardLines = 0;
+        _queued = _lastEnd = 0;
         _sentenceEnds.Clear();
         ReportMouth("cut off: ");
     }
@@ -343,7 +364,10 @@ public partial class Voice : Node
                 if (stop.IsCancellationRequested)
                     break;
                 if (first)
+                {
                     _heardChars += line.Text.Length;        // nothing came back to play: count it as said
+                    _heardLines++;
+                }
                 else
                     _sentenceEnds.Enqueue((_queued, line.Text.Length));
             }
@@ -406,8 +430,11 @@ public partial class Voice : Node
         _pushed = 0;
         _levels.Clear();
         while (_sentenceEnds.TryDequeue(out var end))   // marks in the old stream will never be reached in this one
+        {
             _heardChars += end.Chars;
-        _queued = 0;
+            _heardLines++;
+        }
+        _queued = _lastEnd = 0;
     }
 
     public override void _Process(double delta)
@@ -449,7 +476,12 @@ public partial class Voice : Node
         while (_levels.Count > 0 && _levels.Peek().End <= playing)
             _levels.Dequeue();
         while (_sentenceEnds.Count > 0 && _sentenceEnds.Peek().End <= playing)
-            _heardChars += _sentenceEnds.Dequeue().Chars;
+        {
+            var heard = _sentenceEnds.Dequeue();
+            _heardChars += heard.Chars;
+            _heardLines++;
+            _lastEnd = heard.End;
+        }
         var level = _levels.Count > 0 ? _levels.Peek().Level : 0;
         // voices differ in loudness (v2 models come out about half as loud as v4): open as wide as this voice has lately been loud
         _loudest = Mathf.Max(level, _loudest * (1 - (float)delta * 0.25f));

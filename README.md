@@ -99,7 +99,9 @@ this PC's own); her voice rests meanwhile, and a game starting stops it. The mod
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
 like a subtitled anime (the model writes `[say: …]` before each sentence). While a game runs she rests her voice:
 the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
-"Mute sounds" mutes her too. Clicking her stops her mid-sentence.
+"Mute sounds" mutes her too. Clicking her stops her mid-sentence, and so does talking over her with the talk key
+or asking something new. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
+yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
 
 You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Chat
 settings says otherwise), say it, and let go: she leans in to listen, and answers what she heard as if you had typed

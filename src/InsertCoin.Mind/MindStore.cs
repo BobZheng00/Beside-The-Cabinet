@@ -510,6 +510,13 @@ public sealed class MindStore : IDisposable
         return (long)command.ExecuteScalar()!;
     }
 
+    /// <summary>A line says something else now (her reply, cut off where the player stopped hearing it).</summary>
+    public void Rewrite(long id, string text)
+    {
+        using var command = Command("UPDATE lines SET text = $t WHERE id = $i", ("$t", text), ("$i", id));
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>The character's lines after the given id, oldest first.</summary>
     public IReadOnlyList<Line> After(string character, long id)
     {

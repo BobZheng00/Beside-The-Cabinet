@@ -28,7 +28,7 @@ public partial class SpeechBubble : Node2D
     private readonly List<int> _starts = [0];           // where each page starts in the text
     private int _page;
     private double _onPage, _quiet, _thinking;
-    private bool _streaming, _fading;
+    private bool _streaming, _fading, _reply;               // _reply: showing a reply (Begin), not a line (Say)
 
     /// <summary>How far her voice is through what it is saying (0 to 1), or null when she is not speaking.</summary>
     public Func<double?> Spoken { get; set; } = () => null;
@@ -51,6 +51,7 @@ public partial class SpeechBubble : Node2D
     public void Say(string text, Vector2 tip, Vector2 canvas)
     {
         Start(tip, canvas, streaming: false);
+        _reply = false;
         _text = text;
         Paginate();
         Pop();
@@ -61,6 +62,7 @@ public partial class SpeechBubble : Node2D
     public void Begin(Vector2 tip, Vector2 canvas)
     {
         Start(tip, canvas, streaming: true);
+        _reply = true;
         _thinking = 0;
         Place(Dots, single: true);
         Pop();
@@ -85,6 +87,33 @@ public partial class SpeechBubble : Node2D
         _streaming = false;
         if (_text.Length == 0)
             Fade();
+    }
+
+    /// <summary>
+    /// How much of the reply showing the player has had in front of them: characters of it as it streamed in, to the
+    /// end of the page showing. Null when they have seen all of it, or no reply is showing.
+    /// </summary>
+    public int? Seen => !Visible || _fading || !_reply ? null
+        : _page < _starts.Count - 1 ? _starts[_page + 1]
+        : _streaming ? _text.Length : null;
+
+    /// <summary>The reply was cut off <paramref name="at"/> characters in: it ends there, with a dash, then fades as usual.</summary>
+    public void Cut(int at)
+    {
+        if (!_reply || !Visible || _fading)
+            return;
+        var (heard, _) = InsertCoin.Mind.Conversation.Cut(_text, at);
+        _streaming = false;
+        if (heard == "—")
+        {
+            Fade();
+            return;
+        }
+        _text = heard;
+        _starts.Clear();
+        _starts.Add(0);
+        Paginate();
+        ShowPage(_starts.Count - 1, typed: false);
     }
 
     /// <summary>Takes back whatever is showing, at once.</summary>

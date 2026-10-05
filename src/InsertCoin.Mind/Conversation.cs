@@ -97,6 +97,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()));
         store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, said.Trim(), now);
 
+        var reply = new StringBuilder();
+        void Show(string piece)
+        {
+            if (piece.Length == 0)
+                return;
+            reply.Append(piece);
+            text(piece);
+        }
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
         // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
         var stage = new StageDirections((name, payload) =>
@@ -106,23 +114,67 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
             direction(name, payload);
-        });
-        var reply = new StringBuilder();
-        void Show(string piece)
+        }, Show);
+        _lastReply = null;
+        try
         {
-            if (piece.Length == 0)
-                return;
-            reply.Append(piece);
-            text(piece);
+            await foreach (var update in client.GetStreamingResponseAsync(messages, ReplyOptions, cancel))
+                Show(stage.Feed(update.Text));
+            Show(stage.Finish());
         }
-        await foreach (var update in client.GetStreamingResponseAsync(messages, ReplyOptions, cancel))
-            Show(stage.Feed(update.Text));
-        Show(stage.Finish());
+        catch (OperationCanceledException) when (reply.Length > 0)
+        {
+            Keep(reply.ToString());                         // stopped part-way (cut off, or out of time): what she had written is hers
+            throw;
+        }
+        return Keep(reply.ToString());
+    }
 
-        var answer = reply.ToString().Trim();
+    private (long Line, string Streamed)? _lastReply;      // her latest reply as it streamed in (untrimmed), and its line
+
+    private string Keep(string streamed)
+    {
+        var answer = streamed.Trim();
         if (answer.Length > 0)
-            store.Add(character, Speaker.Her, answer, _clock.GetLocalNow());
+            _lastReply = (store.Add(character, Speaker.Her, answer, _clock.GetLocalNow()), streamed);
         return answer;
+    }
+
+    /// <summary>
+    /// The player cut her latest reply off <paramref name="at"/> characters into it, as it streamed in (see
+    /// <see cref="Speech.CutAt"/>): her line keeps only what they heard, ending in a dash, and a cabinet line after it
+    /// tells her so, with what she had not said yet, so she can come back to it if it still matters.
+    /// </summary>
+    /// <returns>What she had not said, or null when nothing of it was left (or there is no reply to cut).</returns>
+    public string? CutOff(int at)
+    {
+        if (_lastReply is not { } last)
+            return null;
+        var (heard, unsaid) = Cut(last.Streamed, at);
+        if (unsaid.Length == 0)
+            return null;
+        store.Rewrite(last.Line, heard);
+        store.Add(character, Speaker.Cabinet, $"The player cut you off there. You hadn't said yet: \"{unsaid}\"", _clock.GetLocalNow());
+        _lastReply = null;
+        return unsaid;
+    }
+
+    /// <summary>
+    /// "…and I was thinking we—" and the rest, cut <paramref name="at"/> characters in: at the start of a word cut in
+    /// two (Chinese and Japanese can be cut between any characters), with no comma left dangling, and no dash after a
+    /// sentence that was finished.
+    /// </summary>
+    public static (string Heard, string Unsaid) Cut(string text, int at)
+    {
+        static bool Latin(char c) => char.IsLetterOrDigit(c) && c < '\u2E80';
+        at = Math.Clamp(at, 0, text.Length);
+        while (at > 0 && at < text.Length && Latin(text[at]) && Latin(text[at - 1]))
+            at--;
+        var unsaid = text[at..].Trim();
+        if (!unsaid.Any(char.IsLetterOrDigit))
+            return (text.Trim(), "");
+        var heard = text[..at].Trim().TrimEnd(',', '，', '、', ';', '；', ':', '：', '-', '—');
+        return (heard.Length > 0 && ".!?。！？…\"”」』)）".Contains(heard[^1]) ? heard : heard + "—", unsaid);
     }
 
     /// <summary>

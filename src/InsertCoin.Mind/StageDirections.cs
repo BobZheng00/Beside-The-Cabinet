@@ -8,7 +8,11 @@ namespace InsertCoin.Mind;
 /// cheer and shows "Nice one!". A bracket holding a single lower-case word (with an optional ": payload") is a
 /// direction, even an unknown one, and never reaches the bubble; anything else in brackets is just text.
 /// </summary>
-public sealed partial class StageDirections(Action<string, string?> direction)
+/// <param name="text">
+/// When given, the text before each direction is handed over before the direction acts, so the two keep their order
+/// (her voice needs to know where in the shown text a <c>[say]</c> falls); what follows the last one is returned as usual.
+/// </param>
+public sealed partial class StageDirections(Action<string, string?> direction, Action<string>? text = null)
 {
     private const int LongestDirection = 160;
 
@@ -66,11 +70,16 @@ public sealed partial class StageDirections(Action<string, string?> direction)
             return;
         }
         _held.Clear();
-        direction(match.Groups["name"].Value, match.Groups["payload"].Success ? match.Groups["payload"].Value.Trim() : null);
         if (_started && shown.Length > 0 && shown[^1] == ' ')
             shown.Length--;                                     // "Great! [cheer]" leaves no trailing blank
         else if (_afterSpace)
             _skipSpace = true;                                  // that blank went out with an earlier piece: drop the one after instead
+        if (text is not null && shown.Length > 0)
+        {
+            text(shown.ToString());
+            shown.Clear();
+        }
+        direction(match.Groups["name"].Value, match.Groups["payload"].Success ? match.Groups["payload"].Value.Trim() : null);
     }
 
     private void Release(StringBuilder shown)

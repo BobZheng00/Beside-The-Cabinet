@@ -139,6 +139,12 @@ public partial class CompanionView : Node2D
 
     public void EndReply() => _bubble.End();
 
+    /// <summary>How much of the reply in her bubble the player has seen (see <see cref="SpeechBubble.Seen"/>).</summary>
+    public int? Seen => _bubble.Seen;
+
+    /// <summary>Her reply was cut off <paramref name="at"/> characters in: the bubble ends it there.</summary>
+    public void Cut(int at) => _bubble.Cut(at);
+
     /// <summary>Stops talking mid-sentence: the bubble goes away now.</summary>
     public void Hush() => _bubble.Clear();
 

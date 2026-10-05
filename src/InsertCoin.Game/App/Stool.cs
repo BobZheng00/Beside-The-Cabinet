@@ -54,7 +54,8 @@ public partial class Stool : Node2D
     public CompanionView? Her { get; private set; }
 
     /// <summary>She is answering the user (a remark about the cabinet would cut in).</summary>
-    public bool Answering => _chat.Answering;
+    /// <summary>She is answering, or still saying something: the cabinet's own remarks wait (they would cut her off).</summary>
+    public bool Answering => _chat.Answering || _voice.Speaking;
 
     /// <param name="situation">Where things stand on the cabinet, told to her mind with what the user says.</param>
     /// <param name="status">Her line about where things stand, said when she is clicked.</param>
@@ -227,6 +228,9 @@ public partial class Stool : Node2D
         }
     }
 
+    /// <summary>The player cut her off: see <see cref="Chat.Interrupt"/>.</summary>
+    private Task Interrupt() => _chat.Interrupt(_voice, Her);
+
     /// <summary>She is answering, speaking, listening, or hearing what was just said.</summary>
     private bool Busy => _chat.Answering || _voice.Speaking || _talking != Talk.None || _understanding || _announcing;
 
@@ -290,11 +294,12 @@ public partial class Stool : Node2D
     {
         if (_heldToTalk)
             return;                                         // that was a hold: she was being talked to
-        _voice.Stop();
+        var replying = _chat.Answering || _voice.Speaking || Her?.Seen is not null;
+        _ = Interrupt();
         _lively(6);
         Her?.Play(Moment.Greet);
-        if (!_chat.Answering)
-            Say(_status());
+        if (!replying)
+            Say(_status());                                 // cut off, her bubble ends where she stopped instead
         OpenChat();
     }
 
@@ -371,7 +376,7 @@ public partial class Stool : Node2D
     /// <summary>She stops talking, leans in and listens: the microphone opens until the player lets go (or clicks the microphone again).</summary>
     private void Listen(Talk how)
     {
-        if (Her is null || _chat.Answering)
+        if (Her is null)
             return;
         if (!_chat.Ready || !HasEars)
         {
@@ -380,7 +385,7 @@ public partial class Stool : Node2D
             return;
         }
         _hearing ??= Task.Run(LoadHearing);                 // loads while the player talks
-        _voice.Stop();
+        _ = Interrupt();                                    // talking over her stops her
         _talking = how;
         _ears.Start();
         _lively(Ears.Longest + 10);
@@ -715,6 +720,7 @@ public partial class Stool : Node2D
     {
         if (Her is null)
             return;
+        await Interrupt();                                  // asking something new cuts off what she was still saying
         _chatBox.SetWaiting(true);
         _lively(120);                                       // keep her lively while she thinks and talks
         try

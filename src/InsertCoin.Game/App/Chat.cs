@@ -32,7 +32,9 @@ public sealed class Chat : IDisposable
     private string? _search;
     private int _searchLoads;
     private CancellationTokenSource? _answering;
-    private bool _folding, _upkeeping;
+    private TaskCompletionSource? _written;             // done once the reply under way is written, or stopped
+    private Speech? _speech;                            // what her voice makes of the latest reply
+    private bool _folding, _upkeeping, _cutting;
     private DateTimeOffset _upkeepAfter;
 
     public Chat(string dataDir)
@@ -183,6 +185,8 @@ public sealed class Chat : IDisposable
         var conversation = _conversation;
         conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
+        _written = new TaskCompletionSource();
+        _speech = speech;
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
@@ -212,6 +216,10 @@ public sealed class Chat : IDisposable
             if (Here())
                 speech?.Finish();
         }
+        catch (OperationCanceledException) when (_cutting)
+        {
+            // the player cut her off: Interrupt takes it from here
+        }
         catch (Exception e)
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
@@ -229,6 +237,8 @@ public sealed class Chat : IDisposable
         finally
         {
             _answering = null;
+            _cutting = false;
+            _written.TrySetResult();
             if (GodotObject.IsInstanceValid(view))
                 view.EndReply();
         }
@@ -249,6 +259,32 @@ public sealed class Chat : IDisposable
         {
             _folding = false;
         }
+    }
+
+    /// <summary>
+    /// The player cut her off (clicked her, talked over her, asked something new): her voice stops, a reply still
+    /// being written is stopped, and her line keeps only what they heard of it, or, without her voice, saw (see
+    /// <see cref="Conversation.CutOff"/>). Nothing is cut when she had finished.
+    /// </summary>
+    public async Task Interrupt(Voice voice, CompanionView? view)
+    {
+        var conversation = _conversation;
+        int? at = _speech is { } speech && voice.Saying(speech) ? speech.CutAt(voice.Heard.Lines, voice.Heard.Into)
+                : view is not null && GodotObject.IsInstanceValid(view) ? view.Seen : null;
+        voice.Stop();
+        if (_answering is { } answering)
+        {
+            _cutting = true;
+            answering.Cancel();
+            if (_written is { } written)
+                await written.Task;
+        }
+        _speech = null;
+        if (at is not { } cut || conversation is null || conversation != _conversation || conversation.CutOff(cut) is not { } unsaid)
+            return;
+        GD.Print($"Chat: cut off {cut} characters into her reply, {unsaid.Length} unsaid");
+        if (view is not null && GodotObject.IsInstanceValid(view))
+            view.Cut(cut);
     }
 
     /// <summary>
