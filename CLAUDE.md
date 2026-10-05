@@ -40,6 +40,9 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `-Window "<title>"` also captures one of the app's own windows. `-Settings ', "Key": value'` seeds settings.
   - The log is `<Out>\run-<Tag>.log` (and `.err`).
 - **Dev script text:** underscores for spaces, no commas.
+- **Motion** is judged on clips, not stills: `tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer`.
+  - Godot's movie writer renders off screen, in game time; frames are 518×656 whatever the window size.
+  - Look at them as contact sheets (ffmpeg `fps=10,tile=8x3`). `talk:<wav>` plays a recording to her as if said live.
 - **Never launch the real profile** (`run.cmd`, `builds\InsertCoin\InsertCoin.exe`) unless asked. Never send keystrokes or take focus.
 - **One copy at a time.** A second copy exits quietly, so the shoot produces nothing. If the user's demo is running:
   1. check its command line contains `InsertCoin-demo`;
@@ -69,6 +72,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - Commit message: a plain sentence saying what changed for the player, then details.
   - End commits with the attribution lines from the system reminder.
 - **Web research** results end with a "Sources:" list.
+- **Her motion is grown-up:** small, few, asymmetric moves, with feeling shown in her face and head more than her limbs. The user found the old cheer (arms up, legs kicking, bouncing on the seat) childish. Ground new motion in how people move (agent note §7).
 - **Keep the structure simple.** Add an interface only where a second implementation is planned (`ICalendarSource`, for Google or Microsoft sign-in later). Stool.cs is big but sectioned. Split it when the agent phase reworks turn-taking, along the lines that design needs.
 
 ## How the code reads
@@ -118,8 +122,11 @@ The research note is written: `docs/research/2026-10-05-companion-agent.md`. The
 2. **Conversation mode.**
    - *Built 2026-10-05:* being cut off. Her line keeps what was heard, and a cabinet line says what she hadn't said (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`).
    - *Measured 2026-10-05:* her delay. About 1.5–2 s to her first sound, with a fast provider (agent note §5).
-   - Next: her body in conversation (thinking, interrupted, listening).
-   - Then discuss with the user how hands-free follow-up listening should behave. They weren't sure the proposed behaviour is what players expect.
+   - *Built 2026-10-05:* her body in conversation (agent note §7).
+     - She nods in the player's pauses (`Backchannel`), looks away to think (finger to her chin on a long wait), looks back to answer, and her head follows her voice's stress. She reacts when cut off.
+     - The cheer is now soft applause (see the rule on her motion).
+     - Motion is judged on clips from `tools\dev\clip.ps1`.
+   - Next: discuss with the user how hands-free follow-up listening should behave. They weren't sure the proposed behaviour is what players expect.
 
 Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
 

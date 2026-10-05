@@ -138,13 +138,55 @@ Voice agents aim for 0.3–0.8 s ([LiveKit](https://livekit.com/blog/async-tools
 
 ## 7. Her body during a conversation
 
-- **Listening:** she turns to the player and nods softly at their pauses (the voice detector says when).
-- **Waiting for the model:** a thinking look, or her pencil and pad.
-- **Speaking:** a gesture per sentence, not one per reply. Lip sync from loudness is fine for now; mouth shapes per sound could come later.
-- **Interrupted:** she stops mid-gesture and looks at the player.
-- **References** (*read*):
-  - [AIRI](https://github.com/moeru-ai/airi): VRM and Live2D, blinking and gaze, voice detection, speech-to-text, a model and a voice; on Steam.
-  - [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber): the backend maps emotions to expressions; MIT licence.
+What people do, from studies of real conversations (*read*):
+
+- **Thinking of an answer, people look away.** Andrist and others recorded people talking and measured these "cognitive" glances. They start about 1.3 s before the answer begins and end about 2.2 s into it, lasting about 3.5 s. They go up more often than any other way (39%, against 29% down and about 31% to the side). A robot that looked away at those moments was rated more thoughtful, and people waited longer before asking again.
+- **Speakers look away more than listeners.** Kendon (1967) found that over 70% of turns start with the speaker looking away, and over 70% end with them looking at the listener: the look back hands the turn over. A listener looks at the speaker in long stretches. Glances aside for intimacy last about 1.1 s every 7 s when listening, and 2 s every 5 s when speaking.
+- **Listeners nod in the speaker's pauses.** Rates go from about 3.5 to 9 nods a minute. One motion-capture study of Japanese attentive listening found:
+  - about half the nods are a single dip (51%), a third double (33%), the rest three or more;
+  - each dip is about 4° and under a second;
+  - about a quarter start with a small lift.
+  Later cycles of a nod get smaller. Timing is what counts. Gratch's rapport agent nodded in time with the speaker and built rapport; the same nods at random moments did not.
+- **Gestures land with stress.** A gesture's stroke comes just before or with the stressed syllable, never after (McNeill). The head does the same in speech.
+- **Cut off, a speaker who yields stops and lets the gesture go.** Holding it means "I'm not done".
+- **Waiting for a slow answer:** an agent that bridged the delay with its body (looking away, a thinking gesture) seemed faster, more present and more natural than a progress badge or thinking bubble. Most people preferred it.
+- **Grown-up movement.** The usual dimensions of expressive movement are how big, how fast, how fluid, how strong, how often repeated, and how much in all (Hartmann, Mancini, Pelachaud). Bigger, faster, more frequent gestures read as more extraverted (Neff). Big symmetric moves repeated over and over, like bouncing, kicking or both arms up, read as a child. Animators also avoid "twinning", both sides moving alike: it looks mechanical.
+
+**Built (2026-10-05):**
+- **Listening:** she leans in with a slight tilt and keeps her eyes on the player, glancing aside now and then. She nods in their pauses: after at least 1.2 s of speech and 0.3 s of quiet, at most one nod every 2.5 s and not at every pause (`Backchannel`, from the microphone's loudness; Silero would do better in a noisy room). When they finish, a "got it" nod.
+- **Thinking:**
+  - a beat on the player, then away, up or level, to her own side;
+  - she alternates looking away for 3 to 4 s with a brief look back;
+  - after about 2.4 s her right index finger goes to her chin, placed from her eye bones so it fits any head;
+  - she starts answering still looking away for a moment, then looks at the player.
+- **Speaking:** her head dips where her voice swells and tilts to one side, then the other, phrase by phrase. She glances aside for a second or two every few seconds. No fidgets while she talks, listens or thinks.
+- **Cut off:** she stops mid-gesture, gives a small start (a blink, her head drawn back) and looks at the player.
+- **Celebrating, made grown-up.**
+  - *Before:* the cheer had a crouch, both arms up, legs kicking and bouncing on the seat.
+  - *Now:* a small "oh", hands together at her chest for three soft claps, a warm smile rather than a laugh, then a nod.
+  - The fist pump stops at her shoulder instead of above her head.
+- *Measured* only by eye, on clips from `tools\dev\clip.ps1`. They are in `<tools>\voice-trial\clips-body`.
+
+**Not yet:** a gesture per sentence while she speaks (hands); mouth shapes per sound; nods from a real voice detector.
+
+**Other companions** (*read*):
+- [AIRI](https://github.com/moeru-ai/airi): VRM and Live2D, blinking and gaze, voice detection, speech-to-text, a model and a voice; on Steam.
+- [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber): the backend maps emotions to expressions; MIT licence.
+
+Sources:
+- [Andrist, Tan, Gleicher, Mutlu: Conversational Gaze Aversion for Humanlike Robots (HRI 2014)](https://pages.cs.wisc.edu/~bilge/pubs/2014/HRI14-Andrist.pdf)
+- [Rossano: Gaze in Conversation (Kendon 1967, Argyle and Cook 1976 summarised)](https://www.eva.mpg.de/documents/Wiley-Blackwell/Rossano_Gaze_Handbook-of-conversation-analysis_2012_1658279.pdf)
+- [The Role of Eye Gaze in Regulating Turn Taking (Frontiers in Psychology, 2021)](https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2021.616471/full)
+- [Kato and others: Real-time Generation of Listener Nodding via Prediction of Kinematic Parameters (ICMI 2026)](https://arxiv.org/abs/2607.12329)
+- [Structure of nods in conversation (PLOS One)](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0323448)
+- [Head motion synchrony in verbal communication (PLOS One)](https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0286098)
+- [Gratch and others: Creating Rapport with Virtual Agents (IVA 2007)](https://people.ict.usc.edu/~nwang/PDF/GratchIVA07-rapport.pdf)
+- [The temporal relation between beat gestures and speech](https://www.researchgate.net/publication/233275273_The_temporal_relation_between_beat_gestures_and_speech)
+- [Gestures in overlap: the situated establishment of speakership](https://d-nb.info/1255182490/34)
+- [Behavioral and Symbolic Fillers as Delay Mitigation for Embodied Conversational Agents (2025)](https://arxiv.org/abs/2508.11781)
+- [Hartmann, Mancini, Pelachaud: Implementing Expressive Gesture Synthesis for Embodied Conversational Agents](https://dl.acm.org/doi/10.1007/11678816_22)
+- [Neff and others: Evaluating the Effect of Gesture and Language on Personality Perception in Conversational Agents](https://dl.acm.org/doi/10.5555/1889075.1889103)
+- [Animation Mentor: Twinning and why you should (usually) avoid it](https://www.animationmentor.com/blog/twinning-and-why-you-should-usually-avoid-it/)
 
 ## The spike, before any recording (2026-10-05)
 
@@ -175,6 +217,6 @@ The test program is in `<tools>\agent-trial` (README there). What it found on th
 
 1. **Spike:** Windows echo cancellation, Silero and Smart Turn v3 on the player's own voice and speakers (measure missed and false turns).
 2. **Conversation mode:** being interrupted, and her line cut to what was heard.
-3. **Her body** while listening, thinking and being interrupted.
+3. **Her body** while listening, thinking and being interrupted (*built 2026-10-05*, §7).
 4. **Tools:** function calls with approval through her and the ticket, and the first few abilities.
 5. **More abilities, or MCP,** from the brainstorm.

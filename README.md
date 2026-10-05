@@ -18,8 +18,9 @@ Drag the cabinet by its body. The big gold button asks LeetCode right away. The 
 Windows, change player, quit).
 
 The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to
-what the cabinet does: cheers for coins, glances at the screen, worries about debt, dozes while the session is
-paused. She says a line about it in a speech bubble; click her for where things stand. The tray menu switches her
+what the cabinet does: claps for a Hard solve, a small fist pump for the others, glances at the screen, worries
+about debt, dozes while the session is paused. In a conversation she looks away to think and back to answer, nods
+in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her for where things stand. The tray menu switches her
 off, silences her, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
 She can also talk. In tray → "Chat settings…" pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
@@ -104,8 +105,8 @@ or asking something new. She then remembers only what you heard, ending where sh
 yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
 
 You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Chat
-settings says otherwise), say it, and let go: she leans in to listen, and answers what she heard as if you had typed
-it. The microphone at the end of the slip writes what you say into the slip instead, to change before you send it.
+settings says otherwise), say it, and let go: she leans in to listen, nodding in your pauses, and answers what she
+heard as if you had typed it. The microphone at the end of the slip writes what you say into the slip instead, to change before you send it.
 She hears on this PC, on the processor, with SenseVoice-Small (Chinese, English, Japanese, Korean, Cantonese, told
 apart by itself): about a tenth of a second for a sentence. The microphone is open only while she listens, and
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
@@ -147,11 +148,14 @@ buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
 window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
-(a recording she hears as if said holding the talk key) and `dictate:C:\path\said.wav` (as if said into the slip's
+(a recording she hears as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: she
+listens and nods for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
 held on her, then let go), and `closeup:hands` (her camera narrowed onto her hands, to judge fingers; `closeup:off`).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
+`tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
+(`-Script "moment:cheer@3" -Seconds 6`), and ffmpeg makes a GIF and an MP4 of her.
 
 ## Layout
 
@@ -172,7 +176,7 @@ tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
 tools/models              fetch.py — downloads the local models: her memory search's, her ears' (SenseVoice)
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
-                          own windows too); sheet.ps1 makes contact sheets
+                          own windows too); clip.ps1 records a clip of her moving; sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
 
@@ -251,6 +255,11 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   towards the hand, so moves overshoot and settle), and life on top (breathing, sway, head drift, fidgets, eyes
   that jump between fixation points, blinks). Poses use VRM humanoid bone names and are fitted to the character's
   proportions (hip height, leg length), so they are not tied to one model.
+  In conversation (`Moment.Listen`, `Think`, `Speak`, `CutOff`) her gaze follows what people do: away, up and to
+  one side, to think (her finger goes to her chin when it takes a while); at you while you talk, nodding in your
+  pauses (`Backchannel`, in `InsertCoin.Mind`, finds them from the microphone's loudness); her head dipping where
+  her voice swells as she talks. Her moves are kept small and asymmetric, the way a grown-up moves. The research
+  behind it: [docs/research/2026-10-05-companion-agent.md](docs/research/2026-10-05-companion-agent.md) §7.
 
 The character stays at the 3D origin and the camera is placed around her: the VRM plugin's hair physics goes wrong
 when the character itself is moved or turned.

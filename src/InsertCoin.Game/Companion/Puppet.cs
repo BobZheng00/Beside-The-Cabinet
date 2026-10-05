@@ -3,7 +3,16 @@ using Godot;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>Things the companion reacts to. The app decides when; the puppet decides how.</summary>
-public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note, Listen, Heard }
+public enum Moment
+{
+    Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note,
+    /// <summary>The player starts talking to her; <see cref="Heard"/> when they have finished, <see cref="Nod"/> in their pauses.</summary>
+    Listen, Heard, Nod,
+    /// <summary>A reply is on its way: she thinks until <see cref="Speak"/> (its words have begun, or it is over).</summary>
+    Think, Speak,
+    /// <summary>The player cut her off mid-reply.</summary>
+    CutOff,
+}
 
 /// <summary>
 /// The companion's body language. Three layers, in this order every frame:
@@ -11,6 +20,12 @@ public enum Moment { Cheer, Pump, Greet, Glance, Alarm, Worry, Doze, Wake, Note,
 /// pose like a damped spring, so moves accelerate, overshoot and settle, the hand arriving after the arm), and
 /// life (breathing, postural sway, a restless head, fidgets, eyes that jump and hold) added on top.
 /// </summary>
+/// <remarks>
+/// She is a grown-up: her moves are small, few and asymmetric, and what she feels shows in her face and head more
+/// than in her limbs. Conversation follows what people do (docs/research/2026-10-05-companion-agent.md §7): she
+/// looks away to think and back to answer, looks at whoever is talking with now and then a brief glance aside, and
+/// nods in their pauses.
+/// </remarks>
 internal sealed class Puppet
 {
     /// <summary>Where a hand should be: wrist position (metres from the seat centre), finger direction, the way
@@ -39,9 +54,12 @@ internal sealed class Puppet
 
     /// <summary>
     /// A pose laid over the seated one: body rotations, optional hand placements, and how the fingers bend: all alike
-    /// (<paramref name="Curl"/>, degrees) or finger by finger (a grip per hand).
+    /// (<paramref name="Curl"/>, degrees) or finger by finger (a grip per hand). A hand <paramref name="AtChin"/> is
+    /// placed by her face instead of her seat: its <see cref="Hand.Wrist"/> is where the index fingertip goes from
+    /// her chin, and every direction is in her head's axes, so the hand stays there as her head moves.
     /// </summary>
-    private sealed record Overlay(Pose Body, Hand? Left = null, Hand? Right = null, float Curl = -1, Grip? LeftGrip = null, Grip? RightGrip = null);
+    private sealed record Overlay(Pose Body, Hand? Left = null, Hand? Right = null, float Curl = -1, Grip? LeftGrip = null, Grip? RightGrip = null,
+                                  bool AtChin = false);
 
     // ---- Poses (degrees; x = pitch forward, y = turn to her left, z = roll; left side given, right mirrored) -----
     private static readonly Pose Sit = new Pose()
@@ -54,7 +72,15 @@ internal sealed class Puppet
     private static readonly Hand LeftRest = new(new(0.030f, 0.165f, 0.135f), new(-0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(0.7f, -0.3f, -0.6f));
     private static readonly Hand RightRest = new(new(-0.055f, 0.148f, 0.125f), new(0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(-0.7f, -0.3f, -0.6f));
 
-    private static readonly Hand FistAtChest = new(new(0.12f, 0.40f, 0.22f), new(0, 1, 0.2f), new(-1, 0, 0), new(0.5f, -1, -0.5f));
+    // Applause, as a grown-up gives it to a friend: hands palm to palm in front of her chest, fingertips leaning
+    // together, the right a little higher; the claps themselves open them from the elbows (see Clap).
+    private static readonly Hand ClapLeft = new(new(0.028f, 0.37f, 0.245f), new(-0.08f, 0.75f, 0.62f), new(-1, 0.05f, 0), new(0.8f, -1, -0.4f));
+    private static readonly Hand ClapRight = new(new(-0.026f, 0.378f, 0.25f), new(0.08f, 0.78f, 0.6f), new(1, 0.05f, 0), new(-0.8f, -1, -0.4f));
+
+    // Thinking: the right index finger up against her chin, the other fingers curled, the hand's back to the viewer.
+    // Placed from her chin (Overlay.AtChin): the fingertip just below and in front of it, so it never sinks in.
+    private static readonly Hand ChinHand = new(new(-0.004f, -0.012f, 0.012f), new(0.2f, 0.9f, -0.35f), new(1, 0, -0.2f), new(-0.5f, -1, 0.2f));
+    private static readonly Grip ChinGrip = new(6, 55, 70, 78, 0.45f);
 
     // Taking a note, as people hold a pocket notebook and write in it. The left hand carries the pad on its palm,
     // palm up, fingers straight beneath it and the thumb over its edge, its top away from her. The right hand
@@ -69,16 +95,12 @@ internal sealed class Puppet
 
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
-        // wind-up before a cheer: a quick crouch with fists drawn in
-        ["crouch"] = new(new Pose().Set("Spine", 7, 0, 0).Set("Chest", 4, 0, 0).Set("Head", 5, 0, 0).Both("Shoulder", 0, 0, -6),
-            FistAtChest, FistAtChest.Mirrored, Curl: 70),
-        // both arms thrown up, a little uneven
-        ["cheer"] = new(new Pose().Set("Spine", -4, 0, 0).Set("Chest", -5, 0, 0).Set("Neck", -2, 0, 0).Set("Head", -7, 0, 4).Both("Shoulder", 0, 0, 12),
-            new(new(0.268f, 0.836f, 0.09f), new(0.3f, 1, 0), new(0, 0, 1), new(1, -0.2f, -0.3f)),
-            new(new(-0.240f, 0.845f, 0.11f), new(-0.25f, 1, 0), new(0, 0, 1), new(-1, -0.2f, -0.3f)), Curl: 3),
-        // "yes!": fist up beside the head, then pulled down
-        ["pump"] = new(new Pose().Set("Spine", -3, 0, 0).Set("Chest", -3, 0, 0).Set("Head", -6, 0, 0).Set("RightShoulder", 0, 0, -8),
-            Right: new(new(-0.20f, 0.66f, 0.20f), new(0, 1, 0), new(1, 0, 0), new(-0.4f, -1, -0.1f)), Curl: 75),
+        // delighted for the player: chest lifted, leaning a little their way, head tilted, hands together to clap
+        ["clap"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", -2, 0, 0).Set("Neck", 1, 0, 2).Set("Head", 2, 0, 5),
+            ClapLeft, ClapRight, Curl: 6),
+        // "yes!": a fist brought up to the shoulder, then pulled down
+        ["pump"] = new(new Pose().Set("Spine", -2, 0, 0).Set("Chest", -2, 0, 0).Set("Head", -3, 0, 0).Set("RightShoulder", 0, 0, -5),
+            Right: new(new(-0.19f, 0.55f, 0.22f), new(0, 1, 0.1f), new(1, 0, 0), new(-0.4f, -1, -0.2f)), Curl: 75),
         ["yes"] = new(new Pose().Set("Spine", 6, 0, 0).Set("Chest", 4, 0, 0).Set("Head", 3, 0, 0).Set("RightShoulder", 0, 0, 4),
             Right: new(new(-0.17f, 0.42f, 0.19f), new(0, 1, 0.1f), new(1, 0, 0), new(-0.5f, -1, -0.6f)), Curl: 75),
         ["wave"] = new(new Pose().Set("Spine", 0, 0, 2).Set("Head", -3, 0, 6).Set("RightShoulder", 0, 0, -8),
@@ -87,8 +109,12 @@ internal sealed class Puppet
         // head bowed over the pad, a little tilted, shoulders relaxed
         ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
             PadHand, PenHand, LeftGrip: PadGrip, RightGrip: PenGrip),
-        // listening to the player: leaning in, head tilted towards them
-        ["listen"] = new(new Pose().Set("Spine", 5, 0, 0).Set("Chest", 3, 0, 0).Set("Neck", 2, 0, 3).Set("Head", 3, 0, 9)),
+        // listening to the player: leaning in, head a little tilted towards them
+        ["listen"] = new(new Pose().Set("Spine", 5, 0, 0).Set("Chest", 3, 0, 0).Set("Neck", 2, 0, 2).Set("Head", 3, 0, 5)),
+        // thinking it over, finger to her chin, head a little forward and tilted to the hand
+        ["ponder"] = new(new Pose().Set("Spine", 2, 0, 0).Set("Neck", 1, 0, 1).Set("Head", 2, 0, 3), Right: ChinHand, RightGrip: ChinGrip, AtChin: true),
+        // cut off: a small start, head drawn back
+        ["startle"] = new(new Pose().Set("Spine", -1, 0, 0).Set("Neck", -1, 0, 0).Set("Head", -3, 0, 0)),
         ["doze"] = new(new Pose().Set("Spine", 3, 0, 2).Set("Chest", 2, 0, 2).Set("Neck", 4, 0, 5).Set("Head", 7, 0, 11)),
         // idle fidgets
         ["tiltLeft"] = new(new Pose().Set("Neck", -3, 0, -3).Set("Head", -4, 0, -9)),
@@ -98,7 +124,7 @@ internal sealed class Puppet
         ["sigh"] = new(new Pose().Set("Spine", 1, 0, 0).Set("Chest", -3, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -6, 0, 0).Both("Shoulder", 0, 0, 7)),
     };
 
-    private static readonly string[] Gestures = ["crouch", "cheer", "pump", "yes", "wave", "note", "tiltLeft", "tiltRight", "shift", "sigh", "listen"];
+    private static readonly string[] Gestures = ["clap", "pump", "yes", "wave", "note", "ponder", "startle", "tiltLeft", "tiltRight", "shift", "sigh", "listen"];
     private static readonly string[] Sides = ["Left", "Right"];
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
@@ -128,11 +154,23 @@ internal sealed class Puppet
     private readonly RandomNumberGenerator _random = new();
 
     private double _time, _busyUntil, _gazeUntil, _nextWander = 7, _nextFidget = 5, _nextSaccade;
-    private double _cheerAt = -100, _waveAt = -100, _noteAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
+    private double _clapAt = -100, _waveAt = -100, _noteAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
     private string _kickSide = "Left";
     private Vector3 _gaze;
     private Vector2 _eye, _jitter;
     private float _headYaw, _headPitch, _breath, _awake = 1;
+
+    // In conversation: thinking since when, listening, the gaze going away and back, nods, her voice's loudness.
+    private readonly Vector3? _chin;                      // her chin from her head's joint, in its axes (none without eye bones)
+    private readonly float _fingerReach;                  // wrist to index fingertip
+    private readonly float _side;                         // the side she looks to when thinking: people tend to keep to one
+    private double? _thinkingSince;
+    private bool _listening, _lookingAway, _wasTalking;
+    private double _nextGazeTurn, _nodAt = -100, _lastVoice = -100;
+    private Vector3 _awaySpot;
+    private int _nodCycles;
+    private float _nodSize, _voice, _voiceFast, _voiceSlow, _beatSide = 1;
+    private bool _nodLifts;
 
     /// <summary>Points she can look at, in the skeleton's space.</summary>
     public Vector3 Viewer { get; set; }
@@ -151,6 +189,12 @@ internal sealed class Puppet
 
     /// <summary>How far she is into taking a note (0: not at all, 1: pad up, writing), for showing the pad and pencil.</summary>
     public float Noting => _shown["note"];
+
+    /// <summary>How loud her voice is now (her mouth's opening, 0–1), set every frame while she speaks.</summary>
+    public float Voice
+    {
+        set => _voice = value;
+    }
 
     /// <param name="footRestDrop">How far below the seat the stool's foot ring is, metres.</param>
     public Puppet(Rig rig, Face face, float footRestDrop)
@@ -180,6 +224,18 @@ internal sealed class Puppet
         foreach (var name in Overlays.Keys)
             _on[name] = _shown[name] = _shownSpeed[name] = 0;
         _face.Rest("relaxed", 0.1f);        // the hint of a smile; more and her eyes look sleepy
+
+        // Her chin, found from her eyes: heads differ in size from legs, and faces from heads. On both built-in
+        // characters it is about 8.5 cm below the eyes and 5.5 cm in front of them.
+        string[] finger = ["RightHand", "RightIndexProximal", "RightIndexIntermediate", "RightIndexDistal"];
+        if (rig.Has("LeftEye") && rig.Has("RightEye") && finger.All(rig.Has))
+        {
+            var eyes = (rig.RestJoint("LeftEye") + rig.RestJoint("RightEye")) / 2;
+            _chin = eyes - rig.RestJoint("Head") + new Vector3(0, -0.085f, 0.055f);
+            _fingerReach = rig.RestOffset(finger[0], finger[1]).Length() + rig.RestOffset(finger[1], finger[2]).Length()
+                           + 1.9f * rig.RestOffset(finger[2], finger[3]).Length();       // the last bone carried on as far again
+        }
+        _side = _random.Randf() < 0.5f ? 1 : -1;
     }
 
     // ---- Reactions -----------------------------------------------------------------------------------------------
@@ -189,18 +245,19 @@ internal sealed class Puppet
         switch (moment)
         {
             case Moment.Cheer:
-                Interrupt(2.7);
-                _on["crouch"] = 1;                                   // anticipation: down before up
-                After(0.17, () => { _on["crouch"] = 0; _on["cheer"] = 1; _cheerAt = _time; _face.Show("happy", 1, 2.3); });
-                After(1.95, () => _on["cheer"] = 0);
-                Look(Viewer, 2.8);
+                // she sees it ("oh!"), lights up, claps a few times for the player and nods: well done
+                Interrupt(2.9);
+                _face.Show("surprised", 0.35f, 0.3);
+                After(0.18, () => { _on["clap"] = 1; _clapAt = _time + 0.4; _face.Show("happy", 0.6f, 2.4); });   // a warm smile, not a laugh
+                After(2.0, () => { _on["clap"] = 0; Nod(1, 5); });
+                Look(Viewer, 3);
                 break;
             case Moment.Pump:
                 Interrupt(1.9);
                 _on["pump"] = 1;
-                _face.Show("happy", 1, 1.7);
+                _face.Show("happy", 0.6f, 1.7);
                 After(0.32, () => { _on["pump"] = 0; _on["yes"] = 1; });
-                After(1.0, () => _on["yes"] = 0);
+                After(1.0, () => { _on["yes"] = 0; Nod(1, 4); });
                 Look(Viewer, 2.2);
                 break;
             case Moment.Greet:
@@ -241,13 +298,46 @@ internal sealed class Puppet
                 Interrupt(60);                                       // held until she has heard it
                 _on["listen"] = 1;
                 _face.Show("relaxed", 0.8f, 60);
-                Look(Viewer, 60);
+                _listening = true;
+                _gazeUntil = _time;                                  // her eyes on the player, glancing aside now and then (Conversing)
+                TurnGaze(away: false, _random.RandfRange(4, 7));
                 break;
             case Moment.Heard:
                 _on["listen"] = 0;
+                _listening = false;
+                _face.Show("relaxed", 0.8f, 0);                     // her listening face goes
                 _busyUntil = _time + 0.8;
                 _face.Show("happy", 0.6f, 1.2);
-                Look(Viewer, 1.5);
+                Look(Viewer, 0.6);
+                break;
+            case Moment.Nod:
+                // mostly a single nod, sometimes two or three, each smaller than the one before (Kato and others, 2026)
+                var cycles = _random.Randf() switch { < 0.51f => 1, < 0.84f => 2, _ => 3 };
+                Nod(cycles, _random.RandfRange(4.5f, 6.5f));
+                break;
+            case Moment.Think:
+                // a beat on the player, then away to think, up and to the side (Andrist and others, 2014)
+                _thinkingSince = _time;
+                TurnGaze(away: false, _random.RandfRange(0.25f, 0.45f));
+                break;
+            case Moment.Speak:
+                if (_thinkingSince is null)
+                    break;
+                _thinkingSince = null;
+                _on["ponder"] = 0;
+                if (_lookingAway)
+                    Look(_awaySpot, _random.RandfRange(0.5f, 1.0f));   // people start an answer still looking away, then look up at whoever asked
+                TurnGaze(away: false, _random.RandfRange(3.5f, 6));
+                break;
+            case Moment.CutOff:
+                // she stops, a little taken aback, and gives the player her attention
+                Interrupt(1.5);
+                _thinkingSince = null;
+                _on["startle"] = 1;
+                After(0.22, () => _on["startle"] = 0);
+                _face.Show("surprised", 0.3f, 0.45);
+                _face.Blink();
+                Look(Viewer, 2);
                 break;
             case Moment.Note:
                 // pad up, eyes on it, a few quick strokes, then a satisfied look back up
@@ -297,6 +387,9 @@ internal sealed class Puppet
         }
         Fidget();
         LegPosture(dt);
+        // a long think: finger to her chin, once nothing else is going on
+        if (_thinkingSince is { } since && _time - since > 2.4 && _time > _busyUntil && _chin is not null)
+            _on["ponder"] = 1;
 
         // 1. Poses: seated, reaction poses over it, head and torso turned to what she is looking at.
         _goal.Clear();
@@ -323,7 +416,9 @@ internal sealed class Puppet
         var lift = Breathe(dt);
         Sway(t);
         Legs(t);
-        var hips = _seat + new Vector3(0, 0.002f * lift + Bounce(), 0);
+        Nodding();
+        Emphasis(dt);
+        var hips = _seat + new Vector3(0, 0.002f * lift, 0);
 
         foreach (var (bone, side, follow) in Followers)
             _frame[bone] = Quaternion.Identity.Slerp(_frame[side + "UpperLeg"], follow);
@@ -333,6 +428,7 @@ internal sealed class Puppet
             Arm(side, hips, dt);
         Wave(t);
         Write();
+        Clap();
         Eyes(dt);
 
         _rig.PlaceHips(hips);
@@ -363,9 +459,9 @@ internal sealed class Puppet
 
     private void Gaze(float dt, float t)
     {
-        // What to look at: a reaction's target, else the pointer while it moves, else mostly the viewer with
-        // glances at the screen or off to the side.
-        if (_time > _gazeUntil)
+        // What to look at: a reaction's target, else the conversation's, else the pointer while it moves, else mostly
+        // the viewer with glances at the screen or off to the side.
+        if (_time > _gazeUntil && !Conversing())
         {
             if (Pointer is { } pointer)
                 _gaze = pointer;
@@ -418,6 +514,49 @@ internal sealed class Puppet
         var target = (new Vector2(yaw, pitch) + _jitter) * _awake;
         _eye += (target - _eye) * (1 - Mathf.Exp(-dt * 45f));            // a jump takes a few hundredths of a second
         _frame["LeftEye"] = _frame["RightEye"] = new Quaternion(Vector3.Up, _eye.X) * new Quaternion(Vector3.Right, -_eye.Y);
+    }
+
+    /// <summary>
+    /// Where she looks while a conversation goes on, after what people do in one (Andrist and others, 2014; Kendon,
+    /// 1967). Thinking of an answer: mostly away, up and to one side, three or four seconds at a time with a look back
+    /// between. Listening: at the player, glancing aside for a second every seven or so. Talking: at the player,
+    /// glancing aside for a second or two every five. False when she is doing none of these.
+    /// </summary>
+    private bool Conversing()
+    {
+        var talking = _time - _lastVoice < 0.8;
+        if (talking && !_wasTalking && !_lookingAway)
+            TurnGaze(away: false, _random.RandfRange(3.5f, 6));         // she starts speaking to the player
+        _wasTalking = talking;
+        var ((awayFrom, awayTo), (backFrom, backTo)) = _thinkingSince is not null ? ((2.8f, 4.2f), (0.8f, 1.4f))
+            : _listening ? ((0.8f, 1.4f), (5.5f, 9f))
+            : talking ? ((1.0f, 1.8f), (3.5f, 6f))
+            : default;
+        if (awayTo == 0)
+            return false;
+        if (_time >= _nextGazeTurn)
+            TurnGaze(!_lookingAway, _lookingAway ? _random.RandfRange(backFrom, backTo) : _random.RandfRange(awayFrom, awayTo));
+        Retarget(_lookingAway ? _awaySpot : Viewer);
+        return true;
+    }
+
+    /// <summary>Looks away (to a new spot) or back at the player, until the next turn in <paramref name="seconds"/>.</summary>
+    private void TurnGaze(bool away, double seconds)
+    {
+        _lookingAway = away;
+        _nextGazeTurn = _time + seconds;
+        if (!away)
+            return;
+        // thinking: well away, up or level, to her own side (looking down hides her face and reads as sad); otherwise a
+        // smaller glance aside and a little down
+        var thinking = _thinkingSince is not null;
+        var side = _random.Randf() < 0.75f ? _side : -_side;
+        var yaw = side * (thinking ? _random.RandfRange(18, 30) : _random.RandfRange(10, 18));
+        var pitch = thinking ? (_random.Randf() < 0.65f ? _random.RandfRange(10, 16) : _random.RandfRange(0, 4)) : _random.RandfRange(-7, 1);
+        var toViewer = Viewer - Head;
+        var direction = new Quaternion(Vector3.Up, Mathf.DegToRad(yaw)) * toViewer.Normalized();
+        direction = new Quaternion(direction.Cross(Vector3.Up).Normalized(), Mathf.DegToRad(pitch)) * direction;
+        _awaySpot = Head + direction * toViewer.Length();
     }
 
     private void Look(Vector3 point, double seconds)
@@ -473,15 +612,6 @@ internal sealed class Puppet
             Add("Chest", 0, 0, 1.5f * swing);
             Add("Head", 0, 0, -3.5f * Envelope(hum, 0.5f, 2.7f, 3.4f) * Mathf.Sin(hum * Mathf.Tau * 0.85f - 0.6f));
         }
-        var cheer = (float)(_time - _cheerAt) - 0.25f;
-        if (cheer is >= 0 and < 1.9f)
-        {
-            // cheering rocks her from side to side in time with her legs
-            var rock = Envelope(cheer, 0.3f, 1.3f, 1.9f) * Mathf.Sin(cheer * Mathf.Tau * 1.45f);
-            Add("Spine", 0, 0, 4.5f * rock);
-            Add("Chest", 0, 0, 2.5f * rock);
-            Add("Head", 0, 0, -3.5f * rock);
-        }
         if (_shown["doze"] > 0.001f)
         {
             // nodding off: the head sinks slowly, then jerks back up
@@ -534,9 +664,6 @@ internal sealed class Puppet
         var both = (float)(_time - _swingAt);
         if (both is >= 0 and < 4.2f)
             Kicks(both, Envelope(both, 0.6f, 3.4f, 4.2f), 26, 0.75f);
-        var cheer = (float)(_time - _cheerAt);
-        if (cheer is >= 0 and < 2.2f)
-            Kicks(cheer, Envelope(cheer, 0.15f, 1.5f, 2.2f), 30, 1.45f);
     }
 
     private void Kicks(float time, float strength, float degrees, float perSecond)
@@ -549,17 +676,79 @@ internal sealed class Puppet
         Add("RightFoot", -12 * right * strength, 0, 0);
     }
 
-    /// <summary>A cheer bounces her on the seat a few times.</summary>
-    private float Bounce()
+    /// <summary>
+    /// Nods: down and back up, the way down quicker than the way up; a second or third cycle quicker and smaller
+    /// still. Now and then the head lifts a little first. Added on top of the pose, so it reads crisply.
+    /// </summary>
+    private void Nod(int cycles, float degrees)
     {
-        var cheer = (float)(_time - _cheerAt);
-        return cheer is >= 0 and < 2 ? 0.02f * Mathf.Abs(Mathf.Sin(cheer * Mathf.Pi * 2.9f)) * Mathf.Exp(-cheer * 1.4f) : 0;
+        _nodAt = _time;
+        _nodCycles = cycles;
+        _nodSize = degrees;
+        _nodLifts = _random.Randf() < 0.24f;
     }
 
-    /// <summary>Small things people do when sitting around.</summary>
+    private void Nodding()
+    {
+        var since = (float)(_time - _nodAt) - (_nodLifts ? 0.12f : 0);
+        var angle = 0f;
+        if (since < 0)
+            angle = since > -0.12f ? -0.3f * _nodSize * Mathf.Sin(Mathf.Pi * -since / 0.12f) : 0;
+        else
+            for (var k = 0; k < _nodCycles; k++)
+            {
+                var length = k == 0 ? 0.5f : 0.36f;
+                if (since < length)
+                {
+                    var u = since / length;
+                    var size = _nodSize * Mathf.Pow(0.62f, k) * (k > 0 && k == _nodCycles - 1 ? 0.75f : 1);
+                    angle = size * (u < 0.35f ? Mathf.SmoothStep(0, 1, u / 0.35f) : 1 - Mathf.SmoothStep(0, 1, (u - 0.35f) / 0.65f));
+                    break;
+                }
+                since -= length;
+            }
+        if (angle == 0)
+            return;
+        Add("Neck", 0.3f * angle, 0, 0);
+        Add("Head", 0.7f * angle, 0, 0);
+    }
+
+    /// <summary>
+    /// While she speaks her head marks what she stresses, as speakers' heads do: it dips a little where her voice
+    /// swells (a phrase starting, a stressed word) and comes back up, tilting to one side then the other from one
+    /// phrase to the next. Phrase-paced, not syllable-paced: anything quicker looks like chattering.
+    /// </summary>
+    private void Emphasis(float dt)
+    {
+        if (_voice > 0.05f)
+            _lastVoice = _time;
+        var before = _voiceFast - _voiceSlow;
+        _voiceFast += (_voice - _voiceFast) * (1 - Mathf.Exp(-dt * 4f));
+        _voiceSlow += (_voice - _voiceSlow) * (1 - Mathf.Exp(-dt * 0.8f));
+        var swell = Mathf.Clamp(_voiceFast - _voiceSlow, 0, 1);
+        if (before < 0.04f && swell >= 0.04f)
+            _beatSide = -_beatSide;
+        Add("Neck", 2.5f * swell, 0, 0);
+        Add("Head", 6.0f * swell, 0, 3.0f * _beatSide * swell);
+    }
+
+    /// <summary>The claps: each forearm swings open from the elbow and back until the palms meet, the right hand doing more of it.</summary>
+    private void Clap()
+    {
+        const int claps = 3;
+        const float pace = 2.6f;                                        // claps a second
+        var since = (float)(_time - _clapAt);
+        if (since is < 0 or >= claps / pace)
+            return;
+        var open = Mathf.Abs(Mathf.Sin(Mathf.Pi * since * pace)) * (1 - 0.18f * since * pace) * _shown["clap"];
+        Swing("LeftLowerArm", Vector3.Up, 6 * open);
+        Swing("RightLowerArm", Vector3.Up, -10 * open);
+    }
+
+    /// <summary>Small things people do when sitting around (not while in a conversation).</summary>
     private void Fidget()
     {
-        if (_time < _nextFidget || _time < _busyUntil || _awake < 0.9f)
+        if (_time < _nextFidget || _time < _busyUntil || _awake < 0.9f || _thinkingSince is not null || _listening || _time - _lastVoice < 3)
             return;
         _nextFidget = _time + _random.RandfRange(5.5f, 12);
         var pick = _random.Randf();
@@ -602,9 +791,10 @@ internal sealed class Puppet
         var grip = Grip.Even(RestCurl);
         foreach (var (name, overlay) in Overlays)
         {
-            if (_shown[name] <= 0.001f || (left ? overlay.Left : overlay.Right) is not { } target)
+            if (_shown[name] <= 0.001f || (left ? overlay.Left : overlay.Right) is not { } target
+                || (overlay.AtChin ? ByChin(target, hips) : target.Sized(_size)) is not { } placed)
                 continue;
-            place = place.Towards(target.Sized(_size), _shown[name]);
+            place = place.Towards(placed, _shown[name]);
             var wanted = (left ? overlay.LeftGrip : overlay.RightGrip) ?? (overlay.Curl >= 0 ? (Grip?)Grip.Even(overlay.Curl) : null);
             if (wanted is { } bend)
                 grip = grip.Towards(bend, _shown[name]);
@@ -613,11 +803,6 @@ internal sealed class Puppet
         _frame[side + "UpperArm"] = Spring(side + "UpperArm").Follow(upper, dt);
         _frame[side + "LowerArm"] = Spring(side + "LowerArm").Follow(lower, dt);
         _frame[side + "Hand"] = Spring(side + "Hand").Follow(hand, dt);
-
-        // arms pump while cheering, out of step with each other
-        var cheer = (float)(_time - _cheerAt) - 0.35f;
-        if (cheer is >= 0 and < 1.6f)
-            Add(side + "UpperArm", 0, 0, (left ? 1 : -1) * 8 * Mathf.Sin(cheer * Mathf.Tau * 2.9f + (left ? 0 : 0.7f)) * Mathf.Exp(-cheer * 1.5f));
 
         var now = _grip[side] = _grip[side].Towards(grip, 1 - Mathf.Exp(-dt * 14f));
         foreach (var finger in Fingers)
@@ -628,6 +813,17 @@ internal sealed class Puppet
         _frame[side + "ThumbMetacarpal"] = Rig.Euler(22 * thumb, 0, 0);
         _frame[side + "ThumbProximal"] = Rig.Euler(28 * thumb, 0, 0);
         _frame[side + "ThumbDistal"] = Rig.Euler(38 * thumb, 0, 0);
+    }
+
+    /// <summary>A hand placed by her chin (see <see cref="Overlay"/>), wherever her head is now; null when she has no chin to find.</summary>
+    private Hand? ByChin(Hand hand, Vector3 hips)
+    {
+        if (_chin is not { } chin)
+            return null;
+        var turn = _rig.Total("Head", _frame);
+        var fingers = turn * hand.Fingers.Normalized();
+        var tip = _rig.Joint("Head", _frame, hips) + turn * (chin + hand.Wrist);
+        return new Hand(tip - fingers * _fingerReach, fingers, turn * hand.Palm, turn * hand.Elbow);
     }
 
     /// <summary>Two-bone reach: bends the arm so the wrist lands on the target and lays the hand as asked.</summary>

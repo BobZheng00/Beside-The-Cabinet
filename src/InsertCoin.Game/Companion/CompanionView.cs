@@ -112,7 +112,7 @@ public partial class CompanionView : Node2D
     /// <summary>How far her mouth is open as she speaks aloud (0–1), set every frame by her voice.</summary>
     public float Mouth
     {
-        set => _face.Mouth = value;
+        set => _face.Mouth = _puppet.Voice = value;
     }
 
     /// <summary>Shows a line in a speech bubble over her head.</summary>
@@ -122,14 +122,30 @@ public partial class CompanionView : Node2D
             _bubble.Say(line, OverHead(), _skin.Canvas);
     }
 
-    /// <summary>A reply is on its way: thinking dots over her head until <see cref="Continue"/> brings its words.</summary>
+    /// <summary>A reply is on its way: she thinks, with dots over her head, until <see cref="Continue"/> brings its words.</summary>
     public void BeginReply()
     {
+        _thinking = true;
+        _puppet.Play(Moment.Think);
         if (_active)
             _bubble.Begin(OverHead(), _skin.Canvas);
     }
 
-    public void Continue(string words) => _bubble.Append(words);
+    public void Continue(string words)
+    {
+        Answering();
+        _bubble.Append(words);
+    }
+
+    private bool _thinking;
+
+    /// <summary>The words of her reply have begun (or it ended without any): she stops thinking.</summary>
+    private void Answering()
+    {
+        if (_thinking)
+            _puppet.Play(Moment.Speak);
+        _thinking = false;
+    }
 
     /// <summary>How far her voice is through what it is saying (0 to 1), or null when silent: her bubble turns its pages with it.</summary>
     public Func<double?> Spoken
@@ -137,7 +153,11 @@ public partial class CompanionView : Node2D
         set => _bubble.Spoken = value;
     }
 
-    public void EndReply() => _bubble.End();
+    public void EndReply()
+    {
+        Answering();
+        _bubble.End();
+    }
 
     /// <summary>How much of the reply in her bubble the player has seen (see <see cref="SpeechBubble.Seen"/>).</summary>
     public int? Seen => _bubble.Seen;

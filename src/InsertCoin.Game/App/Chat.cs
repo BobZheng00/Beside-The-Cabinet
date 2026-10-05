@@ -269,8 +269,11 @@ public sealed class Chat : IDisposable
     public async Task Interrupt(Voice voice, CompanionView? view)
     {
         var conversation = _conversation;
+        var here = view is not null && GodotObject.IsInstanceValid(view);
         int? at = _speech is { } speech && voice.Saying(speech) ? speech.CutAt(voice.Heard.Lines, voice.Heard.Into)
-                : view is not null && GodotObject.IsInstanceValid(view) ? view.Seen : null;
+                : here ? view!.Seen : null;
+        if (here && (_answering is not null || voice.Speaking || at is not null))
+            view!.Play(Moment.CutOff);
         voice.Stop();
         if (_answering is { } answering)
         {
