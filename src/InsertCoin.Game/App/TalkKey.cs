@@ -30,6 +30,19 @@ public static class TalkKey
         return code != 0 && (GetAsyncKeyState(code) & 0x8000) != 0;
     }
 
+    /// <summary>
+    /// Whether any key other than <paramref name="name"/> is held now: the talk key pressed with another (Right Ctrl + C)
+    /// is a shortcut, not a tap. Shift, Ctrl and Alt in general are left out: the talk key itself counts as one of them.
+    /// </summary>
+    public static bool OthersDown(string? name)
+    {
+        var own = Keys.FirstOrDefault(k => k.Name == (name ?? Default)).Code;
+        for (var code = 0x08; code <= 0xFE; code++)
+            if (code != own && code is not (0x10 or 0x11 or 0x12) && (GetAsyncKeyState(code) & 0x8000) != 0)
+                return true;
+        return false;
+    }
+
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int key);
 }

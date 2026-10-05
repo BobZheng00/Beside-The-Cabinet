@@ -14,13 +14,15 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `Voice/`.
 - `src/InsertCoin.Game`: the Godot app, kept thin.
   - `Main.cs`: the cabinet's loop and wiring.
-  - `App/Stool.cs`: everything about her (chat, voice, listening, reminders and check-ins she speaks, her windows).
+  - `App/Stool.cs`: everything about her (chat, voice, reminders and check-ins she speaks, her windows).
+  - `App/Listening.cs`: her microphone: the talk key, holding her, the slip's microphone, hands-free turns and conversations.
   - `Companion/`: her figure and bubble.
   - `Desktop/`: window, tray, tickets, and Windows bits (`Presence`, `WindowsNotice`).
 - `docs/specs`:
   - `2026-09-30-insert-coin-design.md`: the cabinet;
   - `2026-10-02-companion-helper.md`: the companion's decisions and open questions;
   - `2026-10-04-companion-memory-v2.md`: memory, agenda, reminders, check-ins, usage and calendars, with sections marked *Built*.
+  - `2026-10-05-hands-free-listening.md`: follow-up listening, conversations, the MIC light.
 - `docs/research`: research notes.
 
 ## Build and test
@@ -73,7 +75,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - End commits with the attribution lines from the system reminder.
 - **Web research** results end with a "Sources:" list.
 - **Her motion is grown-up:** small, few, asymmetric moves, with feeling shown in her face and head more than her limbs. The user found the old cheer (arms up, legs kicking, bouncing on the seat) childish. Ground new motion in how people move (agent note §7).
-- **Keep the structure simple.** Add an interface only where a second implementation is planned (`ICalendarSource`, for Google or Microsoft sign-in later). Stool.cs is big but sectioned. Split it when the agent phase reworks turn-taking, along the lines that design needs.
+- **Keep the structure simple.** Add an interface only where a second implementation is planned (`ICalendarSource`, for Google or Microsoft sign-in later). Stool.cs is big but sectioned; its microphone part became `Listening.cs` when turn-taking was reworked.
 
 ## How the code reads
 
@@ -126,7 +128,14 @@ The research note is written: `docs/research/2026-10-05-companion-agent.md`. The
      - She nods in the player's pauses (`Backchannel`), looks away to think (finger to her chin on a long wait), looks back to answer, and her head follows her voice's stress. She reacts when cut off.
      - The cheer is now soft applause (see the rule on her motion).
      - Motion is judged on clips from `tools\dev\clip.ps1`.
-   - Next: discuss with the user how hands-free follow-up listening should behave. They weren't sure the proposed behaviour is what players expect.
+   - *Built 2026-10-05:* hands-free listening, as the user decided it (spec `2026-10-05-hands-free-listening.md`).
+     - Follow-up listening is off by default and configurable (3 to 20 s, by kind of line).
+     - Conversations come from the tray switch or a double tap of the talk key.
+     - She never listens on her own in calls, full screen or games unless allowed.
+     - MIC shows on the CRT.
+     - A wake word was declined for now.
+     - Tested only through a pretend microphone (`fakemic`, `mictalk:`): never open the real one in tests.
+   - Next: wait for the user's real-voice checks and the spike, then decide what comes next (tools, or tuning turn-taking).
 
 Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
 

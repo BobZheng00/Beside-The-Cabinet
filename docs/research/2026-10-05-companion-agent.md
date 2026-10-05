@@ -227,9 +227,10 @@ The test program is in `<tools>\agent-trial` (README there). What it found on th
 
 ## To decide together
 
-1. **How a conversation starts:**
-   - conversation mode from the key or a click (my suggestion to start with);
-   - a wake word as an option later.
+1. **How a conversation starts:** *decided 2026-10-05* (`docs/specs/2026-10-05-hands-free-listening.md`).
+   - The talk key stays the default.
+   - Follow-up listening and conversations are the player's options.
+   - No wake word for now.
 2. **Interrupting her on speakers:** spike Windows' echo cancellation first. If it falls short, interrupting by voice works only with headphones.
 3. **Tools:**
    - a set of our own first, each with its permission rule;

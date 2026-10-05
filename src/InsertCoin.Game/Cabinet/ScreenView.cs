@@ -21,7 +21,8 @@ public sealed record ScreenState
 
 /// <summary>
 /// The live CRT: an offscreen UI rendered into a viewport and projected onto the cabinet's screen quad.
-/// Priority: a prompt (text entry) over a flash (short message) over the readout / attract pages.
+/// Priority: a prompt (text entry) over a flash (short message) over the readout / attract pages. While her
+/// microphone is open, "MIC" with a blinking dot takes the top right corner, whatever else is showing.
 /// </summary>
 public partial class ScreenView : Node2D
 {
@@ -39,7 +40,9 @@ public partial class ScreenView : Node2D
 
     private SubViewport _viewport = null!;
     private Label _top = null!, _topRight = null!, _big = null!, _caption = null!, _status = null!;
-    private ColorRect _fuelBack = null!, _fuelFill = null!;
+    private ColorRect _fuelBack = null!, _fuelFill = null!, _micDot = null!;
+    private Label _mic = null!;
+    private bool _listening;
     private ShaderMaterial _material = null!;
     private ScreenState _state = new();
     private (string Big, string Caption)? _flash;
@@ -71,6 +74,11 @@ public partial class ScreenView : Node2D
         _status = AddLabel(root, Round, 27, HorizontalAlignment.Center, new Vector2(40, 290), new Vector2(size.X - 80, 34));
         _status.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _topRight.LabelSettings.FontColor = Accent;
+        _mic = AddLabel(root, Pixel, 21, HorizontalAlignment.Right, new Vector2(38, 26), new Vector2(size.X - 76, 28));
+        _mic.Text = "MIC";
+        _mic.LabelSettings.FontColor = Accent;
+        _micDot = new ColorRect { Position = new Vector2(size.X - 38 - 3 * 21 - 24, 33), Size = new Vector2(14, 14), Color = Accent };
+        root.AddChild(_micDot);
         _fuelBack = new ColorRect { Position = new Vector2(60, 258), Size = new Vector2(size.X - 120, 20), Color = Ink with { A = 0.22f } };
         _fuelFill = new ColorRect { Position = _fuelBack.Position, Size = _fuelBack.Size, Color = Ink };
         root.AddChild(_fuelBack);
@@ -87,6 +95,15 @@ public partial class ScreenView : Node2D
         var attract = new Godot.Timer { WaitTime = 4.0, Autostart = true };
         attract.Timeout += () => { _attractPage = (_attractPage + 1) % 4; Redraw(); };
         AddChild(attract);
+        var blink = new Godot.Timer { WaitTime = 0.6, Autostart = true };
+        blink.Timeout += () =>
+        {
+            if (!_listening)
+                return;
+            _micDot.Visible = !_micDot.Visible;             // like a recording light
+            _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
+        };
+        AddChild(blink);
         Redraw();
     }
 
@@ -128,6 +145,17 @@ public partial class ScreenView : Node2D
 
     public void SetBrightness(float brightness) => _material.SetShaderParameter("brightness", brightness);
 
+    /// <summary>Her microphone is open: MIC shows in the top right corner.</summary>
+    public bool Mic
+    {
+        set
+        {
+            _listening = value;
+            _micDot.Visible = value;
+            Redraw();
+        }
+    }
+
     private void Redraw()
     {
         var s = _state;
@@ -137,7 +165,9 @@ public partial class ScreenView : Node2D
 
         _top.Text = $"CREDIT {s.Credits:00}";
         _topRight.Text = s.Streak > 0 ? $"x{s.Streak}" : "";
-        _top.Visible = _topRight.Visible = _prompt is null;
+        _top.Visible = _prompt is null;
+        _topRight.Visible = _prompt is null && !_listening;
+        _mic.Visible = _listening;
         _fuelBack.Visible = _fuelFill.Visible = page == 0 && !takenOver && !inDebt;
         _fuelFill.Size = _fuelBack.Size with { X = _fuelBack.Size.X * Mathf.Clamp(s.Fuel, 0, 1) };
         _status.Text = _prompt?.Status ?? s.Status;

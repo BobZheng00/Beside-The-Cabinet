@@ -34,10 +34,11 @@ public sealed record AppSettings
     public string? ChatProtocol { get; init; }          // OpenAi or Anthropic: how to talk to the user's provider
     public string? ChatBaseUrl { get; init; }           // the provider's server; the API key is stored apart, encrypted
     public string? ChatModel { get; init; }
-    public string? MemorySearch { get; init; }
-    public int? ChatWindow { get; init; }               // tokens of the conversation she keeps word for word; unset: what suits the provider          // a local model's name, "words" for shared words only; unset: the best one present
+    public string? MemorySearch { get; init; }         // a local model's name, "words" for shared words only; unset: the best one present
+    public int? ChatWindow { get; init; }               // tokens of the conversation she keeps word for word; unset: what suits the provider
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
     public string TalkKey { get; init; } = "RightCtrl"; // held in any app to talk to her aloud (see App.TalkKey), or "Off"
+    public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }

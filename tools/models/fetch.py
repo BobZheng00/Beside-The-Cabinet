@@ -1,14 +1,17 @@
 """Downloads the local models she runs on this PC into src/InsertCoin.Game/models/, which git ignores (they are
 large); the build ships whichever are present.
 
-    python tools/models/fetch.py                  # all three
+    python tools/models/fetch.py                  # all of them
     python tools/models/fetch.py small            # only the small memory model (a lighter build)
 
 multilingual  memory search: multilingual-e5-small (intfloat, MIT), about 100 languages, 113 MB
 small         memory search: bge-small-zh-v1.5 (BAAI, MIT), Chinese first and fair English, 23 MB
 listening     her ears: SenseVoice-Small (FunAudioLLM; FunASR model licence, which asks for attribution), Chinese,
               English, Japanese, Korean and Cantonese, 240 MB
-The app works without any of them (memory search by shared words only; no talking to her aloud).
+turns         hands-free turns: Silero's voice detector (MIT, 0.6 MB) and Pipecat's Smart Turn v3.2 at full
+              precision (BSD-2, 32 MB), which tell when the player starts talking and when they have finished
+The app works without any of them (memory search by shared words only; no talking to her aloud; without the turn
+models, she listens only while the talk key is held or she is held).
 """
 import sys
 import urllib.request
@@ -32,6 +35,12 @@ MODELS = {
                   "free to use, copy, modify and share, keeping its name and this attribution.\n"
                   "ONNX export and 8-bit quantisation for sherpa-onnx: "
                   "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.\n"),
+    "turns": ("turn-taking", "",
+              {"https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx": "silero_vad.onnx",
+               "https://huggingface.co/pipecat-ai/smart-turn-v3/resolve/main/smart-turn-v3.2-gpu.onnx": "smart-turn-v3.2.onnx"},
+              "Silero VAD (https://github.com/snakers4/silero-vad), MIT License, Silero Team: the copy sherpa-onnx ships.\n"
+              "Smart Turn v3.2 (https://huggingface.co/pipecat-ai/smart-turn-v3), BSD 2-Clause License, Copyright (c) 2024-2025, Daily.\n"
+              "Its full-precision build (smart-turn-v3.2-gpu.onnx), which runs on the processor too.\n"),
 }
 
 
@@ -46,7 +55,7 @@ def fetch(key):
             continue
         print(f"fetching {folder}/{source} ...", flush=True)
         partial = path.with_suffix(path.suffix + ".part")
-        urllib.request.urlretrieve(f"{base}/{source}", partial)
+        urllib.request.urlretrieve(source if source.startswith("https://") else f"{base}/{source}", partial)
         partial.replace(path)
     (target / "LICENSE.txt").write_text(licence, encoding="utf-8")
 

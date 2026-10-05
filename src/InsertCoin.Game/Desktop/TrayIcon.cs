@@ -8,13 +8,14 @@ public enum TrayMood { Fine, Low, Debt }
 public partial class TrayIcon : Node
 {
     public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
-    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged;
+    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged,
+        ConversationChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
         AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
-        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002;     // characters take the ids from 20 up
-    private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId];
+        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003;   // characters take the ids from 20 up
+    private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId, ConversationId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
@@ -36,7 +37,7 @@ public partial class TrayIcon : Node
         var checks = new Dictionary<int, bool>
         {
             [TopId] = alwaysOnTop, [StartupId] = startWithWindows, [MuteId] = muted, [TicketsId] = inGameTickets,
-            [CompanionId] = companion, [SpeechId] = speech, [VoiceId] = voice, [EnergyId] = energySaver,
+            [CompanionId] = companion, [SpeechId] = speech, [VoiceId] = voice, [EnergyId] = energySaver, [ConversationId] = false,
         };
         Fill(checks, size, characters, character);
 
@@ -84,6 +85,7 @@ public partial class TrayIcon : Node
         Check("Companion", CompanionId);
         Check("Speech bubbles", SpeechId);
         Check("Voice", VoiceId);
+        Check("Conversation (she keeps listening)", ConversationId);
         _menu.AddItem("Chat settings…", ChatId);
         _menu.AddItem("Voice settings…", VoiceSettingsId);
         _menu.AddItem("Memory book…", MemoryId);
@@ -104,6 +106,9 @@ public partial class TrayIcon : Node
         _menu.AddSeparator();
         _menu.AddItem("Quit", QuitId);
     }
+
+    /// <summary>Shows whether a conversation is on (it ends by itself after a quiet while, or by the talk key).</summary>
+    public void SetConversation(bool on) => _menu.SetItemChecked(_menu.GetItemIndex(ConversationId), on);
 
     public void Set(TrayMood mood, string tooltip)
     {
@@ -130,6 +135,7 @@ public partial class TrayIcon : Node
             case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
             case SpeechId: SpeechChanged?.Invoke(Toggle(SpeechId)); break;
             case VoiceId: VoiceChanged?.Invoke(Toggle(VoiceId)); break;
+            case ConversationId: ConversationChanged?.Invoke(Toggle(ConversationId)); break;
             case VoiceSettingsId: VoiceSettings?.Invoke(); break;
             case ChatId: ChatSettings?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;

@@ -131,6 +131,9 @@ public partial class Main : Node2D
         _tray.CompanionChanged += _stool.SetCompanion;
         _tray.SpeechChanged += _stool.SetBubbles;
         _tray.VoiceChanged += _stool.SetVoice;
+        _tray.ConversationChanged += _stool.Converse;
+        _stool.ConversingChanged += _tray.SetConversation;
+        _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.ChatSettings += _stool.OpenChatSettings;
         _tray.VoiceSettings += _stool.OpenVoiceSettings;
         _tray.MemoryBook += _stool.OpenMemoryBook;

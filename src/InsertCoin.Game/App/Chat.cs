@@ -50,6 +50,9 @@ public sealed class Chat : IDisposable
     /// <summary>A provider is set up and someone is on the stool.</summary>
     public bool Ready => _client is not null && _conversation is not null;
     public bool Answering => _answering is not null;
+
+    /// <summary>Her last reply as shown, once it has come in whole; null while one is coming, or when it failed or was cut off.</summary>
+    public string? Replied { get; private set; }
     public Conversation? Conversation => _conversation;
 
     /// <summary>Uses this provider (with the stored key) from now on, or none.</summary>
@@ -195,7 +198,8 @@ public sealed class Chat : IDisposable
             view.BeginReply();
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Task<string>> reply =
                 fromCabinet ? conversation.Announce : conversation.Answer;
-            await reply(client, said, situation,
+            Replied = null;
+            var text = await reply(client, said, situation,
                                       words =>
                                       {
                                           if (!Here())
@@ -214,7 +218,10 @@ public sealed class Chat : IDisposable
                                       answering.Token);
             GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
             if (Here())
+            {
                 speech?.Finish();
+                Replied = text;
+            }
         }
         catch (OperationCanceledException) when (_cutting)
         {

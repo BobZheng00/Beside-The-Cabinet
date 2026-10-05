@@ -12,10 +12,11 @@ namespace InsertCoin.Game.App;
 public partial class ChatSettings : Window
 {
     /// <summary>
-    /// The provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>) and the talk key (see
-    /// <see cref="TalkKey"/>) after Save; the API key is already stored by then.
+    /// After Save: the provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>), the talk key
+    /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>) and the window; the API
+    /// key is already stored by then.
     /// </summary>
-    public event Action<Provider?, string, string, int?>? Saved;
+    public event Action<Provider?, string, string, HandsFree, int?>? Saved;
 
     /// <summary>The window sizes offered: tokens (null: what suits the provider) and how each is described.</summary>
     private static readonly (int? Tokens, string Label)[] Windows =
@@ -32,16 +33,22 @@ public partial class ChatSettings : Window
     private OptionButton _preset = null!, _search = null!, _talkKey = null!, _window = null!;
     private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
+    private CheckBox _conversationKey = null!, _followUp = null!, _afterAnswers = null!, _afterQuestions = null!, _afterRemarks = null!,
+        _inCalls = null!, _inFullScreen = null!, _whilePlaying = null!;
+    private SpinBox _followUpSeconds = null!;
+    private HandsFree _handsFree = new();
     private Label _result = null!;
     private Protocol _protocol;
 
     /// <param name="hears">This build has her ears (the speech model), so she can be talked to aloud.</param>
+    /// <param name="turns">…and the turn-taking models, so she can listen hands-free.</param>
     /// <param name="window">Tokens of the conversation she keeps word for word, or null for what suits the provider.</param>
     /// <param name="prices">What the player's provider charges, per model, as they entered it (see the Usage tab).</param>
-    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, bool hears, int? window,
-                      IReadOnlyDictionary<string, Prices> prices, string currency)
+    public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, HandsFree handsFree, bool hears, bool turns,
+                      int? window, IReadOnlyDictionary<string, Prices> prices, string currency)
     {
         _chat = chat;
+        _handsFree = handsFree;
         Title = $"Talk with {characterName}";
         Visible = false;
         Transient = true;
@@ -58,6 +65,11 @@ public partial class ChatSettings : Window
         var column = new VBoxContainer { Name = "Connection" };
         column.AddThemeConstantOverride("separation", 10);
         tabs.AddChild(column);
+        var listeningTab = new ScrollContainer { Name = "Listening", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        tabs.AddChild(listeningTab);
+        var listening = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        listening.AddThemeConstantOverride("separation", 10);
+        listeningTab.AddChild(listening);
         var usage = new VBoxContainer { Name = "Usage" };
         usage.AddThemeConstantOverride("separation", 8);
         tabs.AddChild(usage);
@@ -117,21 +129,7 @@ public partial class ChatSettings : Window
                              "Word for word: the newest part of your conversation, which she reads in full every time; older talk is summarised " +
                              "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached));
 
-        // talking to her aloud
-        column.AddChild(new HSeparator());
-        var talk = new GridContainer { Columns = 2 };
-        talk.AddThemeConstantOverride("h_separation", 12);
-        _talkKey = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Disabled = !hears };
-        foreach (var (_, label, _) in TalkKey.Keys)
-            _talkKey.AddItem(label);
-        _talkKey.Select(Math.Max(0, Array.FindIndex(TalkKey.Keys, k => k.Name == talkKey)));
-        Row(talk, "Talk key", _talkKey);
-        column.AddChild(talk);
-        column.AddChild(Hint(hears
-            ? $"Talk to {characterName} aloud: hold the mouse on her, or hold this key in any app, and let go when you're done; she " +
-              "answers what she heard. The microphone on the slip writes what you say into it instead, to change before sending. " +
-              "Heard on this PC; nothing is recorded."
-            : "Talking aloud needs the speech model, which this build doesn't have (python tools/models/fetch.py listening)."));
+        BuildListening(listening, characterName, talkKey, hears, turns);
 
         column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         var buttons = new HBoxContainer();
@@ -159,10 +157,101 @@ public partial class ChatSettings : Window
         }
     }
 
+    /// <summary>The Listening tab: the talk key, and when she listens without it.</summary>
+    private void BuildListening(VBoxContainer page, string name, string talkKey, bool hears, bool turns)
+    {
+        page.AddChild(new Label { Text = "Talking aloud", ThemeTypeVariation = "Heading" });
+        var talk = new GridContainer { Columns = 2 };
+        talk.AddThemeConstantOverride("h_separation", 12);
+        _talkKey = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Disabled = !hears, ClipText = true };
+        foreach (var (_, label, _) in TalkKey.Keys)
+            _talkKey.AddItem(label);
+        _talkKey.Select(Math.Max(0, Array.FindIndex(TalkKey.Keys, k => k.Name == talkKey)));
+        Row(talk, "Talk key", _talkKey);
+        page.AddChild(talk);
+        page.AddChild(Hint(hears
+            ? $"Talk to {name} aloud: hold the mouse on her, or hold this key in any app, and let go when you're done; she " +
+              "answers what she heard. The microphone on the slip writes what you say into it instead, to change before sending. " +
+              "Heard on this PC; nothing is recorded. The cabinet's screen shows MIC while the microphone is open."
+            : "Talking aloud needs the speech model, which this build doesn't have (python tools/models/fetch.py listening)."));
+
+        page.AddChild(new HSeparator());
+        page.AddChild(new Label { Text = "Without the key", ThemeTypeVariation = "Heading" });
+        var h = _handsFree;
+        _conversationKey = Tick(page, "Double-tap the talk key to start or end a conversation", h.ConversationKey);
+        page.AddChild(Hint($"In a conversation {name} listens after everything she says, so you can answer without the key, until you've " +
+                           $"been quiet for {HandsFree.ConversationSeconds:0} seconds. The tray's Conversation switch does the same."));
+        _followUp = Tick(page, "Listen for a moment after she speaks", h.FollowUp);
+        var seconds = Indented(page);
+        seconds.AddChild(new Label { Text = "for" });
+        _followUpSeconds = new SpinBox
+        {
+            MinValue = HandsFree.Shortest, MaxValue = HandsFree.Longest, Step = 1, Value = h.FollowUpSeconds, Suffix = "seconds",
+            CustomMinimumSize = new Vector2(140, 0),
+        };
+        seconds.AddChild(_followUpSeconds);
+        _afterAnswers = Tick(Indented(page), "after she answers you", h.AfterAnswers);
+        _afterQuestions = Tick(Indented(page), "after she asks you something on her own", h.AfterQuestions);
+        _afterRemarks = Tick(Indented(page), "after anything else she says on her own", h.AfterRemarks);
+        page.AddChild(Hint("If you start talking within those seconds, she hears it as your answer; if not, the microphone closes. " +
+                           "She never listens while she is speaking: talking over her still needs the key or a click."));
+
+        page.AddChild(new Label { Text = "She may listen on her own…" });
+        _inCalls = Tick(Indented(page), "during a call", h.InCalls);
+        _inFullScreen = Tick(Indented(page), "in full screen or Windows' quiet time", h.InFullScreen);
+        _whilePlaying = Tick(Indented(page), "while a game runs", h.WhilePlaying);
+
+        void Enable()
+        {
+            foreach (var box in new[] { _conversationKey, _followUp, _inCalls, _inFullScreen, _whilePlaying })
+                box.Disabled = !turns || !hears;
+            foreach (var box in new[] { _afterAnswers, _afterQuestions, _afterRemarks })
+                box.Disabled = !turns || !hears || !_followUp.ButtonPressed;
+            _followUpSeconds.Editable = turns && hears && _followUp.ButtonPressed;
+        }
+        _followUp.Toggled += _ => Enable();
+        Enable();
+        if (!turns)
+            page.AddChild(Hint("Listening without the key needs the turn-taking models, which this build doesn't have " +
+                               "(python tools/models/fetch.py turns)."));
+    }
+
+    private static CheckBox Tick(Container parent, string text, bool on)
+    {
+        var box = new CheckBox
+        {
+            Text = text, ButtonPressed = on, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(200, 0),
+        };
+        parent.AddChild(box);
+        return box;
+    }
+
+    /// <summary>A row set in under the line above it.</summary>
+    private static HBoxContainer Indented(VBoxContainer page)
+    {
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 8);
+        row.AddChild(new Control { CustomMinimumSize = new Vector2(22, 0) });
+        page.AddChild(row);
+        return row;
+    }
+
+    /// <summary>When she listens without the key, as ticked.</summary>
+    private HandsFree HandsFreeChosen() => _handsFree with
+    {
+        ConversationKey = _conversationKey.ButtonPressed, FollowUp = _followUp.ButtonPressed, FollowUpSeconds = _followUpSeconds.Value,
+        AfterAnswers = _afterAnswers.ButtonPressed, AfterQuestions = _afterQuestions.ButtonPressed, AfterRemarks = _afterRemarks.ButtonPressed,
+        InCalls = _inCalls.ButtonPressed, InFullScreen = _inFullScreen.ButtonPressed, WhilePlaying = _whilePlaying.ButtonPressed,
+    };
+
     public void Open() => Paper.Open(this, new Vector2(560, 720));
 
     /// <summary>Dev: shows the Usage tab.</summary>
-    public void DevUsage() => _tabs.CurrentTab = 1;
+    public void DevUsage() => _tabs.CurrentTab = 2;
+
+    /// <summary>Dev: shows the Listening tab.</summary>
+    public void DevListening() => _tabs.CurrentTab = 1;
 
     /// <summary>The prices entered on the Usage tab, after Save: for this model (null: none), and the currency they are in.</summary>
     public event Action<string, Prices?, string>? PricesSaved;
@@ -209,7 +298,7 @@ public partial class ChatSettings : Window
     {
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
-        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, Windows[_window.Selected].Tokens);
+        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, HandsFreeChosen(), Windows[_window.Selected].Tokens);
         if (_model.Text.Trim() is { Length: > 0 } model)
             PricesSaved?.Invoke(model, _usage.Prices, _usage.Currency);
         QueueFree();

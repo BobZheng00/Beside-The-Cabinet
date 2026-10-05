@@ -112,6 +112,14 @@ apart by itself): about a tenth of a second for a sentence. The microphone is op
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
 it does in the app in front.
 
+She can also listen without the key, if you choose (Chat settings → Listening). With follow-up listening she listens a few
+seconds after she speaks (3 to 20, after her answers, her own questions or anything she says, as ticked), and if you
+start talking she hears it as your answer. A conversation (the tray's Conversation switch, or a double tap of the talk
+key) has her listen after everything she says, until you've been quiet for 30 seconds. She notices you start and finish
+by herself (Silero's voice detector and Pipecat's Smart Turn, on the processor). She never listens on her own in a call,
+in full screen or quiet time, or while a game runs, unless you allow it, and never while she is speaking. The CRT shows
+MIC whenever the microphone is open.
+
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
@@ -152,6 +160,9 @@ window does), `voicetrain` (train her voice, as the window's button does) and `v
 listens and nods for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
 held on her, then let go), and `closeup:hands` (her camera narrowed onto her hands, to judge fingers; `closeup:off`).
+Hands-free, without ever opening the real microphone: `fakemic` (from then on she hears only recordings),
+`mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`) and
+`listeningsettings` (the Chat settings Listening tab).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
@@ -247,7 +258,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   [docs/research/2026-10-02-companion-voice.md](docs/research/2026-10-02-companion-voice.md).
 - Her ears: `App/Ears.cs` opens the microphone while she listens (Godot records it into a muted bus of its own),
   `TalkKey` reads the talk key, and `Hearing` (in `InsertCoin.Mind`) turns what was said into words with
-  SenseVoice. `App/Stool.cs` ties them together: held on her, the talk key, or the slip's microphone.
+  SenseVoice. `App/Listening.cs` ties them together: held on her, the talk key, the slip's microphone, and hands-free
+  (`HandsFree`, `TurnTaking`, `VoiceDetector`, `SmartTurn` in `InsertCoin.Mind`). Design:
+  [docs/specs/2026-10-05-hands-free-listening.md](docs/specs/2026-10-05-hands-free-listening.md).
 - `App/Stool.cs` holds whoever is on the stool: her figure, the chat and its slip, her voice and its training, the
   windows for them, and characters, cards and voices coming in. `Main.cs` is the cabinet's own loop.
 - `Rig`, `Puppet`, `Face` move her. Three layers each frame: poses (seated, plus reaction poses switched by
