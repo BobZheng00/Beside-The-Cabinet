@@ -8,7 +8,8 @@ namespace InsertCoin.Mind;
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
 /// <summary>One change to the agenda upkeep asks for: add an item, update one, or cancel one.</summary>
-public sealed record PlanChange(string Op, long? Id, string? When, string? Text, bool Remind);
+/// <param name="Options">How long before to remind and how it repeats, as words (see <see cref="Agenda.ParseOptions"/>).</param>
+public sealed record PlanChange(string Op, long? Id, string? When, string? Text, bool Remind, string? Options = null);
 
 /// <summary>Facts a review folds into one (one id: a rewrite).</summary>
 public sealed record Merge(IReadOnlyList<long> Ids, string Text, int? Importance);
@@ -71,7 +72,8 @@ public static class Upkeep
                   {"op": "update", "id": 12, "text": "...", "importance": 6},
                   {"op": "delete", "id": 5}],
                  "plans": [
-                  {"op": "add", "when": "2026-10-06 15:00", "text": "Job interview at Acme", "remind": false},
+                  {"op": "add", "when": "2026-10-06 15:00", "text": "Job interview at Acme", "remind": true, "before": "1 hour"},
+                  {"op": "add", "when": "2026-10-05 08:00", "text": "Take vitamins", "remind": true, "repeat": "daily"},
                   {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
                   {"op": "cancel", "id": 4}]}
 
@@ -79,7 +81,7 @@ public static class Upkeep
 
                 Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Update a known fact when the conversation changes it, delete one that is no longer true, and never add one that is already known. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
 
-                Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn relative dates ("tomorrow", "next Friday") into dates using the timestamps. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded, and "when" is then when the reminder should go off. If there are none, give an empty list.
+                Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn relative dates ("tomorrow", "next Friday") into dates using the timestamps. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded: with "before" ("10 min", "1 hour", "1 day") when they asked to be reminded that long ahead, else "when" is when the reminder goes off. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
                 """),
             new(ChatRole.User, $"{day}The agenda:\n{plans}\n\nKnown facts that may relate:\n{facts}\n\nNew part of the conversation:\n{Transcript(persona, lines)}"),
         ];
@@ -115,7 +117,9 @@ public static class Upkeep
                         p.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n) ? n : null,
                         Text(p, "when"),
                         Text(p, "text")?.Trim(),
-                        p.TryGetProperty("remind", out var r) && r.ValueKind == JsonValueKind.True));
+                        p.TryGetProperty("remind", out var r) && r.ValueKind == JsonValueKind.True,
+                        string.Join(", ", new[] { Text(p, "before") is { Length: > 0 } b ? (b.Contains("before") ? b : b + " before") : null, Text(p, "repeat") }
+                                              .Where(o => o is not null))));
             return new Digestion(string.IsNullOrWhiteSpace(episode) ? null : episode.Trim(), changes) { Continues = continues, Plans = plans };
         }
         catch (JsonException)

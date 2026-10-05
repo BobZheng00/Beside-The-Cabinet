@@ -11,12 +11,12 @@ public class AgendaTests
     {
         Assert.Equal((Friday.Date.AddDays(7).AddHours(15), false, "Dentist"), Plain(Agenda.ParseDirection("2026-10-09 15:00 | Dentist", false, Friday)));
         Assert.Equal((Friday.Date.AddDays(7), true, "Calculus exam"), Plain(Agenda.ParseDirection("2026-10-09 | Calculus exam", false, Friday)));
-        Assert.Equal((Friday.Date.AddDays(7).AddHours(9), false, "Exam today"), Plain(Agenda.ParseDirection("2026-10-09 | Exam today", true, Friday)));
+        Assert.Equal((Friday.Date.AddDays(7), true, "Exam today"), Plain(Agenda.ParseDirection("2026-10-09 | Exam today", true, Friday)));   // goes off that morning
         Assert.Null(Agenda.ParseDirection("next Friday | Dentist", false, Friday));
         Assert.Null(Agenda.ParseDirection("2026-10-09 15:00", false, Friday));
-        Assert.Equal(Friday.Offset, Agenda.ParseDirection("2026-10-09 15:00 | Dentist", false, Friday)!.Value.At.Offset);
+        Assert.Equal(Friday.Offset, Agenda.ParseDirection("2026-10-09 15:00 | Dentist", false, Friday)!.At.Offset);
 
-        static (DateTime, bool, string)? Plain((DateTimeOffset At, bool AllDay, string Text)? p) => p is { } x ? (x.At.DateTime, x.AllDay, x.Text) : null;
+        static (DateTime, bool, string)? Plain(PlanSpec? p) => p is { } x ? (x.At.DateTime, x.AllDay, x.Text) : null;
     }
 
     [Fact]
@@ -56,9 +56,9 @@ public class AgendaTests
     {
         using var temp = new TempStore();
         var store = temp.Store;
-        store.AddPlan("Calculus exam", Friday.Date.AddDays(1), allDay: true, remind: false, Friday, null);
-        store.AddPlan("Job interview", Friday.Date.AddDays(10).AddHours(10), allDay: false, remind: false, Friday, null);
-        var missed = store.AddPlan("Water the plants", Friday.AddHours(1), allDay: false, remind: true, Friday, "shino");
+        store.AddPlan("Calculus exam", Friday.Date.AddDays(1), allDay: true, before: null, Friday, null);
+        store.AddPlan("Job interview", Friday.Date.AddDays(10).AddHours(10), allDay: false, before: null, Friday, null);
+        var missed = store.AddPlan("Water the plants", Friday.AddHours(1), allDay: false, before: TimeSpan.Zero, Friday, "shino");
 
         Assert.Equal("""
             <agenda>
@@ -84,12 +84,12 @@ public class AgendaTests
     public void A_reminder_moved_to_a_new_time_goes_off_again()
     {
         using var temp = new TempStore();
-        var id = temp.Store.AddPlan("Stretch", Friday.AddHours(1), allDay: false, remind: true, Friday, null);
+        var id = temp.Store.AddPlan("Stretch", Friday.AddHours(1), allDay: false, before: TimeSpan.Zero, Friday, null);
         temp.Store.Reminded(id, Friday.AddHours(1));
 
-        temp.Store.UpdatePlan(id, "Stretch", Friday.AddHours(1), allDay: false, remind: true);
+        temp.Store.UpdatePlan(id, "Stretch", Friday.AddHours(1), allDay: false, TimeSpan.Zero, Repeat.Once);
         Assert.NotNull(temp.Store.Agenda().Single().Reminded);                     // only renamed: stays done
-        temp.Store.UpdatePlan(id, "Stretch again", Friday.AddHours(3), allDay: false, remind: true);
+        temp.Store.UpdatePlan(id, "Stretch again", Friday.AddHours(3), allDay: false, TimeSpan.Zero, Repeat.Once);
         Assert.Null(temp.Store.Agenda().Single().Reminded);
     }
 
@@ -98,8 +98,8 @@ public class AgendaTests
     {
         using var temp = new TempStore();
         var store = temp.Store;
-        var exam = store.AddPlan("Calculus exam", Friday.Date.AddDays(7), allDay: true, remind: false, Friday.AddDays(-3), null);
-        var party = store.AddPlan("Mia's party", Friday.Date.AddDays(1).AddHours(19), allDay: false, remind: false, Friday.AddDays(-3), null);
+        var exam = store.AddPlan("Calculus exam", Friday.Date.AddDays(7), allDay: true, before: null, Friday.AddDays(-3), null);
+        var party = store.AddPlan("Mia's party", Friday.Date.AddDays(1).AddHours(19), allDay: false, before: null, Friday.AddDays(-3), null);
         store.Add("shino", Speaker.User, "the exam moved to the 12th, Mia cancelled her party, and I have a dentist appointment Tuesday at 3. remind me Tuesday", Friday);
         var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
         var model = new FakeModel();
@@ -117,7 +117,7 @@ public class AgendaTests
 
         Assert.Contains($"The agenda:\n#{party} 2026-10-03 19:00 Mia's party\n#{exam} 2026-10-09 Calculus exam\n", model.Requests.Single()[1].Text);
         Assert.Contains("They go in \"plans\", not in facts.", model.Requests.Single()[0].Text);
-        Assert.Equal([("Dentist at 15:00 today", "Tue 6 Oct 09:00", true), ("Dentist appointment", "Tue 6 Oct 15:00", false), ("Calculus exam", "Mon 12 Oct", false)],
+        Assert.Equal([("Dentist at 15:00 today", "Tue 6 Oct", true), ("Dentist appointment", "Tue 6 Oct 15:00", false), ("Calculus exam", "Mon 12 Oct", false)],
                      store.Agenda().Select(p => (p.Text, p.Label, p.Remind)));
     }
 
@@ -125,7 +125,7 @@ public class AgendaTests
     public void Forgetting_all_about_the_player_clears_the_agenda()
     {
         using var temp = new TempStore();
-        temp.Store.AddPlan("Calculus exam", Friday.Date.AddDays(7), allDay: true, remind: false, Friday, null);
+        temp.Store.AddPlan("Calculus exam", Friday.Date.AddDays(7), allDay: true, before: null, Friday, null);
         temp.Store.ForgetPlayer();
         Assert.Empty(temp.Store.Agenda());
     }

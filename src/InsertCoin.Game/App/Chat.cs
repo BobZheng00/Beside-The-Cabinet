@@ -87,7 +87,21 @@ public sealed class Chat : IDisposable
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window };
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead };
+    }
+
+    private TimeSpan? _lead;
+
+    /// <summary>The player's "remind me before things on my agenda" (see <see cref="Conversation.ReminderLead"/>).</summary>
+    public TimeSpan? ReminderLead
+    {
+        get => _lead;
+        set
+        {
+            _lead = value;
+            if (_conversation is not null)
+                _conversation.ReminderLead = value;
+        }
     }
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
@@ -160,7 +174,17 @@ public sealed class Chat : IDisposable
     /// The language of her voice whenever she has one switched on, ready this moment or not: her instructions stay the
     /// same while her voice rests (during a game), so the start of the prompt stays cached.
     /// </param>
-    public async Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null)
+    public Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null) =>
+        Respond(said, fromCabinet: false, fallback: null, situation, view, speech, voiceLanguage);
+
+    /// <summary>
+    /// Has her pass on what the cabinet asks (reminders going off, see <see cref="Agenda.Announcement"/>) in her own
+    /// words, shown and said as a reply is; when that fails, she says <paramref name="fallback"/> instead.
+    /// </summary>
+    public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null) =>
+        Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage);
+
+    private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
@@ -174,7 +198,9 @@ public sealed class Chat : IDisposable
         try
         {
             view.BeginReply();
-            await conversation.Answer(client, said, situation,
+            Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Task<string>> reply =
+                fromCabinet ? conversation.Announce : conversation.Answer;
+            await reply(client, said, situation,
                                       words =>
                                       {
                                           if (!Here())
@@ -198,7 +224,9 @@ public sealed class Chat : IDisposable
         catch (Exception e)
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
-            if (Here())
+            if (Here() && fallback is not null)
+                view.Continue(fallback);                    // a reminder still gets said, in the plain words
+            else if (Here())
             {
                 view.Play(Moment.Worry);
                 view.Continue(Trouble.Explain(e));

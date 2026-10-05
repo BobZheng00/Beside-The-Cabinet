@@ -78,6 +78,24 @@ public static class Paper
         theme.SetColor("font_hover_color", "PopupMenu", Ink);
         theme.SetStylebox("separator", "HSeparator", Box(new Color("E2DAF7"), new Color("E2DAF7"), 0, 0, 0, 1));
         theme.SetStylebox("panel", "ScrollContainer", Box(new Color("FBF6EE"), new Color("E2DAF7"), 1, 8, 8, 8));
+
+        // tabs like index cards: the chosen one is part of the page, the others washed out behind it
+        theme.SetStylebox("panel", "TabContainer", Box(Sheet, line, 1, 8, 12, 12));
+        StyleBoxFlat Tab(Color fill, Color border)
+        {
+            var tab = Box(fill, border, 1, 8, 14, 6);
+            tab.BorderWidthBottom = 0;
+            tab.CornerRadiusBottomLeft = tab.CornerRadiusBottomRight = 0;
+            return tab;
+        }
+        theme.SetStylebox("tab_selected", "TabContainer", Tab(Sheet, line));
+        theme.SetStylebox("tab_unselected", "TabContainer", Tab(Wash, Wash));
+        theme.SetStylebox("tab_hovered", "TabContainer", Tab(new Color("E2DAF7"), new Color("E2DAF7")));
+        theme.SetStylebox("tab_focus", "TabContainer", new StyleBoxEmpty());
+        theme.SetColor("font_selected_color", "TabContainer", Ink);
+        theme.SetColor("font_unselected_color", "TabContainer", Letters);
+        theme.SetColor("font_hovered_color", "TabContainer", Ink);
+        theme.SetConstant("side_margin", "TabContainer", 0);
         return theme;
     }
 

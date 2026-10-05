@@ -22,12 +22,14 @@ public static class Lines
     /// </summary>
     public static string Reminder(IReadOnlyList<InsertCoin.Mind.Plan> due, DateTimeOffset now)
     {
-        string When(InsertCoin.Mind.Plan p) => p.At.Date == now.Date ? p.At.ToString("HH:mm", CultureInfo.InvariantCulture) : p.Label;
-        var late = due.Where(p => now - p.At > InsertCoin.Mind.Agenda.Missed).ToList();
+        string When(InsertCoin.Mind.Plan p) => p.At.Date == now.Date && !p.AllDay ? p.At.ToString("HH:mm", CultureInfo.InvariantCulture) : p.Label;
+        var late = due.Where(p => now - (p.RemindAt() ?? p.At) > InsertCoin.Mind.Agenda.Missed).ToList();
         var onTime = due.Except(late).ToList();
         var said = new List<string>();
+        // one that goes off ahead of its item says when the item is
+        string Said(InsertCoin.Mind.Plan p) => p.Text.TrimEnd('.') + (p.At - now > TimeSpan.FromMinutes(1) ? $" ({When(p)})" : "");
         if (onTime.Count > 0)
-            said.Add($"{(onTime.Count == 1 ? "Reminder" : "Reminders")}: {string.Join("; ", onTime.Select(p => p.Text.TrimEnd('.')))}.");
+            said.Add($"{(onTime.Count == 1 ? "Reminder" : "Reminders")}: {string.Join("; ", onTime.Select(Said))}.");
         if (late.Count > 0)
             said.Add($"While you were away: {string.Join("; ", late.Select(p => $"{p.Text.TrimEnd('.')} ({When(p)})"))}.");
         return string.Join(" ", said);

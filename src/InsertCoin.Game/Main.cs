@@ -434,6 +434,11 @@ public partial class Main : Node2D
             _reminders.Try(action["remind:".Length..].Replace('_', ' '), DateTimeOffset.Now);              // underscores for spaces
             return;
         }
+        if (action.StartsWith("ticketpress:"))              // ticketpress:0 presses the showing ticket's first button (Snooze), 1 the next (OK)
+        {
+            _ticket.DevPress(int.Parse(action["ticketpress:".Length..]));
+            return;
+        }
         if (action.StartsWith("elsewhere:"))
         {
             // elsewhere:http://127.0.0.1:port points ntfy (topic "test") and the webhook (/hook) at a local test server
@@ -446,7 +451,7 @@ public partial class Main : Node2D
         {
             // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
             var at = DateTimeOffset.Now.AddSeconds(double.Parse(after, System.Globalization.CultureInfo.InvariantCulture));
-            _stool.Store.AddPlan(what.Replace('_', ' '), at, allDay: false, remind: true, DateTimeOffset.Now, null);
+            _stool.Store.AddPlan(what.Replace('_', ' '), at, allDay: false, TimeSpan.Zero, at < DateTimeOffset.Now ? at.AddMinutes(-1) : DateTimeOffset.Now, null);   // set before it came due
             return;
         }
         switch (action)
@@ -505,11 +510,12 @@ public partial class Main : Node2D
         }
         _reminderSettings = new ReminderSettings();
         AddChild(_reminderSettings);
-        _reminderSettings.Build(_settings.ReminderSound, _settings.ReminderWindows, _settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
+        _reminderSettings.Build(ReminderChoices.Of(_settings), ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
         _reminderSettings.Tried += chime => _reminders.Try("This is how a reminder reaches you.", DateTimeOffset.Now, chime);
-        _reminderSettings.Saved += (sound, windows, elsewhere, secrets) =>
+        _reminderSettings.Saved += (choices, secrets) =>
         {
-            SaveSettings(_settings with { ReminderSound = sound, ReminderWindows = windows, ReminderElsewhere = elsewhere });
+            SaveSettings(choices.Into(_settings));
+            _stool.ReminderLead = choices.LeadMinutes;
             _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
         };
         _reminderSettings.Open();

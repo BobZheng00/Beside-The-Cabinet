@@ -41,6 +41,9 @@ public partial class Stool : Node2D
     private Ears _ears = null!;
     private Task<Hearing?>? _hearing;
     private Talk _talking;
+    private bool _understanding, _announcing;              // hearing what was just said; passing on a reminder
+    private readonly Queue<(IReadOnlyList<Plan> Due, DateTimeOffset At)> _reminding = new();
+    private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
     private bool _pressedOnHer, _heldToTalk, _keyUsed;
     private double _pressedFor, _keyFor;
 
@@ -68,6 +71,7 @@ public partial class Stool : Node2D
         _characters = Path.Combine(dataDir, "characters");
 
         _chat = new Chat(dataDir);
+        ReminderLead = settings.Now.ReminderLeadMinutes;
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
         _chat.Connect(ChatProvider());
@@ -149,15 +153,66 @@ public partial class Stool : Node2D
     /// <summary>What just happened on the cabinet, for her mind to take note of.</summary>
     public void Witness(IEnumerable<LedgerEvent> events, Rules rules) => _chat.Witness(events, rules);
 
+    /// <summary>The player's "remind me before things on my agenda", in minutes: her turns mention those reminders too.</summary>
+    public int? ReminderLead
+    {
+        set => _chat.ReminderLead = value is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
+    }
+
     /// <summary>Her memory, the agenda among it (shared by every character).</summary>
     public MindStore Store => _chat.Store;
 
-    /// <summary>Reminders going off: she gets the player's attention and says them.</summary>
-    public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now)
+    /// <summary>
+    /// Reminders going off: she tells the player once she has finished what she is doing (answering, speaking,
+    /// listening), never cutting herself or them off; in her own words when her mind is connected. The ticket has
+    /// shown them already, so after ten minutes of waiting she lets them go.
+    /// </summary>
+    public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now) => _reminding.Enqueue((due, now));
+
+    /// <summary>She is answering, speaking, listening, or hearing what was just said.</summary>
+    private bool Busy => _chat.Answering || _voice.Speaking || _talking != Talk.None || _understanding || _announcing;
+
+    private void PassOnReminders()
     {
-        _lively(6);
-        Her?.Play(Moment.Greet);
-        Say(Lines.Reminder(due, now));
+        var now = DateTimeOffset.Now;
+        if (Busy)
+            _quietFrom = now.AddSeconds(1.5);               // a breath after she stops before she starts again
+        if (Busy || _reminding.Count == 0 || now < _quietFrom)
+            return;
+        var (due, at) = _reminding.Dequeue();
+        if (now - at > TimeSpan.FromMinutes(10))
+        {
+            GD.Print("Reminders: she was busy too long to say it; the ticket did");
+            return;
+        }
+        GD.Print($"Reminders: she passes {due.Count} on, {(now - at).TotalSeconds:0.0} s after it went off");
+        _ = PassOn(due);
+    }
+
+    private async Task PassOn(IReadOnlyList<Plan> due)
+    {
+        if (Her is null || !_settings.Now.SpeechBubbles)
+            return;
+        _announcing = true;
+        try
+        {
+            var now = DateTimeOffset.Now;
+            var lead = _settings.Now.ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : (TimeSpan?)null;
+            _lively(60);
+            Her.Play(Moment.Greet);
+            if (_chat.Ready && _settings.Now.ReminderSpoken)
+                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), _situation(), Her, _voice.Begin(), _voice.Language);
+            else
+                Say(Lines.Reminder(due, now));
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Reminders: {e}");                 // nobody awaits this task: say what went wrong here
+        }
+        finally
+        {
+            _announcing = false;
+        }
     }
 
     /// <summary>A line in her speech bubble, said aloud too when her voice can, unless the user has asked for quiet.</summary>
@@ -217,6 +272,7 @@ public partial class Stool : Node2D
 
     public override void _Process(double delta)
     {
+        PassOnReminders();
         if (_pressedOnHer && !_heldToTalk && _talking == Talk.None)
         {
             _pressedFor += delta;
@@ -311,17 +367,25 @@ public partial class Stool : Node2D
             Say("I can't hear right now: my ears didn't load (see the log).");
             return;
         }
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        var words = await Task.Run(() => hearing.Hear(said));
-        GD.Print($"Ears: {said.Length / (double)Hearing.SampleRate:0.0} s heard in {clock.ElapsedMilliseconds} ms");   // never what was said
-        if (!IsInsideTree() || words.Length == 0)
-            return;
-        if (how == Talk.Mic)
-            _chatBox.Insert(words);
-        else if (!_chat.Answering)
+        _understanding = true;                              // a reminder waits: the player has just spoken
+        try
         {
-            _chatBox.ShowHeard(words);
-            await Ask(words);
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var words = await Task.Run(() => hearing.Hear(said));
+            GD.Print($"Ears: {said.Length / (double)Hearing.SampleRate:0.0} s heard in {clock.ElapsedMilliseconds} ms");   // never what was said
+            if (!IsInsideTree() || words.Length == 0)
+                return;
+            if (how == Talk.Mic)
+                _chatBox.Insert(words);
+            else if (!_chat.Answering)
+            {
+                _chatBox.ShowHeard(words);
+                await Ask(words);
+            }
+        }
+        finally
+        {
+            _understanding = false;
         }
     }
 
@@ -356,9 +420,9 @@ public partial class Stool : Node2D
         var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
         _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
         // the agenda: a plan, a reminder, and something just past
-        _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, remind: false, now, character.Id);
-        _chat.Store.AddPlan("Leave for the interview", now.Date.AddDays(3).AddHours(9), allDay: false, remind: true, now, character.Id);
-        _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, remind: false, now, null);
+        _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, TimeSpan.FromHours(1), now, character.Id);
+        _chat.Store.AddPlan("Take vitamins", now.Date.AddDays(1).AddHours(8), allDay: false, TimeSpan.Zero, now, character.Id, Repeat.Daily);
+        _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, before: null, now, null);
         // and what a review would have retired
         _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
         _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);
@@ -795,10 +859,10 @@ public partial class Stool : Node2D
             case "listen": Listen(Talk.Hold); break;        // listens as if held on her (opens the real microphone)…
             case "listened": _ = Heard(); break;            // …until this
             case "chatsettings": OpenChatSettings(); break;
-            case "memorybook":                              // memorybook:retired opens it with the retired facts shown
+            case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
                 OpenMemoryBook();
-                if (rest == "retired")
-                    _memoryBook?.DevShowRetired();
+                if (rest.Length > 0)
+                    _memoryBook?.DevTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons

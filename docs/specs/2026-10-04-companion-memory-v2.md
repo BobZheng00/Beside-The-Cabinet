@@ -103,6 +103,13 @@ cache at a tenth of that or less.
    upkeep's "plans" (add, update, cancel), coming up and just past in every turn, past items leaving after two
    days, reminders on a ticket, in her bubble and voice and with an optional chime, missed ones going off at the
    next start, and the memory book's "Coming up" to read, add, edit and delete. Delivery elsewhere: section 10.
+   *Second round, 2026-10-05:* a reminder some time before its item (`[plan: … | 1 hour before]`) and repeats
+   (daily, weekdays, weekly, monthly; a repeating item moves on to its next time); the player's optional reminder
+   before every timed item; Snooze and OK on the ticket, which can stay until closed; she passes reminders on in her
+   own words (a cabinet note answered like a message, logged as the cabinet's), queued until she has finished
+   answering, speaking or listening, with the plain line when her mind is not connected; a chime that can sound
+   while the cabinet is muted (its own bus); the memory book in tabs. A reminder whose time had passed before it was
+   added goes off only while its item is ahead, as does one from the default lead.
 
 ## Second pass (decided with the player, 2026-10-04)
 

@@ -14,6 +14,11 @@ public sealed record AppSettings
     public bool Muted { get; init; }
     public bool InGameTickets { get; init; } = true;
     public bool ReminderSound { get; init; }            // reminders chime too (the ticket and her bubble always show)
+    public bool ReminderChimeWhenMuted { get; init; } = true;    // the chime even with "Mute sounds" on: it was asked for
+    public bool ReminderSpoken { get; init; } = true;   // she tells you in her own words (and voice) when her mind is connected
+    public int ReminderTicketSeconds { get; init; } = 60;        // how long the reminder ticket stays; 0: until closed
+    public int ReminderSnoozeMinutes { get; init; } = 10;
+    public int? ReminderLeadMinutes { get; init; }      // a reminder this long before every timed item on the agenda; unset: only those asked for
     public bool ReminderWindows { get; init; }          // reminders also raise a Windows notification
     public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // and go to the phone or another app (secrets apart, encrypted)
     public string Companion { get; init; } = "shino";   // character folder under res://characters
@@ -31,6 +36,21 @@ public sealed record AppSettings
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }
+}
+
+/// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>
+public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes,
+                                     InsertCoin.Mind.Elsewhere Elsewhere)
+{
+    public static ReminderChoices Of(AppSettings s) =>
+        new(s.ReminderSpoken, s.ReminderSound, s.ReminderChimeWhenMuted, s.ReminderWindows, s.ReminderTicketSeconds, s.ReminderSnoozeMinutes,
+            s.ReminderLeadMinutes, s.ReminderElsewhere);
+
+    public AppSettings Into(AppSettings s) => s with
+    {
+        ReminderSpoken = Spoken, ReminderSound = Sound, ReminderChimeWhenMuted = ChimeWhenMuted, ReminderWindows = Windows,
+        ReminderTicketSeconds = TicketSeconds, ReminderSnoozeMinutes = SnoozeMinutes, ReminderLeadMinutes = LeadMinutes, ReminderElsewhere = Elsewhere,
+    };
 }
 
 /// <summary>The settings as saved in settings.json, shared by the parts of the app that change them: each change is saved at once.</summary>

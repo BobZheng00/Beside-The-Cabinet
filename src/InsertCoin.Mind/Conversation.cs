@@ -49,6 +49,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     private History? _history;
 
+    /// <summary>The player's "remind me before things on my agenda" (null: only the reminders asked for).</summary>
+    public TimeSpan? ReminderLead { get; set; }
+
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
 
@@ -57,8 +60,20 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// through <paramref name="direction"/>. Both lines are logged; a failed request leaves only the player's.
     /// </summary>
     /// <returns>Everything she said.</returns>
-    public async Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
-                                     CancellationToken cancel = default)
+    public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
+                               CancellationToken cancel = default) =>
+        Reply(client, said, fromCabinet: false, situation, text, direction, cancel);
+
+    /// <summary>
+    /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
+    /// <see cref="Agenda.Announcement"/>): answered as a message would be, but logged as the cabinet's line.
+    /// </summary>
+    public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
+                                 CancellationToken cancel = default) =>
+        Reply(client, note, fromCabinet: true, situation, text, direction, cancel);
+
+    private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
+                                     Action<string, string?> direction, CancellationToken cancel)
     {
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
@@ -78,8 +93,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, recent, situation, said, [.. lore, .. memories], VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now));
-        store.Add(character, Speaker.User, said.Trim(), now);
+                                    summary, recent, situation, fromCabinet ? $"[cabinet] {said.Trim()}" : said, [.. lore, .. memories],
+                                    VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead));
+        store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, said.Trim(), now);
 
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
         // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
@@ -88,7 +104,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
                 store.AddFact(MindStore.Shared, payload, NoteImportance, now);
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now) is { } plan)
-                AddPlan(plan.At, plan.AllDay, plan.Text, name == "remind", now);
+                AddPlan(plan, now);
             direction(name, payload);
         });
         var reply = new StringBuilder();
@@ -110,19 +126,26 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>
-    /// Puts something on the agenda unless it is there already (the same kind, on the same day, saying the same
-    /// thing, or at the same time about the same thing); a reminder for a time already past is not set. Returns the
-    /// item's id, or null.
+    /// Puts something on the agenda. When it is there already (on the same day, saying the same thing, or at the same
+    /// time about the same thing) it only adds what is new: a reminder, a repeat. A reminder for something wholly
+    /// past is not set. Returns the item's id, or null.
     /// </summary>
-    private long? AddPlan(DateTimeOffset at, bool allDay, string text, bool remind, DateTimeOffset now)
+    private long? AddPlan(PlanSpec spec, DateTimeOffset now)
     {
-        if (remind && at <= now)
+        var wanted = new Plan(0, spec.Text, spec.At, spec.AllDay, spec.Before, null, now, character, spec.Repeat);
+        if (wanted.RemindAt() is { } at && at <= now && wanted.End <= now && spec.Repeat == Repeat.Once)
             return null;
-        var words = Recall.Terms(text).ToHashSet();
-        if (store.Agenda().Any(p => p.Remind == remind && p.At.Date == at.Date
-                                    && (Recall.Same(p.Text, text) || p.At == at && Recall.Terms(p.Text).Any(words.Contains))))
-            return null;
-        return store.AddPlan(text, at, allDay, remind, now, character);
+        var words = Recall.Terms(spec.Text).ToHashSet();
+        if (store.Agenda().FirstOrDefault(p => p.At.Date == spec.At.Date
+                                               && (Recall.Same(p.Text, spec.Text) || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
+        {
+            var before = spec.Before ?? same.Before;
+            var repeat = spec.Repeat != Repeat.Once ? spec.Repeat : same.Repeat;
+            if (before != same.Before || repeat != same.Repeat)
+                store.UpdatePlan(same.Id, same.Text, same.At, same.AllDay, before, repeat);
+            return same.Id;
+        }
+        return store.AddPlan(spec.Text, spec.At, spec.AllDay, spec.Before, now, character, spec.Repeat);
     }
 
     /// <summary>Something the cabinet did, for her to know about later.</summary>
@@ -299,12 +322,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             switch (change.Op)
             {
                 case "add" when when is { } at && change.Text is { Length: > 1 } text:
-                    var (time, allDay) = change.Remind && at.AllDay ? (at.At + Agenda.MorningOf, false) : at;
-                    AddPlan(time, allDay, text, change.Remind, now);
+                    var (before, repeat) = Agenda.ParseOptions(change.Options);
+                    AddPlan(new PlanSpec(at.At, at.AllDay, text, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
                     break;
                 case "update" when change.Id is { } id && plans.TryGetValue(id, out var plan):
                     var moved = when ?? (plan.At, plan.AllDay);
-                    store.UpdatePlan(id, change.Text is { Length: > 1 } renamed ? renamed : plan.Text, moved.At, moved.AllDay, plan.Remind);
+                    var (lead, again) = Agenda.ParseOptions(change.Options);
+                    store.UpdatePlan(id, change.Text is { Length: > 1 } renamed ? renamed : plan.Text, moved.At, moved.AllDay,
+                                     lead ?? (change.Remind ? TimeSpan.Zero : plan.Before), again != Repeat.Once ? again : plan.Repeat);
                     break;
                 case "cancel" when change.Id is { } id && plans.ContainsKey(id):
                     store.DeletePlan(id);

@@ -6,17 +6,21 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// The agenda's reminders going off. Every few seconds, any whose time has come is printed on a ticket at the screen
-/// corner (always), said by her in her bubble and voice (unless she has been asked to be quiet), chimed if the player
-/// chose the sound, and sent on to the other places the player picked. One that came due while the cabinet was
-/// closed (or the PC asleep) goes off when it next runs, saying so. Past items leave the agenda now and then.
+/// corner (always; with Snooze and OK), chimed if the player chose the sound, passed to her to say (she waits until
+/// she has finished what she is saying), and sent on to the other places the player picked. One that came due while
+/// the cabinet was closed (or the PC asleep) goes off when it next runs, saying so. A repeating item moves on to its
+/// next time; past items leave the agenda now and then.
 /// </summary>
 public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank audio, Func<AppSettings> settings,
                               Action<IReadOnlyList<Plan>, DateTimeOffset> say)
 {
     private DateTimeOffset _closed = DateTimeOffset.MinValue;
 
-    /// <summary>Somewhere else a reminder goes (a Windows notification, the player's phone…); see <see cref="Elsewhere"/>.</summary>
+    /// <summary>Somewhere else a reminder goes (a Windows notification, the player's phone…).</summary>
     public event Action<IReadOnlyList<Plan>, DateTimeOffset>? Sent;
+
+    /// <summary>The player's "remind me before things on my agenda", or null.</summary>
+    public TimeSpan? Lead => settings().ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
 
     public void Tick(DateTimeOffset now)
     {
@@ -25,49 +29,61 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
             _closed = now;
             store.ClosePast(now);
         }
-        var due = Agenda.Due(store.Agenda(), now);
+        var due = Agenda.Due(store.Agenda(), now, Lead);
         if (due.Count == 0)
             return;
-        foreach (var plan in due)
-            store.Reminded(plan.Id, now);               // first, so a failure below never repeats it every few seconds
+        foreach (var plan in due)                           // first, so a failure below never repeats it every few seconds
+            if (plan.Repeat == Repeat.Once)
+                store.Reminded(plan.Id, now);
+            else
+                store.Advance(plan.Id, Agenda.NextAfter(plan, now, Lead));
         GD.Print($"Reminders: {due.Count} going off");
-        Show(due, now);
-        if (settings().ReminderSound)
-            audio.Alert("remind");
-        say(due, now);
-        Sent?.Invoke(due, now);
+        GoOff(due, now, settings().ReminderSound, elsewhere: true);
     }
 
     /// <summary>
     /// Goes off as if due now (dev actions). With <paramref name="chime"/> (the settings window's "Try it", which
     /// sends elsewhere itself, as filled in), only in the cabinet, chiming or not as given.
     /// </summary>
-    public void Try(string text, DateTimeOffset now, bool? chime = null)
+    public void Try(string text, DateTimeOffset now, bool? chime = null) =>
+        GoOff([new Plan(0, text, now, false, TimeSpan.Zero, null, now, null)], now, chime ?? settings().ReminderSound, elsewhere: chime is null);
+
+    private void GoOff(IReadOnlyList<Plan> due, DateTimeOffset now, bool chime, bool elsewhere)
     {
-        var plan = new Plan(0, text, now, false, true, null, now, null);
-        Show([plan], now);
-        if (chime ?? settings().ReminderSound)
-            audio.Alert("remind");
-        say([plan], now);
-        if (chime is null)
-            Sent?.Invoke([plan], now);
+        Show(due, now);
+        if (chime)
+            audio.Chime(settings().ReminderChimeWhenMuted);
+        say(due, now);
+        if (elsewhere)
+            Sent?.Invoke(due, now);
     }
 
     /// <summary>What goes out of the cabinet: "Reminder" (or "Missed reminder") and each one with its time, a line each.</summary>
     public static Notice NoticeFor(IReadOnlyList<Plan> due, DateTimeOffset now)
     {
-        var missed = due.All(p => now - p.At > Agenda.Missed);
+        var missed = due.All(p => now - (p.RemindAt() ?? p.At) > Agenda.Missed);
         var title = (missed ? "Missed reminder" : "Reminder") + (due.Count > 1 ? "s" : "");
         return new Notice(title, string.Join("\n", due.Select(p => $"{When(p, now)}  {p.Text}")));
     }
 
     private static string When(Plan plan, DateTimeOffset now) =>
-        plan.At.Date == now.Date ? plan.At.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : plan.Label;
+        plan.At.Date == now.Date && !plan.AllDay ? plan.At.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture) : plan.Label;
 
     private void Show(IReadOnlyList<Plan> due, DateTimeOffset now)
     {
-        var missed = due.All(p => now - p.At > Agenda.Missed);
+        var missed = due.All(p => now - (p.RemindAt(Lead) ?? p.At) > Agenda.Missed);
         var more = due.Count > 1 ? $"  (+{due.Count - 1} more)" : "";
-        ticket.Show(missed ? "MISSED" : "REMINDER", $"{When(due[0], now)}  {due[0].Text}{more}", seconds: 12, tall: true);
+        var snooze = settings().ReminderSnoozeMinutes;
+        ticket.Show(missed ? "MISSED" : "REMINDER", $"{When(due[0], now)}  {due[0].Text}{more}", seconds: settings().ReminderTicketSeconds,
+                    buttons: [($"Snooze {snooze} min", () => Snooze(due, snooze)), ("OK", () => { })]);
+    }
+
+    /// <summary>Each one again in a while: a one-off reminder, saying the same.</summary>
+    private void Snooze(IReadOnlyList<Plan> due, int minutes)
+    {
+        var now = DateTimeOffset.Now;
+        foreach (var plan in due)
+            store.AddPlan(plan.Text, now.AddMinutes(minutes), allDay: false, TimeSpan.Zero, now, plan.By);
+        GD.Print($"Reminders: {due.Count} snoozed for {minutes} min");
     }
 }

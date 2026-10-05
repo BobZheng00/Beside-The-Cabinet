@@ -40,12 +40,16 @@ it out. She knows the cabinet's numbers and remembers:
   small talk none;
 - two short notes she always has in mind, rewritten by upkeep when something important changes;
 - your agenda: plans, exams and appointments with their dates, which she writes down when you mention them (or
-  upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum"). What is coming up in the next
-  week, and what has just passed (so she can ask how it went), is in every turn; two days after, an item leaves the
-  agenda. A reminder goes off at its time on a ticket at the screen corner, in her bubble and voice, and, if you
-  chose it (tray → "Reminders…"), with a chime, a Windows notification, and on your phone or elsewhere through
-  [ntfy](https://ntfy.sh), a Discord webhook, a Telegram bot or any webhook (addresses and tokens stored encrypted,
-  "Try it" to check); one that came due while the cabinet was closed goes off when it next starts, saying so;
+  upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum", "an hour before the interview",
+  "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on weekdays, weekly
+  or monthly). What is coming up in the next week, and what has just passed (so she can ask how it went), is in
+  every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next time.
+  A reminder goes off on a ticket at the screen corner with Snooze and OK, and she tells you in her own words and
+  your language once she has finished what she is saying (never cutting herself or you off). Tray → "Reminders…"
+  sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the agenda, a chime
+  (even when muted), a Windows notification, and your phone or elsewhere through [ntfy](https://ntfy.sh), a Discord
+  webhook, a Telegram bot or any webhook (addresses and tokens stored encrypted, "Try it" to check). One that came
+  due while the cabinet was closed goes off when it next starts, saying so;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
@@ -100,7 +104,8 @@ nothing is recorded or kept. The talk key's state is read each frame (no keyboar
 it does in the app in front.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the summary she works from
-above it). Tray → "Memory book…" shows all of it: edit, pin (always in mind, upkeep leaves it alone) or delete anything.
+above it). Tray → "Memory book…" shows all of it, a tab each (notes, agenda, facts, moments, forget): edit, pin
+(always in mind, upkeep leaves it alone) or delete anything.
 "Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
 conversation and everything about the two of you; "Forget all about me" clears what every character knows about
 you. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
@@ -118,7 +123,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
-`memorybook` (`memorybook:retired` with the retired facts open), `chathistory`, `memoryseed` (a few notes, facts,
+`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `ticketpress:0`
+(the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
 agenda items, retired facts and a moment to try it on), `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed), `remindersettings`,
 `remindertry` (its "Try it"), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test

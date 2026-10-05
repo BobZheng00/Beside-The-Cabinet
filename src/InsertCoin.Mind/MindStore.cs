@@ -106,7 +106,11 @@ public sealed class MindStore : IDisposable
                 id INTEGER PRIMARY KEY, text TEXT NOT NULL, at TEXT NOT NULL, all_day INTEGER NOT NULL, remind INTEGER NOT NULL,
                 reminded TEXT, added TEXT NOT NULL, by TEXT, closed TEXT)
             """);
-        Run("PRAGMA user_version = 5");
+        // version 6: agenda reminders a while before an item (minutes; null: none), and items that repeat
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('agenda') WHERE name = 'before_minutes'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE agenda ADD COLUMN before_minutes INTEGER; ALTER TABLE agenda ADD COLUMN repeat TEXT; UPDATE agenda SET before_minutes = 0 WHERE remind = 1");
+        Run("PRAGMA user_version = 6");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -278,31 +282,45 @@ public sealed class MindStore : IDisposable
 
     // ---- The agenda ------------------------------------------------------------------------------------------------
 
-    public long AddPlan(string text, DateTimeOffset at, bool allDay, bool remind, DateTimeOffset added, string? by)
+    public long AddPlan(string text, DateTimeOffset at, bool allDay, TimeSpan? before, DateTimeOffset added, string? by, Repeat repeat = Repeat.Once)
     {
-        using var command = Command("INSERT INTO agenda (text, at, all_day, remind, added, by) VALUES ($t, $a, $d, $r, $n, $b) RETURNING id",
-            ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", remind ? 1 : 0), ("$n", Stamp(added)), ("$b", (object?)by ?? DBNull.Value));
+        using var command = Command("""
+            INSERT INTO agenda (text, at, all_day, remind, before_minutes, repeat, added, by) VALUES ($t, $a, $d, $r, $m, $p, $n, $b) RETURNING id
+            """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", before is null ? 0 : 1), ("$m", Minutes(before)),
+            ("$p", Repeated(repeat)), ("$n", Stamp(added)), ("$b", (object?)by ?? DBNull.Value));
         return (long)command.ExecuteScalar()!;
     }
 
     /// <summary>What is on the agenda, by time: items not yet closed (see <see cref="ClosePast"/>).</summary>
     public IReadOnlyList<Plan> Agenda()
     {
-        using var command = Command("SELECT id, text, at, all_day, remind, reminded, added, by FROM agenda WHERE closed IS NULL ORDER BY at, id");
+        using var command = Command("SELECT id, text, at, all_day, before_minutes, reminded, added, by, repeat FROM agenda WHERE closed IS NULL ORDER BY at, id");
         using var reader = command.ExecuteReader();
         var plans = new List<Plan>();
         while (reader.Read())
-            plans.Add(new Plan(reader.GetInt64(0), reader.GetString(1), Parse(reader.GetString(2)), reader.GetInt32(3) != 0, reader.GetInt32(4) != 0,
-                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), Parse(reader.GetString(6)), reader.IsDBNull(7) ? null : reader.GetString(7)));
+            plans.Add(new Plan(reader.GetInt64(0), reader.GetString(1), Parse(reader.GetString(2)), reader.GetInt32(3) != 0,
+                               reader.IsDBNull(4) ? null : TimeSpan.FromMinutes(reader.GetInt64(4)),
+                               reader.IsDBNull(5) ? null : Parse(reader.GetString(5)), Parse(reader.GetString(6)), reader.IsDBNull(7) ? null : reader.GetString(7),
+                               reader.IsDBNull(8) || !Enum.TryParse<Repeat>(reader.GetString(8), out var repeat) ? Repeat.Once : repeat));
         return plans;
     }
 
-    /// <summary>Changes an item; a reminder moved to a new time goes off again.</summary>
-    public void UpdatePlan(long id, string text, DateTimeOffset at, bool allDay, bool remind)
+    /// <summary>Changes an item; a reminder moved to a new time (or to a new lead) goes off again.</summary>
+    public void UpdatePlan(long id, string text, DateTimeOffset at, bool allDay, TimeSpan? before, Repeat repeat)
     {
         using var command = Command("""
-            UPDATE agenda SET text = $t, all_day = $d, remind = $r, reminded = CASE WHEN at = $a THEN reminded ELSE NULL END, at = $a WHERE id = $id
-            """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", remind ? 1 : 0), ("$id", id));
+            UPDATE agenda SET text = $t, all_day = $d, remind = $r, repeat = $p,
+                reminded = CASE WHEN at = $a AND before_minutes IS $m THEN reminded ELSE NULL END, at = $a, before_minutes = $m
+            WHERE id = $id
+            """, ("$t", text.Trim()), ("$a", Stamp(at)), ("$d", allDay ? 1 : 0), ("$r", before is null ? 0 : 1), ("$m", Minutes(before)),
+            ("$p", Repeated(repeat)), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>A repeating item moves on to its next time, its reminder to go off again.</summary>
+    public void Advance(long id, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE agenda SET at = $a, reminded = NULL WHERE id = $id", ("$a", Stamp(at)), ("$id", id));
         command.ExecuteNonQuery();
     }
 
@@ -312,6 +330,9 @@ public sealed class MindStore : IDisposable
         command.ExecuteNonQuery();
     }
 
+    private static object Minutes(TimeSpan? before) => before is { } b ? (long)b.TotalMinutes : DBNull.Value;
+    private static object Repeated(Repeat repeat) => repeat == Repeat.Once ? DBNull.Value : repeat.ToString();
+
     /// <summary>The reminder went off (or, missed, was mentioned).</summary>
     public void Reminded(long id, DateTimeOffset at)
     {
@@ -319,11 +340,19 @@ public sealed class MindStore : IDisposable
         command.ExecuteNonQuery();
     }
 
-    /// <summary>Items over for longer than <see cref="Mind.Agenda.Behind"/> leave the agenda; a year on they are deleted.</summary>
+    /// <summary>
+    /// A repeating item without a reminder of its own moves on once it is over (one with a reminder moves on when the
+    /// reminder goes off). A one-off item over for longer than <see cref="Mind.Agenda.Behind"/> leaves the agenda,
+    /// unless a reminder the player asked for has yet to be mentioned; a year on it is deleted.
+    /// </summary>
     public int ClosePast(DateTimeOffset now)
     {
+        var plans = Agenda();
+        foreach (var plan in plans.Where(p => p.Repeat != Repeat.Once && p.Before is null && p.End <= now))
+            Advance(plan.Id, Mind.Agenda.NextAfter(plan, now));
         var closed = 0;
-        foreach (var plan in Agenda().Where(p => p.End <= now - Mind.Agenda.Behind && (!p.Remind || p.Reminded is not null)))
+        foreach (var plan in plans.Where(p => p.Repeat == Repeat.Once && p.End <= now - Mind.Agenda.Behind
+                                              && (p.Reminded is not null || p.RemindAt() is not { } at || p.Added > at)))
         {
             using var command = Command("UPDATE agenda SET closed = $n WHERE id = $id", ("$n", Stamp(now)), ("$id", plan.Id));
             closed += command.ExecuteNonQuery();
