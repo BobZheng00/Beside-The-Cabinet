@@ -103,13 +103,20 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - do-not-disturb;
 - a real Google or Outlook ICS link.
 
-The Windows notification was confirmed working on 2026-10-05.
+The Windows notification was confirmed working on 2026-10-05. Everything waiting on the user (these checks, the spike session, open decisions) is listed in `docs/to-try.md`: keep it current, crossing items off as results come in.
 
 **Next: the agent phase, design first.** Three parts:
 - hands-free voice conversation: she notices when the player has finished, and stops when talked over;
 - real tools, asking before acting outside the app;
 - her body during conversation.
 
-The research note is written: `docs/research/2026-10-05-companion-agent.md`. It is waiting on the user's answers to its "To decide together" questions; then the user and Claude decide the scope together, as for memory v2. A brainstorm on which abilities she should have comes before calling the phase good.
+The research note is written: `docs/research/2026-10-05-companion-agent.md`. The user chose to start with:
+1. **A spike.** Windows' echo cancellation, plus Silero and Smart Turn v3, on their own voice and speakers.
+   - The test program is built in `<tools>gent-trial` (README there): `check`, `selftest`, `session`, `analyze <dir>`.
+   - It waits for the user's 15-minute recording session.
+   - Then run `analyze` on their `recordings\<date-time>` folder and put the results in the agent note.
+2. **Conversation mode.** Being interrupted, with her line in the history cut to what was heard and marked as cut off.
+
+Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
 
 **After that:** character import (community cards, plus your own 3D model and voice), and mini-games on the CRT. Steam comes last: the app should be mature before it goes public.

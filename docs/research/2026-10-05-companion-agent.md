@@ -122,6 +122,16 @@ Voice agents aim for 0.3–0.8 s ([LiveKit](https://livekit.com/blog/async-tools
   - [AIRI](https://github.com/moeru-ai/airi): VRM and Live2D, blinking and gaze, voice detection, speech-to-text, a model and a voice; on Steam.
   - [Open-LLM-VTuber](https://github.com/Open-LLM-VTuber/Open-LLM-VTuber): the backend maps emotions to expressions; MIT licence.
 
+## The spike, before any recording (2026-10-05)
+
+The test program is in `<tools>gent-trial` (README there). What it found on this PC without recording anything:
+
+- **Echo cancellation is available.** A microphone stream opened for communications gets Windows' acoustic echo cancellation, noise suppression, automatic gain and deep noise suppression. A plain stream, the way the cabinet records now, gets noise suppression only (*measured*: asked of Windows, stream never started).
+- **Ducking.** Windows is set to its default, "reduce other sounds by 80%" during communications. The session measures whether opting out of ducking keeps the player's game or music at full volume.
+- **Telling headphones from speakers.** The output device here reports itself as "speakers" whatever it is. Detecting headphones from Windows can't be relied on.
+- **Smart Turn ported to C#.** The features match transformers' to 0.000025. One decision takes about 75 ms on this CPU. The 8 MB model is 8-bit, and borderline answers shift with the runtime: 0.43 to 0.81 on the same input across ONNX Runtime versions and optimisation levels. The 32 MB full-precision build is the one to compare.
+- **Synthetic speech misleads it.** On Windows' voices, Smart Turn often took a mid-sentence pause for the end, in Chinese and Japanese above all: each part is synthesised on its own and ends in a falling tone. Its own benchmark gives Chinese 86% accuracy, against English 94% and Japanese 96%. The player's recordings decide.
+
 ## To decide together
 
 1. **How a conversation starts:**
