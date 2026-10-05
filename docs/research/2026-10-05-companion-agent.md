@@ -163,11 +163,29 @@ What people do, from studies of real conversations (*read*):
 - **Cut off:** she stops mid-gesture, gives a small start (a blink, her head drawn back) and looks at the player.
 - **Celebrating, made grown-up.**
   - *Before:* the cheer had a crouch, both arms up, legs kicking and bouncing on the seat.
-  - *Now:* a small "oh", hands together at her chest for three soft claps, a warm smile rather than a laugh, then a nod.
+  - *Now:* a small "oh", then applause at her chest, a warm smile rather than a laugh, hands held together a moment, a nod.
+  - The first version clapped flat palm to palm, and the user found it looked like "two hands hitting each other".
+    - Most people clap with the hands at an angle (Repp, 1987): one hand waits, the other comes down across it.
+    - Now her left palm waits turned up, and her right does the moving: it opens quickly off the rebound and strikes faster and faster, the hand trailing the forearm.
+    - The claps are four, uneven: the first slower and bigger, the rest dying away.
+    - Each clap goes through her body: a dip of the shoulders and a bob of chest and head just after the hands meet.
   - The fist pump stops at her shoulder instead of above her head.
 - *Measured* only by eye, on clips from `tools\dev\clip.ps1`. They are in `<tools>\voice-trial\clips-body`.
 
 **Not yet:** a gesture per sentence while she speaks (hands); mouth shapes per sound; nods from a real voice detector.
+
+**Motion files instead of hand-made moves** (surveyed 2026-10-05, *read*). Procedural moves fit any character and mix with gaze, breathing and springs, but lack the small irregularities of a real performance. The usual answer is recorded motion underneath, with procedural layers on top. That needs a clip layer: play an upper-body motion file over her seated pose. godot-vrm can't read `.vrma` yet; it is glTF, and its rotations match how `Puppet` already poses bones. Where motions could come from:
+
+| Source | Seated clap? | Licence for a Steam release | Notes |
+|---|---|---|---|
+| [Kimodo](https://github.com/nv-tlabs/kimodo) (NVIDIA, 2026) | Generated from text | SOMA models: NVIDIA Open Model License, commercial use | Local; under 3 GB of graphics memory with the text encoder on the processor. Up to 10 s. Linux first, Windows via Docker. Its skeleton would need mapping to hers |
+| [Text-To-VRMA](https://booth.pm/ja/items/8617663) (BOOTH, free) | Generated from text | The author says commercial use is fine, no credit needed | A Windows app around NVIDIA's motion model; writes `.vrma`. A third party's program |
+| [Mixamo](https://www.mixamo.com) | "Sitting Clap", "Sitting Laugh", "Sitting Talking" | Allowed in a game; the raw files can't be redistributed (a problem if the repo goes public) | Needs an Adobe account |
+| Webcam motion capture ([Rokoko Vision](https://www.rokoko.com/products/vision), [FreeMoCap](https://freemocap.org)) | Whatever the user performs | The user's own | Rokoko Vision 3.0 has no fingers |
+| [VRoid's 7 free VRMA](https://vroid.booth.pm/items/5512385) | No (standing poses) | Commercial, with credit to pixiv | |
+| [Quaternius UAL](https://quaternius.com/packs/universalanimationlibrary.html) | None found | CC0 | Game-style moves |
+| CMU motion capture | None found | Any use | Older data |
+| Bandai Namco Research dataset | — | Non-commercial only: ruled out | |
 
 **Other companions** (*read*):
 - [AIRI](https://github.com/moeru-ai/airi): VRM and Live2D, blinking and gaze, voice detection, speech-to-text, a model and a voice; on Steam.
@@ -187,6 +205,12 @@ Sources:
 - [Hartmann, Mancini, Pelachaud: Implementing Expressive Gesture Synthesis for Embodied Conversational Agents](https://dl.acm.org/doi/10.1007/11678816_22)
 - [Neff and others: Evaluating the Effect of Gesture and Language on Personality Perception in Conversational Agents](https://dl.acm.org/doi/10.5555/1889075.1889103)
 - [Animation Mentor: Twinning and why you should (usually) avoid it](https://www.animationmentor.com/blog/twinning-and-why-you-should-usually-avoid-it/)
+- [Repp: The sound of two hands clapping (1987)](https://pubmed.ncbi.nlm.nih.gov/3571727/), and [Inferring the hand configuration from hand clapping sounds](https://www.researchgate.net/publication/228531719_Inferring_the_hand_configuration_from_hand_clapping_sounds)
+- [Kimodo model card (SOMA, NVIDIA Open Model License)](https://huggingface.co/nvidia/Kimodo-SOMA-RP-v1.1)
+- [Mixamo FAQ: licensing](https://community.adobe.com/t5/mixamo-discussions/mixamo-faq-licensing-royalties-ownership-eula-and-tos/td-p/13234775)
+- [VRoid: VRM Animation and 7 free motions](https://vroid.com/en/news/6HozzBIV0KkcKf9dc1fZGW)
+- [godot-vrm: VRMA support (open issue)](https://github.com/V-Sekai/godot-vrm/issues/77)
+- [Free motion capture libraries and their licences (CG Channel on Bandai Namco's)](https://www.cgchannel.com/2022/05/download-3000-free-mocap-moves-from-bandai-namco-research/)
 
 ## The spike, before any recording (2026-10-05)
 

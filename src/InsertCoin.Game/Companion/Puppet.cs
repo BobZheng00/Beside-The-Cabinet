@@ -72,10 +72,17 @@ internal sealed class Puppet
     private static readonly Hand LeftRest = new(new(0.030f, 0.165f, 0.135f), new(-0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(0.7f, -0.3f, -0.6f));
     private static readonly Hand RightRest = new(new(-0.055f, 0.148f, 0.125f), new(0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(-0.7f, -0.3f, -0.6f));
 
-    // Applause, as a grown-up gives it to a friend: hands palm to palm in front of her chest, fingertips leaning
-    // together, the right a little higher; the claps themselves open them from the elbows (see Clap).
-    private static readonly Hand ClapLeft = new(new(0.028f, 0.37f, 0.245f), new(-0.08f, 0.75f, 0.62f), new(-1, 0.05f, 0), new(0.8f, -1, -0.4f));
-    private static readonly Hand ClapRight = new(new(-0.026f, 0.378f, 0.25f), new(0.08f, 0.78f, 0.6f), new(1, 0.05f, 0), new(-0.8f, -1, -0.4f));
+    // Applause the way most people clap (Repp, 1987): the hands at an angle, not flat palm to palm. The left hand waits
+    // in front of her chest, palm turned up towards her right, fingers forward; the right comes down onto it from
+    // above, its fingers slanting across the left palm, and does nearly all the moving (see Clap). ClapMeet is where
+    // the palms meet, ClapFacing the way the left palm faces.
+    private static readonly Vector3 ClapMeet = new(-0.01f, 0.43f, 0.27f), ClapFacing = new Vector3(-1, 1, 0).Normalized();
+    private static readonly Hand ClapLeft = Palm(ClapMeet - ClapFacing * 0.012f, new(0.2f, 0.2f, 0.96f), ClapFacing, new(0.8f, -1, -0.3f));
+    private static readonly Hand ClapRight = Palm(ClapMeet + ClapFacing * 0.012f, new(0.61f, 0.61f, 0.5f), -ClapFacing, new(-0.8f, -1, -0.2f));
+
+    /// <summary>A hand placed by the middle of its palm (about 4.5 cm from the wrist, up the fingers).</summary>
+    private static Hand Palm(Vector3 middle, Vector3 fingers, Vector3 palm, Vector3 elbow) =>
+        new(middle - fingers.Normalized() * 0.045f, fingers, palm, elbow);
 
     // Thinking: the right index finger up against her chin, the other fingers curled, the hand's back to the viewer.
     // Placed from her chin (Overlay.AtChin): the fingertip just below and in front of it, so it never sinks in.
@@ -96,8 +103,8 @@ internal sealed class Puppet
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
         // delighted for the player: chest lifted, leaning a little their way, head tilted, hands together to clap
-        ["clap"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", -2, 0, 0).Set("Neck", 1, 0, 2).Set("Head", 2, 0, 5),
-            ClapLeft, ClapRight, Curl: 6),
+        ["clap"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", -2, -3, 0).Set("Neck", 1, 0, 2).Set("Head", 2, 0, 5),
+            ClapLeft, ClapRight, Curl: 12),
         // "yes!": a fist brought up to the shoulder, then pulled down
         ["pump"] = new(new Pose().Set("Spine", -2, 0, 0).Set("Chest", -2, 0, 0).Set("Head", -3, 0, 0).Set("RightShoulder", 0, 0, -5),
             Right: new(new(-0.19f, 0.55f, 0.22f), new(0, 1, 0.1f), new(1, 0, 0), new(-0.4f, -1, -0.2f)), Curl: 75),
@@ -245,11 +252,14 @@ internal sealed class Puppet
         switch (moment)
         {
             case Moment.Cheer:
-                // she sees it ("oh!"), lights up, claps a few times for the player and nods: well done
-                Interrupt(2.9);
+                // she sees it ("oh!"), lights up and claps for the player, her body going with the claps; then holds her
+                // hands together a moment and nods: well done
+                Interrupt(3.0);
                 _face.Show("surprised", 0.35f, 0.3);
-                After(0.18, () => { _on["clap"] = 1; _clapAt = _time + 0.4; _face.Show("happy", 0.6f, 2.4); });   // a warm smile, not a laugh
-                After(2.0, () => { _on["clap"] = 0; Nod(1, 5); });
+                After(0.12, () => { _on["clap"] = 1; _clapAt = _time + 0.22; });       // the first clap opens as her hands arrive
+                After(0.3, () => _face.Show("happy", 0.65f, 2.4));                   // a warm smile, not a laugh
+                After(1.6, () => Nod(1, 5));
+                After(2.2, () => _on["clap"] = 0);
                 Look(Viewer, 3);
                 break;
             case Moment.Pump:
@@ -428,7 +438,7 @@ internal sealed class Puppet
             Arm(side, hips, dt);
         Wave(t);
         Write();
-        Clap();
+        Clap(hips);
         Eyes(dt);
 
         _rig.PlaceHips(hips);
@@ -732,17 +742,62 @@ internal sealed class Puppet
         Add("Head", 6.0f * swell, 0, 3.0f * _beatSide * swell);
     }
 
-    /// <summary>The claps: each forearm swings open from the elbow and back until the palms meet, the right hand doing more of it.</summary>
-    private void Clap()
+    // The claps: how long each takes (seconds, apart and back together) and how far the right hand opens (degrees).
+    // The first is slower and bigger, the rest quicker and dying away, not quite evenly.
+    private static readonly (float Length, float Open)[] Claps = [(0.34f, 21), (0.28f, 17), (0.27f, 15), (0.31f, 11)];
+
+    /// <summary>
+    /// Applause. The right forearm swings up off the left palm, quickly at first, and comes down faster and faster to
+    /// strike it; the hand trails the forearm a little, bending back on the way up. The left hand gives a little to meet
+    /// it. Each clap goes through her: shoulders dip, chest and head bob, a beat after the hands meet.
+    /// </summary>
+    private void Clap(Vector3 hips)
     {
-        const int claps = 3;
-        const float pace = 2.6f;                                        // claps a second
         var since = (float)(_time - _clapAt);
-        if (since is < 0 or >= claps / pace)
+        if (since < 0 || since > Claps.Sum(c => c.Length) + 0.3f)
             return;
-        var open = Mathf.Abs(Mathf.Sin(Mathf.Pi * since * pace)) * (1 - 0.18f * since * pace) * _shown["clap"];
-        Swing("LeftLowerArm", Vector3.Up, 6 * open);
-        Swing("RightLowerArm", Vector3.Up, -10 * open);
+        var weight = _shown["clap"];
+        // Opening(t): how far apart the hands are t seconds in, 0 at each clap; Beat: the body's jolt after each one
+        float Opening(float t)
+        {
+            foreach (var (length, open) in Claps)
+            {
+                if (t < length)
+                {
+                    var u = Mathf.Max(t, 0) / length;
+                    return open * (u < 0.6f ? Mathf.Sin(Mathf.Pi / 2 * u / 0.6f) : Mathf.Cos(Mathf.Pi / 2 * (u - 0.6f) / 0.4f));
+                }
+                t -= length;
+            }
+            return 0;
+        }
+        var beat = 0f;
+        var at = 0f;
+        foreach (var (length, open) in Claps)
+        {
+            at += length;
+            var after = (since - at) / 0.07f;                              // peaks 0.07 s after the hands meet
+            if (after > 0)
+                beat += open / Claps[0].Open * after * Mathf.Exp(1 - after);
+        }
+        beat *= weight;
+        Add("Chest", 1.2f * beat, 0, 0);
+        Add("Neck", 0.6f * beat, 0, 0);
+        Add("Head", 2.0f * beat, 0, 0);
+        Add("LeftShoulder", 0, 0, -1.5f * beat);
+        Add("RightShoulder", 0, 0, 1.5f * beat);
+
+        // swung about the axis that moves each wrist straight off the other palm
+        Vector3 Axis(string side, Vector3 away)
+        {
+            var forearm = _rig.Joint(side + "Hand", _frame, hips) - _rig.Joint(side + "LowerArm", _frame, hips);
+            return forearm.Cross(away).Normalized();
+        }
+        var right = Axis("Right", ClapFacing);
+        var left = Axis("Left", -ClapFacing);
+        Swing("RightLowerArm", right, Opening(since) * weight);
+        Swing("RightHand", right, 0.5f * Opening(since - 0.05f) * weight);
+        Swing("LeftLowerArm", left, 0.25f * Opening(since) * weight);
     }
 
     /// <summary>Small things people do when sitting around (not while in a conversation).</summary>
