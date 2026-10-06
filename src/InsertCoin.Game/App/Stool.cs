@@ -24,7 +24,7 @@ public partial class Stool : Node2D
     private string _characters = "";
     private Chat _chat = null!;
     private ChatBox _chatBox = null!;
-    private PermissionSlip _permission = null!;
+    private PermissionCard _permission = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
     private ChatSettings? _chatSettings;
@@ -79,10 +79,11 @@ public partial class Stool : Node2D
         _chatBox = new ChatBox();
         AddChild(_chatBox);
         _chatBox.Submitted += said => _ = Ask(said);
-        _permission = new PermissionSlip();
+        _permission = new PermissionCard();
         AddChild(_permission);
         _chat.AskPlayer = AskPlayer;
         _chat.Tools.Choose(settings.Now.ToolPermissions);
+        _chat.Tools.Auto = settings.Now.ToolsAuto;
         _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
 
         _voice = new Voice();
@@ -589,7 +590,7 @@ public partial class Stool : Node2D
     }
 
     /// <summary>
-    /// She asks whether she may use a tool: the slip by her stool, above the one they type on, and her eyes on the
+    /// She asks whether she may use a tool: the card by her stool, above the slip they type on, and her eyes on the
     /// player while they decide.
     /// </summary>
     private async Task<Answer> AskPlayer(Asking asking, CancellationToken cancel)
@@ -627,14 +628,15 @@ public partial class Stool : Node2D
                 all[model] = prices;
             _settings.Save(_settings.Now with { ChatPrices = all, Currency = currency });
         };
-        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions) =>
+        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions, auto) =>
         {
             _settings.Save(_settings.Now with
             {
                 ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
-                TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window, ToolPermissions = new(permissions),
+                TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window, ToolPermissions = new(permissions), ToolsAuto = auto,
             });
             _chat.Tools.Choose(permissions);
+            _chat.Tools.Auto = auto;
             _chat.UseWindow(window);
             _chat.UseSearch(search);
             _chat.Connect(provider);
@@ -778,7 +780,7 @@ public partial class Stool : Node2D
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab
             case "abilities": OpenChatSettings(); _chatSettings?.DevAbilities(); break;     // its Abilities tab
-            case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the slip she asks with, as its buttons would
+            case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.DevAnswer(Answer.Always); break;
             case "deny": _permission.DevAnswer(Answer.No); break;
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)

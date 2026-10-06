@@ -13,10 +13,11 @@ public partial class ChatSettings : Window
 {
     /// <summary>
     /// After Save: the provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>), the talk key
-    /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>), the window, and the
-    /// permission for each of her tools (see <see cref="Toolbox.Chosen"/>); the API key is already stored by then.
+    /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>), the window, the
+    /// permission for each of her tools (see <see cref="Toolbox.Chosen"/>) and whether she asks at all (see
+    /// <see cref="Toolbox.Auto"/>); the API key is already stored by then.
     /// </summary>
-    public event Action<Provider?, string, string, HandsFree, int?, IReadOnlyDictionary<string, Permission>>? Saved;
+    public event Action<Provider?, string, string, HandsFree, int?, IReadOnlyDictionary<string, Permission>, bool>? Saved;
 
     /// <summary>The permissions offered for a tool, as the Abilities tab names them.</summary>
     private static readonly (Permission Permission, string Label)[] Permissions =
@@ -37,6 +38,7 @@ public partial class ChatSettings : Window
     private OptionButton _preset = null!, _search = null!, _talkKey = null!, _window = null!;
     private readonly List<string> _searches = [];
     private LineEdit _url = null!, _key = null!, _model = null!;
+    private CheckBox _auto = null!;
     private CheckBox _conversationKey = null!, _followUp = null!, _afterAnswers = null!, _afterQuestions = null!, _afterRemarks = null!,
         _inCalls = null!, _inFullScreen = null!, _whilePlaying = null!;
     private SpinBox _followUpSeconds = null!;
@@ -233,8 +235,11 @@ public partial class ChatSettings : Window
     {
         var tools = _chat.Tools;
         page.AddChild(new Label { Text = "Abilities", ThemeTypeVariation = "Heading" });
-        page.AddChild(Hint($"What {name} can do beyond talking. Allowed: she does it when it helps. Ask me first: she asks, and a slip by " +
+        page.AddChild(Hint($"What {name} can do beyond talking. Allowed: she does it when it helps. Ask me first: she asks, and a card by " +
                            "her stool lets you say yes or no. Off: she doesn't have it. Whatever acts outside this app asks first unless you allow it."));
+        _auto = Tick(page, "Auto: she goes ahead without asking", tools.Auto);
+        page.AddChild(Hint($"Like an auto mode: where she would ask first, she just does it. She still says what she's doing, and what's " +
+                           "switched off stays off. Every use is in the chat history."));
         page.AddChild(new Label { Text = "Built in", ThemeTypeVariation = "Subheading" });
         var grid = new GridContainer { Columns = 2 };
         grid.AddThemeConstantOverride("h_separation", 12);
@@ -273,7 +278,7 @@ public partial class ChatSettings : Window
                 row.AddChild(forget);
                 page.AddChild(row);
             }
-            page.AddChild(Hint("Where you answered Always on her slip. Forget one, and she asks again there."));
+            page.AddChild(Hint("Where you answered Always on her card. Forget one, and she asks again there."));
         }
         if (tools.Refused)
             page.AddChild(Hint("Your model turned tools down, so for now she answers without them. Choosing a model that takes tools brings them back."));
@@ -377,7 +382,7 @@ public partial class ChatSettings : Window
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
         Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, HandsFreeChosen(), Windows[_window.Selected].Tokens,
-                      PermissionsChosen());
+                      PermissionsChosen(), _auto.ButtonPressed);
         if (_model.Text.Trim() is { Length: > 0 } model)
             PricesSaved?.Invoke(model, _usage.Prices, _usage.Currency);
         QueueFree();

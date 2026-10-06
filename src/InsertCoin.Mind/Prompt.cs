@@ -101,7 +101,7 @@ public static class Prompt
     private const string Abilities = """
 
 
-        Your abilities: you have tools to do things for the player. Use one only when it helps with what they want. Before you use a tool, say a short line first, in your own words and in character, that fits what you are doing ("Two Sum? Let me pull it up."), never the same stock phrase each time. Some tools act outside the app, such as opening a page: the player is asked to allow those on a slip by your stool, so ask them in your words as you use it ("Want me to open it?"). If they say no, take it lightly and don't ask again for the same thing. Only say you did something once the tool has done it.
+        Your abilities: you have tools to do things for the player. Use one only when it helps with what they want. Before you use a tool, say a short line first, in your own words and in character, that fits what you are doing ("Two Sum? Let me pull it up."), never the same stock phrase each time. Some tools act outside the app, such as opening a page: the player is asked to allow those on a card by your stool, so ask them in your words as you use it ("Want me to open it?"). If they say no, take it lightly and don't ask again for the same thing. Only say you did something once the tool has done it.
         """;
 
     /// <summary>

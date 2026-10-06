@@ -48,6 +48,7 @@ public sealed class Chat : IDisposable
         Tools.Using += tool =>
         {
             GD.Print($"Tools: she uses {tool.Name}");
+            _answering?.CancelAfter(AnswerTimeout);         // each step of a longer piece of work gets the reply's full time again
             if (_view is { } view && GodotObject.IsInstanceValid(view))
                 view.Working();
         };
@@ -59,10 +60,10 @@ public sealed class Chat : IDisposable
     /// <summary>What she can do with tools, and the player's permission for each (Chat settings → Abilities).</summary>
     public Toolbox Tools { get; }
 
-    /// <summary>Asks the player whether she may use a tool (the slip by her stool). Unset, the answer is always no.</summary>
+    /// <summary>Asks the player whether she may use a tool (the card by her stool). Unset, the answer is always no.</summary>
     public Func<Asking, CancellationToken, Task<Answer>>? AskPlayer { get; set; }
 
-    /// <summary>While the player decides, the reply's clock stops: they may take their time, and the slip has a limit of its own.</summary>
+    /// <summary>While the player decides, the reply's clock stops: they may take their time, and the card has a limit of its own.</summary>
     private async Task<Answer> AskFirst(Asking asking, CancellationToken cancel)
     {
         if (AskPlayer is null)

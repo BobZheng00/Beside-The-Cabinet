@@ -86,6 +86,45 @@ public class ToolTests
     }
 
     [Fact]
+    public async Task In_auto_she_goes_ahead_without_asking_but_what_is_off_stays_off()
+    {
+        var opened = new List<Uri>();
+        var asked = 0;
+        var tools = new Toolbox([BuiltIn.OpenLink(opened.Add)]) { Auto = true, AskPlayer = (_, _) => { asked++; return Task.FromResult(Answer.No); } };
+        var open = tools.All.Single().Function;
+
+        var (_, record) = await tools.Use(open, Url("https://leetcode.com/problemset/"));
+
+        Assert.Equal(0, asked);
+        Assert.Single(opened);
+        Assert.StartsWith("You used open_link", record);
+        Assert.Empty(tools.Chosen);                                                     // nothing remembered: auto is a mode, not a choice per tool
+
+        tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Off });
+        Assert.Null(tools.Offered);
+        var (result, _) = await tools.Use(open, Url("https://leetcode.com/"));
+        Assert.Single(opened);
+        Assert.Contains("switched this off", result!.ToString());
+    }
+
+    [Fact]
+    public async Task The_same_call_twice_in_a_reply_is_not_made_again()
+    {
+        using var temp = new TempStore();
+        var opened = new List<Uri>();
+        var tools = new Toolbox([BuiltIn.OpenLink(opened.Add)]) { Auto = true };
+        var call = Call("open_link", "url", "https://leetcode.com/");
+        var model = new FakeToolModel(["Opening it.", call], ["Once more.", new FunctionCallContent("again", call.Name, call.Arguments)], ["There."]);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(model, "open leetcode", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Single(opened);
+        Assert.Contains(model.Requests[2].SelectMany(m => m.Contents).OfType<FunctionResultContent>(), r => r.Result!.ToString()!.Contains("already done"));
+        Assert.Single(temp.Store.After("shino", 0), l => l.Speaker == Speaker.Cabinet);
+    }
+
+    [Fact]
     public async Task Only_web_pages_can_be_opened_and_a_look_alike_address_shows_as_one()
     {
         var opened = new List<Uri>();

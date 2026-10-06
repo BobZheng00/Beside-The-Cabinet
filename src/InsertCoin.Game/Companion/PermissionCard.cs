@@ -4,15 +4,15 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
-/// The slip by her stool when she asks to use a tool that acts outside the app (see <see cref="Toolbox"/>): what
+/// The card by her stool when she asks to use a tool that acts outside the app (see <see cref="Toolbox"/>): what
 /// she wants to do and on what, always the real address whatever she said about it, with Allow once, Always (for
 /// that site) and No. Clicks only: a key pressed in another app never answers it.
 /// </summary>
-public partial class PermissionSlip : Node2D
+public partial class PermissionCard : Node2D
 {
     public const float Width = 340;
 
-    /// <summary>How long a slip waits for an answer; after that it counts as none.</summary>
+    /// <summary>How long a card waits for an answer; after that it counts as none.</summary>
     public const double Waits = 120;
 
     private PanelContainer _panel = null!;
@@ -70,7 +70,7 @@ public partial class PermissionSlip : Node2D
         }
     }
 
-    /// <summary>Shows the slip standing at <paramref name="bottomLeft"/> and waits for the player's answer.</summary>
+    /// <summary>Shows the card standing at <paramref name="bottomLeft"/> and waits for the player's answer.</summary>
     /// <returns>Their answer; <see cref="Answer.None"/> when the reply was called off or they let it be.</returns>
     public async Task<Answer> Ask(Asking asking, Vector2 bottomLeft, CancellationToken cancel)
     {
@@ -113,6 +113,6 @@ public partial class PermissionSlip : Node2D
 
     public bool Hits(Vector2 canvasPoint) => Visible && new Rect2(Position + _panel.Position, _panel.Size).Grow(4).HasPoint(canvasPoint);
 
-    /// <summary>Dev: answers the slip showing, as its buttons would.</summary>
+    /// <summary>Dev: answers the card showing, as its buttons would.</summary>
     public void DevAnswer(Answer answer) => _answer?.TrySetResult(answer);
 }

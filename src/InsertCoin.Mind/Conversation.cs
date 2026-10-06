@@ -171,16 +171,20 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     private FunctionInvokingChatClient Calling(IChatClient client, Toolbox tools)
     {
         var here = SynchronizationContext.Current is null ? TaskScheduler.Current : TaskScheduler.FromCurrentSynchronizationContext();
+        var done = new HashSet<string>();                   // the calls made in this reply
         return new FunctionInvokingChatClient(client)
         {
             MaximumIterationsPerRequest = Toolbox.Rounds,
             FunctionInvoker = (call, cancel) =>
-                new ValueTask<object?>(Task.Factory.StartNew(() => Use(tools, call, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap()),
+                new ValueTask<object?>(Task.Factory.StartNew(() => Use(tools, call, done, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap()),
         };
     }
 
-    private async Task<object?> Use(Toolbox tools, FunctionInvocationContext call, CancellationToken cancel)
+    private async Task<object?> Use(Toolbox tools, FunctionInvocationContext call, HashSet<string> done, CancellationToken cancel)
     {
+        // a model going round in circles doesn't open the same page ten times: the same call twice in a reply isn't made again
+        if (!done.Add(call.Function.Name + System.Text.Json.JsonSerializer.Serialize(call.Arguments.ToDictionary(a => a.Key, a => a.Value), AIJsonUtilities.DefaultOptions)))
+            return "You've already done exactly this in this reply. Don't repeat it; carry on.";
         object? result;
         string record;
         try

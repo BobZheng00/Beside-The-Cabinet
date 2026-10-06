@@ -11,7 +11,7 @@ public enum Permission
 {
     /// <summary>She uses it whenever it helps.</summary>
     Allowed,
-    /// <summary>She asks first, every time, and the player answers on a slip by the stool.</summary>
+    /// <summary>She asks first, every time, and the player answers on a card by the stool.</summary>
     Ask,
     /// <summary>It isn't offered to her at all.</summary>
     Off,
@@ -28,7 +28,7 @@ public enum Answer
     None,
 }
 
-/// <summary>What the slip says when she asks to use a tool.</summary>
+/// <summary>What the card says when she asks to use a tool.</summary>
 /// <param name="What">The question, in a few words ("Open this page in your browser?").</param>
 /// <param name="Detail">On what: the page's address, say. Always the real one, whatever she said about it.</param>
 /// <param name="Scope">What "always" covers (a website), or null for every use of the tool.</param>
@@ -40,7 +40,7 @@ public sealed record Asking(Tool Tool, string What, string Detail, string? Scope
 /// </summary>
 /// <param name="Title">What the player sees it called (Chat settings → Abilities).</param>
 /// <param name="OutsideApp">It acts outside the app (opens a page, plays music): she asks first unless the player allowed it.</param>
-/// <param name="Ask">What the slip says for a call's arguments; without it, the title and the arguments as given.</param>
+/// <param name="Ask">What the card says for a call's arguments; without it, the title and the arguments as given.</param>
 /// <param name="Source">Where it comes from: <see cref="BuiltIn"/>, or a connector's name.</param>
 public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Func<AIFunctionArguments, (string What, string Detail, string? Scope)>? Ask = null,
                           string Source = Tool.BuiltIn)
@@ -60,8 +60,11 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
 /// </summary>
 public sealed class Toolbox
 {
-    /// <summary>Tool calls she may make in one reply, each a request of its own; the last request gets no tools, so she answers.</summary>
-    public const int Rounds = 4;
+    /// <summary>
+    /// Tool calls she may make in one reply, each a request of its own; the last request gets no tools, so she answers.
+    /// She says what she is doing as she goes, so a longer run of steps is fine; this only stops one that never ends.
+    /// </summary>
+    public const int Rounds = 10;
     private const int RecordLength = 300;
     // the arguments as the model gave them, with Chinese and Japanese as they are (not \u escapes)
     private static readonly JsonSerializerOptions Readable = new(AIJsonUtilities.DefaultOptions) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = false };
@@ -84,7 +87,7 @@ public sealed class Toolbox
     /// <summary>The player's choices, by tool name, or "name:scope" for one allowed always for a scope (a site).</summary>
     public IReadOnlyDictionary<string, Permission> Chosen => _chosen;
 
-    /// <summary>Asks the player whether she may (the slip by the stool). Unset, nothing that asks is ever done.</summary>
+    /// <summary>Asks the player whether she may (the card by the stool). Unset, nothing that asks is ever done.</summary>
     public Func<Asking, CancellationToken, Task<Answer>> AskPlayer { get; set; } = (_, _) => Task.FromResult(Answer.None);
 
     /// <summary>A tool is about to run: her body shows her busy until the rest of her reply comes.</summary>
@@ -92,6 +95,12 @@ public sealed class Toolbox
 
     /// <summary>The player answered "always": the choices have changed, to keep.</summary>
     public event Action? Changed;
+
+    /// <summary>
+    /// Auto: she goes ahead without asking where she would ask, as Claude Code's auto mode works on without stopping.
+    /// She still says what she is doing, every use is still in the conversation, and tools switched off stay off.
+    /// </summary>
+    public bool Auto { get; set; }
 
     /// <summary>
     /// The provider turned tools down (a local model without them): none are offered, and she answers as before, with
@@ -149,7 +158,7 @@ public sealed class Toolbox
         {
             case Permission.Off:
                 return ("The player has switched this off.", $"You tried to use {tool.Name} ({given}), which the player has switched off.");
-            case Permission.Ask:
+            case Permission.Ask when !Auto:
                 var answer = await AskPlayer(new Asking(tool, what, detail, scope), cancel);
                 cancel.ThrowIfCancellationRequested();
                 if (answer == Answer.No)

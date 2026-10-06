@@ -32,7 +32,7 @@ public static class BuiltIn
     /// <summary>The site "always" covers: its host as the browser sees it, without "www.".</summary>
     public static string Site(Uri page) => page.IdnHost.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? page.IdnHost[4..] : page.IdnHost;
 
-    /// <summary>An address as the slip shows it: no "https://", the host as the browser will see it (so a look-alike shows as one).</summary>
+    /// <summary>An address as the card shows it: no "https://", the host as the browser will see it (so a look-alike shows as one).</summary>
     public static string Shown(Uri page) => page.IdnHost + (page.IsDefaultPort ? "" : $":{page.Port}") + (page.PathAndQuery == "/" ? "" : page.PathAndQuery);
 
     private static string? Text(AIFunctionArguments arguments, string name) => arguments.TryGetValue(name, out var value) ? value?.ToString() : null;

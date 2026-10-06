@@ -15,13 +15,18 @@ Modular, framed like Claude Code's tools, connectors and plugins:
 
 **Permission per tool**, set like Claude Code's permission rules (*built 2026-10-05, as proposed; open to change*):
 - **Allowed** by default: reading, and acting inside the app.
-- **Ask** by default: acting outside the app. She asks in her words, and a slip by her stool offers Allow once, Always, or No.
+- **Ask** by default: acting outside the app. She asks in her words, and a card by her stool offers Allow once, Always, or No.
   - "Always" covers what the tool says it should: for opening pages, the site (`open_link:leetcode.com`), like Claude Code's per-domain rules. Saying Always to one page doesn't let her open any page.
 - **Off**: the tool isn't offered to the model at all.
+- **Auto** (*built 2026-10-05*, the user's idea, like Claude Code's auto mode): one switch, off by default. Where she would ask, she goes ahead.
+  - She still says what she's doing, and each use is in the chat history.
+  - Tools switched Off stay off.
+  - Nothing is remembered per tool: switching Auto off brings the asking back as it was.
+  - *When web reading comes:* a page could try to talk her into opening things. Auto may then need to exclude what a page suggested, or local MCP servers' tools. Decide then.
 - A local MCP server's tools all start at Ask, even those that say they only read: the server's word is a hint, not a guarantee.
 
 **Where it's set:** Chat settings → Abilities.
-- *Built:* the built-in tools, each with its permission, and the sites answered Always, each with Forget.
+- *Built:* the Auto switch, the built-in tools, each with its permission, and the sites answered Always, each with Forget.
 - *Later:* the connectors, each with Connect and Disconnect, plus "Add a local MCP server…".
 
 **Models without tool calling** (small local ones) keep stage directions as they work today. The abilities that need tools are simply not offered to them.
@@ -138,8 +143,9 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 **In her mind** (`InsertCoin.Mind`, tested):
 - `Toolbox` holds her tools, the player's permissions (by tool, or `tool:site` for Always), and runs each call. `BuiltIn` has the built-in tools.
 - **The loop:** Microsoft.Extensions.AI's `FunctionInvokingChatClient`, with our own invoker for the permission check.
-  - Up to 4 tool calls a reply; the last request has no tools, so she answers.
-  - Calls run on the app's main thread, where the slip and the memory store live.
+  - Up to 10 tool calls a reply (raised from 4 at the user's word: she says what she's doing as she goes); the last request has no tools, so she answers.
+  - The same call twice in one reply (same tool, same arguments) isn't made again: a model going round in circles can't open one page ten times.
+  - Calls run on the app's main thread, where the card and the memory store live.
 - **The list is the same every request**, sorted by name. Only switching a tool off (or on) changes it; Allowed and Ask don't.
 - **Every reply carries it:** answers, check-ins and reminders alike. Otherwise the cached start of the prompt would differ between them.
 - **The bridging line:** the prompt asks for a short line of her own before each tool, fitting what she's doing, never a stock phrase. A paragraph "Your abilities" is in the prompt only while tools are offered.
@@ -148,11 +154,11 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - **Models without tools:** if the provider turns tools down ("does not support tools", as Ollama says for such a model), she answers at once without them, and they aren't offered again until the provider changes.
 
 **In the app:**
-- **The slip** (`PermissionSlip`) stands by her stool, above the one you type on.
+- **The permission card** (`PermissionCard`) stands by her stool, above the slip you type on.
   - It shows what and where, always the real address (a look-alike domain shows in its `xn--` spelling).
   - Clicks only: no key answers it.
   - It waits 2 minutes, then counts as no answer. Cutting her off (a click on her, a new message) counts as no answer too.
-  - While it waits, the reply's 90-second clock is stopped.
+  - While it waits, the reply's 90-second clock is stopped, and each tool she uses starts it afresh, so a longer piece of work isn't cut short.
 - **Her body:** she leans in with her eyes on you while you decide (the listening pose). Your answer gets a small "got it". While the tool runs and the model answers again, she looks away to think; then she carries on.
 - **The first tool, `open_link`:** opens an `http` or `https` page in your browser, asking first. Nothing else opens: no files, programs or other links (`steam://` comes with apps, later). A test run (`--offscreen`) only logs what it would open.
 
@@ -162,7 +168,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - Each tool call adds one more trip to the model: about 0.4–0.7 s with the mock.
 
 **Not yet:**
-- answering the slip by voice ("yes");
+- answering the card by voice ("yes");
 - a real provider's model choosing tools well, and how varied its bridging lines are. Both are in `docs/to-try.md`.
 
 ## Order (*proposed*)
