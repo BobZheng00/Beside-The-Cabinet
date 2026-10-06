@@ -19,6 +19,9 @@ public partial class Memos : Node
     /// <summary>A memo was printed, moved, changed or thrown away (the memory book's tab follows).</summary>
     public event Action? Changed;
 
+    /// <summary>The player printed a memo of their own (title, text): she sees it come out, and thinks it over.</summary>
+    public event Action<string, string>? Written;
+
     /// <param name="nameOf">Who printed a memo, for the reader ("From Shino"), from a character's id.</param>
     public void Build(MindStore store, MemoBoard board, Func<string?, string> nameOf)
     {
@@ -46,6 +49,8 @@ public partial class Memos : Node
         else
             Show(printing: id);
         GD.Print($"Memos: printed \"{title}\" ({text.Length} characters){(by is null ? ", the player's own" : "")}");
+        if (by is null)
+            Written?.Invoke(title, text);
         return id;
     }
 

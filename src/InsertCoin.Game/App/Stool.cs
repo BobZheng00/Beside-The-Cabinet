@@ -36,6 +36,7 @@ public partial class Stool : Node2D
     private Listening _listening = null!;
     private bool _announcing;                               // passing on a reminder
     private readonly Queue<(IReadOnlyList<Plan> Due, DateTimeOffset At)> _reminding = new();
+    private readonly Queue<(string Title, string Text)> _written = new();     // the player's own memos, for her to think over
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
     /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
@@ -93,6 +94,12 @@ public partial class Stool : Node2D
         AddChild(_memos);
         _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "");
         _chat.PrintMemo = PrintMemo;
+        _memos.Written += (title, text) =>
+        {
+            Her?.Play(Moment.Paper);                        // she sees it come out of the slot
+            if (_chat.Ready)
+                _written.Enqueue((title, text));
+        };
 
         _voice = new Voice();
         AddChild(_voice);
@@ -340,7 +347,50 @@ public partial class Stool : Node2D
     /// <summary>Starts or ends a conversation (the tray's switch): she listens after everything she says.</summary>
     public void Converse(bool on) => _listening.Converse(on);
 
-    public override void _Process(double delta) => PassOnReminders();
+    public override void _Process(double delta)
+    {
+        PassOnReminders();
+        ThinkOverMemos();
+    }
+
+    /// <summary>A memo of the player's own to write (tray → Write a memo…).</summary>
+    public void WriteMemo() => _memos.Write();
+
+    /// <summary>
+    /// A memo the player wrote, once she is free: she thinks it over unseen, and acts on it (a reminder, a date on
+    /// the agenda, a word of help) or lets it be, saying nothing. Either way it is in the conversation, so she knows it's there.
+    /// </summary>
+    private void ThinkOverMemos()
+    {
+        if (_written.Count == 0 || Busy || DateTimeOffset.Now < _quietFrom || Her is null)
+            return;
+        var (title, text) = _written.Dequeue();
+        _ = ThinkOver(title, text);
+    }
+
+    private async Task ThinkOver(string title, string text)
+    {
+        _announcing = true;
+        try
+        {
+            await _chat.Consider(Memo.Written(title, text), Situation(), Her!, () => Presence.InCall ? null : _voice.Begin(), _voice.Language);
+            if (_chat.Replied is { } said)
+            {
+                _lively(30);
+                _listening.Said(answer: false, said);
+            }
+            else
+                GD.Print($"Memos: she read \"{title}\" and let it be");
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Memos: {e}");                     // nobody awaits this task: say what went wrong here
+        }
+        finally
+        {
+            _announcing = false;
+        }
+    }
 
     // ---- The tray's switches ---------------------------------------------------------------------------------------------
 
@@ -813,6 +863,10 @@ public partial class Stool : Node2D
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
             case "memoreader": _memos.DevReader(rest); break;      // its buttons: pin, off, edit, save, cancel, delete (not copy: it would take the clipboard)
             case "memowrite": _memos.Write(); break;        // a memo of the player's own
+            case "memonote":                                // memonote:title:text: one of the player's own, printed as if written and saved
+                var note = text.Split(':', 2);
+                _memos.Print(note[0], note.Length > 1 ? note[1] : note[0], by: null);
+                break;
             case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.DevAnswer(Answer.Always); break;
             case "deny": _permission.DevAnswer(Answer.No); break;

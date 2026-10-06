@@ -131,7 +131,9 @@ can't take tools (some that run on this PC) answers as before. Design:
 Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
 phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
 copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
-where you can write your own too; they print the same way. Memos are yours: forgetting leaves them be.
+where you can write your own too (or tray → "Write a memo…"); they print the same way, and she reads them: if one
+needs something from her (a reminder, a date), she does it and says so; if not, she says nothing. Memos are yours:
+forgetting leaves them be.
 
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
@@ -179,7 +181,8 @@ Hands-free, without ever opening the real microphone: `fakemic` (from then on sh
 asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab). With `--offscreen` a page she opens is
 only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
-`memoreader:pin` (its buttons: pin, off, edit, save, cancel, delete), `memowrite` (one of your own) and
+`memoreader:pin` (its buttons: pin, off, edit, save, cancel, delete), `memowrite` (one of your own),
+`memonote:title:text` (one of your own, printed as if saved: she thinks it over) and
 `memorybook:memos`.
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.

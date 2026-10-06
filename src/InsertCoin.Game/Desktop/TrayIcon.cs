@@ -7,14 +7,14 @@ public enum TrayMood { Fine, Low, Debt }
 /// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
+    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, WriteMemo, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
     public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged,
         ConversationChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
         AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
-        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003;   // characters take the ids from 20 up
+        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003, MemoId = 1004;   // characters take the ids from 20 up
     private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId, ConversationId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
@@ -89,6 +89,7 @@ public partial class TrayIcon : Node
         _menu.AddItem("Chat settings…", ChatId);
         _menu.AddItem("Voice settings…", VoiceSettingsId);
         _menu.AddItem("Memory book…", MemoryId);
+        _menu.AddItem("Write a memo…", MemoId);
         _menu.AddItem("Chat history…", HistoryId);
         _menu.AddItem("Reminders…", RemindersId);
         _menu.AddItem("Calendars…", CalendarsId);
@@ -139,6 +140,7 @@ public partial class TrayIcon : Node
             case VoiceSettingsId: VoiceSettings?.Invoke(); break;
             case ChatId: ChatSettings?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;
+            case MemoId: WriteMemo?.Invoke(); break;
             case HistoryId: ChatHistory?.Invoke(); break;
             case RemindersId: Reminders?.Invoke(); break;
             case CalendarsId: Calendars?.Invoke(); break;

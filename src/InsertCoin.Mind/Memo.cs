@@ -21,6 +21,19 @@ public sealed partial record Memo(long Id, string Title, string Text, string? By
     /// <summary>How long a title and a memo may be: a title is a few words; a memo, a page or two.</summary>
     public const int TitleLength = 60, TextLength = 6000;
 
+    /// <summary>How much of the player's own memo she is told, in characters (the rest is on the paper).</summary>
+    public const int ToldAtMost = 1500;
+
+    /// <summary>
+    /// What she is told when the player writes a memo of their own: what it says, and that it is theirs. She may act on
+    /// it (a reminder or a date on the agenda, a word of help) or let it be, answering only [quiet], so nothing is said.
+    /// </summary>
+    public static string Written(string title, string text) =>
+        $"The player just wrote a memo to themselves, and it printed out of the cabinet's slot. Title: \"{title.Trim()}\". It says:\n" +
+        $"{(text.Trim().Length > ToldAtMost ? text.Trim()[..ToldAtMost] + "…" : text.Trim())}\n\n" +
+        "It's their own note: you needn't say or do anything. If something in it is for you, act on it: put a date or a reminder on the agenda " +
+        "and say so in a few words, or offer help in a line. If it needs nothing from you, answer with only [quiet].";
+
     /// <summary>The first lines, as the paper hanging from the slot shows them: plain words, without code fences or list marks.</summary>
     public string Glimpse(int characters = 80)
     {

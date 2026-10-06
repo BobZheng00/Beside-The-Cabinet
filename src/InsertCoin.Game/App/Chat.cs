@@ -237,7 +237,18 @@ public sealed class Chat : IDisposable
     public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null) =>
         Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage);
 
-    private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage)
+    /// <summary>
+    /// Has her think over what the cabinet tells her (a memo the player wrote, see <see cref="Memo.Written"/>) without
+    /// being seen to: no thinking dots, nothing shown while it comes. What she does with it (a reminder, a date on the
+    /// agenda) is done either way; only if she has something to say is it then said, as a reply is. Silent, her answer
+    /// is only [quiet], and <see cref="Replied"/> is null.
+    /// </summary>
+    /// <param name="voice">Starts her voice for what she says, when she says something (starting it stops whatever it was saying).</param>
+    public Task Consider(string note, string situation, CompanionView view, Func<Speech?> voice, string? voiceLanguage = null) =>
+        Respond(note, fromCabinet: true, fallback: "", situation, view, speech: null, voiceLanguage, voice);
+
+    private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
+                               Func<Speech?>? voiceLater = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
@@ -252,9 +263,16 @@ public sealed class Chat : IDisposable
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
+        // thought over unseen (see Consider): her words and directions are held, and played only if she says something
+        var held = voiceLater is null ? null : new List<(string? Words, string? Direction, string? Payload)>();
+        var began = false;
         try
         {
-            view.BeginReply();
+            if (held is null)
+            {
+                view.BeginReply();
+                began = true;
+            }
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, Task<string>> reply =
                 fromCabinet ? conversation.Announce : conversation.Answer;
@@ -264,6 +282,11 @@ public sealed class Chat : IDisposable
                                       {
                                           if (!Here())
                                               return;
+                                          if (held is not null)
+                                          {
+                                              held.Add((words, null, null));
+                                              return;
+                                          }
                                           shown ??= clock.ElapsedMilliseconds;
                                           view.Continue(words);
                                           speech?.Text(words);
@@ -272,6 +295,11 @@ public sealed class Chat : IDisposable
                                       {
                                           if (!Here())
                                               return;
+                                          if (held is not null)
+                                          {
+                                              held.Add((null, name, payload));
+                                              return;
+                                          }
                                           Act(view, name);
                                           speech?.Direction(name, payload);
                                       },
@@ -279,10 +307,30 @@ public sealed class Chat : IDisposable
             GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
             if (Tools.Refused && !refused)
                 GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
+            if (held is not null && Here() && text.Length > 0)
+            {
+                // she has something to say about it: said now, as a reply is
+                speech = _speech = voiceLater!();
+                view.BeginReply();
+                began = true;
+                foreach (var (words, direction, payload) in held)
+                {
+                    if (words is not null)
+                    {
+                        view.Continue(words);
+                        speech?.Text(words);
+                    }
+                    else
+                    {
+                        Act(view, direction!);
+                        speech?.Direction(direction!, payload);
+                    }
+                }
+            }
             if (Here())
             {
                 speech?.Finish();
-                Replied = text;
+                Replied = text.Length > 0 ? text : null;
             }
         }
         catch (OperationCanceledException) when (_cutting)
@@ -309,7 +357,7 @@ public sealed class Chat : IDisposable
             _view = null;
             _cutting = false;
             _written.TrySetResult();
-            if (GodotObject.IsInstanceValid(view))
+            if (began && GodotObject.IsInstanceValid(view))
                 view.EndReply();
         }
 

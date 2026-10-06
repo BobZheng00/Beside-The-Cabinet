@@ -84,6 +84,31 @@ public class MemoTests
     }
 
     [Fact]
+    public async Task A_memo_the_player_wrote_is_hers_to_act_on_or_let_be()
+    {
+        using var temp = new TempStore();
+        var clock = new FakeClock(Friday);
+        var conversation = new Conversation(temp.Store, "shino", Shino, clock);
+        var note = Memo.Written("Groceries", "milk, eggs, rice");
+
+        Assert.Contains("\"Groceries\"", note);
+        Assert.Contains("milk, eggs, rice", note);
+        Assert.Contains("[quiet]", note);
+        Assert.EndsWith("…", Memo.Written("Long", new string('x', Memo.ToldAtMost + 10)).Split("\n\n")[0]);   // she is told the start of a long one
+
+        // nothing in it for her: she says nothing, and the memo stays in the conversation for later
+        Assert.Equal("", await conversation.Announce(new FakeModel("[quiet]"), note, "", _ => { }, (_, _) => { }));
+        Assert.Equal([Speaker.Cabinet], temp.Store.After("shino", 0).Select(l => l.Speaker));
+
+        // something for her: a reminder goes on the agenda, and she says so
+        clock.Now = Friday.AddMinutes(5);
+        var answer = await conversation.Announce(new FakeModel("[remind: 2026-10-03 08:00 | Pack the charger] I'll remind you in the morning."),
+                                                 Memo.Written("Trip", "remember to pack the charger"), "", _ => { }, (_, _) => { });
+        Assert.Equal("I'll remind you in the morning.", answer);
+        Assert.Contains(temp.Store.Agenda(), p => p.Text == "Pack the charger");
+    }
+
+    [Fact]
     public async Task She_prints_a_memo_without_asking_and_says_only_the_gist()
     {
         using var temp = new TempStore();

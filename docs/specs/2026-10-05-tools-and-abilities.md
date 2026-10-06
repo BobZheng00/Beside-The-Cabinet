@@ -112,7 +112,16 @@ The thumbs need finger poses like the pencil grip's, with the phone placed from 
 
 **The archive:** a Memos tab in the memory book: every memo, newest first, where it is, Read and Pin or Take down, and "+ Write a memo".
 
+**The player's own memos, which she sees** (the user's request, 2026-10-06):
+- Written without going through her: tray → "Write a memo…", or the Memos tab. Saved, it prints out of the slot like hers, and she glances at it as it comes out.
+- **She thinks it over unseen** (`Chat.Consider`): no thinking dots, nothing shown while the reply comes. She is told what it says (the first 1,500 characters) and that it is the player's own (`Memo.Written`). Then either:
+  - **she acts on it:** a reminder or a date on the agenda, through the usual stage directions, or a word of help, said in a line as a reply is;
+  - **or she lets it be:** she answers only `[quiet]`, and nothing is shown or said.
+- Either way the memo stays in the conversation as a cabinet line, so she knows it's there later; the titles of those still on the cabinet also go with every request.
+- If she's busy (talking, listening, passing on a reminder), she reads it once she's free.
+
 **Her phone** (`Puppet`, `Moment.Type` and `Moment.Send`; the phone is placed between her palms in `CompanionView`):
+- **The phone** (the user found the first a plain slab, 2026-10-06): a mint case with rounded corners, and on its back, the side the viewer sees, a dark camera island in the top corner with two ringed lenses and a flash.
 - **Holding it:** both hands at lower-chest height, the phone fairly upright (about 58° from flat), each hand cradling a lower corner with the fingers behind it.
   - Her head bows only a little; her eyes do most of the looking down. Bowed further, her hair hid her face from the cabinet's high camera.
 - **Typing:** thumb taps a word at a time: bursts of 3 to 7, a fifth of a second apart, short gaps between words. Every few words she pauses for a second or so and glances up to think.

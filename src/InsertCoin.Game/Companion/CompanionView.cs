@@ -222,12 +222,54 @@ public partial class CompanionView : Node2D
         viewport.AddChild(_pad);
         viewport.AddChild(_pencil);
 
-        // her phone, in a pastel mint case, its screen towards her
+        // her phone, in a pastel mint case with rounded corners, its screen towards her; on its back, the side the
+        // viewer sees, the camera: a dark island in the top corner with two lenses and a flash. Its own axes: x across
+        // to her left, y out of the screen, z up its length.
         _phone = new Node3D { Visible = false };
-        Inked(_phone, new BoxMesh { Size = new Vector3(0.072f, 0.009f, 0.15f) * size }, new Color("A6E3D0"), Vector3.Zero);
-        Inked(_phone, new BoxMesh { Size = new Vector3(0.064f, 0.002f, 0.136f) * size }, new Color("2E2748"), new Vector3(0, 0.0047f, 0.002f) * size);
+        Rounded(_phone, new Vector3(0.072f, 0.009f, 0.15f) * size, 0.011f * size, new Color("A6E3D0"), Vector3.Zero, inked: true);
+        Rounded(_phone, new Vector3(0.064f, 0.002f, 0.142f) * size, 0.008f * size, new Color("2E2748"), new Vector3(0, 0.0046f, 0) * size, inked: false);
+        var island = new Vector3(-0.0165f, -0.0058f, 0.0555f) * size;              // her right, at the top: the viewer's top left
+        Rounded(_phone, new Vector3(0.027f, 0.003f, 0.027f) * size, 0.006f * size, new Color("3A3352"), island, inked: true);
+        foreach (var (x, z, radius, colour) in new[] { (-0.0055f, 0.0060f, 0.0050f, "8D86A8"), (-0.0055f, -0.0060f, 0.0050f, "8D86A8"), (0.0065f, 0.0060f, 0.0022f, "FFF1C2") })
+        {
+            var at = island + new Vector3(x, -0.0017f, z) * size;
+            _phone.AddChild(Plain(new CylinderMesh { TopRadius = radius * size, BottomRadius = radius * size, Height = 0.0012f * size, RadialSegments = 14 }, colour, at));
+            if (colour == "8D86A8")                                                    // the lens glass inside its rim
+                _phone.AddChild(Plain(new CylinderMesh { TopRadius = 0.0031f * size, BottomRadius = 0.0031f * size, Height = 0.0012f * size, RadialSegments = 14 },
+                                      "141020", at - new Vector3(0, 0.0004f, 0) * size));
+        }
         viewport.AddChild(_phone);
     }
+
+    /// <summary>
+    /// A rounded slab (a rounded rectangle across x and z, as thick as y): two crossed boxes and a cylinder at each corner,
+    /// each outlined like the other props when <paramref name="inked"/>.
+    /// </summary>
+    private static void Rounded(Node3D parent, Vector3 size, float radius, Color colour, Vector3 at, bool inked)
+    {
+        var parts = new List<(PrimitiveMesh Mesh, Vector3 At)>
+        {
+            (new BoxMesh { Size = new Vector3(size.X, size.Y, size.Z - 2 * radius) }, at),
+            (new BoxMesh { Size = new Vector3(size.X - 2 * radius, size.Y, size.Z) }, at),
+        };
+        foreach (var x in new[] { -1, 1 })
+            foreach (var z in new[] { -1, 1 })
+                parts.Add((new CylinderMesh { TopRadius = radius, BottomRadius = radius, Height = size.Y, RadialSegments = 12 },
+                           at + new Vector3(x * (size.X / 2 - radius), 0, z * (size.Z / 2 - radius))));
+        foreach (var (mesh, place) in parts)
+        {
+            if (inked)
+                Inked(parent, mesh, colour, place);
+            else
+                parent.AddChild(Plain(mesh, colour.ToHtml(false), place));
+        }
+    }
+
+    private static MeshInstance3D Plain(PrimitiveMesh mesh, string colour, Vector3 at) => new()
+    {
+        Mesh = mesh, Position = at,
+        MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(colour) },
+    };
 
     /// <summary>
     /// The phone lies between her palms, a little towards her and up from them (her hands hold its lower half), its

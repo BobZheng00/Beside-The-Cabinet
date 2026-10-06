@@ -143,6 +143,7 @@ public partial class Main : Node2D
         _tray.ChatSettings += _stool.OpenChatSettings;
         _tray.VoiceSettings += _stool.OpenVoiceSettings;
         _tray.MemoryBook += _stool.OpenMemoryBook;
+        _tray.WriteMemo += _stool.WriteMemo;
         _tray.ChatHistory += _stool.OpenChatHistory;
         _tray.Reminders += OpenReminderSettings;
         _tray.Calendars += OpenCalendarSettings;

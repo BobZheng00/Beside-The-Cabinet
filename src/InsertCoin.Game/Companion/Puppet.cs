@@ -14,6 +14,8 @@ public enum Moment
     CutOff,
     /// <summary>She writes a memo on her phone until <see cref="Send"/>: it goes to the cabinet, which prints it.</summary>
     Type, Send,
+    /// <summary>Something came out of the printer's slot: she glances at it.</summary>
+    Paper,
 }
 
 /// <summary>
@@ -417,6 +419,9 @@ internal sealed class Puppet
                 After(0.55, () => { Look(Slot, 1.7); _face.Show("happy", 0.55f, 1.6); });
                 After(1.05, () => _on["phone"] = 0);
                 After(2.25, () => Look(Viewer, 2));
+                break;
+            case Moment.Paper:
+                Look(Slot, _random.RandfRange(1.2f, 1.8f));
                 break;
             case Moment.Note:
                 // pad up, eyes on it, a few quick strokes, then a satisfied look back up
