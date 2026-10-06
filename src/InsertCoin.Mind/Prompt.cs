@@ -27,9 +27,10 @@ public static class Prompt
     /// <param name="window">Tokens of the conversation sent word for word at most (the newest).</param>
     /// <param name="now">The time now; without it the turn says nothing about time.</param>
     /// <param name="agenda">What is coming up and what has just passed (see <see cref="Agenda.Block"/>), or empty.</param>
+    /// <param name="tools">Tools are offered with the request: she is told how to use them (see <see cref="Toolbox"/>).</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
-                                          int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "")
+                                          int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -40,7 +41,7 @@ public static class Prompt
 
             How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player writes in. Stay in character as {persona.Name}.{Voice(voiceLanguage)}
 
-            Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.
+            Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.{(tools ? Abilities : "")}
 
             Lines starting with [cabinet], and the <now>, <agenda>, <cabinet> and <character> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
@@ -92,6 +93,16 @@ public static class Prompt
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));
         return messages;
     }
+
+    /// <summary>
+    /// How she uses tools: a short line of her own before each (the wait for its result is filled by her, not by a
+    /// stock "let me check"), and asking in her own words when the player will be asked to allow it.
+    /// </summary>
+    private const string Abilities = """
+
+
+        Your abilities: you have tools to do things for the player. Use one only when it helps with what they want. Before you use a tool, say a short line first, in your own words and in character, that fits what you are doing ("Two Sum? Let me pull it up."), never the same stock phrase each time. Some tools act outside the app, such as opening a page: the player is asked to allow those on a slip by your stool, so ask them in your words as you use it ("Want me to open it?"). If they say no, take it lightly and don't ask again for the same thing. Only say you did something once the tool has done it.
+        """;
 
     /// <summary>
     /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in

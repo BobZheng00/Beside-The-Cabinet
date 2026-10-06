@@ -11,9 +11,10 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Talking with her. What the user types goes to their own provider; her answer streams into her bubble and its
-/// stage directions are acted out. Cabinet events and her canned lines go into the same conversation, so she
-/// knows what happened. After an answer the older conversation is folded into a summary when it has grown long.
-/// Everything runs on the main thread: the mind's awaits come back through Godot's synchronization context.
+/// stage directions are acted out, and she uses her tools on the way (see <see cref="Tools"/>). Cabinet events and
+/// her canned lines go into the same conversation, so she knows what happened. After an answer the older
+/// conversation is folded into a summary when it has grown long. Everything runs on the main thread: the mind's
+/// awaits come back through Godot's synchronization context.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class Chat : IDisposable
@@ -34,6 +35,7 @@ public sealed class Chat : IDisposable
     private CancellationTokenSource? _answering;
     private TaskCompletionSource? _written;             // done once the reply under way is written, or stopped
     private Speech? _speech;                            // what her voice makes of the latest reply
+    private CompanionView? _view;                       // where the reply under way is played
     private bool _folding, _upkeeping, _cutting;
     private DateTimeOffset _upkeepAfter;
 
@@ -42,10 +44,52 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
+        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage)]) { AskPlayer = AskFirst };
+        Tools.Using += tool =>
+        {
+            GD.Print($"Tools: she uses {tool.Name}");
+            if (_view is { } view && GodotObject.IsInstanceValid(view))
+                view.Working();
+        };
     }
 
     public MindStore Store { get; }
     public KeyStore Keys { get; }
+
+    /// <summary>What she can do with tools, and the player's permission for each (Chat settings → Abilities).</summary>
+    public Toolbox Tools { get; }
+
+    /// <summary>Asks the player whether she may use a tool (the slip by her stool). Unset, the answer is always no.</summary>
+    public Func<Asking, CancellationToken, Task<Answer>>? AskPlayer { get; set; }
+
+    /// <summary>While the player decides, the reply's clock stops: they may take their time, and the slip has a limit of its own.</summary>
+    private async Task<Answer> AskFirst(Asking asking, CancellationToken cancel)
+    {
+        if (AskPlayer is null)
+            return Answer.None;
+        var answering = _answering;
+        answering?.CancelAfter(Timeout.InfiniteTimeSpan);
+        try
+        {
+            return await AskPlayer(asking, cancel);
+        }
+        finally
+        {
+            if (answering is not null && answering == _answering)
+                answering.CancelAfter(AnswerTimeout);
+        }
+    }
+
+    /// <summary>Opens a page in the player's browser. A test run (off screen) only says so: it never opens anything or takes focus.</summary>
+    private static void OpenPage(Uri page)
+    {
+        if (Paper.OffScreen)
+        {
+            GD.Print($"Tools: would open {page.AbsoluteUri} (a test run opens nothing)");
+            return;
+        }
+        OS.ShellOpen(page.AbsoluteUri);
+    }
 
     /// <summary>A provider is set up and someone is on the stool.</summary>
     public bool Ready => _client is not null && _conversation is not null;
@@ -65,6 +109,7 @@ public sealed class Chat : IDisposable
         _client = timed is null ? null : new Metered(timed, Store, provider!.Model, "upkeep");
         _talk = timed is null ? null : new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies");
         _usage.Clear();
+        Tools.Refused = false;                          // a new provider or model may take tools
         UseWindow(_window);
         UseSearch(_search);
     }
@@ -190,13 +235,16 @@ public sealed class Chat : IDisposable
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
         _written = new TaskCompletionSource();
         _speech = speech;
+        _view = view;
+        var refused = Tools.Refused;
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
         try
         {
             view.BeginReply();
-            Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Task<string>> reply =
+            // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
+            Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, Task<string>> reply =
                 fromCabinet ? conversation.Announce : conversation.Answer;
             Replied = null;
             var text = await reply(client, said, situation,
@@ -215,8 +263,10 @@ public sealed class Chat : IDisposable
                                           Act(view, name);
                                           speech?.Direction(name, payload);
                                       },
-                                      answering.Token);
+                                      answering.Token, Tools);
             GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
+            if (Tools.Refused && !refused)
+                GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
             if (Here())
             {
                 speech?.Finish();
@@ -244,6 +294,7 @@ public sealed class Chat : IDisposable
         finally
         {
             _answering = null;
+            _view = null;
             _cutting = false;
             _written.TrySetResult();
             if (GodotObject.IsInstanceValid(view))

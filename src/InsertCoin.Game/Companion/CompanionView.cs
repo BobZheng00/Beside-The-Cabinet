@@ -139,6 +139,13 @@ public partial class CompanionView : Node2D
 
     private bool _thinking;
 
+    /// <summary>She is using a tool mid-reply: she thinks again, until the rest of her reply comes.</summary>
+    public void Working()
+    {
+        _thinking = true;
+        _puppet.Play(Moment.Think);
+    }
+
     /// <summary>The words of her reply have begun (or it ended without any): she stops thinking.</summary>
     private void Answering()
     {

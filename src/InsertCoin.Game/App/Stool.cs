@@ -24,6 +24,7 @@ public partial class Stool : Node2D
     private string _characters = "";
     private Chat _chat = null!;
     private ChatBox _chatBox = null!;
+    private PermissionSlip _permission = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
     private ChatSettings? _chatSettings;
@@ -78,6 +79,11 @@ public partial class Stool : Node2D
         _chatBox = new ChatBox();
         AddChild(_chatBox);
         _chatBox.Submitted += said => _ = Ask(said);
+        _permission = new PermissionSlip();
+        AddChild(_permission);
+        _chat.AskPlayer = AskPlayer;
+        _chat.Tools.Choose(settings.Now.ToolPermissions);
+        _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
 
         _voice = new Voice();
         AddChild(_voice);
@@ -295,7 +301,7 @@ public partial class Stool : Node2D
     }
 
     /// <summary>The window is solid here: her figure, or the slip.</summary>
-    public bool Hits(Vector2 canvasPoint) => Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint);
+    public bool Hits(Vector2 canvasPoint) => Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
 
     /// <summary>The slip keeps the mouse here, for typing.</summary>
     public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint);
@@ -582,6 +588,22 @@ public partial class Stool : Node2D
         }
     }
 
+    /// <summary>
+    /// She asks whether she may use a tool: the slip by her stool, above the one they type on, and her eyes on the
+    /// player while they decide.
+    /// </summary>
+    private async Task<Answer> AskPlayer(Asking asking, CancellationToken cancel)
+    {
+        if (Her is null)
+            return Answer.None;
+        Her.Play(Moment.Listen);
+        var bottom = _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? ChatBox.Height + 8 : 0);
+        var answer = await _permission.Ask(asking, new Vector2(14, bottom), cancel);
+        Her?.Play(Moment.Heard);
+        GD.Print($"Tools: she asked to use {asking.Tool.Name} on {asking.Detail}: {answer}");
+        return answer;
+    }
+
     /// <summary>Provider, server, key and model.</summary>
     public void OpenChatSettings()
     {
@@ -605,13 +627,14 @@ public partial class Stool : Node2D
                 all[model] = prices;
             _settings.Save(_settings.Now with { ChatPrices = all, Currency = currency });
         };
-        _chatSettings.Saved += (provider, search, talkKey, handsFree, window) =>
+        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions) =>
         {
             _settings.Save(_settings.Now with
             {
                 ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
-                TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window,
+                TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window, ToolPermissions = new(permissions),
             });
+            _chat.Tools.Choose(permissions);
             _chat.UseWindow(window);
             _chat.UseSearch(search);
             _chat.Connect(provider);
@@ -754,6 +777,10 @@ public partial class Stool : Node2D
             case "chatsettings": OpenChatSettings(); break;
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab
+            case "abilities": OpenChatSettings(); _chatSettings?.DevAbilities(); break;     // its Abilities tab
+            case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the slip she asks with, as its buttons would
+            case "always": _permission.DevAnswer(Answer.Always); break;
+            case "deny": _permission.DevAnswer(Answer.No); break;
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)

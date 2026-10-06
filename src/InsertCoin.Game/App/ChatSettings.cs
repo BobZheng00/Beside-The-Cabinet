@@ -13,10 +13,14 @@ public partial class ChatSettings : Window
 {
     /// <summary>
     /// After Save: the provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>), the talk key
-    /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>) and the window; the API
-    /// key is already stored by then.
+    /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>), the window, and the
+    /// permission for each of her tools (see <see cref="Toolbox.Chosen"/>); the API key is already stored by then.
     /// </summary>
-    public event Action<Provider?, string, string, HandsFree, int?>? Saved;
+    public event Action<Provider?, string, string, HandsFree, int?, IReadOnlyDictionary<string, Permission>>? Saved;
+
+    /// <summary>The permissions offered for a tool, as the Abilities tab names them.</summary>
+    private static readonly (Permission Permission, string Label)[] Permissions =
+        [(Permission.Allowed, "Allowed"), (Permission.Ask, "Ask me first"), (Permission.Off, "Off")];
 
     /// <summary>The window sizes offered: tokens (null: what suits the provider) and how each is described.</summary>
     private static readonly (int? Tokens, string Label)[] Windows =
@@ -37,6 +41,8 @@ public partial class ChatSettings : Window
         _inCalls = null!, _inFullScreen = null!, _whilePlaying = null!;
     private SpinBox _followUpSeconds = null!;
     private HandsFree _handsFree = new();
+    private readonly List<(Tool Tool, OptionButton Choice)> _abilities = [];
+    private readonly Dictionary<string, Permission> _always = [];      // "tool:site" the player answered Always for
     private Label _result = null!;
     private Protocol _protocol;
 
@@ -70,6 +76,11 @@ public partial class ChatSettings : Window
         var listening = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         listening.AddThemeConstantOverride("separation", 10);
         listeningTab.AddChild(listening);
+        var abilitiesTab = new ScrollContainer { Name = "Abilities", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        tabs.AddChild(abilitiesTab);
+        var abilities = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        abilities.AddThemeConstantOverride("separation", 10);
+        abilitiesTab.AddChild(abilities);
         var usage = new VBoxContainer { Name = "Usage" };
         usage.AddThemeConstantOverride("separation", 8);
         tabs.AddChild(usage);
@@ -130,6 +141,7 @@ public partial class ChatSettings : Window
                              "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached));
 
         BuildListening(listening, characterName, talkKey, hears, turns);
+        BuildAbilities(abilities, characterName);
 
         column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         var buttons = new HBoxContainer();
@@ -216,6 +228,69 @@ public partial class ChatSettings : Window
                                "(python tools/models/fetch.py turns)."));
     }
 
+    /// <summary>The Abilities tab: what she can do beyond talking, and how freely, tool by tool.</summary>
+    private void BuildAbilities(VBoxContainer page, string name)
+    {
+        var tools = _chat.Tools;
+        page.AddChild(new Label { Text = "Abilities", ThemeTypeVariation = "Heading" });
+        page.AddChild(Hint($"What {name} can do beyond talking. Allowed: she does it when it helps. Ask me first: she asks, and a slip by " +
+                           "her stool lets you say yes or no. Off: she doesn't have it. Whatever acts outside this app asks first unless you allow it."));
+        page.AddChild(new Label { Text = "Built in", ThemeTypeVariation = "Subheading" });
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddThemeConstantOverride("h_separation", 12);
+        grid.AddThemeConstantOverride("v_separation", 8);
+        foreach (var tool in tools.All.Where(t => t.Source == Tool.BuiltIn))
+        {
+            var choice = new OptionButton { CustomMinimumSize = new Vector2(160, 0) };
+            foreach (var (_, label) in Permissions)
+                choice.AddItem(label);
+            choice.Select(Array.FindIndex(Permissions, p => p.Permission == tools.PermissionOf(tool)));
+            grid.AddChild(new Label { Text = tool.Title, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tool.Function.Description,
+                                      MouseFilter = Control.MouseFilterEnum.Pass });
+            grid.AddChild(choice);
+            _abilities.Add((tool, choice));
+        }
+        page.AddChild(grid);
+
+        foreach (var (key, permission) in tools.Chosen.Where(c => c.Key.Contains(':')))
+            _always[key] = permission;
+        if (_always.Count > 0)
+        {
+            page.AddChild(new Label { Text = "Always allowed", ThemeTypeVariation = "Subheading" });
+            foreach (var key in _always.Keys.Order().ToList())
+            {
+                var colon = key.IndexOf(':');
+                var title = tools.All.FirstOrDefault(t => t.Name == key[..colon])?.Title ?? key[..colon];
+                var row = new HBoxContainer();
+                row.AddThemeConstantOverride("separation", 8);
+                row.AddChild(new Label { Text = $"{title}: {key[(colon + 1)..]}", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true });
+                var forget = new Button { Text = "Forget", ThemeTypeVariation = "Quiet" };
+                forget.Pressed += () =>
+                {
+                    _always.Remove(key);
+                    row.QueueFree();
+                };
+                row.AddChild(forget);
+                page.AddChild(row);
+            }
+            page.AddChild(Hint("Where you answered Always on her slip. Forget one, and she asks again there."));
+        }
+        if (tools.Refused)
+            page.AddChild(Hint("Your model turned tools down, so for now she answers without them. Choosing a model that takes tools brings them back."));
+    }
+
+    /// <summary>The permissions as chosen: only what differs from a tool's standard, the sites still allowed always, and choices for tools not listed here kept.</summary>
+    private Dictionary<string, Permission> PermissionsChosen()
+    {
+        var chosen = new Dictionary<string, Permission>(_always);
+        foreach (var (key, permission) in _chat.Tools.Chosen.Where(c => !c.Key.Contains(':') && _abilities.All(a => a.Tool.Name != c.Key)))
+            chosen[key] = permission;
+        foreach (var (tool, choice) in _abilities)
+            if (Permissions[choice.Selected].Permission is var permission && permission != tool.Standard)
+                chosen[tool.Name] = permission;
+        return chosen;
+    }
+
     private static CheckBox Tick(Container parent, string text, bool on)
     {
         var box = new CheckBox
@@ -248,7 +323,10 @@ public partial class ChatSettings : Window
     public void Open() => Paper.Open(this, new Vector2(560, 720));
 
     /// <summary>Dev: shows the Usage tab.</summary>
-    public void DevUsage() => _tabs.CurrentTab = 2;
+    public void DevUsage() => _tabs.CurrentTab = 3;
+
+    /// <summary>Dev: shows the Abilities tab.</summary>
+    public void DevAbilities() => _tabs.CurrentTab = 2;
 
     /// <summary>Dev: shows the Listening tab.</summary>
     public void DevListening() => _tabs.CurrentTab = 1;
@@ -298,7 +376,8 @@ public partial class ChatSettings : Window
     {
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
-        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, HandsFreeChosen(), Windows[_window.Selected].Tokens);
+        Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, HandsFreeChosen(), Windows[_window.Selected].Tokens,
+                      PermissionsChosen());
         if (_model.Text.Trim() is { Length: > 0 } model)
             PricesSaved?.Invoke(model, _usage.Prices, _usage.Currency);
         QueueFree();

@@ -39,6 +39,7 @@ public sealed record AppSettings
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice
     public string TalkKey { get; init; } = "RightCtrl"; // held in any app to talk to her aloud (see App.TalkKey), or "Off"
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
+    public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }

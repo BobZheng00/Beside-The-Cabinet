@@ -42,6 +42,44 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public void Dispose() { }
 }
 
+/// <summary>
+/// A model that uses tools: each streamed request gets the next prepared round, made of words (strings) and the
+/// calls it makes (<see cref="FunctionCallContent"/>); after the last round it just says "Done.".
+/// </summary>
+internal sealed class FakeToolModel(params object[][] rounds) : IChatClient
+{
+    private int _round;
+    public List<List<ChatMessage>> Requests { get; } = [];
+    public List<ChatOptions?> Options { get; } = [];
+    /// <summary>Thrown for any request that offers tools, as a model without them does.</summary>
+    public Exception? RefusesTools { get; init; }
+
+    public static FunctionCallContent Call(string name, string argument, string value) => new($"call-{name}-{value.GetHashCode():x}", name, new Dictionary<string, object?> { [argument] = value });
+
+    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("her replies are streamed");
+
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+                                                                                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        Requests.Add([.. messages]);
+        Options.Add(options);
+        if (RefusesTools is not null && options?.Tools is { Count: > 0 })
+            throw RefusesTools;
+        var round = _round < rounds.Length ? rounds[_round++] : ["Done."];
+        foreach (var piece in round)
+        {
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return piece is FunctionCallContent call ? new ChatResponseUpdate(ChatRole.Assistant, [call]) : new ChatResponseUpdate(ChatRole.Assistant, (string)piece);
+        }
+    }
+
+    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+    public void Dispose() { }
+}
+
 /// <summary>A clock that stands still unless moved.</summary>
 internal sealed class FakeClock(DateTimeOffset now) : TimeProvider
 {

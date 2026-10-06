@@ -232,9 +232,9 @@ The test program is in `<tools>\agent-trial` (README there). What it found on th
    - Follow-up listening and conversations are the player's options.
    - No wake word for now.
 2. **Interrupting her on speakers:** spike Windows' echo cancellation first. If it falls short, interrupting by voice works only with headphones.
-3. **Tools:**
-   - a set of our own first, each with its permission rule;
-   - MCP later, as an advanced setting.
+3. **Tools:** *decided 2026-10-05* (`docs/specs/2026-10-05-tools-and-abilities.md`; groundwork built).
+   - Built-in tools first, each with its permission (Allowed, Ask, Off).
+   - Connectors the player chooses later, local MCP servers among them; no remote MCP.
 4. **Which abilities first:** the brainstorm.
 5. **Bridging the wait:** is a short sound in her own voice welcome, or should only her body bridge it?
 

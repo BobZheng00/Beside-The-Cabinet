@@ -13,15 +13,16 @@ Modular, framed like Claude Code's tools, connectors and plugins:
 - **Remote MCP is out for now.** We run no cloud service and hold nothing for the player, so we don't set one up for them.
 - **Plugins** are later, if at all: bundles of a connector, its prompt guidance and maybe her motions for it. Perhaps something a character brings with them at character import.
 
-**Permission per tool**, set like Claude Code's permission rules (*proposed*):
+**Permission per tool**, set like Claude Code's permission rules (*built 2026-10-05, as proposed; open to change*):
 - **Allowed** by default: reading, and acting inside the app.
-- **Ask** by default: acting outside the app. She asks in her words, with a ticket offering Allow once, Always allow, or Deny.
+- **Ask** by default: acting outside the app. She asks in her words, and a slip by her stool offers Allow once, Always, or No.
+  - "Always" covers what the tool says it should: for opening pages, the site (`open_link:leetcode.com`), like Claude Code's per-domain rules. Saying Always to one page doesn't let her open any page.
 - **Off**: the tool isn't offered to the model at all.
 - A local MCP server's tools all start at Ask, even those that say they only read: the server's word is a hint, not a guarantee.
 
-**Where it's set** (*proposed*): Chat settings, a new Abilities tab.
-- The built-in tools, each with its permission.
-- The connectors, each with Connect and Disconnect, plus "Add a local MCP server…".
+**Where it's set:** Chat settings → Abilities.
+- *Built:* the built-in tools, each with its permission, and the sites answered Always, each with Forget.
+- *Later:* the connectors, each with Connect and Disconnect, plus "Add a local MCP server…".
 
 **Models without tool calling** (small local ones) keep stage directions as they work today. The abilities that need tools are simply not offered to them.
 
@@ -132,9 +133,41 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - Local MCP servers (connectors).
 - A gesture per sentence while she speaks (the motion-file layer, §7 of the agent note).
 
+## Groundwork: built (2026-10-05)
+
+**In her mind** (`InsertCoin.Mind`, tested):
+- `Toolbox` holds her tools, the player's permissions (by tool, or `tool:site` for Always), and runs each call. `BuiltIn` has the built-in tools.
+- **The loop:** Microsoft.Extensions.AI's `FunctionInvokingChatClient`, with our own invoker for the permission check.
+  - Up to 4 tool calls a reply; the last request has no tools, so she answers.
+  - Calls run on the app's main thread, where the slip and the memory store live.
+- **The list is the same every request**, sorted by name. Only switching a tool off (or on) changes it; Allowed and Ask don't.
+- **Every reply carries it:** answers, check-ins and reminders alike. Otherwise the cached start of the prompt would differ between them.
+- **The bridging line:** the prompt asks for a short line of her own before each tool, fitting what she's doing, never a stock phrase. A paragraph "Your abilities" is in the prompt only while tools are offered.
+- **What's remembered:** each tool use is a cabinet line in the conversation, between the player's line and hers: `You used open_link ({"url": …}): Opened in the player's browser.`, or `…; the player said no.` The full result stays in that reply's requests only, so a long one doesn't fill the conversation.
+- **Her words around a tool** read as one reply: "Want me to open it? There you go, it's open." (a space between the two parts, none in Chinese or Japanese).
+- **Models without tools:** if the provider turns tools down ("does not support tools", as Ollama says for such a model), she answers at once without them, and they aren't offered again until the provider changes.
+
+**In the app:**
+- **The slip** (`PermissionSlip`) stands by her stool, above the one you type on.
+  - It shows what and where, always the real address (a look-alike domain shows in its `xn--` spelling).
+  - Clicks only: no key answers it.
+  - It waits 2 minutes, then counts as no answer. Cutting her off (a click on her, a new message) counts as no answer too.
+  - While it waits, the reply's 90-second clock is stopped.
+- **Her body:** she leans in with her eyes on you while you decide (the listening pose). Your answer gets a small "got it". While the tool runs and the model answers again, she looks away to think; then she carries on.
+- **The first tool, `open_link`:** opens an `http` or `https` page in your browser, asking first. Nothing else opens: no files, programs or other links (`steam://` comes with apps, later). A test run (`--offscreen`) only logs what it would open.
+
+**Measured** (*measured*, 2026-10-05, mock models, never a real key):
+- OpenAI's and Anthropic's clients both carry the tools, the call and its result. Anthropic's automatic caching stays on with tools.
+- In the app: asked, allowed once, allowed always (the next page on the same site opened without asking), said no, and a model refusing tools.
+- Each tool call adds one more trip to the model: about 0.4–0.7 s with the mock.
+
+**Not yet:**
+- answering the slip by voice ("yes");
+- a real provider's model choosing tools well, and how varied its bridging lines are. Both are in `docs/to-try.md`.
+
 ## Order (*proposed*)
 
-1. **Groundwork:**
+1. **Groundwork** (*built 2026-10-05*, above):
    - tool calling in her conversation (Microsoft.Extensions.AI's loop);
    - the Allow / Deny ticket;
    - the bridging line;

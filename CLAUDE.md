@@ -72,6 +72,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   | `<tools>\listen-trial\fake_anthropic.py 8770` | Anthropic-style, with cache counts |
   | `<tools>\listen-trial\hook_sink.py <port>` | ntfy/webhook receiver; writes `hooks.jsonl` |
   | `<tools>\listen-trial\cal\test.ics` | a test calendar; serve it with `python -m http.server 8768` |
+  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`); `--refuse` turns tools down |
+  | `<tools>\agent-trial\tools\check.cs` | `dotnet run check.cs`: her tools through both real provider clients against the mock |
 
 ## Rules the user set
 
@@ -109,7 +111,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - from the agent phase (2026-10-05):
   - being cut off: her line keeps only what was heard (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`);
   - her body in conversation: nods in pauses (`Backchannel`), looks away to think, finger to her chin, head follows her voice, grown-up applause (agent note §7);
-  - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`).
+  - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`);
+  - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site), the tool loop in `Conversation`, the permission slip by the stool, Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork").
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
 - the agent spike's 15-minute recording (`<tools>\agent-trial`). It unblocks talking over her by voice and tunes Smart Turn on their voice. Afterwards, run `analyze` on `recordings\<date-time>` and put the results in the agent note;
@@ -128,12 +131,12 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - web search: the provider's own, or Tavily or SearXNG (DuckDuckGo has no search API);
   - opening links and apps.
 - **Order:**
-  1. groundwork (tool calling, the Allow / Deny ticket, the bridging line, a stable tool list);
+  1. groundwork (*built 2026-10-05*);
   2. memos;
   3. focus sessions and music;
   4. LeetCode hints;
   5. web search.
-- **Next step:** the groundwork, once the user says go.
+- **Next step:** memos.
 
 **Open questions for the user:**
 - which music they use (Spotify desktop or YouTube Music in a browser);

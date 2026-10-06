@@ -120,6 +120,13 @@ by herself (Silero's voice detector and Pipecat's Smart Turn, on the processor).
 in full screen or quiet time, or while a game runs, unless you allow it, and never while she is speaking. The CRT shows
 MIC whenever the microphone is open.
 
+She can do things too, with tools (Chat settings → Abilities). So far she can open a web page in your browser. She
+says what she's about to do in her own words, and anything acting outside the app asks first: a slip by her stool
+shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site) and No.
+Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there to forget. A model that
+can't take tools (some that run on this PC) answers as before. Design:
+[docs/specs/2026-10-05-tools-and-abilities.md](docs/specs/2026-10-05-tools-and-abilities.md).
+
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
@@ -162,7 +169,9 @@ microphone), and, opening the real microphone, `mic` (click the slip's microphon
 held on her, then let go), and `closeup:hands` (her camera narrowed onto her hands, to judge fingers; `closeup:off`).
 Hands-free, without ever opening the real microphone: `fakemic` (from then on she hears only recordings),
 `mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`) and
-`listeningsettings` (the Chat settings Listening tab).
+`listeningsettings` (the Chat settings Listening tab). Her tools: `allow`, `always` and `deny` (answer the slip she
+asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab). With `--offscreen` a page she opens is
+only logged, never opened.
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
@@ -174,7 +183,8 @@ every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything ap
 src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no clock
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
-                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Voice/: what of
+                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Tools/: her
+                          tools and their permissions (Toolbox) and the built-in ones (BuiltIn); Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
                           (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python), hearing (SenseVoice
                           through sherpa-onnx)
@@ -248,7 +258,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   you type on, `Paper` the shared look (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
   `[wave]`, `[worry]`, `[note: …]`…), logs cabinet events into the conversation, folds it when it grows, runs
-  upkeep every minute. `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
+  upkeep every minute, and lets her use her tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`; `PermissionSlip`
+  is where she asks). `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
   `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/research/2026-10-02-companion-memory.md](docs/research/2026-10-02-companion-memory.md).
 - `App/Voice.cs` is her voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends

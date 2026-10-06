@@ -59,21 +59,25 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// Streams her answer to <paramref name="said"/>: shown text through <paramref name="text"/>, stage directions
     /// through <paramref name="direction"/>. Both lines are logged; a failed request leaves only the player's.
     /// </summary>
+    /// <param name="tools">
+    /// What she can do while she answers (see <see cref="Toolbox"/>). Each tool she uses is logged as a cabinet line
+    /// between the player's line and hers.
+    /// </param>
     /// <returns>Everything she said.</returns>
     public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
-                               CancellationToken cancel = default) =>
-        Reply(client, said, fromCabinet: false, situation, text, direction, cancel);
+                               CancellationToken cancel = default, Toolbox? tools = null) =>
+        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel);
 
     /// <summary>
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
     /// <see cref="Agenda.Announcement"/>): answered as a message would be, but logged as the cabinet's line.
     /// </summary>
     public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
-                                 CancellationToken cancel = default) =>
-        Reply(client, note, fromCabinet: true, situation, text, direction, cancel);
+                                 CancellationToken cancel = default, Toolbox? tools = null) =>
+        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel);
 
     private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
-                                     Action<string, string?> direction, CancellationToken cancel)
+                                     Action<string, string?> direction, Toolbox? tools, CancellationToken cancel)
     {
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
@@ -92,9 +96,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         foreach (var entry in persona.LoreFor(string.Join("\n", recent.TakeLast(2).Select(l => l.Text).Append(said))))
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
-        var messages = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                    summary, recent, situation, fromCabinet ? $"[cabinet] {said.Trim()}" : said, [.. lore, .. memories],
-                                    VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()));
+        var offered = tools?.Offered;
+        List<ChatMessage> Messages(bool withTools) =>
+            Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
+                         summary, recent, situation, fromCabinet ? $"[cabinet] {said.Trim()}" : said, [.. lore, .. memories],
+                         VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools);
+        var messages = Messages(offered is not null);
         store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, said.Trim(), now);
 
         var reply = new StringBuilder();
@@ -115,11 +122,37 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 AddPlan(plan, now);
             direction(name, payload);
         }, Show);
+        var heard = false;                                  // anything at all came back
+        async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
+        {
+            var afterTool = false;
+            await foreach (var update in talking.GetStreamingResponseAsync(sent, options, cancel))
+            {
+                heard = true;
+                if (update.Contents.Any(c => c is FunctionResultContent))
+                    afterTool = true;                       // what she says next carries on after a pause
+                else if (update.Text is { Length: > 0 } piece)
+                {
+                    Show(stage.Feed(afterTool ? Spaced(reply, piece) : piece));
+                    afterTool = false;
+                }
+            }
+        }
         _lastReply = null;
         try
         {
-            await foreach (var update in client.GetStreamingResponseAsync(messages, ReplyOptions, cancel))
-                Show(stage.Feed(update.Text));
+            try
+            {
+                if (offered is null)
+                    await Stream(client, messages, ReplyOptions);
+                else
+                    await Stream(Calling(client, tools!), messages, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
+            }
+            catch (Exception e) when (offered is not null && !heard && !cancel.IsCancellationRequested && Toolbox.Refuses(e))
+            {
+                tools!.Refused = true;                      // a model without tools: she answers as before, with stage directions only
+                await Stream(client, Messages(withTools: false), ReplyOptions);
+            }
             Show(stage.Finish());
         }
         catch (OperationCanceledException) when (reply.Length > 0)
@@ -129,6 +162,44 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         return Keep(reply.ToString());
     }
+
+    /// <summary>
+    /// The client that lets her use tools: the model asks, the toolbox runs the call (asking the player first where
+    /// they want that), the model carries on with the result, up to <see cref="Toolbox.Rounds"/> times. Calls run
+    /// where this reply runs (the app's main thread, where the slip and the store live), not where the response came in.
+    /// </summary>
+    private FunctionInvokingChatClient Calling(IChatClient client, Toolbox tools)
+    {
+        var here = SynchronizationContext.Current is null ? TaskScheduler.Current : TaskScheduler.FromCurrentSynchronizationContext();
+        return new FunctionInvokingChatClient(client)
+        {
+            MaximumIterationsPerRequest = Toolbox.Rounds,
+            FunctionInvoker = (call, cancel) =>
+                new ValueTask<object?>(Task.Factory.StartNew(() => Use(tools, call, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap()),
+        };
+    }
+
+    private async Task<object?> Use(Toolbox tools, FunctionInvocationContext call, CancellationToken cancel)
+    {
+        object? result;
+        string record;
+        try
+        {
+            (result, record) = await tools.Use(call.Function, call.Arguments, cancel);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // something of ours went wrong around the tool: she and the record say so, rather than a bare "failed"
+            (result, record) = ($"It didn't work: {e.Message}", $"You tried to use {call.Function.Name}; it didn't work: {e.Message}");
+        }
+        store.Add(character, Speaker.Cabinet, record, _clock.GetLocalNow());
+        return result;
+    }
+
+    /// <summary>Her first words after a tool ran, spaced from what she said before it (not in Chinese or Japanese, which use no spaces).</summary>
+    private static string Spaced(StringBuilder before, string piece) =>
+        before.Length == 0 || char.IsWhiteSpace(before[^1]) || char.IsWhiteSpace(piece[0]) || before[^1] >= '\u2E80' || piece[0] >= '\u2E80'
+            ? piece : " " + piece;
 
     private (long Line, string Streamed)? _lastReply;      // her latest reply as it streamed in (untrimmed), and its line
 
