@@ -43,8 +43,34 @@ Never the full solution unless asked twice.
 
 **Display.**
 - She speaks and shows only the gist: a sentence or two. Code and long text don't speak well, and the bubble is small.
-- The full hint prints from the cabinet's printer as a hint ticket, which the player reads at their own pace (code in a fixed-width font) and tears off when done.
+- The full hint comes as a memo (below).
 - Hints come in the player's language. The model handles Chinese and Japanese; leetcode.cn gives the Chinese statement.
+
+## Memos: how she hands over long text (agreed; details *proposed*)
+
+The user's idea: the hint ticket is a general way for her to pass anything long. "Memo" keeps it apart from the memory book's notes and the cabinet's tickets.
+
+**Where memos are used:**
+- the full hint;
+- what a search found;
+- a plan or a list;
+- anything she would otherwise say for a minute.
+
+A built-in tool, `print_memo` (title and text), inside the app, so no asking.
+
+**What happens to a memo:**
+- **Printed:** it comes out of the cabinet's receipt slot (the one the game-over receipt uses), showing its title and first lines, and hangs there.
+- **Read:** a click opens it whole, on paper in the app's style, scrolling, code in a fixed-width font, with a Copy button.
+- **Pinned:** dragged (or its pin button) onto the side of the cabinet, it stays there, small and a little tilted, held by tape or a pin. Four or five fit. A click reads it; dragging it off unpins it.
+- **Archived:** torn off, it goes to the archive: a Memos tab in the memory book, by date, where it can be read, pinned again or deleted. One left hanging is archived when the next comes.
+- **The player's own memos:** "Write a memo" in that tab, or asking her ("make me a memo of this"). For notes to self.
+
+**Her motion while she writes one** (the user's idea: she types on her phone and sends it to the cabinet). To be designed with care, in clips, as the clap was:
+1. A phone in a pastel case comes into her hands, as the notebook does, held at lower-chest height in both hands, screen towards her. Her head bows to it, and her eyes are on it.
+2. **Typing:** her thumbs take turns tapping, in uneven bursts with short stops. Now and then she glances up, thinking, then goes back to it. It lasts while the memo is written, scaled to its length.
+3. **Sending:** a last firm tap and a small lift of the phone. She glances at the slot as the cabinet prints, with a small smile: there you go. The phone goes away.
+
+The thumbs need finger poses like the pencil grip's, with the phone placed from the hands' joints, as the pad and pencil are.
 
 ### 2. Focus sessions (agreed)
 
@@ -53,13 +79,15 @@ Never the full solution unless asked twice.
 - The CRT counts down.
 - She says when each part starts and ends, and can be asked "how long left?".
 
-**Music** (*proposed*). Spotify's Web API is effectively closed to apps like this:
-- since May 2025, beyond a handful of test users it needs an organisation with 250,000 monthly users;
-- controlling playback needs Premium.
+**Music** (*proposed*). Neither service gives us an API:
+- **Spotify's Web API** is effectively closed to apps like this. Since May 2025, going beyond a handful of test users needs an organisation with 250,000 monthly users, and controlling playback needs Premium.
+- **YouTube Music** has no playback API at all.
 
-So, no API. She uses what works without it:
-- the player's focus playlist link, saved in settings, opens in the Spotify app (or any player);
-- the media keys play, pause and skip, which work for Spotify, YouTube Music in a browser, and others.
+What works without one:
+- **Opening the player's focus playlist link**, saved in settings. A Spotify link opens the playlist in the app but does not start it: Spotify doesn't support that. A `:play` ending on the link is reported to start it, unofficially. A YouTube Music `watch?list=` link starts the playlist in the browser if the browser allows autoplay there (usually so for a site used often).
+- **Windows' media controls** (the system media sessions, the same as the volume flyout's) for playing, pausing, skipping and what is playing. Better than pressing media keys: they act on the music app alone, not a game or a video, and she can say what's on.
+
+*To test on the player's PC:* which link starts by itself, with Spotify's `:play` trick, and opening then pressing play through the media controls.
 
 Music starts with a focus session and pauses at a break, if the player wants that. Opening the link is outside the app: she asks the first time, then remembers the permission.
 
@@ -101,9 +129,10 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
    - the Allow / Deny ticket;
    - the bridging line;
    - a stable tool list.
-2. **Focus sessions** with break, stand-up and water nudges, then music (playlist link, media keys) and opening links and apps.
-3. **LeetCode hints**, with the printed hint ticket.
-4. **Web search:** the provider's own first, then the connectors window with Tavily and SearXNG.
+2. **Memos:** printing, reading, pinning, the archive, the player's own, and her phone motion.
+3. **Focus sessions** with break, stand-up and water nudges, then music (a link and Windows' media controls) and opening links and apps.
+4. **LeetCode hints**, as memos.
+5. **Web search:** the provider's own first, then the connectors window with Tavily and SearXNG.
 
 ## Sources
 
@@ -115,3 +144,8 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - [SearXNG as a local search API](https://docs.litellm.ai/docs/search/searxng)
 - [LeetCode GraphQL: question content and hints](https://github.com/akarsh1995/leetcode-graphql-queries/blob/main/README.md)
 - [Hosted web search across OpenAI and Anthropic through Microsoft.Extensions.AI](https://github.com/ghostflyby/Maieutics/pull/100)
+- [Spotify Community: links don't autoplay in the desktop app](https://community.spotify.com/t5/Other-Partners-Web-Player-etc/Spotify-link-does-not-autoplay-in-desktop-app-Windows/td-p/1336587)
+- [AutoIt forum: starting a Spotify playlist (the `:play` ending)](https://www.autoitscript.com/forum/topic/193665-start-spotify-and-play-a-playlist/)
+- [MDN: autoplay policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy/autoplay)
+- [Observing and controlling Windows media sessions in C#](https://blog.pipe01.net/2021/01/gsmtc.html)
+- [The Old New Thing: getting and controlling what media is playing](https://devblogs.microsoft.com/oldnewthing/20231108-00/?p=108980%2F)
