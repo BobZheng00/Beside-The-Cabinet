@@ -47,6 +47,18 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
             .GetChatClient(Model).AsIChatClient(),
     };
 
+    /// <summary>
+    /// The tool a streamed update shows the model beginning to call, before its arguments have all come (the client
+    /// only hands the call over once they have): OpenAI's first piece of a tool call, Anthropic's start of a tool-use
+    /// block. Null for anything else, and for a client whose updates aren't known here.
+    /// </summary>
+    public static string? ToolStarting(ChatResponseUpdate update) => update.RawRepresentation switch
+    {
+        OpenAI.Chat.StreamingChatCompletionUpdate piece => piece.ToolCallUpdates.FirstOrDefault(t => !string.IsNullOrEmpty(t.FunctionName))?.FunctionName,
+        RawMessageStreamEvent @event when @event.TryPickContentBlockStart(out var start) && start.ContentBlock.TryPickToolUse(out var use) => use.Name,
+        _ => null,
+    };
+
     /// <summary>A server on this PC (Ollama, LM Studio…): local models usually have small context windows.</summary>
     public bool IsLocal => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var url) && (url.IsLoopback || url.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase));
 

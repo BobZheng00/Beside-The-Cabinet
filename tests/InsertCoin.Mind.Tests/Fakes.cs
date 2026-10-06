@@ -44,11 +44,13 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
 
 /// <summary>
 /// A model that uses tools: each streamed request gets the next prepared round, made of words (strings) and the
-/// calls it makes (<see cref="FunctionCallContent"/>); after the last round it just says "Done.".
+/// calls it makes (<see cref="FunctionCallContent"/>), or updates as a provider's client hands them over; after the
+/// last round it just says "Done.".
 /// </summary>
 internal sealed class FakeToolModel(params object[][] rounds) : IChatClient
 {
     private int _round;
+    public object[][] Rounds => rounds;
     public List<List<ChatMessage>> Requests { get; } = [];
     public List<ChatOptions?> Options { get; } = [];
     /// <summary>Thrown for any request that offers tools, as a model without them does.</summary>
@@ -71,7 +73,12 @@ internal sealed class FakeToolModel(params object[][] rounds) : IChatClient
         {
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
-            yield return piece is FunctionCallContent call ? new ChatResponseUpdate(ChatRole.Assistant, [call]) : new ChatResponseUpdate(ChatRole.Assistant, (string)piece);
+            yield return piece switch
+            {
+                FunctionCallContent call => new ChatResponseUpdate(ChatRole.Assistant, [call]),
+                ChatResponseUpdate update => update,
+                _ => new ChatResponseUpdate(ChatRole.Assistant, (string)piece),
+            };
         }
     }
 

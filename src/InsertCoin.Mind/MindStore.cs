@@ -120,7 +120,12 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('agenda') WHERE name = 'source'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE agenda ADD COLUMN source TEXT; ALTER TABLE agenda ADD COLUMN uid TEXT; ALTER TABLE agenda ADD COLUMN asked TEXT");
-        Run("PRAGMA user_version = 7");
+        // version 8: memos, long text on paper (see Memo): the player's, shared by every character
+        Run("""
+            CREATE TABLE IF NOT EXISTS memos (
+                id INTEGER PRIMARY KEY, title TEXT NOT NULL, text TEXT NOT NULL, by TEXT, at TEXT NOT NULL, place TEXT NOT NULL, pin INTEGER NOT NULL DEFAULT 0)
+            """);
+        Run("PRAGMA user_version = 8");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -372,6 +377,77 @@ public sealed class MindStore : IDisposable
     public void DeletePlan(long id)
     {
         using var command = Command("DELETE FROM agenda WHERE id = $id", ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    // ---- Memos -----------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// A new memo, hanging from the slot; the one hanging there before goes to the archive. Titles and text too long
+    /// are cut to <see cref="Memo.TitleLength"/> and <see cref="Memo.TextLength"/>.
+    /// </summary>
+    /// <param name="by">The character who printed it, or null for one the player wrote.</param>
+    /// <param name="place">Where it goes: one the player writes can go straight to the archive.</param>
+    public long AddMemo(string title, string text, string? by, DateTimeOffset at, MemoPlace place = MemoPlace.Hanging)
+    {
+        if (place == MemoPlace.Hanging)
+            Run($"UPDATE memos SET place = '{MemoPlace.Archived}' WHERE place = '{MemoPlace.Hanging}'");
+        title = title.Trim();
+        text = text.Trim();
+        using var command = Command("INSERT INTO memos (title, text, by, at, place) VALUES ($t, $x, $b, $a, $p) RETURNING id",
+            ("$t", title.Length > Memo.TitleLength ? title[..Memo.TitleLength] : title), ("$x", text.Length > Memo.TextLength ? text[..Memo.TextLength] : text),
+            ("$b", (object?)by ?? DBNull.Value), ("$a", Stamp(at)), ("$p", place.ToString()));
+        return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>Every memo, the newest first.</summary>
+    public IReadOnlyList<Memo> Memos()
+    {
+        using var command = Command("SELECT id, title, text, by, at, place, pin FROM memos ORDER BY at DESC, id DESC");
+        using var reader = command.ExecuteReader();
+        var memos = new List<Memo>();
+        while (reader.Read())
+            memos.Add(new Memo(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3),
+                               Parse(reader.GetString(4)), Enum.TryParse<MemoPlace>(reader.GetString(5), out var place) ? place : MemoPlace.Archived,
+                               reader.GetInt32(6)));
+        return memos;
+    }
+
+    /// <summary>
+    /// Moves a memo: pinned, it takes the first free place on the cabinet's side; false when the side is full
+    /// (<see cref="Memo.PinnedAtMost"/>), and it stays where it was.
+    /// </summary>
+    public bool MoveMemo(long id, MemoPlace place)
+    {
+        var pin = 0;
+        if (place == MemoPlace.Pinned)
+        {
+            var taken = Memos().Where(m => m.Place == MemoPlace.Pinned && m.Id != id).Select(m => m.Pin).ToHashSet();
+            if (taken.Count >= Memo.PinnedAtMost)
+                return false;
+            while (taken.Contains(pin))
+                pin++;
+        }
+        if (place == MemoPlace.Hanging)
+            Run($"UPDATE memos SET place = '{MemoPlace.Archived}' WHERE place = '{MemoPlace.Hanging}'");
+        using var command = Command("UPDATE memos SET place = $p, pin = $n WHERE id = $id", ("$p", place.ToString()), ("$n", pin), ("$id", id));
+        command.ExecuteNonQuery();
+        return true;
+    }
+
+    /// <summary>The player changed one (their own, or hers: it's theirs to keep).</summary>
+    public void UpdateMemo(long id, string title, string text)
+    {
+        title = title.Trim();
+        text = text.Trim();
+        using var command = Command("UPDATE memos SET title = $t, text = $x WHERE id = $id",
+            ("$t", title.Length > Memo.TitleLength ? title[..Memo.TitleLength] : title), ("$x", text.Length > Memo.TextLength ? text[..Memo.TextLength] : text), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteMemo(long id)
+    {
+        using var command = Command("DELETE FROM memos WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
     }
 

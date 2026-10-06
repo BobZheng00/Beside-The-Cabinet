@@ -25,6 +25,7 @@ public partial class Stool : Node2D
     private Chat _chat = null!;
     private ChatBox _chatBox = null!;
     private PermissionCard _permission = null!;
+    private Memos _memos = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
     private ChatSettings? _chatSettings;
@@ -39,6 +40,9 @@ public partial class Stool : Node2D
 
     /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
     public event Action<(string Id, string Name)[], string>? CharactersAdded;
+
+    /// <summary>The player's memos: on the cabinet, in the archive, and in their own hand.</summary>
+    public Memos Memos => _memos;
 
     /// <summary>Her figure, while someone is on the stool.</summary>
     public CompanionView? Her { get; private set; }
@@ -85,6 +89,10 @@ public partial class Stool : Node2D
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
         _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
+        _memos = new Memos();
+        AddChild(_memos);
+        _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "");
+        _chat.PrintMemo = PrintMemo;
 
         _voice = new Voice();
         AddChild(_voice);
@@ -201,7 +209,7 @@ public partial class Stool : Node2D
         {
             _lively(60);
             Her!.Play(Moment.Greet);
-            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now), "", _situation(), Her, _voice.Begin(), _voice.Language);
+            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now), "", Situation(), Her, _voice.Begin(), _voice.Language);
             if (_chat.Replied is { } asked)
                 _listening.Said(answer: false, asked);
         }
@@ -255,7 +263,7 @@ public partial class Stool : Node2D
             if (_chat.Ready && _settings.Now.ReminderSpoken)
                 // in a call, only her bubble: her voice would be heard by everyone in it
             {
-                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), _situation(), Her,
+                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), Situation(), Her,
                                      Presence.InCall ? null : _voice.Begin(), _voice.Language);
                 if (_chat.Replied is { } said)
                     _listening.Said(answer: false, said);
@@ -574,7 +582,7 @@ public partial class Stool : Node2D
         _lively(120);                                       // keep her lively while she thinks and talks
         try
         {
-            await _chat.Ask(said, _situation(), Her, _voice.Begin(), _voice.Language);
+            await _chat.Ask(said, Situation(), Her, _voice.Begin(), _voice.Language);
             if (_chat.Replied is { } reply)
                 _listening.Said(answer: true, reply);
         }
@@ -587,6 +595,22 @@ public partial class Stool : Node2D
             _chatBox.SetWaiting(false);
             _lively(10);
         }
+    }
+
+    /// <summary>Where things stand on the cabinet, for her: the cabinet's own account, and the memos on it.</summary>
+    private string Situation()
+    {
+        var memos = _memos.OnTheCabinet.Select(t => $"\"{t}\"").ToList();
+        return memos.Count == 0 ? _situation() : $"{_situation()}\nMemos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.";
+    }
+
+    /// <summary>
+    /// She prints a memo: she sends it from her phone, and a moment later it comes out of the cabinet's slot.
+    /// </summary>
+    private string PrintMemo(string title, string text, string by)
+    {
+        _memos.Print(title, text, by, delay: Her?.SendMemo() ?? 0);
+        return "Printed: it's hanging from the cabinet's slot, for the player to read, pin on the cabinet's side or keep.";
     }
 
     /// <summary>
@@ -672,7 +696,7 @@ public partial class Stool : Node2D
             return;
         _memoryBook = new MemoryBook();
         AddChild(_memoryBook);
-        _memoryBook.Build(_chat.Store, character.Id, character.Name);
+        _memoryBook.Build(_chat.Store, character.Id, character.Name, _memos);
         _memoryBook.History += OpenChatHistory;
         _memoryBook.Open();
     }
@@ -780,6 +804,15 @@ public partial class Stool : Node2D
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab
             case "abilities": OpenChatSettings(); _chatSettings?.DevAbilities(); break;     // its Abilities tab
+            case "memo":                                    // memo:title:text: she prints a memo, as the tool has her do
+                var parts = text.Split(':', 2);
+                Her?.Typing();
+                GetTree().CreateTimer(4).Timeout += () => PrintMemo(parts[0], parts.Length > 1 ? parts[1] : parts[0], OnStool()?.Id ?? "");
+                break;
+            case "memoseed": _memos.DevSeed(OnStool()?.Id ?? ""); break;    // memos hanging, pinned and archived, to try them on
+            case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
+            case "memoreader": _memos.DevReader(rest); break;      // its buttons: pin, off, edit, save, cancel, delete (not copy: it would take the clipboard)
+            case "memowrite": _memos.Write(); break;        // a memo of the player's own
             case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.DevAnswer(Answer.Always); break;
             case "deny": _permission.DevAnswer(Answer.No); break;

@@ -51,6 +51,8 @@ public sealed class CabinetSkin
                 ReceiptQuad = [.. file.Anchors.Printer.Receipt.Select(V)],
                 ReceiptSize = V(file.Anchors.Printer.ReceiptSize),
                 Marquee = [.. file.Anchors.Marquee.Select(V)],
+                MemoPins = file.Anchors.Memos is { } memos ? [.. memos.Pins.Select(q => q.Select(V).ToArray())] : [],
+                MemoSize = file.Anchors.Memos is { } m ? V(m.Size) : Vector2.Zero,
             },
             World = new SkinWorld
             {
@@ -64,6 +66,7 @@ public sealed class CabinetSkin
                 SeatRadius = file.World.SeatRadius,
                 FootRest = file.World.FootRest,
                 Screen = V3(file.World.Screen),
+                Slot = file.World.Slot is { } slot ? V3(slot) : V3(file.World.Screen) - new Vector3(0, 0.9f * file.World.UnitsPerMetre, 0),
             },
         };
     }
@@ -76,13 +79,14 @@ public sealed class CabinetSkin
                                    Dictionary<string, SpriteFile> Sprites, AnchorsFile Anchors, WorldFile World);
     private sealed record SpriteFile(string File, float[] Origin);
     private sealed record AnchorsFile(ScreenFile Screen, BulbFile[] Bulbs, ButtonFile CheckButton, float[] CoinSlot, TrayFile Tray,
-                                      PrinterFile Printer, float[][] Marquee);
+                                      PrinterFile Printer, float[][] Marquee, MemosFile? Memos);
     private sealed record ScreenFile(float[][] Quad, float[] Size);
     private sealed record BulbFile(float X, float Y, float R);
     private sealed record ButtonFile(float[][] Polygon, float[] Press);
     private sealed record TrayFile(float[][] Opening, float[][] Spots, float[] Stack, float[] Chute);
-    private sealed record WorldFile(float UnitsPerMetre, CameraFile Camera, float Floor, float[] Seat, float SeatRadius, float FootRest, float[] Screen);
+    private sealed record WorldFile(float UnitsPerMetre, CameraFile Camera, float Floor, float[] Seat, float SeatRadius, float FootRest, float[] Screen, float[]? Slot);
     private sealed record CameraFile(float[] Position, float Yaw, float Focal, float[] Offset);
+    private sealed record MemosFile(float[][][] Pins, float[] Size);
     private sealed record PrinterFile(float[][] Slot, [property: JsonPropertyName("ticket")] float[] Ticket, float[][] Receipt, float[] ReceiptSize);
 }
 
@@ -106,6 +110,8 @@ public sealed class SkinAnchors
     public required Vector2[] ReceiptQuad { get; init; }          // TL, TR, BR, BL of the paper hanging from the slot
     public required Vector2 ReceiptSize { get; init; }
     public required Vector2[] Marquee { get; init; }
+    public required Vector2[][] MemoPins { get; init; }           // where memos are pinned on the side (TL, TR, BR, BL each, tape included); none for a skin without
+    public required Vector2 MemoSize { get; init; }              // a pinned memo's size in face-local units, tape included
 }
 
 /// <summary>
@@ -125,6 +131,7 @@ public sealed class SkinWorld
     public required float SeatRadius { get; init; }
     public required float FootRest { get; init; }                 // height of the stool's foot ring
     public required Vector3 Screen { get; init; }                 // centre of the CRT
+    public required Vector3 Slot { get; init; }                   // the printer's slot (a skin without: below the screen)
 
     /// <summary>Model point to Godot metres (right-handed: z flips).</summary>
     public Vector3 ToMetres(Vector3 model) => new Vector3(model.X, model.Y, -model.Z) / UnitsPerMetre;

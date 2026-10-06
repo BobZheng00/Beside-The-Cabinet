@@ -44,13 +44,18 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
-        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage)]) { AskPlayer = AskFirst };
+        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo)]) { AskPlayer = AskFirst };
+        Tools.Starting += tool =>
+        {
+            if (tool.Name == "print_memo" && _view is { } view && GodotObject.IsInstanceValid(view))
+                view.Typing();                              // she writes it on her phone while the model writes it
+        };
         Tools.Using += tool =>
         {
             GD.Print($"Tools: she uses {tool.Name}");
             _answering?.CancelAfter(AnswerTimeout);         // each step of a longer piece of work gets the reply's full time again
-            if (_view is { } view && GodotObject.IsInstanceValid(view))
-                view.Working();
+            if (tool.Name != "print_memo" && _view is { } view && GodotObject.IsInstanceValid(view))
+                view.Working();                             // a memo is sent instead (see PrintMemo)
         };
     }
 
@@ -59,6 +64,12 @@ public sealed class Chat : IDisposable
 
     /// <summary>What she can do with tools, and the player's permission for each (Chat settings → Abilities).</summary>
     public Toolbox Tools { get; }
+
+    /// <summary>Prints a memo (title, text, the character printing it) and says what she is told; unset, nothing prints.</summary>
+    public Func<string, string, string, string>? PrintMemo { get; set; }
+
+    private string Memo(string title, string text) =>
+        PrintMemo is { } print && _conversation is { } conversation ? print(title, text, conversation.Character) : "The cabinet couldn't print it.";
 
     /// <summary>Asks the player whether she may use a tool (the card by her stool). Unset, the answer is always no.</summary>
     public Func<Asking, CancellationToken, Task<Answer>>? AskPlayer { get; set; }

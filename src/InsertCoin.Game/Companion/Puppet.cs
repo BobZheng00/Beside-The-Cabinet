@@ -12,6 +12,8 @@ public enum Moment
     Think, Speak,
     /// <summary>The player cut her off mid-reply.</summary>
     CutOff,
+    /// <summary>She writes a memo on her phone until <see cref="Send"/>: it goes to the cabinet, which prints it.</summary>
+    Type, Send,
 }
 
 /// <summary>
@@ -100,6 +102,18 @@ internal sealed class Puppet
     private static readonly Grip PadGrip = new(-4, -4, -3, -2, 0.5f);
     private static readonly Grip PenGrip = new(32, 45, 75, 80, 0.55f);
 
+    // Texting with both thumbs, as people hold a phone to type on it sitting down: in both hands at lower-chest height,
+    // fairly upright (its length about 58° up from flat), the screen turned up and back to her face. Each hand cradles
+    // a lower corner: the palm against the phone's edge and back, the fingers wrapped behind it towards the other hand,
+    // the thumb free over the screen. In the phone's own axes (a across to her left, u up its length, n out of the
+    // screen towards her) a hand's palm is at a·4 cm − u·3.5 cm − n·1 cm from its centre, its fingers along
+    // −0.6a + 0.65u − 0.45n and its palm facing −a + 0.6n. Placed by the middle of the palm (see Palm); the phone
+    // itself is placed between the palms every frame (CompanionView), and PhoneAt is where it is, for her eyes.
+    private static readonly Hand PhoneLeft = Palm(new(0.040f, 0.315f, 0.230f), new(-0.604f, 0.316f, 0.732f), new(-0.855f, 0.272f, -0.436f), new(0.8f, -0.6f, -0.2f));
+    private static readonly Hand PhoneRight = Palm(new(-0.040f, 0.315f, 0.230f), new(0.604f, 0.316f, 0.732f), new(0.855f, 0.272f, -0.436f), new(-0.8f, -0.6f, -0.2f));
+    private static readonly Grip PhoneGrip = new(35, 45, 55, 60, 0.15f);
+    private static readonly Vector3 PhoneAt = new(0, 0.35f, 0.24f);
+
     private static readonly Dictionary<string, Overlay> Overlays = new()
     {
         // delighted for the player: chest lifted, leaning a little their way, head tilted, hands together to clap
@@ -116,6 +130,10 @@ internal sealed class Puppet
         // head bowed over the pad, a little tilted, shoulders relaxed
         ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
             PadHand, PenHand, LeftGrip: PadGrip, RightGrip: PenGrip),
+        // texting: head a little bowed and tilted, her eyes doing most of the looking down (bowed further, her hair would hide
+        // her face from the cabinet's high camera), shoulders a little forward, the phone held up in both hands
+        ["phone"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 2, 0, 1).Set("Head", 2, 0, 4).Both("Shoulder", 0, 0, -3),
+            PhoneLeft, PhoneRight, LeftGrip: PhoneGrip, RightGrip: PhoneGrip),
         // listening to the player: leaning in, head a little tilted towards them
         ["listen"] = new(new Pose().Set("Spine", 5, 0, 0).Set("Chest", 3, 0, 0).Set("Neck", 2, 0, 2).Set("Head", 3, 0, 5)),
         // thinking it over, finger to her chin, head a little forward and tilted to the hand
@@ -131,7 +149,7 @@ internal sealed class Puppet
         ["sigh"] = new(new Pose().Set("Spine", 1, 0, 0).Set("Chest", -3, 0, 0).Set("Neck", -4, 0, 0).Set("Head", -6, 0, 0).Both("Shoulder", 0, 0, 7)),
     };
 
-    private static readonly string[] Gestures = ["clap", "pump", "yes", "wave", "note", "ponder", "startle", "tiltLeft", "tiltRight", "shift", "sigh", "listen"];
+    private static readonly string[] Gestures = ["clap", "pump", "yes", "wave", "note", "phone", "ponder", "startle", "tiltLeft", "tiltRight", "shift", "sigh", "listen"];
     private static readonly string[] Sides = ["Left", "Right"];
     private static readonly string[] Fingers = ["Index", "Middle", "Ring", "Little"];
     private static readonly string[] Joints = ["Proximal", "Intermediate", "Distal"];
@@ -162,6 +180,15 @@ internal sealed class Puppet
 
     private double _time, _busyUntil, _gazeUntil, _nextWander = 7, _nextFidget = 5, _nextSaccade;
     private double _clapAt = -100, _waveAt = -100, _noteAt = -100, _kickAt = -100, _swingAt = -100, _humAt = -100;
+
+    // Texting: since when, the taps (each thumb's last, the next, how many left in this burst of a word), a pause to
+    // think with a glance up, and the lift of the phone as she sends it.
+    private double? _typingSince;
+    private readonly Dictionary<string, double> _tapAt = new() { ["Left"] = -100, ["Right"] = -100 };
+    private double _nextTap, _thinkUntil = -100, _liftAt = -100, _firmAt = -100;
+    private int _burst, _bursts;
+    private string _thumb = "Right";
+    private Vector3 _thinkSpot;
     private string _kickSide = "Left";
     private Vector3 _gaze;
     private Vector2 _eye, _jitter;
@@ -196,6 +223,15 @@ internal sealed class Puppet
 
     /// <summary>How far she is into taking a note (0: not at all, 1: pad up, writing), for showing the pad and pencil.</summary>
     public float Noting => _shown["note"];
+
+    /// <summary>She is typing a memo on her phone.</summary>
+    public bool Typing => _typingSince is not null;
+
+    /// <summary>How far she has her phone out (0 to 1), for showing it.</summary>
+    public float Phoning => _shown["phone"];
+
+    /// <summary>The printer's slot, where a memo she sent comes out.</summary>
+    public Vector3 Slot { get; set; }
 
     /// <summary>How loud her voice is now (her mouth's opening, 0–1), set every frame while she speaks.</summary>
     public float Voice
@@ -349,6 +385,39 @@ internal sealed class Puppet
                 _face.Blink();
                 Look(Viewer, 2);
                 break;
+            case Moment.Type:
+                if (_typingSince is not null)
+                    break;
+                // the phone comes up into both hands, her head bows to it, and she starts typing
+                Interrupt(60);
+                _thinkingSince = null;
+                _on["ponder"] = 0;
+                _on["phone"] = 1;
+                _typingSince = _time;
+                _nextTap = _time + _random.RandfRange(0.55f, 0.75f);           // once the phone is up
+                _burst = _random.RandiRange(3, 7);
+                _bursts = _random.RandiRange(2, 4);
+                _face.Show("relaxed", 0.5f, 60);
+                break;
+            case Moment.Send:
+                // a last firm tap, a small lift of the phone: sent. Then a glance at the slot as it prints, and a small
+                // smile: there you go. The phone goes away.
+                if (_typingSince is null)
+                {
+                    Play(Moment.Type);                                          // she wasn't seen writing it: a moment of it first
+                    After(SendAfterTyping, () => Play(Moment.Send));
+                    break;
+                }
+                _typingSince = null;
+                _thinkUntil = -100;
+                _firmAt = _tapAt["Right"] = _time;
+                _liftAt = _time + 0.12;
+                _busyUntil = _time + 2.4;
+                _face.Show("relaxed", 0.5f, 0);
+                After(0.55, () => { Look(Slot, 1.7); _face.Show("happy", 0.55f, 1.6); });
+                After(1.05, () => _on["phone"] = 0);
+                After(2.25, () => Look(Viewer, 2));
+                break;
             case Moment.Note:
                 // pad up, eyes on it, a few quick strokes, then a satisfied look back up
                 Interrupt(3.6);
@@ -361,10 +430,14 @@ internal sealed class Puppet
         }
     }
 
+    /// <summary>How long she is seen typing a memo she wasn't seen start (see <see cref="Moment.Send"/>), before she sends it.</summary>
+    public const double SendAfterTyping = 1.4;
+
     /// <summary>Drops whatever gesture is in progress and keeps fidgets away for a while.</summary>
     private void Interrupt(double busySeconds)
     {
         _cues.Clear();
+        _typingSince = null;
         foreach (var name in Gestures)
             _on[name] = 0;
         _on["worry"] = 0;
@@ -438,6 +511,7 @@ internal sealed class Puppet
             Arm(side, hips, dt);
         Wave(t);
         Write();
+        Text();
         Clap(hips);
         Eyes(dt);
 
@@ -471,7 +545,9 @@ internal sealed class Puppet
     {
         // What to look at: a reaction's target, else the conversation's, else the pointer while it moves, else mostly
         // the viewer with glances at the screen or off to the side.
-        if (_time > _gazeUntil && !Conversing())
+        if (_typingSince is not null || _time - _liftAt < 0.5)
+            Retarget(_time < _thinkUntil ? _thinkSpot : PhoneAt * _size);     // eyes on the phone, but for a glance up to think
+        else if (_time > _gazeUntil && !Conversing())
         {
             if (Pointer is { } pointer)
                 _gaze = pointer;
@@ -854,6 +930,9 @@ internal sealed class Puppet
             if (wanted is { } bend)
                 grip = grip.Towards(bend, _shown[name]);
         }
+        // sending a memo: the phone lifts a little in both hands as the last tap goes in
+        if (_shown["phone"] > 0.001f)
+            place = place with { Wrist = place.Wrist + Vector3.Up * (0.016f * _size * Envelope((float)(_time - _liftAt), 0.08f, 0.16f, 0.45f) * _shown["phone"]) };
         var (upper, lower, hand) = Reach(side, place, hips);
         _frame[side + "UpperArm"] = Spring(side + "UpperArm").Follow(upper, dt);
         _frame[side + "LowerArm"] = Spring(side + "LowerArm").Follow(lower, dt);
@@ -923,6 +1002,62 @@ internal sealed class Puppet
         Swing("RightLowerArm", axis, 15 * Mathf.Sin(phase) * strength);
         Swing("RightHand", axis, 17 * Mathf.Sin(phase - 1.2f) * strength);
     }
+
+    /// <summary>
+    /// Texting: the thumbs take turns tapping, a word at a time (a burst of three to seven taps a fifth of a second
+    /// apart, a short gap between words), and every few words she stops, glances up to think, and goes back to it.
+    /// A tap is quick down, slower up, the hand giving a little under it; the last, as she sends it, is firmer.
+    /// </summary>
+    private void Text()
+    {
+        if (_typingSince is { } since && _time >= _nextTap && _time >= _thinkUntil)
+        {
+            if (_time - since > MaxTyping)
+            {
+                Play(Moment.Send);                                              // the memo never came: she puts it away, done
+                return;
+            }
+            // mostly the other thumb from the last; now and then the same one twice
+            _thumb = _random.Randf() < 0.72f ? (_thumb == "Left" ? "Right" : "Left") : _thumb;
+            _tapAt[_thumb] = _time;
+            if (--_burst > 0)
+                _nextTap = _time + _random.RandfRange(0.13f, 0.24f);
+            else if (--_bursts > 0)
+            {
+                _burst = _random.RandiRange(3, 7);
+                _nextTap = _time + _random.RandfRange(0.28f, 0.5f);           // between words
+            }
+            else
+            {
+                // a pause to think: she looks up, a little away, then back down to it
+                _burst = _random.RandiRange(3, 7);
+                _bursts = _random.RandiRange(3, 6);
+                var pause = _random.RandfRange(0.9f, 1.6f);
+                _thinkUntil = _time + pause;
+                _nextTap = _thinkUntil + _random.RandfRange(0.2f, 0.35f);
+                var toViewer = Viewer - Head;
+                _thinkSpot = Head + new Quaternion(Vector3.Up, Mathf.DegToRad(_side * _random.RandfRange(8, 22))) * toViewer.Normalized() * toViewer.Length()
+                             + Vector3.Up * _random.RandfRange(0.05f, 0.25f) * toViewer.Length();
+            }
+        }
+        if (_shown["phone"] <= 0.001f)
+            return;
+        foreach (var side in Sides)
+        {
+            var sinceTap = (float)(_time - _tapAt[side]);
+            if (sinceTap is < 0 or > 0.2f)
+                continue;
+            var firm = _time - _firmAt < 0.2 && side == "Right" ? 1.5f : 1f;
+            // down in 50 ms, up in 150
+            var tap = (sinceTap < 0.05f ? Mathf.SmoothStep(0, 1, sinceTap / 0.05f) : 1 - Mathf.SmoothStep(0, 1, (sinceTap - 0.05f) / 0.15f)) * firm * _shown["phone"];
+            Add(side + "ThumbProximal", 13 * tap, 0, 0);
+            Add(side + "ThumbDistal", 18 * tap, 0, 0);
+            Swing(side + "Hand", Vector3.Right, 1.6f * tap);
+        }
+    }
+
+    /// <summary>Longest she types before giving up on a memo that never comes (the reply stopped, say).</summary>
+    private const double MaxTyping = 40;
 
     /// <summary>
     /// Writing: small quick strokes from the wrist, the forearm following a little behind, and every so often the

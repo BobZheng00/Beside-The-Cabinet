@@ -129,6 +129,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             await foreach (var update in talking.GetStreamingResponseAsync(sent, options, cancel))
             {
                 heard = true;
+                if (tools is not null && Provider.ToolStarting(update) is { } starting)
+                    tools.Begun(starting);
                 if (update.Contents.Any(c => c is FunctionResultContent))
                     afterTool = true;                       // what she says next carries on after a pause
                 else if (update.Text is { Length: > 0 } piece)

@@ -90,6 +90,12 @@ public sealed class Toolbox
     /// <summary>Asks the player whether she may (the card by the stool). Unset, nothing that asks is ever done.</summary>
     public Func<Asking, CancellationToken, Task<Answer>> AskPlayer { get; set; } = (_, _) => Task.FromResult(Answer.None);
 
+    /// <summary>
+    /// The model has begun a call to a tool, its arguments still coming (see <see cref="Provider.ToolStarting"/>): a
+    /// memo is being written, say, so she can be seen writing it.
+    /// </summary>
+    public event Action<Tool>? Starting;
+
     /// <summary>A tool is about to run: her body shows her busy until the rest of her reply comes.</summary>
     public event Action<Tool>? Using;
 
@@ -114,6 +120,13 @@ public sealed class Toolbox
             _refused = value;
             _offered = null;
         }
+    }
+
+    /// <summary>The model has begun calling <paramref name="name"/> (one of hers): <see cref="Starting"/> is raised.</summary>
+    public void Begun(string name)
+    {
+        if (_tools.TryGetValue(name, out var tool))
+            Starting?.Invoke(tool);
     }
 
     /// <summary>The player's choices replace the ones held (from settings, or the Abilities tab).</summary>

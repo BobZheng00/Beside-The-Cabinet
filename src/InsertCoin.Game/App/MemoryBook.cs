@@ -9,8 +9,9 @@ namespace InsertCoin.Game.App;
 /// Everything she remembers, in the open, a tab each: the two notes she always has in mind; the agenda (plans and
 /// reminders, each with how long before to remind and whether it repeats); the facts upkeep and her own notes have
 /// collected (edit, pin to keep it always in mind, delete, and bring back what her review retired); the dated
-/// moments of past conversations; and the forget buttons. Nothing changes until Save; the forget buttons ask twice
-/// and act at once, and the page then shows what is left, keeping unsaved changes to the rest.
+/// moments of past conversations; the player's memos; and the forget buttons. Nothing changes until Save, except
+/// the memos (each acts at once, as on the cabinet); the forget buttons ask twice and act at once, and the page
+/// then shows what is left, keeping unsaved changes to the rest.
 /// </summary>
 public partial class MemoryBook : Window
 {
@@ -33,7 +34,8 @@ public partial class MemoryBook : Window
     private readonly List<(Fact Fact, LineEdit Text, CheckBox Pin, Control Row)> _facts = [];
     private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [], _deletedPlans = [];
     private readonly List<PlanRow> _plans = [];
-    private VBoxContainer _planList = null!, _factList = null!, _episodeList = null!, _retiredList = null!;
+    private VBoxContainer _planList = null!, _factList = null!, _episodeList = null!, _retiredList = null!, _memoList = null!;
+    private Memos _memos = null!;
     private Button _retiredToggle = null!;
     private Label? _noFacts;
     private readonly Dictionary<string, Action> _forget = [];
@@ -41,9 +43,10 @@ public partial class MemoryBook : Window
     /// <summary>The user wants to read the conversation itself.</summary>
     public event Action? History;
 
-    public void Build(MindStore store, string characterId, string characterName)
+    public void Build(MindStore store, string characterId, string characterName, Memos memos)
     {
         _store = store;
+        _memos = memos;
         _character = characterId;
         _name = characterName;
         Title = $"What {characterName} remembers";
@@ -110,6 +113,23 @@ public partial class MemoryBook : Window
         _episodeList = List(moments);
         ShowEpisodes();
 
+        // the player's memos: theirs, not her memory, so they change at once and forgetting leaves them be
+        var memoTab = Tab("Memos");
+        var memoTop = new HBoxContainer();
+        memoTop.AddChild(new Label
+        {
+            Text = "What she printed for you, and your own notes, newest first. They're yours: forgetting leaves them be.",
+            ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        });
+        var write = new Button { Text = "+ Write a memo", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        write.Pressed += memos.Write;
+        memoTop.AddChild(write);
+        memoTab.AddChild(memoTop);
+        _memoList = List(memoTab);
+        ShowMemos();
+        memos.Changed += ShowMemos;
+        TreeExiting += () => memos.Changed -= ShowMemos;
+
         var forget = Tab("Forget");
         forget.AddThemeConstantOverride("separation", 6);
         void Forget(string key, string label, string explained, Action act)
@@ -150,7 +170,7 @@ public partial class MemoryBook : Window
 
     public void Open() => Paper.Open(this, new Vector2(620, 680));
 
-    /// <summary>Dev: shows a tab ("notes", "agenda", "facts", "moments", "forget"); "retired" shows the facts with the retired ones open.</summary>
+    /// <summary>Dev: shows a tab ("notes", "agenda", "facts", "moments", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
     public void DevTab(string which)
     {
         if (which == "retired")
@@ -159,7 +179,7 @@ public partial class MemoryBook : Window
             _retiredToggle.ButtonPressed = true;
             return;
         }
-        var index = Array.IndexOf(["notes", "agenda", "facts", "moments", "forget"], which);
+        var index = Array.IndexOf(["notes", "agenda", "facts", "moments", "memos", "forget"], which);
         if (index >= 0)
             _tabs.CurrentTab = index;
     }
@@ -365,6 +385,44 @@ public partial class MemoryBook : Window
             return;
         _noFacts = Hint("Nothing yet. Facts appear here after you have talked a while.");
         _factList.AddChild(_noFacts);
+    }
+
+    /// <summary>The memos, newest first: where each is, whose, and Read and Pin (or Take down).</summary>
+    private void ShowMemos()
+    {
+        foreach (var child in _memoList.GetChildren())
+            child.QueueFree();
+        var memos = _memos.All;
+        if (memos.Count == 0)
+            _memoList.AddChild(Hint("None yet. Ask her to write something down for you, or write one yourself."));
+        foreach (var memo in memos)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            var words = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            words.AddThemeConstantOverride("separation", 0);
+            words.AddChild(new Label { Text = memo.Title, ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis });
+            var where = memo.Place switch { MemoPlace.Hanging => "hanging from the slot", MemoPlace.Pinned => "pinned on the cabinet", _ => "kept" };
+            words.AddChild(Hint($"{_memos.From(memo)} · {Day(memo.At)} · {where}"));
+            row.AddChild(words);
+            var read = new Button { Text = "Read", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+            read.Pressed += () => _memos.Open(memo.Id);
+            var pin = new Button
+            {
+                Text = memo.Place == MemoPlace.Pinned ? "Take down" : "Pin", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+                TooltipText = memo.Place == MemoPlace.Pinned ? "Off the cabinet's side; it stays here" : "On the cabinet's side",
+            };
+            pin.Pressed += () =>
+            {
+                if (memo.Place == MemoPlace.Pinned)
+                    _memos.Archive(memo.Id);
+                else if (!_memos.Pin(memo.Id))
+                    pin.Text = "The side is full";
+            };
+            row.AddChild(read);
+            row.AddChild(pin);
+            _memoList.AddChild(row);
+        }
     }
 
     private void ShowEpisodes()

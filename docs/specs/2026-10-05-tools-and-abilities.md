@@ -62,7 +62,7 @@ Never the full solution unless asked twice.
 - The full hint comes as a memo (below).
 - Hints come in the player's language. The model handles Chinese and Japanese; leetcode.cn gives the Chinese statement.
 
-## Memos: how she hands over long text (agreed; details *proposed*)
+## Memos: how she hands over long text (agreed; *built 2026-10-05*, see "Memos: built" below)
 
 The user's idea: the hint ticket is a general way for her to pass anything long. "Memo" keeps it apart from the memory book's notes and the cabinet's tickets.
 
@@ -87,6 +87,42 @@ A built-in tool, `print_memo` (title and text), inside the app, so no asking.
 3. **Sending:** a last firm tap and a small lift of the phone. She glances at the slot as the cabinet prints, with a small smile: there you go. The phone goes away.
 
 The thumbs need finger poses like the pencil grip's, with the phone placed from the hands' joints, as the pad and pencil are.
+
+### Memos: built (2026-10-05)
+
+**In her mind** (`InsertCoin.Mind`, tested):
+- `Memo` and the store's `memos` table: title, text, who printed it (a character, or none for the player's own), when, and where it is (hanging, pinned with its place, archived).
+  - A new memo hangs from the slot; the one hanging there goes to the archive.
+  - Pinning takes the first free place on the side; the side holds 5.
+  - Titles are cut at 60 characters, a memo at 6,000.
+  - Memos are the player's, not her memory: the memory book's forget buttons leave them be.
+- `print_memo` (built-in, inside the app, so Allowed): its description tells her to use it for anything too long for her bubble, and to say only the gist.
+- She knows what's on the cabinet: the titles of the memos hanging and pinned go with each request, in the cabinet block.
+- **Seeing her start one:** `Provider.ToolStarting` reads the provider client's raw stream for the start of a tool call (OpenAI's first piece of a call, Anthropic's start of a tool-use block). So she takes her phone out as the model *begins* writing the memo, not once it's done.
+- `Memo.ToBbcode` turns the little Markdown a model writes (headings, lists, bold, inline and fenced code) into the reader's rich text.
+
+**On the cabinet** (`Cabinet/MemoBoard`, `MemoPaper`):
+- **Printed:** the paper comes out of the printer's slot (the receipt's place) bottom edge first, with "MEMO", its title and its first words, and hangs there.
+- **Pinned:** up to 5 on the right side panel, beside the screen, each a little tilted with pink tape across its top.
+  - The places come from the art generator (`MEMO_PINS` in `tools/art/cozy_cabinet.py`), in true perspective. The side is steep, so a pinned memo is narrow (about 15 px wide at the default size): it reads as notes taped up the side, and a click reads one.
+  - The paper is drawn once with mipmaps. Its outline and tape are drawn on the cabinet itself, so the ink line is as even as the art's.
+- Clicking a memo opens it; the pointer over one brightens it.
+
+**The reader** (`App/MemoReader`): the title, who it's from and when, the text (code in a fixed-width font), and Copy, Edit, Delete (pressed twice), Pin on the cabinet, Tear it off or Take it down. "Write a memo" opens it empty: the player's own memo prints out of the slot once saved.
+
+**The archive:** a Memos tab in the memory book: every memo, newest first, where it is, Read and Pin or Take down, and "+ Write a memo".
+
+**Her phone** (`Puppet`, `Moment.Type` and `Moment.Send`; the phone is placed between her palms in `CompanionView`):
+- **Holding it:** both hands at lower-chest height, the phone fairly upright (about 58° from flat), each hand cradling a lower corner with the fingers behind it.
+  - Her head bows only a little; her eyes do most of the looking down. Bowed further, her hair hid her face from the cabinet's high camera.
+- **Typing:** thumb taps a word at a time: bursts of 3 to 7, a fifth of a second apart, short gaps between words. Every few words she pauses for a second or so and glances up to think.
+- **Sending:** a firmer last tap and a small lift of the phone. As it prints she glances at the slot with a small smile, and the phone goes away.
+- If she wasn't seen starting it (a provider whose stream isn't read, or the dev action), she types for a moment before sending. If no memo comes within 40 s, she puts the phone away.
+- *Judged on clips* (`<tools>\voice-trial\clips-body\phone-body.mp4`, `memo-flow.mp4`).
+
+**Not yet:**
+- dragging a memo onto the side or off it: the reader's buttons do that;
+- her phone and the paper on another skin (the places come from each skin's generator).
 
 ### 2. Focus sessions (agreed)
 
@@ -178,7 +214,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
    - the Allow / Deny ticket;
    - the bridging line;
    - a stable tool list.
-2. **Memos:** printing, reading, pinning, the archive, the player's own, and her phone motion.
+2. **Memos** (*built 2026-10-05*): printing, reading, pinning, the archive, the player's own, and her phone motion.
 3. **Focus sessions** with break, stand-up and water nudges, then music (a link and Windows' media controls) and opening links and apps.
 4. **LeetCode hints**, as memos.
 5. **Web search:** the provider's own first, then the connectors window with Tavily and SearXNG.

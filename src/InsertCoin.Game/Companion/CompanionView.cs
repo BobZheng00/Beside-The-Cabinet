@@ -84,6 +84,7 @@ public partial class CompanionView : Node2D
         viewport.AddChild(_character);
 
         var screen = toHer * world.ToMetres(world.Screen);
+        var slot = toHer * world.ToMetres(world.Slot);
         _materials = new ToonMaterials();
         _materials.Apply(_character, toHer.Basis * LightDirection, screen, InnerInkCanvasPixels * skin.Scale);
         var skeleton = _character.FindChildren("*", nameof(Skeleton3D), true, false).OfType<Skeleton3D>().FirstOrDefault()
@@ -96,7 +97,7 @@ public partial class CompanionView : Node2D
         var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _face = new Face(_character);
-        _puppet = new Puppet(_rig, _face, footRestDrop) { Viewer = _camera.Position, Screen = screen, Followers = followers };
+        _puppet = new Puppet(_rig, _face, footRestDrop) { Viewer = _camera.Position, Screen = screen, Slot = slot, Followers = followers };
         BuildPadAndPencil(viewport);
 
         _lastMouse = DisplayServer.MouseGetPosition();
@@ -139,6 +140,25 @@ public partial class CompanionView : Node2D
 
     private bool _thinking;
 
+    /// <summary>How long after she sends a memo from her phone it comes out of the cabinet's slot.</summary>
+    public const double SendSeconds = 0.8;
+
+    /// <summary>She writes a memo on her phone, for as long as it is being written.</summary>
+    public void Typing()
+    {
+        _thinking = true;
+        _puppet.Play(Moment.Type);
+    }
+
+    /// <summary>The memo is written: she sends it, and glances at the slot as it prints.</summary>
+    /// <returns>Seconds until the memo should come out of the slot (longer when she wasn't seen writing it: she types a moment first).</returns>
+    public double SendMemo()
+    {
+        var typing = _puppet.Typing;
+        _puppet.Play(Moment.Send);
+        return (typing ? 0 : Puppet.SendAfterTyping) + SendSeconds;
+    }
+
     /// <summary>She is using a tool mid-reply: she thinks again, until the rest of her reply comes.</summary>
     public void Working()
     {
@@ -179,7 +199,7 @@ public partial class CompanionView : Node2D
 
     private static readonly string[] HandJoints =
         ["Hand", "IndexProximal", "MiddleProximal", "LittleProximal", "IndexIntermediate", "IndexDistal", "ThumbProximal", "ThumbDistal"];
-    private Node3D? _pad, _pencil;
+    private Node3D? _pad, _pencil, _phone;
 
     /// <summary>
     /// A little paper pad with a pink binding and a yellow pencil, flat colours with an ink outline like hers. Only
@@ -201,6 +221,38 @@ public partial class CompanionView : Node2D
               new Color("F2D2A9"), new Vector3(0, -0.058f, 0) * size);
         viewport.AddChild(_pad);
         viewport.AddChild(_pencil);
+
+        // her phone, in a pastel mint case, its screen towards her
+        _phone = new Node3D { Visible = false };
+        Inked(_phone, new BoxMesh { Size = new Vector3(0.072f, 0.009f, 0.15f) * size }, new Color("A6E3D0"), Vector3.Zero);
+        Inked(_phone, new BoxMesh { Size = new Vector3(0.064f, 0.002f, 0.136f) * size }, new Color("2E2748"), new Vector3(0, 0.0047f, 0.002f) * size);
+        viewport.AddChild(_phone);
+    }
+
+    /// <summary>
+    /// The phone lies between her palms, a little towards her and up from them (her hands hold its lower half), its
+    /// screen facing where both palms face (their sideways parts cancel out: towards her); it pops in and out with the pose.
+    /// </summary>
+    private void PlacePhone()
+    {
+        if (_phone is null)
+            return;
+        var shown = Mathf.SmoothStep(0.35f, 0.9f, _puppet.Phoning);
+        _phone.Visible = shown > 0.01f;
+        if (!_phone.Visible)
+            return;
+        var size = _rig.Size;
+        Vector3 PalmOf(string side) => (_rig.PositionOf(side + "Hand") + _rig.PositionOf(side + "MiddleProximal")) / 2;
+        var (left, right) = (PalmOf("Left"), PalmOf("Right"));
+        var across = (left - right).Normalized();
+        var between = (left + right) / 2;
+        var facing = HandFrame("Left").Palm + HandFrame("Right").Palm;
+        var screen = (facing - across * facing.Dot(across)).Normalized();
+        var along = across.Cross(screen);
+        if (along.Y < 0)
+            (across, along) = (-across, -along);
+        var centre = between + screen * 0.010f * size + along * 0.035f * size;
+        _phone.GlobalTransform = new Transform3D(new Basis(across, screen, along).Scaled(Vector3.One * shown), centre);
     }
 
     /// <summary>A flat-coloured part with an inverted-hull outline in the cabinet's ink.</summary>
@@ -535,6 +587,7 @@ public partial class CompanionView : Node2D
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
         PlacePadAndPencil();
+        PlacePhone();
         if (_closeUp)
             FrameHands();
         // A faint, uneven draught keeps hair and skirt from ever hanging dead still.

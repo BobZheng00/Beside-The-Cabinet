@@ -128,6 +128,11 @@ go ahead without asking at all (what's switched off stays off). A model that
 can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](docs/specs/2026-10-05-tools-and-abilities.md).
 
+Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
+phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
+copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
+where you can write your own too; they print the same way. Memos are yours: forgetting leaves them be.
+
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
@@ -172,7 +177,10 @@ Hands-free, without ever opening the real microphone: `fakemic` (from then on sh
 `mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`) and
 `listeningsettings` (the Chat settings Listening tab). Her tools: `allow`, `always` and `deny` (answer the card she
 asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab). With `--offscreen` a page she opens is
-only logged, never opened.
+only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
+`memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
+`memoreader:pin` (its buttons: pin, off, edit, save, cancel, delete), `memowrite` (one of your own) and
+`memorybook:memos`.
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
@@ -185,7 +193,8 @@ src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no 
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
                           store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Tools/: her
-                          tools and their permissions (Toolbox) and the built-in ones (BuiltIn); Voice/: what of
+                          tools and their permissions (Toolbox) and the built-in ones (BuiltIn); memos (Memo);
+                          Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
                           (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python), hearing (SenseVoice
                           through sherpa-onnx)

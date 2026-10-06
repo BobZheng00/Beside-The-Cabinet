@@ -573,6 +573,23 @@ def svg(preview_bg=True):
     return document(width, height, scene(width, height, preview_bg))
 
 
+# ---- Memos pinned on the side --------------------------------------------------------------------------------------
+# Where the player's memos go on the right side panel, in its local (a = depth from the front, b = down from the roof):
+# beside the screen, clear of the stripe along the front edge and of the coin emblem, a loose two columns and one below
+# the emblem; each a little tilted, as paper taped up by hand. The first places fill first.
+MEMO_PAPER = (44, 58)                # depth, height of a pinned memo
+MEMO_TAPE = 6                        # the tape sticks up this far above the paper's top edge
+MEMO_PINS = [(62, 150, -4), (122, 140, 3), (66, 224, 2), (128, 216, -3), (98, 402, -2)]
+
+
+def memo_quad(a, b, tilt):
+    """A pinned memo's paper plus its tape, as a quad on the side panel (TL, TR, BR, BL), turned by tilt degrees."""
+    w, h = MEMO_PAPER
+    t = math.radians(tilt)
+    corners = [(-w / 2, -h / 2 - MEMO_TAPE), (w / 2, -h / 2 - MEMO_TAPE), (w / 2, h / 2), (-w / 2, h / 2)]
+    return [(a + x * math.cos(t) - y * math.sin(t), b + x * math.sin(t) + y * math.cos(t)) for x, y in corners]
+
+
 # ---- Skin export (game) -------------------------------------------------------------------------------------------
 CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 SCALE = 2
@@ -665,6 +682,9 @@ def export_skin(art_dir, skin_dir, render=True):
                         # paper path for the session receipt: a strip hanging from the slot (TL, TR, BR, BL) and its size
                         "receipt": pts2(on(body, [(179, 166), (225, 166), (225, 268), (179, 268)])), "receiptSize": [46, 102]},
             "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
+            # memos pinned on the right side panel: each a quad (TL, TR, BR, BL) of paper and tape, and its size (with the tape)
+            "memos": {"pins": [pts2(on(right_side, memo_quad(a, b, tilt))) for a, b, tilt in MEMO_PINS],
+                      "size": [MEMO_PAPER[0], MEMO_PAPER[1] + MEMO_TAPE]},
         },
         # The 3D scene behind the art, for anything rendered live into it (the companion on the stool).
         # Model units, x right, y up, z towards the back. A canvas point is offset + focal * (right, -up) / depth.
@@ -674,6 +694,7 @@ def export_skin(art_dir, skin_dir, render=True):
             "floor": FLOOR,
             "seat": list(STOOL), "seatRadius": STOOL_RADIUS, "footRest": STOOL_RING,
             "screen": [round(v, 2) for v in screen.at(W / 2, 115)],
+            "slot": [round(v, 2) for v in body.at(202, 165)],      # the printer's slot, where tickets and memos come out
         },
     }
     (skin_dir / "skin.json").write_text(json.dumps(skin, indent=2), encoding="utf-8")

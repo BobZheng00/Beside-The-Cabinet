@@ -4,7 +4,7 @@ using InsertCoin.Game.Skins;
 namespace InsertCoin.Game.Cabinet;
 
 /// <summary>
-/// The whole cabinet, assembled from a skin: base art, live screen, glass, glows, lights, coins, printer, CHECK button.
+/// The whole cabinet, assembled from a skin: base art, live screen, glass, glows, lights, coins, printer, memos, CHECK button.
 /// Knows nothing about rules; the app tells it what to show and plays its moments.
 /// </summary>
 public partial class CabinetView : Node2D
@@ -17,6 +17,7 @@ public partial class CabinetView : Node2D
     public CoinTray Tray { get; private set; } = null!;
     public Printer Printer { get; private set; } = null!;
     public Receipt Receipt { get; private set; } = null!;
+    public MemoBoard Memos { get; private set; } = null!;
 
     private Sprite2D _checkCap = null!, _screenGlow = null!, _slotGlow = null!, _marqueeGlow = null!;
     private Tween? _checkTween;
@@ -42,6 +43,9 @@ public partial class CabinetView : Node2D
         Tray = new CoinTray();
         AddChild(Tray);
         Tray.Build(skin);
+        Memos = new MemoBoard();                         // under the IOU ticket and the receipt, which come out of the same slot
+        AddChild(Memos);
+        Memos.Build(skin);
         Printer = new Printer();
         AddChild(Printer);
         Printer.Build(skin);

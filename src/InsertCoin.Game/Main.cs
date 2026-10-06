@@ -93,7 +93,6 @@ public partial class Main : Node2D
         _window = new DesktopWindow();
         AddChild(_window);
         _window.Build(skin.Layers["base"], skin.Scale, skin.Canvas);
-        _window.Hover += p => _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
 
         _stool = new Stool();
         AddChild(_stool);
@@ -107,12 +106,19 @@ public partial class Main : Node2D
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
         _reminders.Sent += notice => _ = SendOut(notice);
+        _window.Hover += p =>
+        {
+            _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
+            _stool.Memos.Hover(p);
+        };
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
+            else if (_stool.Memos.Clicked(p))
+                return;                                     // a memo on the cabinet opens to read
             else if (_stool.Her?.Hits(p) == true)
                 _stool.Clicked();
         };

@@ -72,7 +72,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   | `<tools>\listen-trial\fake_anthropic.py 8770` | Anthropic-style, with cache counts |
   | `<tools>\listen-trial\hook_sink.py <port>` | ntfy/webhook receiver; writes `hooks.jsonl` |
   | `<tools>\listen-trial\cal\test.ics` | a test calendar; serve it with `python -m http.server 8768` |
-  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`); `--refuse` turns tools down |
+  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly); `--refuse` turns tools down |
   | `<tools>\agent-trial\tools\check.cs` | `dotnet run check.cs`: her tools through both real provider clients against the mock |
 
 ## Rules the user set
@@ -112,7 +112,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - being cut off: her line keeps only what was heard (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`);
   - her body in conversation: nods in pauses (`Backchannel`), looks away to think, finger to her chin, head follows her voice, grown-up applause (agent note §7);
   - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`);
-  - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork").
+  - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork");
+  - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read in `MemoReader`, kept in the memory book's Memos tab, the player's own; she types them on her phone (spec, "Memos: built").
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
 - the agent spike's 15-minute recording (`<tools>\agent-trial`). It unblocks talking over her by voice and tunes Smart Turn on their voice. Afterwards, run `analyze` on `recordings\<date-time>` and put the results in the agent note;
@@ -132,11 +133,11 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - opening links and apps.
 - **Order:**
   1. groundwork (*built 2026-10-05*);
-  2. memos;
+  2. memos (*built 2026-10-05*);
   3. focus sessions and music;
   4. LeetCode hints;
   5. web search.
-- **Next step:** memos.
+- **Next step:** focus sessions and music (the user's music service is still an open question).
 
 **Open questions for the user:**
 - which music they use (Spotify desktop or YouTube Music in a browser);
