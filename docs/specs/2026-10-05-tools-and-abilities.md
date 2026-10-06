@@ -4,16 +4,26 @@ What she can do beyond talking, and how it is put together. Brainstormed with th
 
 ## How tools are organised (decided)
 
-Modular, after Claude Code's tools, connectors and plugins:
+Modular, framed like Claude Code's tools, connectors and plugins:
 - **Built-in tools** are the simple must-haves. They are registered directly and always there; nothing to set up.
+  - Memos, focus sessions and nudges, opening a link or an app, media controls, the LeetCode lookup, reading a page, and the provider's own web search.
 - **Connectors** are the larger ones: anything needing a key, a sign-in or another app's access. The player chooses to connect each one, and its secrets are encrypted like the provider key.
-- **Local MCP servers** the player installs count as connectors too.
+  - A search connector (Tavily, SearXNG), writing to a calendar later.
+  - **Local MCP servers** the player adds count as connectors too: the command that runs one on their PC. Its tools appear beside hers.
 - **Remote MCP is out for now.** We run no cloud service and hold nothing for the player, so we don't set one up for them.
+- **Plugins** are later, if at all: bundles of a connector, its prompt guidance and maybe her motions for it. Perhaps something a character brings with them at character import.
 
-Permission, as the companion spec already says:
-- reading needs no permission;
-- acting inside the app needs none;
-- acting outside the app asks first: in her words, with a ticket offering Allow / Deny.
+**Permission per tool**, set like Claude Code's permission rules (*proposed*):
+- **Allowed** by default: reading, and acting inside the app.
+- **Ask** by default: acting outside the app. She asks in her words, with a ticket offering Allow once, Always allow, or Deny.
+- **Off**: the tool isn't offered to the model at all.
+- A local MCP server's tools all start at Ask, even those that say they only read: the server's word is a hint, not a guarantee.
+
+**Where it's set** (*proposed*): Chat settings, a new Abilities tab.
+- The built-in tools, each with its permission.
+- The connectors, each with Connect and Disconnect, plus "Add a local MCP server…".
+
+**Models without tool calling** (small local ones) keep stage directions as they work today. The abilities that need tools are simply not offered to them.
 
 The tool list sits at the start of every request, the part providers cache. It changes only when a connector is connected or disconnected.
 

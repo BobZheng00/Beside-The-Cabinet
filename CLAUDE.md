@@ -35,6 +35,11 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - dotnet prints in Chinese on this PC: `已通过` = passed, `失败` = failed, `个警告` / `个错误` = warnings / errors.
 - Keep builds at 0 warnings. Windows-only APIs need `[SupportedOSPlatform("windows")]`.
 - Line endings: git has `autocrlf=true` and normalises on commit. Python edits should read and write with `newline=''`.
+- **Editing gotchas on this PC** (each cost time on 2026-10-05):
+  - Python edit scripts with Windows paths or `\n` in them: write the script to a file with the Write tool and run it. A heredoc garbles backslashes (`\v`, `\a` became control characters), and quotes can break bash. Use `chr(92)` for a lone backslash. Afterwards, check changed files for control characters.
+  - Git Bash `sed -i` turns CRLF files into LF. It's harmless (git normalises), but normalise before committing.
+  - Arrays for PowerShell scripts (`-Shots 6,9`) don't survive bash: run `shoot.ps1` with the PowerShell tool.
+  - Mock servers must be started with `run_in_background`. One started with `&` dies when its shell call ends.
 
 ## Running it safely (the user often plays a game while we work)
 
@@ -43,6 +48,10 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `-Window "<title>"` also captures one of the app's own windows. `-Settings ', "Key": value'` seeds settings.
   - The log is `<Out>\run-<Tag>.log` (and `.err`).
 - **Dev script text:** underscores for spaces, no commas.
+- **Never open the real microphone in tests.**
+  - Push-to-talk: `talk:<wav>` or `hear:<wav>`.
+  - Hands-free: `fakemic` first, then `mictalk:<wav>`.
+  - Test speech is `<tools>\agent-trial\body\talk.wav` (three sentences, 0.6 s pauses). `mock_reply.py <port> <think s> "<reply>"` sits next to it.
 - **Motion** is judged on clips, not stills: `tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer`.
   - Godot's movie writer renders off screen, in game time; frames are 518×656 whatever the window size.
   - Look at them as contact sheets (ffmpeg `fps=10,tile=8x3`). `talk:<wav>` plays a recording to her as if said live.
@@ -92,55 +101,47 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 ## Where we are (update this at each milestone)
 
 **Built and on `main`:**
-- the cabinet;
-- her figure;
-- voice: GPT-SoVITS voices, streamed, with lip sync;
+- the cabinet and her figure;
+- voice: GPT-SoVITS, streamed, with lip sync;
 - listening: SenseVoice, push-to-talk;
 - chat on the player's own provider, with memory v2;
-- the agenda and reminders (ticket, chime, Windows, ntfy, Discord, Telegram, webhook);
-- check-ins, gated on presence and calls;
-- the Usage tab, with prices the player enters;
-- calendars by private ICS link.
+- agenda, reminders, check-ins, usage, ICS calendars;
+- from the agent phase (2026-10-05):
+  - being cut off: her line keeps only what was heard (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`);
+  - her body in conversation: nods in pauses (`Backchannel`), looks away to think, finger to her chin, head follows her voice, grown-up applause (agent note §7);
+  - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`).
 
-**Now (from 2026-10-05):** the user is trying it in real use. Not yet confirmed for real:
-- check-in quality with a real model;
-- the provider's cache hit rate (Usage tab);
-- ntfy, Discord and Telegram on a phone;
-- call detection (Teams, Zoom);
-- do-not-disturb;
-- a real Google or Outlook ICS link.
+**Waiting on the user** (all in `docs/to-try.md`; keep it current):
+- the agent spike's 15-minute recording (`<tools>\agent-trial`). It unblocks talking over her by voice and tunes Smart Turn on their voice. Afterwards, run `analyze` on `recordings\<date-time>` and put the results in the agent note;
+- real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
-The Windows notification was confirmed working on 2026-10-05. Everything waiting on the user (these checks, the spike session, open decisions) is listed in `docs/to-try.md`: keep it current, crossing items off as results come in.
+**Now: tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
+- **Decided:**
+  - tools are framed like Claude Code's: built-in tools, connectors the player chooses (keys, sign-ins, local MCP servers; no remote MCP), plugins later;
+  - acting outside the app asks first;
+  - while a tool works, she says a short line the model writes itself, fitting what she's doing.
+- **First abilities, agreed:**
+  - LeetCode hints in tiers, finding the problem from the browser's window title;
+  - memos: long text printed from the cabinet, pinned on its side, archived, the player's own too, and she types them on her phone;
+  - focus sessions with stand-up and water nudges;
+  - music by a link plus Windows' media controls (Spotify's and YouTube Music's APIs are closed);
+  - web search: the provider's own, or Tavily or SearXNG (DuckDuckGo has no search API);
+  - opening links and apps.
+- **Order:**
+  1. groundwork (tool calling, the Allow / Deny ticket, the bridging line, a stable tool list);
+  2. memos;
+  3. focus sessions and music;
+  4. LeetCode hints;
+  5. web search.
+- **Next step:** the groundwork, once the user says go.
 
-**Next: the agent phase, design first.** Three parts:
-- hands-free voice conversation: she notices when the player has finished, and stops when talked over;
-- real tools, asking before acting outside the app;
-- her body during conversation.
+**Open questions for the user:**
+- which music they use (Spotify desktop or YouTube Music in a browser);
+- whether her idle leg swings should be smaller and rarer;
+- whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too).
 
-The research note is written: `docs/research/2026-10-05-companion-agent.md`. The user chose to start with:
-1. **A spike.** Windows' echo cancellation, plus Silero and Smart Turn v3, on their own voice and speakers.
-   - The test program is built in `<tools>\agent-trial` (README there): `check`, `selftest`, `session`, `analyze <dir>`.
-   - It waits for the user's 15-minute recording session.
-   - Then run `analyze` on their `recordings\<date-time>` folder and put the results in the agent note.
-2. **Conversation mode.**
-   - *Built 2026-10-05:* being cut off. Her line keeps what was heard, and a cabinet line says what she hadn't said (`Chat.Interrupt`, `Conversation.CutOff`, `Speech.CutAt`).
-   - *Measured 2026-10-05:* her delay. About 1.5–2 s to her first sound, with a fast provider (agent note §5).
-   - *Built 2026-10-05:* her body in conversation (agent note §7).
-     - She nods in the player's pauses (`Backchannel`), looks away to think (finger to her chin on a long wait), looks back to answer, and her head follows her voice's stress. She reacts when cut off.
-     - The cheer is now soft applause (see the rule on her motion).
-     - Motion is judged on clips from `tools\dev\clip.ps1`.
-   - *Built 2026-10-05:* hands-free listening, as the user decided it (spec `2026-10-05-hands-free-listening.md`).
-     - Follow-up listening is off by default and configurable (3 to 20 s, by kind of line).
-     - Conversations come from the tray switch or a double tap of the talk key.
-     - She never listens on her own in calls, full screen or games unless allowed.
-     - MIC shows on the CRT.
-     - A wake word was declined for now.
-     - Tested only through a pretend microphone (`fakemic`, `mictalk:`): never open the real one in tests.
-   - Next: tools. The brainstorm happened on 2026-10-05: see the draft spec `2026-10-05-tools-and-abilities.md`.
-     - Decided: built-in tools versus connectors (local MCP allowed, no remote MCP); a bridging line the model writes itself.
-     - First abilities: LeetCode hints, focus sessions with stand-up and water nudges, web search, opening links and apps.
-     - Its *proposed* parts wait for the user's word.
+**To check:** about 2.4 s of near-silence once seen at the start of her GPT-SoVITS audio (agent note §5).
 
-Tools, abilities and fillers are decided later. A brainstorm on which abilities she should have comes before calling the phase good.
+**Parked:** a motion-file layer (VRMA, or Kimodo- or Mixamo-sourced clips) for hand gestures while she speaks. Survey in agent note §7.
 
-**After that:** character import (community cards, plus your own 3D model and voice), and mini-games on the CRT. Steam comes last: the app should be mature before it goes public.
+**After the agent phase:** character import (community cards, your own 3D model and voice), mini-games on the CRT. Steam last: the app should be mature before it goes public.
