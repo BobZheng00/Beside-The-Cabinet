@@ -133,6 +133,22 @@ The thumbs need finger poses like the pencil grip's, with the phone placed from 
 - dragging a memo onto the side or off it: the reader's buttons do that;
 - her phone and the paper on another skin (the places come from each skin's generator).
 
+### Memos, next: by hand, and readable (the user's notes, 2026-10-06)
+
+The user wants memos more usable and complete before the next ability:
+1. **Writing one from the cabinet itself.** The tray takes too long.
+2. **Readable and told apart.** The paper is too blurry to read, hanging or pinned, and memos can't be told apart. It needs a way to customise them, and to separate one from another.
+3. **Placing it by hand.** The player chooses where on the side it goes: taking the printed memo out of the machine with the mouse and sticking it to the side.
+4. **Her reading the player's memo** is one ordinary request to their provider (a short reply's cost). "No action" means the model chose `[quiet]` for now; the memo stays in her conversation.
+
+*Proposed* (waiting for the user's word on the open choices):
+- **Writing:** a click on the printer's slot opens the writer (it lights up under the pointer).
+- **Reading on the cabinet:** pointing at a memo shows it flat and large enough to read beside the pointer. A memo being carried is flat and large too, as if held up. The cabinet itself stays in true perspective.
+- **Telling apart:** a paper colour per memo (cream, pink, mint, lilac, yellow), chosen when writing or in the reader; the title large on the paper.
+- **By hand:** press on the hanging memo and pull: it tears off the slot and follows the pointer. Over the side panel it shows where it will land, in perspective. Let go there and it sticks at that spot, a little tilted, taped. A pinned memo can be moved the same way; dragged off the cabinet, it is taken down (kept in the memo archive).
+  - Needs: the side panel's plane exported from the art generator (a homography from its face to the canvas), and the window to carry a memo instead of moving itself when a drag starts on one.
+- **Her reading it:** a tick in the writer, "Let her read it", on by default, for notes the player keeps to themselves (and no request).
+
 ### 2. Focus sessions (agreed)
 
 **Pomodoro on the cabinet** (built-in, inside the app):
