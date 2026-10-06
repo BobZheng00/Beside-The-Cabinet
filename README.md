@@ -131,9 +131,11 @@ can't take tools (some that run on this PC) answers as before. Design:
 Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
 phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
 copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
-where you can write your own too (or tray → "Write a memo…"); they print the same way, and she reads them: if one
-needs something from her (a reminder, a date), she does it and says so; if not, she says nothing. Memos are yours:
-forgetting leaves them be.
+where you can write your own too: click the cabinet's screen for its menu (NEW MEMO), or tray → "Write a memo…".
+They print the same way, and she reads them unless you untick "Let her read it": if one needs something from her (a
+reminder, a date), she does it and says so; if not, she says nothing. Point at a memo on the cabinet to read it there.
+Pull one off the slot (or off the side) and stick it anywhere on the cabinet's side; pull it off the cabinet to take it
+down. Each can have its own paper colour and a sticker. Memos are yours: forgetting leaves them be.
 
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
@@ -182,7 +184,11 @@ asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab).
 only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
 `memoreader:pin` (its buttons: pin, off, edit, save, cancel, delete), `memowrite` (one of your own),
-`memonote:title:text` (one of your own, printed as if saved: she thinks it over) and
+`memonote:title:text` (one of your own, printed as if saved: she thinks it over), `memohover` (a pretend pointer on
+the hanging memo; `memohover:0` the top one on the side, `memohover:off`), `memocarry:a:b` (the hanging memo carried
+by hand to that spot on the side; `memocarry` alone, off the cabinet), `memoreader:colour:mint`, `memoreader:sticker:cat`,
+`memoreader:write:title:text` and `memoreader:tell` (the writer's fields and tick), `crt:1` (the screen's menu, that
+item marked), `crtpick:NEW_MEMO` (one of its items) and
 `memorybook:memos`.
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.

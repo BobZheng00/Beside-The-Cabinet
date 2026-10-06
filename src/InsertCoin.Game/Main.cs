@@ -46,6 +46,7 @@ public partial class Main : Node2D
     private Onboarding _onboarding = null!;
     private AudioBank _audio = null!;
     private AlertTicket _ticket = null!;
+    private CrtMenu _crt = null!;
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private ReminderSettings? _reminderSettings;
@@ -106,11 +107,20 @@ public partial class Main : Node2D
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
         _reminders.Sent += notice => _ = SendOut(notice);
+        _crt = new CrtMenu();
+        AddChild(_crt);
+        _crt.Build(_cabinet.Screen, [("NEW MEMO", _stool.WriteMemo), ("MEMOS", _stool.OpenMemos)]);
         _window.Hover += p =>
         {
             _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
             _stool.Memos.Hover(p);
+            _crt.Hover(p);
         };
+        // memos are carried by hand: off the slot, onto the side, off the cabinet
+        _window.Grabs = _stool.Memos.Grabs;
+        _window.CarryStarted += p => _stool.Memos.Take(p, p);
+        _window.Carried += _stool.Memos.Carry;
+        _window.Dropped += _stool.Memos.LetGo;
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
@@ -119,6 +129,8 @@ public partial class Main : Node2D
                 _cabinet.PressCheck();
             else if (_stool.Memos.Clicked(p))
                 return;                                     // a memo on the cabinet opens to read
+            else if (_crt.Clicked(p))
+                return;                                     // the screen's menu
             else if (_stool.Her?.Hits(p) == true)
                 _stool.Clicked();
         };
@@ -439,6 +451,14 @@ public partial class Main : Node2D
     {
         if (_stool.Dev(action))
             return;
+        if (action.StartsWith("crt"))                      // crt:1 opens the screen's menu with that item marked; crtpick:NEW_MEMO does an item
+        {
+            if (action.StartsWith("crtpick:"))
+                _crt.DevPick(action["crtpick:".Length..].Replace('_', ' '));
+            else
+                _crt.DevShow(action.Length > 4 ? int.Parse(action[4..]) : -1);
+            return;
+        }
         if (action.StartsWith("type:"))
         {
             foreach (var c in action["type:".Length..])

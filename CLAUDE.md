@@ -113,7 +113,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - her body in conversation: nods in pauses (`Backchannel`), looks away to think, finger to her chin, head follows her voice, grown-up applause (agent note §7);
   - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`);
   - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork");
-  - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read in `MemoReader`, kept in the memory book's Memos tab, the player's own (tray → Write a memo…; she thinks each over unseen and acts or stays quiet, `Chat.Consider`); she types hers on her phone (spec, "Memos: built").
+  - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read in `MemoReader`, kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
+  - the CRT's small system: a click on the screen opens its menu (`CrtMenu`); memos first, focus sessions and more to join it.
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
 - the agent spike's 15-minute recording (`<tools>\agent-trial`). It unblocks talking over her by voice and tunes Smart Turn on their voice. Afterwards, run `analyze` on `recordings\<date-time>` and put the results in the agent note;

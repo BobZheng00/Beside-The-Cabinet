@@ -92,7 +92,8 @@ public partial class Stool : Node2D
         _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
         _memos = new Memos();
         AddChild(_memos);
-        _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "");
+        _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "",
+                     herName: () => _chat.Ready && Her is not null ? OnStool()?.Name : null, onCabinet: window.Solid);
         _chat.PrintMemo = PrintMemo;
         _memos.Written += (title, text) =>
         {
@@ -353,8 +354,15 @@ public partial class Stool : Node2D
         ThinkOverMemos();
     }
 
-    /// <summary>A memo of the player's own to write (tray → Write a memo…).</summary>
+    /// <summary>A memo of the player's own to write (the screen's menu, or tray → Write a memo…).</summary>
     public void WriteMemo() => _memos.Write();
+
+    /// <summary>All the memos: the memory book, at its Memos tab.</summary>
+    public void OpenMemos()
+    {
+        OpenMemoryBook();
+        _memoryBook?.ShowTab("memos");
+    }
 
     /// <summary>
     /// A memo the player wrote, once she is free: she thinks it over unseen, and acts on it (a reminder, a date on
@@ -861,7 +869,12 @@ public partial class Stool : Node2D
                 break;
             case "memoseed": _memos.DevSeed(OnStool()?.Id ?? ""); break;    // memos hanging, pinned and archived, to try them on
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
-            case "memoreader": _memos.DevReader(rest); break;      // its buttons: pin, off, edit, save, cancel, delete (not copy: it would take the clipboard)
+            case "memoreader": _memos.DevReader(text); break;      // its buttons: pin, off, edit, save, cancel, delete (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell
+            case "memohover": _memos.DevHover(rest is "" or "off" ? null : int.Parse(rest), off: rest == "off"); break;   // memohover: the hanging one; memohover:0 the top pinned; memohover:off
+            case "memocarry":                               // memocarry:a:b carries the hanging memo to that spot on the side; memocarry alone, off the cabinet
+                var to = rest.Split(':');
+                _memos.DevCarry(to.Length == 2 ? new Vector2(float.Parse(to[0]), float.Parse(to[1])) : null);
+                break;
             case "memowrite": _memos.Write(); break;        // a memo of the player's own
             case "memonote":                                // memonote:title:text: one of the player's own, printed as if written and saved
                 var note = text.Split(':', 2);
@@ -873,7 +886,7 @@ public partial class Stool : Node2D
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)
-                    _memoryBook?.DevTab(rest);
+                    _memoryBook?.ShowTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons

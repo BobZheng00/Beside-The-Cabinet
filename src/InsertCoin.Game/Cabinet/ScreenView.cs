@@ -21,8 +21,9 @@ public sealed record ScreenState
 
 /// <summary>
 /// The live CRT: an offscreen UI rendered into a viewport and projected onto the cabinet's screen quad.
-/// Priority: a prompt (text entry) over a flash (short message) over the readout / attract pages. While her
-/// microphone is open, "MIC" with a blinking dot takes the top right corner, whatever else is showing.
+/// Priority: a prompt (text entry) over a menu (the screen's own small system, see App.CrtMenu) over a flash
+/// (short message) over the readout / attract pages. While her microphone is open, "MIC" with a blinking dot takes
+/// the top right corner, whatever else is showing.
 /// </summary>
 public partial class ScreenView : Node2D
 {
@@ -38,7 +39,14 @@ public partial class ScreenView : Node2D
     };
     private const int PxPerUnit = 2;
 
+    private const float MenuTop = 92, MenuRow = 60;
+
     private SubViewport _viewport = null!;
+    private Vector2[] _quad = [];
+    private (Vector3 Row0, Vector3 Row1, Vector3 Row2) _toScreen;
+    private Vector2 _pixels;
+    private readonly List<Label> _menuItems = [];
+    private (string Title, string[] Items, int Hovered)? _menu;
     private Label _top = null!, _topRight = null!, _big = null!, _caption = null!, _status = null!;
     private ColorRect _fuelBack = null!, _fuelFill = null!, _micDot = null!;
     private Label _mic = null!;
@@ -65,6 +73,8 @@ public partial class ScreenView : Node2D
 
         var root = new Control { Size = size };
         _viewport.AddChild(root);
+        _quad = [.. quad];
+        _pixels = size;
         _top = AddLabel(root, Pixel, 21, HorizontalAlignment.Left, new Vector2(38, 26), new Vector2(size.X - 76, 28));
         _topRight = AddLabel(root, Pixel, 21, HorizontalAlignment.Right, new Vector2(38, 26), new Vector2(size.X - 76, 28));
         _big = AddLabel(root, Pixel, 64, HorizontalAlignment.Center, new Vector2(0, 76), new Vector2(size.X, 84));
@@ -84,7 +94,14 @@ public partial class ScreenView : Node2D
         root.AddChild(_fuelBack);
         root.AddChild(_fuelFill);
 
-        var (r0, r1, r2) = Homography.QuadToUnit(quad);
+        for (var i = 0; i < 4; i++)
+        {
+            var item = AddLabel(root, Pixel, 26, HorizontalAlignment.Left, new Vector2(44, MenuTop + i * MenuRow), new Vector2(size.X - 80, MenuRow - 6));
+            item.Visible = false;
+            _menuItems.Add(item);
+        }
+
+        var (r0, r1, r2) = _toScreen = Homography.QuadToUnit(quad);
         _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://Cabinet/screen_quad.gdshader") };
         _material.SetShaderParameter("content", _viewport.GetTexture());
         _material.SetShaderParameter("inv_h_row0", r0);
@@ -143,6 +160,36 @@ public partial class ScreenView : Node2D
         Redraw();
     }
 
+    /// <summary>Text entry holds the screen (a player's initials): nothing else can take it.</summary>
+    public bool Prompting => _prompt is not null;
+
+    /// <summary>A menu takes the screen: a title where the credits show, and up to four items, the one pointed at marked.</summary>
+    public void ShowMenu(string title, string[] items, int hovered)
+    {
+        _menu = (title, items, hovered);
+        Redraw();
+    }
+
+    public void HideMenu()
+    {
+        _menu = null;
+        Redraw();
+    }
+
+    /// <summary>The canvas point is on the screen.</summary>
+    public bool Hits(Vector2 canvasPoint) => Geometry2D.IsPointInPolygon(canvasPoint, _quad);
+
+    /// <summary>The menu item at a canvas point (through the screen's perspective), or null.</summary>
+    public int? MenuItemAt(Vector2 canvasPoint)
+    {
+        if (_menu is not { } menu || !Hits(canvasPoint))
+            return null;
+        var p = new Vector3(canvasPoint.X, canvasPoint.Y, 1);
+        var y = _toScreen.Row1.Dot(p) / _toScreen.Row2.Dot(p) * _pixels.Y;
+        var row = (int)Math.Floor((y - MenuTop + 4) / MenuRow);
+        return row >= 0 && row < menu.Items.Length ? row : null;
+    }
+
     public void SetBrightness(float brightness) => _material.SetShaderParameter("brightness", brightness);
 
     /// <summary>Her microphone is open: MIC shows in the top right corner.</summary>
@@ -160,10 +207,11 @@ public partial class ScreenView : Node2D
     {
         var s = _state;
         var inDebt = s.DebtMs > 0 && s.TimeLeftMs == 0;
-        var takenOver = _prompt is not null || _flash is not null;
+        var menu = _prompt is null ? _menu : null;
+        var takenOver = _prompt is not null || _flash is not null || menu is not null;
         var page = s.Playing || takenOver ? 0 : _attractPage;
 
-        _top.Text = $"CREDIT {s.Credits:00}";
+        _top.Text = menu is { } m ? m.Title : $"CREDIT {s.Credits:00}";
         _topRight.Text = s.Streak > 0 ? $"x{s.Streak}" : "";
         _top.Visible = _prompt is null;
         _topRight.Visible = _prompt is null && !_listening;
@@ -181,6 +229,18 @@ public partial class ScreenView : Node2D
             _ when inDebt => ($"-{Clock(s.DebtMs)}", $"OWED - {s.DebtMs / (15 * 60_000)} IOU"),
             _ => (Clock(s.TimeLeftMs), "TIME LEFT"),
         };
+        _big.Visible = _caption.Visible = menu is null;
+        _status.Visible = menu is null;
+        for (var i = 0; i < _menuItems.Count; i++)
+        {
+            var item = _menuItems[i];
+            item.Visible = menu is { } shown && i < shown.Items.Length;
+            if (!item.Visible)
+                continue;
+            var hovered = menu!.Value.Hovered == i;
+            item.Text = (hovered ? "> " : "  ") + menu.Value.Items[i];          // the pixel font is monospaced: the mark takes two places
+            item.LabelSettings.FontColor = hovered ? Accent : Ink;
+        }
         // Press Start 2P is square: fit the big line to the screen width.
         _big.LabelSettings.FontSize = Math.Clamp((int)((_width - 44) / Math.Max(_big.Text.Length, 1)), 16, 64);
         // Captions sit above the fuel bar; two-line captions use the bar's space when it is hidden.

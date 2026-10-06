@@ -51,8 +51,10 @@ public sealed class CabinetSkin
                 ReceiptQuad = [.. file.Anchors.Printer.Receipt.Select(V)],
                 ReceiptSize = V(file.Anchors.Printer.ReceiptSize),
                 Marquee = [.. file.Anchors.Marquee.Select(V)],
-                MemoPins = file.Anchors.Memos is { } memos ? [.. memos.Pins.Select(q => q.Select(V).ToArray())] : [],
-                MemoSize = file.Anchors.Memos is { } m ? V(m.Size) : Vector2.Zero,
+                Memos = file.Anchors.Memos is { } m
+                    ? new MemoSide([.. m.Side.Select(V)], V(m.SideSize), new Rect2(m.Area[0], m.Area[1], m.Area[2] - m.Area[0], m.Area[3] - m.Area[1]),
+                                   [.. m.Spots.Select(p => (new Vector2(p[0], p[1]), p[2]))], V(m.Paper), m.Tape)
+                    : null,
             },
             World = new SkinWorld
             {
@@ -86,7 +88,7 @@ public sealed class CabinetSkin
     private sealed record TrayFile(float[][] Opening, float[][] Spots, float[] Stack, float[] Chute);
     private sealed record WorldFile(float UnitsPerMetre, CameraFile Camera, float Floor, float[] Seat, float SeatRadius, float FootRest, float[] Screen, float[]? Slot);
     private sealed record CameraFile(float[] Position, float Yaw, float Focal, float[] Offset);
-    private sealed record MemosFile(float[][][] Pins, float[] Size);
+    private sealed record MemosFile(float[][] Side, float[] SideSize, float[] Area, float[][] Spots, float[] Paper, float Tape);
     private sealed record PrinterFile(float[][] Slot, [property: JsonPropertyName("ticket")] float[] Ticket, float[][] Receipt, float[] ReceiptSize);
 }
 
@@ -110,9 +112,16 @@ public sealed class SkinAnchors
     public required Vector2[] ReceiptQuad { get; init; }          // TL, TR, BR, BL of the paper hanging from the slot
     public required Vector2 ReceiptSize { get; init; }
     public required Vector2[] Marquee { get; init; }
-    public required Vector2[][] MemoPins { get; init; }           // where memos are pinned on the side (TL, TR, BR, BL each, tape included); none for a skin without
-    public required Vector2 MemoSize { get; init; }              // a pinned memo's size in face-local units, tape included
+    public required MemoSide? Memos { get; init; }                // where memos are stuck on the cabinet; none for a skin without
 }
+
+/// <summary>
+/// The side panel memos are stuck on: its own rectangle (depth from the front, height down from the top, in the
+/// art's model units) and where that rectangle's corners fall on the canvas (TL, TR, BR, BL), which fixes the
+/// perspective of anything flat on it; the area a memo's centre may be in, spots for memos pinned with a button
+/// (with a tilt in degrees), and a memo's paper and the tape above it.
+/// </summary>
+public sealed record MemoSide(Vector2[] Quad, Vector2 Size, Rect2 Area, (Vector2 At, float Tilt)[] Spots, Vector2 Paper, float Tape);
 
 /// <summary>
 /// The 3D scene the art was drawn from, so live 3D can be rendered into the same picture.

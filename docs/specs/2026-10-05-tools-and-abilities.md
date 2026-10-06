@@ -141,13 +141,19 @@ The user wants memos more usable and complete before the next ability:
 3. **Placing it by hand.** The player chooses where on the side it goes: taking the printed memo out of the machine with the mouse and sticking it to the side.
 4. **Her reading the player's memo** is one ordinary request to their provider (a short reply's cost). "No action" means the model chose `[quiet]` for now; the memo stays in her conversation.
 
-*Proposed* (waiting for the user's word on the open choices):
-- **Writing:** a click on the printer's slot opens the writer (it lights up under the pointer).
-- **Reading on the cabinet:** pointing at a memo shows it flat and large enough to read beside the pointer. A memo being carried is flat and large too, as if held up. The cabinet itself stays in true perspective.
-- **Telling apart:** a paper colour per memo (cream, pink, mint, lilac, yellow), chosen when writing or in the reader; the title large on the paper.
-- **By hand:** press on the hanging memo and pull: it tears off the slot and follows the pointer. Over the side panel it shows where it will land, in perspective. Let go there and it sticks at that spot, a little tilted, taped. A pinned memo can be moved the same way; dragged off the cabinet, it is taken down (kept in the memo archive).
-  - Needs: the side panel's plane exported from the art generator (a homography from its face to the canvas), and the window to carry a memo instead of moving itself when a drag starts on one.
-- **Her reading it:** a tick in the writer, "Let her read it", on by default, for notes the player keeps to themselves (and no request).
+**Decided with the user (2026-10-06):** writing from the CRT, the start of a small OS on it ("we need some sort of small OS on the CRT anyway"); hover to read, paper colours and stickers; a tick to keep a memo from her.
+
+**Built (2026-10-06):**
+- **The CRT's small system** (`App/CrtMenu`, `ScreenView.ShowMenu`): a click on the screen opens its MENU, in the cabinet's pixel letters: NEW MEMO, MEMOS (the memory book's Memos tab), BACK. The item under the pointer is marked; it closes by itself after 12 s untouched. A click is mapped onto the screen through its perspective. Focus sessions, music and mini-games join this menu later.
+- **Reading on the cabinet:** pointing at a memo for a moment shows it flat beside the pointer (`MemoCard`): its paper, sticker, title and the first 400 or so characters, readable at the default size. The cabinet itself stays in true perspective.
+- **Telling apart:** six papers (cream, yellow, pink, mint, lilac, blue) and six stickers (star, heart, coin, cat, flower, bolt), chosen when writing or in the reader, on the paper on the cabinet, the card and the reader's page. Her memos come on cream, the player's own on yellow.
+- **By hand:** press on a memo (hanging or stuck on the side) and pull. It comes off into the hand as the flat card, a little smaller and tilted.
+  - Over the side panel it shows where it will land, in perspective, at the pointer. Let go and it sticks there, a little tilted, taped; the latest lies on top. Up to 10, overlapping as they like.
+  - Let go elsewhere on the cabinet: it goes back where it was. Off the cabinet: taken down, into the archive.
+  - The reader's Pin button puts one at a free spot (the art generator's five spots first).
+  - The art generator exports the side panel's plane (`MEMO_AREA`, `SIDE_SIZE`; its corners on the canvas give the homography), so any spot is in true perspective. The window carries a memo instead of moving itself when a pull starts on one (`DesktopWindow.Grabs`).
+- **Her reading it:** the writer's "Let Shino read it" tick, on by default; unticked, no request is sent and she doesn't see it.
+- The store keeps each memo's paper, sticker, spot and tilt (version 9; one pinned before spots waits in the archive).
 
 ### 2. Focus sessions (agreed)
 

@@ -574,12 +574,16 @@ def svg(preview_bg=True):
 
 
 # ---- Memos pinned on the side --------------------------------------------------------------------------------------
-# Where the player's memos go on the right side panel, in its local (a = depth from the front, b = down from the roof):
-# beside the screen, clear of the stripe along the front edge and of the coin emblem, a loose two columns and one below
-# the emblem; each a little tilted, as paper taped up by hand. The first places fill first.
+# The player sticks memos anywhere on the right side panel. The game gets the panel's plane (its local rectangle and
+# where its corners fall on the canvas: a homography maps one to the other), the area a memo's centre may be in (clear of
+# the stripe along the front edge and of the panel's edges), and a few spots for memos pinned with a button: beside the
+# screen in a loose two columns and one below the coin emblem, each a little tilted, as paper taped up by hand.
+# Local units: a = depth from the front, b = down from the roof.
 MEMO_PAPER = (44, 58)                # depth, height of a pinned memo
 MEMO_TAPE = 6                        # the tape sticks up this far above the paper's top edge
 MEMO_PINS = [(62, 150, -4), (122, 140, 3), (66, 224, 2), (128, 216, -3), (98, 402, -2)]
+MEMO_AREA = (46, 50, 142, 680)       # a0, b0, a1, b1 for a memo's centre
+SIDE_SIZE = (BACK, ROOF - FLOOR)     # the panel's local rectangle, (0, 0) to here
 
 
 def memo_quad(a, b, tilt):
@@ -682,9 +686,11 @@ def export_skin(art_dir, skin_dir, render=True):
                         # paper path for the session receipt: a strip hanging from the slot (TL, TR, BR, BL) and its size
                         "receipt": pts2(on(body, [(179, 166), (225, 166), (225, 268), (179, 268)])), "receiptSize": [46, 102]},
             "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
-            # memos pinned on the right side panel: each a quad (TL, TR, BR, BL) of paper and tape, and its size (with the tape)
-            "memos": {"pins": [pts2(on(right_side, memo_quad(a, b, tilt))) for a, b, tilt in MEMO_PINS],
-                      "size": [MEMO_PAPER[0], MEMO_PAPER[1] + MEMO_TAPE]},
+            # memos stuck on the right side panel: the panel's local rectangle and where its corners fall (TL, TR, BR, BL),
+            # the area a memo's centre may be in, spots for the Pin button (a, b, tilt), and a memo's paper and tape
+            "memos": {"side": pts2(on(right_side, [(0, 0), (SIDE_SIZE[0], 0), SIDE_SIZE, (0, SIDE_SIZE[1])])),
+                      "sideSize": list(SIDE_SIZE), "area": list(MEMO_AREA), "spots": [list(p) for p in MEMO_PINS],
+                      "paper": list(MEMO_PAPER), "tape": MEMO_TAPE},
         },
         # The 3D scene behind the art, for anything rendered live into it (the companion on the stool).
         # Model units, x right, y up, z towards the back. A canvas point is offset + focal * (right, -up) / depth.

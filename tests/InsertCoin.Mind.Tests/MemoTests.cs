@@ -29,21 +29,45 @@ public class MemoTests
     }
 
     [Fact]
-    public void Pinned_memos_take_the_first_free_place_on_the_side_until_it_is_full()
+    public void A_pinned_memo_stays_where_it_was_put_the_latest_on_top_until_the_side_is_full()
     {
         using var temp = new TempStore();
         var store = temp.Store;
         var ids = Enumerable.Range(0, Memo.PinnedAtMost + 1).Select(i => store.AddMemo($"Memo {i}", "text", null, Friday.AddMinutes(i))).ToList();
 
-        foreach (var id in ids.Take(Memo.PinnedAtMost))
-            Assert.True(store.MoveMemo(id, MemoPlace.Pinned));
-        Assert.False(store.MoveMemo(ids[^1], MemoPlace.Pinned));                                // the side is full
+        foreach (var (id, i) in ids.Take(Memo.PinnedAtMost).Select((id, i) => (id, i)))
+            Assert.True(store.PinMemo(id, 40 + i, 100 + 10 * i, -2));
+        var first = store.Memos().Single(m => m.Id == ids[0]);
+        Assert.Equal((MemoPlace.Pinned, (40.0, 100.0), -2.0), (first.Place, first.Spot!.Value, first.Tilt));
+        Assert.False(store.PinMemo(ids[^1], 60, 300, 0));                                        // the side is full
         Assert.Equal(MemoPlace.Hanging, store.Memos().Single(m => m.Id == ids[^1]).Place);
 
-        store.MoveMemo(ids[1], MemoPlace.Archived);                                           // taken off: its place is free again
-        Assert.True(store.MoveMemo(ids[^1], MemoPlace.Pinned));
-        Assert.Equal(1, store.Memos().Single(m => m.Id == ids[^1]).Pin);
-        Assert.Equal(Enumerable.Range(0, Memo.PinnedAtMost), store.Memos().Where(m => m.Place == MemoPlace.Pinned).Select(m => m.Pin).Order());
+        Assert.True(store.PinMemo(ids[0], 90, 400, 3));                                           // moved: full or not, and now on top
+        var moved = store.Memos().Single(m => m.Id == ids[0]);
+        Assert.Equal((90.0, 400.0), moved.Spot!.Value);
+        Assert.Equal(store.Memos().Where(m => m.Place == MemoPlace.Pinned).Max(m => m.Pin), moved.Pin);
+
+        store.MoveMemo(ids[1], MemoPlace.Archived);                                              // taken down: room again
+        Assert.True(store.PinMemo(ids[^1], 60, 300, 0));
+        Assert.Throws<ArgumentException>(() => store.MoveMemo(ids[2], MemoPlace.Pinned));        // pinning takes a spot
+    }
+
+    [Fact]
+    public void A_memo_has_a_paper_and_maybe_a_sticker()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var hers = store.AddMemo("Hint", "text", "shino", Friday);
+        var own = store.AddMemo("Note", "text", null, Friday, MemoPlace.Archived, "mint", "star");
+
+        Assert.Equal((Memo.Cream, (string?)null), (store.Memos().Single(m => m.Id == hers).Colour, store.Memos().Single(m => m.Id == hers).Sticker));
+        Assert.Equal(("mint", (string?)"star"), (store.Memos().Single(m => m.Id == own).Colour, store.Memos().Single(m => m.Id == own).Sticker));
+        Assert.Equal(Memo.Yellow, Memo.ColourFor(null));
+
+        store.StyleMemo(hers, "pink", "heart");
+        store.StyleMemo(own, "tartan", null);                                                     // an unknown paper is ignored; no sticker takes it off
+        Assert.Equal(("pink", (string?)"heart"), (store.Memos().Single(m => m.Id == hers).Colour, store.Memos().Single(m => m.Id == hers).Sticker));
+        Assert.Equal(("mint", (string?)null), (store.Memos().Single(m => m.Id == own).Colour, store.Memos().Single(m => m.Id == own).Sticker));
     }
 
     [Fact]

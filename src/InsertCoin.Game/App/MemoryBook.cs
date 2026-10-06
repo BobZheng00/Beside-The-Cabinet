@@ -170,8 +170,8 @@ public partial class MemoryBook : Window
 
     public void Open() => Paper.Open(this, new Vector2(620, 680));
 
-    /// <summary>Dev: shows a tab ("notes", "agenda", "facts", "moments", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
-    public void DevTab(string which)
+    /// <summary>Shows a tab ("notes", "agenda", "facts", "moments", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
+    public void ShowTab(string which)
     {
         if (which == "retired")
         {

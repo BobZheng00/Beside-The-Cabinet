@@ -125,7 +125,12 @@ public sealed class MindStore : IDisposable
             CREATE TABLE IF NOT EXISTS memos (
                 id INTEGER PRIMARY KEY, title TEXT NOT NULL, text TEXT NOT NULL, by TEXT, at TEXT NOT NULL, place TEXT NOT NULL, pin INTEGER NOT NULL DEFAULT 0)
             """);
-        Run("PRAGMA user_version = 8");
+        // version 9: a memo's paper and sticker, and where on the cabinet's side it is pinned (a spot and a tilt, not a slot)
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('memos') WHERE name = 'colour'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE memos ADD COLUMN colour TEXT; ALTER TABLE memos ADD COLUMN sticker TEXT; " +
+                    "ALTER TABLE memos ADD COLUMN a REAL; ALTER TABLE memos ADD COLUMN b REAL; ALTER TABLE memos ADD COLUMN tilt REAL NOT NULL DEFAULT 0");
+        Run("PRAGMA user_version = 9");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -387,52 +392,76 @@ public sealed class MindStore : IDisposable
     /// are cut to <see cref="Memo.TitleLength"/> and <see cref="Memo.TextLength"/>.
     /// </summary>
     /// <param name="by">The character who printed it, or null for one the player wrote.</param>
-    /// <param name="place">Where it goes: one the player writes can go straight to the archive.</param>
-    public long AddMemo(string title, string text, string? by, DateTimeOffset at, MemoPlace place = MemoPlace.Hanging)
+    /// <param name="place">Where it goes: hanging from the slot, or straight to the archive (not pinned: that needs a spot, see <see cref="PinMemo"/>).</param>
+    /// <param name="colour">Its paper; unset, <see cref="Memo.ColourFor"/>.</param>
+    public long AddMemo(string title, string text, string? by, DateTimeOffset at, MemoPlace place = MemoPlace.Hanging, string? colour = null, string? sticker = null)
     {
         if (place == MemoPlace.Hanging)
             Run($"UPDATE memos SET place = '{MemoPlace.Archived}' WHERE place = '{MemoPlace.Hanging}'");
         title = title.Trim();
         text = text.Trim();
-        using var command = Command("INSERT INTO memos (title, text, by, at, place) VALUES ($t, $x, $b, $a, $p) RETURNING id",
+        using var command = Command("INSERT INTO memos (title, text, by, at, place, colour, sticker) VALUES ($t, $x, $b, $a, $p, $c, $s) RETURNING id",
             ("$t", title.Length > Memo.TitleLength ? title[..Memo.TitleLength] : title), ("$x", text.Length > Memo.TextLength ? text[..Memo.TextLength] : text),
-            ("$b", (object?)by ?? DBNull.Value), ("$a", Stamp(at)), ("$p", place.ToString()));
+            ("$b", (object?)by ?? DBNull.Value), ("$a", Stamp(at)), ("$p", place == MemoPlace.Pinned ? MemoPlace.Archived.ToString() : place.ToString()),
+            ("$c", colour is not null && Memo.Colours.Contains(colour) ? colour : Memo.ColourFor(by)),
+            ("$s", sticker is not null && Memo.Stickers.Contains(sticker) ? sticker : DBNull.Value));
         return (long)command.ExecuteScalar()!;
     }
 
     /// <summary>Every memo, the newest first.</summary>
     public IReadOnlyList<Memo> Memos()
     {
-        using var command = Command("SELECT id, title, text, by, at, place, pin FROM memos ORDER BY at DESC, id DESC");
+        using var command = Command("SELECT id, title, text, by, at, place, pin, colour, sticker, a, b, tilt FROM memos ORDER BY at DESC, id DESC");
         using var reader = command.ExecuteReader();
         var memos = new List<Memo>();
         while (reader.Read())
-            memos.Add(new Memo(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3),
-                               Parse(reader.GetString(4)), Enum.TryParse<MemoPlace>(reader.GetString(5), out var place) ? place : MemoPlace.Archived,
-                               reader.GetInt32(6)));
+        {
+            var by = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var place = Enum.TryParse<MemoPlace>(reader.GetString(5), out var p) ? p : MemoPlace.Archived;
+            (double, double)? spot = reader.IsDBNull(9) || reader.IsDBNull(10) ? null : (reader.GetDouble(9), reader.GetDouble(10));
+            if (place == MemoPlace.Pinned && spot is null)
+                place = MemoPlace.Archived;                 // pinned before spots: it has nowhere to be, so it waits in the archive
+            memos.Add(new Memo(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), by, Parse(reader.GetString(4)), place, reader.GetInt32(6),
+                               reader.IsDBNull(7) ? Memo.ColourFor(by) : reader.GetString(7), reader.IsDBNull(8) ? null : reader.GetString(8), spot,
+                               reader.GetDouble(11)));
+        }
         return memos;
     }
 
     /// <summary>
-    /// Moves a memo: pinned, it takes the first free place on the cabinet's side; false when the side is full
-    /// (<see cref="Memo.PinnedAtMost"/>), and it stays where it was.
+    /// Pins a memo on the cabinet's side at a spot (or moves it there, if pinned already), over the others pinned
+    /// before it. False when the side is full (<see cref="Memo.PinnedAtMost"/>): it stays where it was.
     /// </summary>
-    public bool MoveMemo(long id, MemoPlace place)
+    public bool PinMemo(long id, double a, double b, double tilt)
     {
-        var pin = 0;
-        if (place == MemoPlace.Pinned)
-        {
-            var taken = Memos().Where(m => m.Place == MemoPlace.Pinned && m.Id != id).Select(m => m.Pin).ToHashSet();
-            if (taken.Count >= Memo.PinnedAtMost)
-                return false;
-            while (taken.Contains(pin))
-                pin++;
-        }
-        if (place == MemoPlace.Hanging)
-            Run($"UPDATE memos SET place = '{MemoPlace.Archived}' WHERE place = '{MemoPlace.Hanging}'");
-        using var command = Command("UPDATE memos SET place = $p, pin = $n WHERE id = $id", ("$p", place.ToString()), ("$n", pin), ("$id", id));
+        var memos = Memos();
+        var pinned = memos.Where(m => m.Place == MemoPlace.Pinned).ToList();
+        if (pinned.All(m => m.Id != id) && pinned.Count >= Memo.PinnedAtMost)
+            return false;
+        var top = pinned.Count == 0 ? 0 : pinned.Max(m => m.Pin) + 1;
+        using var command = Command("UPDATE memos SET place = $p, pin = $n, a = $a, b = $b, tilt = $t WHERE id = $id",
+            ("$p", MemoPlace.Pinned.ToString()), ("$n", top), ("$a", a), ("$b", b), ("$t", tilt), ("$id", id));
         command.ExecuteNonQuery();
         return true;
+    }
+
+    /// <summary>Moves a memo to hang from the slot (the one hanging there goes to the archive) or to the archive.</summary>
+    public void MoveMemo(long id, MemoPlace place)
+    {
+        if (place == MemoPlace.Pinned)
+            throw new ArgumentException("a pinned memo needs a spot: see PinMemo", nameof(place));
+        if (place == MemoPlace.Hanging)
+            Run($"UPDATE memos SET place = '{MemoPlace.Archived}' WHERE place = '{MemoPlace.Hanging}'");
+        using var command = Command("UPDATE memos SET place = $p WHERE id = $id", ("$p", place.ToString()), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>A memo's paper and sticker (unknown ones are left as they were; a null sticker takes it off).</summary>
+    public void StyleMemo(long id, string colour, string? sticker)
+    {
+        using var command = Command("UPDATE memos SET colour = CASE WHEN $c IN ('" + string.Join("','", Memo.Colours) + "') THEN $c ELSE colour END, sticker = $s WHERE id = $id",
+            ("$c", colour), ("$s", sticker is not null && Memo.Stickers.Contains(sticker) ? sticker : DBNull.Value), ("$id", id));
+        command.ExecuteNonQuery();
     }
 
     /// <summary>The player changed one (their own, or hers: it's theirs to keep).</summary>

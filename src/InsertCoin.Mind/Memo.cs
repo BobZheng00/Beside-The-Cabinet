@@ -12,11 +12,27 @@ public enum MemoPlace { Hanging, Pinned, Archived }
 /// Memos are the player's, not her memory: forgetting leaves them be.
 /// </summary>
 /// <param name="By">The character who printed it, or null for the player's own.</param>
-/// <param name="Pin">Its place on the cabinet's side, while pinned (0 the top).</param>
-public sealed partial record Memo(long Id, string Title, string Text, string? By, DateTimeOffset At, MemoPlace Place, int Pin = 0)
+/// <param name="Pin">While pinned, how it is stacked: one pinned later lies over one pinned earlier.</param>
+/// <param name="Colour">Its paper (one of <see cref="Colours"/>), so memos can be told apart.</param>
+/// <param name="Sticker">A sticker on it (one of <see cref="Stickers"/>), or none.</param>
+/// <param name="Spot">While pinned, where on the cabinet's side, in the side panel's own units (depth from its front, height from its top).</param>
+/// <param name="Tilt">While pinned, how far it is turned on the side (degrees), as paper taped up by hand is.</param>
+public sealed partial record Memo(long Id, string Title, string Text, string? By, DateTimeOffset At, MemoPlace Place, int Pin = 0,
+                                  string Colour = Memo.Cream, string? Sticker = null, (double A, double B)? Spot = null, double Tilt = 0)
 {
-    /// <summary>How many fit on the cabinet's side.</summary>
-    public const int PinnedAtMost = 5;
+    /// <summary>How many fit on the cabinet's side (they may overlap).</summary>
+    public const int PinnedAtMost = 10;
+
+    public const string Cream = "cream", Yellow = "yellow";
+
+    /// <summary>The papers a memo can be on: hers are cream, the player's own yellow, until changed.</summary>
+    public static readonly string[] Colours = [Cream, Yellow, "pink", "mint", "lilac", "blue"];
+
+    /// <summary>The stickers a memo can have.</summary>
+    public static readonly string[] Stickers = ["star", "heart", "coin", "cat", "flower", "bolt"];
+
+    /// <summary>The paper a new memo is on: cream for hers, yellow for the player's own.</summary>
+    public static string ColourFor(string? by) => by is null ? Yellow : Cream;
 
     /// <summary>How long a title and a memo may be: a title is a few words; a memo, a page or two.</summary>
     public const int TitleLength = 60, TextLength = 6000;

@@ -5,7 +5,7 @@ namespace InsertCoin.Game.Desktop;
 
 /// <summary>
 /// Makes the transparent cabinet window behave like a desktop object: clicks pass through everywhere except the
-/// art's opaque pixels, and it can be dragged by its body.
+/// art's opaque pixels, and it can be dragged by its body; what can be carried (a memo) is carried instead.
 /// Window regions are not used: on Windows their edges draw faint lines over empty space.
 /// </summary>
 public partial class DesktopWindow : Node
@@ -24,14 +24,19 @@ public partial class DesktopWindow : Node
     public Func<Vector2, bool>? AlsoSolid { get; set; }
     /// <summary>Controls that take the mouse themselves (a text field): pressing there neither clicks nor drags the window.</summary>
     public Func<Vector2, bool>? KeepsMouse { get; set; }
+    /// <summary>Things the mouse can carry (a memo), tested where the press was: pulled, they are carried instead of the window.</summary>
+    public Func<Vector2, bool>? Grabs { get; set; }
+    /// <summary>A pull began on something that can be carried, with the canvas point pressed; then where it is carried to; then where it is let go.</summary>
+    public event Action<Vector2>? CarryStarted, Carried, Dropped;
 
     private Bitmap _hitMask = null!;
     private float _maskScale;
     private Vector2 _canvas;
     private nint _hwnd;
     private bool? _clickThrough;
-    private bool _pressed, _dragging;
+    private bool _pressed, _dragging, _grabbed;
     private Vector2I _pressAt, _dragOffset;
+    private Vector2 _pressCanvas;
 
     public void Build(Texture2D hitArt, float artScale, Vector2 canvas)
     {
@@ -49,6 +54,9 @@ public partial class DesktopWindow : Node
     public float WindowScale => DisplayServer.WindowGetSize().X / _canvas.X;
 
     private Vector2 CursorCanvas() => (Vector2)(DisplayServer.MouseGetPosition() - DisplayServer.WindowGetPosition()) / WindowScale;
+
+    /// <summary>The canvas point is on the cabinet (its art, or anything solid drawn live).</summary>
+    public bool Solid(Vector2 canvasPoint) => OverArt(canvasPoint);
 
     private bool OverArt(Vector2 canvasPoint)
     {
@@ -76,13 +84,17 @@ public partial class DesktopWindow : Node
                 _dragging = false;
                 _pressAt = DisplayServer.MouseGetPosition();
                 _dragOffset = _pressAt - DisplayServer.WindowGetPosition();
-                Pressed?.Invoke(CursorCanvas());
+                _pressCanvas = CursorCanvas();
+                _grabbed = Grabs?.Invoke(_pressCanvas) == true;
+                Pressed?.Invoke(_pressCanvas);
                 break;
             case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false }:
                 var pressed = _pressed;
                 if (_pressed && !_dragging)
                     Clicked?.Invoke(CursorCanvas());
-                _pressed = _dragging = false;
+                else if (_pressed && _grabbed)
+                    Dropped?.Invoke(CursorCanvas());
+                _pressed = _dragging = _grabbed = false;
                 if (pressed)
                     Released?.Invoke();
                 break;
@@ -91,9 +103,14 @@ public partial class DesktopWindow : Node
                 if (!_dragging && (mouse - _pressAt).LengthSquared() > 16)
                 {
                     _dragging = true;
-                    DragStarted?.Invoke();
+                    if (_grabbed)
+                        CarryStarted?.Invoke(_pressCanvas);
+                    else
+                        DragStarted?.Invoke();
                 }
-                if (_dragging)
+                if (_dragging && _grabbed)
+                    Carried?.Invoke(CursorCanvas());
+                else if (_dragging)
                     DisplayServer.WindowSetPosition(mouse - _dragOffset);
                 break;
         }
