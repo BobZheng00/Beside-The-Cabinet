@@ -108,7 +108,11 @@ The thumbs need finger poses like the pencil grip's, with the phone placed from 
   - The paper is drawn once with mipmaps. Its outline and tape are drawn on the cabinet itself, so the ink line is as even as the art's.
 - Clicking a memo opens it; the pointer over one brightens it.
 
-**The reader** (`App/MemoReader`): the title, who it's from and when, the text (code in a fixed-width font), and Copy, Edit, Delete (pressed twice), Pin on the cabinet, Tear it off or Take it down. "Write a memo" opens it empty: the player's own memo prints out of the slot once saved.
+**The sheet** (`App/MemoSheet`, 2026-10-06; it replaced a reader window the user found too much like a window): a memo clicked on the cabinet lifts off and grows into a sheet over the cabinet, with no frame or title bar: its own paper, sticker and torn edge, "MEMO", the title, who it's from and when, and the text, scrolling (code in a fixed-width font).
+- Small drawn tools along its foot: copy, write on it, throw away (pressed twice); tear it off or take it down; pin it.
+- Written on where it is: the title on a faint rule, the papers and stickers in a strip, ✓ to finish.
+- A new one rises blank out of the slot (or the draft left last time), with "Let Shino read it"; printing shrinks it back into the slot, and out it prints.
+- A click away keeps what was written and puts it back where it came from (to the side, the slot, or the archive below); Esc drops what was being written.
 
 **The archive:** a Memos tab in the memory book: every memo, newest first, where it is, Read and Pin or Take down, and "+ Write a memo".
 
@@ -144,7 +148,7 @@ The user wants memos more usable and complete before the next ability:
 **Decided with the user (2026-10-06):** writing from the CRT, the start of a small OS on it ("we need some sort of small OS on the CRT anyway"); hover to read, paper colours and stickers; a tick to keep a memo from her.
 
 **Built (2026-10-06):**
-- **The CRT's small system** (`App/CrtMenu`, `ScreenView.ShowMenu`): a click on the screen opens its MENU, in the cabinet's pixel letters: NEW MEMO, MEMOS (the memory book's Memos tab), BACK. The item under the pointer is marked; it closes by itself after 12 s untouched. A click is mapped onto the screen through its perspective. Focus sessions, music and mini-games join this menu later.
+- **The CRT's small system:** first a text menu; replaced the same day by apps (below).
 - **Reading on the cabinet:** pointing at a memo for a moment shows it flat beside the pointer (`MemoCard`): its paper, sticker, title and the first 400 or so characters, readable at the default size. The cabinet itself stays in true perspective.
 - **Telling apart:** six papers (cream, yellow, pink, mint, lilac, blue) and six stickers (star, heart, coin, cat, flower, bolt), chosen when writing or in the reader, on the paper on the cabinet, the card and the reader's page. Her memos come on cream, the player's own on yellow.
 - **By hand:** press on a memo (hanging or stuck on the side) and pull. It comes off into the hand as the flat card, a little smaller and tilted.
@@ -237,6 +241,22 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 **Not yet:**
 - answering the card by voice ("yes");
 - a real provider's model choosing tools well, and how varied its bridging lines are. Both are in `docs/to-try.md`.
+
+## The CRT's small system (the user's idea, 2026-10-06; *built*)
+
+"The apps will be listed as icons on the screen, four on each screen, and the user is able to explore them and reorganise them like phone apps", with animation between the regular screen and the apps: fun, natural and smooth.
+
+**Built** (`App/Crt/CrtOs`, the apps `CrtApp`; `ScreenView` gives it a desk layer over the readout and redraws every frame while it is open):
+- A click on the screen: the readout folds away like a CRT switching off (to a bright line), and the home screen's apps pop in one after another.
+  - The home screen: the time and a power mark along the top, the apps as tiles in a 2×2 grid, four to a page, with page dots when there is more than one page.
+  - A swipe across the screen turns the page.
+  - Holding an app (about half a second) picks it up: it grows and wobbles, follows the pointer, and the others make room; carried to the screen's edge, it goes on to the next page. The order is kept in settings (`CrtApps`).
+- An app opens out of its icon: its tile grows to fill the screen, then the app shows, with back and its name along the top. Back shrinks it into its icon again.
+- The power mark, or 15 s untouched on the home screen (40 s in an app), folds the readout back.
+- **Apps:**
+  - **MEMOS:** the memos as little paper tiles (colour, sticker, title; taped ones are on the cabinet), the cabinet's first; the first tile writes a new one. A tile opens the memo's sheet over the cabinet. Four to a page.
+  - **AGENDA:** what is coming up, four to a page: when (today, tomorrow, the day) and what. A click opens the memory book's Agenda tab.
+  - Next: FOCUS and MUSIC, with focus sessions.
 
 ## Order (*proposed*)
 

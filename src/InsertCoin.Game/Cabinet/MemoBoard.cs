@@ -35,6 +35,8 @@ public partial class MemoBoard : Node2D
     {
         _canvas = skin.Canvas;
         _side = skin.Anchors.Memos;
+        CabinetMiddle = skin.Anchors.ScreenQuad.Average(p => p.X);
+        SlotPoint = (skin.Anchors.PrinterSlot[0] + skin.Anchors.PrinterSlot[1] + skin.Anchors.PrinterSlot[2] + skin.Anchors.PrinterSlot[3]) / 4;
         if (_side is { } side)
         {
             _sideToCanvas = Homography.UnitToQuad(side.Quad);
@@ -51,6 +53,13 @@ public partial class MemoBoard : Node2D
     }
 
     public override void _Process(double delta) => _time += delta;
+
+    /// <summary>The canvas's size, and the middle of the cabinet's front across it (where a memo's sheet rests).</summary>
+    public Vector2 Canvas => _canvas;
+    public float CabinetMiddle { get; private set; }
+
+    /// <summary>The middle of the printer's slot, where a new memo comes out (and a written one goes in).</summary>
+    public Vector2 SlotPoint { get; private set; }
 
     /// <summary>Memos can be stuck on this cabinet's side.</summary>
     public bool CanPin => _side is not null;

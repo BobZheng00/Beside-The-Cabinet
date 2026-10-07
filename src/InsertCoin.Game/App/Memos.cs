@@ -6,8 +6,8 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// The player's memos (see <see cref="Memo"/>): printed out of the cabinet's slot, by her or as notes to self, read
-/// in a window or by pointing at one, carried by hand and stuck anywhere on the cabinet's side, or kept in the archive
-/// (the memory book's Memos tab). The cabinet shows what the store holds; everything that changes a memo goes
+/// and written on the paper itself (see <see cref="MemoSheet"/>) or glanced at by pointing at one, carried by hand and
+/// stuck anywhere on the cabinet's side, or kept in the archive (the memory book's Memos tab). The cabinet shows what the store holds; everything that changes a memo goes
 /// through here.
 /// </summary>
 public partial class Memos : Node
@@ -17,7 +17,8 @@ public partial class Memos : Node
     private Func<string?, string> _nameOf = null!;
     private Func<string?> _herName = null!;
     private Func<Vector2, bool> _onCabinet = null!;
-    private MemoReader? _reader;
+    private MemoSheet _sheet = null!;
+    private MemoSheet.Draft? _draft;                        // a new memo left unprinted, to carry on with
     private long? _carrying;
 
     /// <summary>A memo was printed, moved, changed or thrown away (the memory book's tab follows).</summary>
@@ -36,8 +37,34 @@ public partial class Memos : Node
         _nameOf = nameOf;
         _herName = herName;
         _onCabinet = onCabinet;
+        _sheet = new MemoSheet();
+        // it rests over the cabinet's front, leaving her in view
+        _sheet.Build(this, new Vector2(Mathf.Clamp(board.CabinetMiddle - MemoSheet.Width / 2, 8, board.Canvas.X - MemoSheet.Width - 8), 150));
+        board.AddChild(_sheet);
         Show();
     }
+
+    /// <summary>A memo is open on its sheet.</summary>
+    public bool SheetOpen => _sheet.IsOpen;
+
+    /// <summary>The canvas point is on the open sheet: it keeps the mouse.</summary>
+    public bool SheetHits(Vector2 canvasPoint) => _sheet.Hits(canvasPoint);
+
+    /// <summary>A click away from the sheet, or Esc (<paramref name="keep"/> false: what was being written is dropped). False when none is open.</summary>
+    public bool Dismiss(bool keep)
+    {
+        if (!_sheet.IsOpen)
+            return false;
+        _sheet.Finish(keep);
+        return true;
+    }
+
+    /// <summary>Where a memo is on the cabinet now (the middle of its paper), or null when it isn't on it.</summary>
+    public Vector2? Where(long id) =>
+        All.FirstOrDefault(m => m.Id == id) is { Place: not MemoPlace.Archived } ? _board.DevPoint(id) : null;
+
+    /// <summary>A new memo left unprinted (null: none), for the next one to start from.</summary>
+    public void KeepDraft(MemoSheet.Draft? draft) => _draft = draft;
 
     public IReadOnlyList<Memo> All => _store.Memos();
 
@@ -90,7 +117,7 @@ public partial class Memos : Node
         return true;
     }
 
-    public void Hover(Vector2? canvasPoint) => _board.Hover(_devPointer ?? canvasPoint);
+    public void Hover(Vector2? canvasPoint) => _board.Hover(_sheet.IsOpen ? null : _devPointer ?? canvasPoint);
 
     private Vector2? _devPointer;
 
@@ -155,27 +182,15 @@ public partial class Memos : Node
     {
         if (All.FirstOrDefault(m => m.Id == id) is not { } memo)
             return;
-        Reader().Read(memo, From(memo));
+        var at = Where(id) ?? new Vector2(_board.CabinetMiddle, _board.Canvas.Y - 40);       // one in the archive comes up from below
+        _sheet.Read(memo, From(memo), at, memo.Place == MemoPlace.Pinned ? (float)memo.Tilt : 0);
     }
 
     /// <summary>Whose it is, as the reader and the memory book say it: "From Shino", or "Your memo".</summary>
     public string From(Memo memo) => memo.By is null ? "Your memo" : $"From {_nameOf(memo.By)}";
 
     /// <summary>A memo of their own, to write (it prints out of the slot once saved).</summary>
-    public void Write() => Reader().Write();
-
-    private MemoReader Reader()
-    {
-        if (IsInstanceValid(_reader))
-        {
-            _reader!.GrabFocus();
-            return _reader;
-        }
-        _reader = new MemoReader();
-        AddChild(_reader);
-        _reader.Build(this);
-        return _reader;
-    }
+    public void Write() => _sheet.Write(_draft, _board.SlotPoint);
 
     /// <summary>On the cabinet's side, at a free spot (to move it, it is carried by hand); false when the side is full.</summary>
     public bool Pin(long id)
@@ -234,8 +249,8 @@ public partial class Memos : Node
             Open(memo.Id);
     }
 
-    /// <summary>Dev: the reader's buttons and choices (pin, off, edit, save, cancel, delete; colour:pink, sticker:star, tell).</summary>
-    public void DevReader(string button) => _reader?.DevPress(button);
+    /// <summary>Dev: the sheet's tools and choices (pin, off, edit, done, print, delete, away, esc; colour:pink, sticker:star, write:title:text, tell).</summary>
+    public void DevSheet(string what) => _sheet.DevPress(what);
 
     /// <summary>Dev: carries the hanging memo by hand to a spot on the side (side panel units), or off the cabinet when none, in steps.</summary>
     public async void DevCarry(Vector2? spot)

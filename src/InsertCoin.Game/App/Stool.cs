@@ -318,10 +318,11 @@ public partial class Stool : Node2D
     }
 
     /// <summary>The window is solid here: her figure, or the slip.</summary>
-    public bool Hits(Vector2 canvasPoint) => Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
+    public bool Hits(Vector2 canvasPoint) =>
+        Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint) || _memos.SheetHits(canvasPoint);
 
     /// <summary>The slip keeps the mouse here, for typing.</summary>
-    public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint);
+    public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint) || _memos.SheetHits(canvasPoint);
 
     /// <summary>Closes the slip (Escape); false when it wasn't open.</summary>
     public bool CloseSlip()
@@ -362,6 +363,13 @@ public partial class Stool : Node2D
     {
         OpenMemoryBook();
         _memoryBook?.ShowTab("memos");
+    }
+
+    /// <summary>The agenda: the memory book, at its Agenda tab.</summary>
+    public void OpenAgenda()
+    {
+        OpenMemoryBook();
+        _memoryBook?.ShowTab("agenda");
     }
 
     /// <summary>
@@ -869,7 +877,7 @@ public partial class Stool : Node2D
                 break;
             case "memoseed": _memos.DevSeed(OnStool()?.Id ?? ""); break;    // memos hanging, pinned and archived, to try them on
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
-            case "memoreader": _memos.DevReader(text); break;      // its buttons: pin, off, edit, save, cancel, delete (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell
+            case "memosheet": _memos.DevSheet(text); break;        // the sheet: pin, off, edit, done, print, delete, away, esc (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell
             case "memohover": _memos.DevHover(rest is "" or "off" ? null : int.Parse(rest), off: rest == "off"); break;   // memohover: the hanging one; memohover:0 the top pinned; memohover:off
             case "memocarry":                               // memocarry:a:b carries the hanging memo to that spot on the side; memocarry alone, off the cabinet
                 var to = rest.Split(':');

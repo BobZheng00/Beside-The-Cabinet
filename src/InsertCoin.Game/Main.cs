@@ -46,7 +46,8 @@ public partial class Main : Node2D
     private Onboarding _onboarding = null!;
     private AudioBank _audio = null!;
     private AlertTicket _ticket = null!;
-    private CrtMenu _crt = null!;
+    private CrtOs _crt = null!;
+    private object? _carrier;                               // what a pull on the cabinet is carrying: a memo, or the screen's system
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private ReminderSettings? _reminderSettings;
@@ -107,30 +108,60 @@ public partial class Main : Node2D
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
         _reminders.Sent += notice => _ = SendOut(notice);
-        _crt = new CrtMenu();
+        _crt = new CrtOs();
         AddChild(_crt);
-        _crt.Build(_cabinet.Screen, [("NEW MEMO", _stool.WriteMemo), ("MEMOS", _stool.OpenMemos)]);
+        _crt.Build(_cabinet.Screen, [new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)], _settings.CrtApps,
+                   order => SaveSettings(_settings with { CrtApps = order }));
         _window.Hover += p =>
         {
             _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
             _stool.Memos.Hover(p);
             _crt.Hover(p);
         };
-        // memos are carried by hand: off the slot, onto the side, off the cabinet
-        _window.Grabs = _stool.Memos.Grabs;
-        _window.CarryStarted += p => _stool.Memos.Take(p, p);
-        _window.Carried += _stool.Memos.Carry;
-        _window.Dropped += _stool.Memos.LetGo;
+        // carried by hand: memos (off the slot, onto the side, off the cabinet), and on the screen, a swipe or an app being moved
+        _window.Grabs = p => _stool.Memos.Grabs(p) || _crt.Grabs(p);
+        _window.Pressed += _crt.Pressed;
+        _window.Released += _crt.Released;
+        _window.CarryStarted += p =>
+        {
+            if (_stool.Memos.Grabs(p))
+            {
+                _carrier = _stool.Memos;
+                _stool.Memos.Take(p, p);
+            }
+            else
+            {
+                _carrier = _crt;
+                _crt.CarryStarted(p);
+            }
+        };
+        _window.Carried += p =>
+        {
+            if (_carrier == _stool.Memos)
+                _stool.Memos.Carry(p);
+            else if (_carrier == _crt)
+                _crt.Carried(p);
+        };
+        _window.Dropped += p =>
+        {
+            if (_carrier == _stool.Memos)
+                _stool.Memos.LetGo(p);
+            else if (_carrier == _crt)
+                _crt.Dropped(p);
+            _carrier = null;
+        };
         _window.AlsoSolid = _stool.Hits;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
+            if (_stool.Memos.Dismiss(keep: true))
+                return;                                     // a click away from a memo's sheet puts it back
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
             else if (_stool.Memos.Clicked(p))
                 return;                                     // a memo on the cabinet opens to read
             else if (_crt.Clicked(p))
-                return;                                     // the screen's menu
+                return;                                     // the screen's small system
             else if (_stool.Her?.Hits(p) == true)
                 _stool.Clicked();
         };
@@ -425,7 +456,7 @@ public partial class Main : Node2D
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
-        if (key.Keycode == Key.Escape && _stool.CloseSlip())
+        if (key.Keycode == Key.Escape && (_stool.Memos.Dismiss(keep: false) || _stool.CloseSlip()))
         {
             GetViewport().SetInputAsHandled();
             return;
@@ -451,12 +482,16 @@ public partial class Main : Node2D
     {
         if (_stool.Dev(action))
             return;
-        if (action.StartsWith("crt"))                      // crt:1 opens the screen's menu with that item marked; crtpick:NEW_MEMO does an item
+        if (action.StartsWith("crt"))
         {
-            if (action.StartsWith("crtpick:"))
-                _crt.DevPick(action["crtpick:".Length..].Replace('_', ' '));
-            else
-                _crt.DevShow(action.Length > 4 ? int.Parse(action[4..]) : -1);
+            var parts = action.Split(':');
+            switch (parts[0])
+            {
+                case "crt": _crt.DevOpen(parts.Length > 1 ? parts[1] : null); break;                                // crt opens the system; crt:memos an app
+                case "crtclick": _crt.DevClickScreen(new Vector2(float.Parse(parts[1]), float.Parse(parts[2]))); break;   // crtclick:x:y, in the screen's pixels
+                case "crtmove": _crt.DevMove(int.Parse(parts[1]), int.Parse(parts[2])); break;                        // crtmove:0:1 moves an app, as carrying it would
+                case "crtclose": _crt.Close(); break;
+            }
             return;
         }
         if (action.StartsWith("type:"))
