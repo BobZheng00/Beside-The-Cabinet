@@ -166,7 +166,7 @@ The user wants memos more usable and complete before the next ability:
 - The CRT counts down.
 - She says when each part starts and ends, and can be asked "how long left?".
 
-**Music** (*proposed*). Neither service gives us an API:
+**Music** (*proposed*; the user has no Spotify Premium and uses Spotify desktop, a browser being acceptable, 2026-10-06). Neither service gives us an API:
 - **Spotify's Web API** is effectively closed to apps like this. Since May 2025, going beyond a handful of test users needs an organisation with 250,000 monthly users, and controlling playback needs Premium.
 - **YouTube Music** has no playback API at all.
 
@@ -175,6 +175,7 @@ What works without one:
 - **Windows' media controls** (the system media sessions, the same as the volume flyout's) for playing, pausing, skipping and what is playing. Better than pressing media keys: they act on the music app alone, not a game or a video, and she can say what's on.
 
 *To test on the player's PC:* which link starts by itself, with Spotify's `:play` trick, and opening then pressing play through the media controls.
+- *Ruled out:* a headless browser playing Spotify's web player (the user's suggestion): it needs DRM that automated browsers often lack, Spotify's user guidelines forbid automated access, and it would fight the desktop app for the one playback an account has. A Spotify connector through the official Web API needs Premium (Spotify's February 2026 rules for personal developer apps).
 
 Music starts with a focus session and pauses at a break, if the player wants that. Opening the link is outside the app: she asks the first time, then remembers the permission.
 
@@ -264,6 +265,10 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
   - When the system opens, the screen's corners glide from the cabinet's perspective to a flat screen on a little bezel (dark, inked, with the CRT's pink glow), at least 340 of the window's own pixels wide whatever the cabinet's size (`ScreenView.Lift`, `LiftedWidth`). Then the readout folds away and the apps pop in; closing runs the other way and it settles back into the cabinet. It fits in the window at every size, so the window never needs to grow.
   - On the small cabinet it covers her while open; on the large one it sits over the cabinet's top, her face in view.
   - The memo sheet and the hover card are drawn larger on a smaller cabinet (`MemoBoard.Readable`), so their letters stay the size they are on the medium one.
+
+**Two views, and memos on the desktop** (decided with the user, 2026-10-06; they like the on-cabinet view's retro feel):
+- **Home on the cabinet, apps lifted.** A click on the CRT opens the home screen right on the cabinet, in perspective. Opening an app lifts the screen out to read; a click outside the lifted screen settles it back onto the cabinet, still open; it closes to the readout after a while, or from the power mark. The lifted screen gets a CRT look (scanlines, glow) so it stays retro up close.
+- **Memos anywhere on the desktop.** Each open memo becomes its own paper window, like a sticky note: dragged anywhere on the screen (beside the code editor, say), several open at once for cross-referencing, each put back with its × or Esc.
 
 ## Order (*proposed*)
 
