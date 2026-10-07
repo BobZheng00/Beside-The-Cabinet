@@ -18,6 +18,14 @@ namespace InsertCoin.Mind;
 public sealed class SmartTurn : IDisposable
 {
     public const string ModelFile = "smart-turn-v3.2.onnx";
+
+    /// <summary>
+    /// How sure it must be that the player has finished for the turn to end at a pause; below it, the turn waits for
+    /// the long quiet instead. Measured on the player's own voice (2026-10-06, eleven English turns, the agent note §2):
+    /// at 0.5 it cut them off at three thinking pauses ("…binary trees is …", "let me see, um …"; 0.79 to 0.90); at
+    /// 0.95 at none, and two of their endings (0.92, 0.66) waited for the quiet instead.
+    /// </summary>
+    public const float Sure = 0.95f;
     public const int Rate = 16000, Seconds = 8, Samples = Rate * Seconds;
     private const int Fft = 400, Hop = 160, Mels = 80, Frames = Samples / Hop, Bins = Fft / 2 + 1;
 

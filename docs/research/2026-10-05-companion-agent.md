@@ -225,13 +225,30 @@ The test program is in `<tools>\agent-trial` (README there). What it found on th
   - Pipecat calls this build "gpu", but it runs fine on a CPU.
 - **Synthetic speech misleads it.** On Windows' voices, Smart Turn often took a mid-sentence pause for the end, in Chinese and Japanese above all: each part is synthesised on its own and ends in a falling tone. Its own benchmark gives Chinese 86% accuracy, against English 94% and Japanese 96%. The player's recordings decide.
 
+## The spike's recording (2026-10-06)
+
+The user recorded the session (`<tools>\agent-trial\recordings\20261006-2119`, results in its `results.txt`). Their setup: earphones (which Windows calls "speakers"), English only.
+
+**Her voice into the microphone** (*measured*): about −97 dB on both the plain and the communications stream, which is silence. Through earphones she can't hear herself, so she can't interrupt herself. Windows' echo cancellation isn't needed on this setup. (Her voice measured −26 dB at the output, so it was playing.)
+
+**Talking over her** (*measured*, four tries on each stream): the user's voice was heard 0.70–0.86 s after the cue, their reaction time included. No false starts on the communications stream; one on the plain stream. **Interrupting her by voice is feasible on earphones.** On speakers it is still unmeasured.
+
+**Does a communications microphone turn other sounds down?** Not measured. The spike set the ducking preference on the capture session, which Windows refuses (`AUDCLNT_E_WRONG_ENDPOINT_TYPE`): it belongs on a playback session. On earphones the plain stream is enough, so this only matters for speakers.
+
+**Knowing when they've finished** (*measured*, eleven turns, Smart Turn full precision; see the per-pause probabilities in `results.txt`):
+- every real ending scored high (0.92–0.99), but one 0.66;
+- thinking pauses mid-sentence mostly scored low (0.01–0.28), but three scored high: "…binary trees is …" 0.79, "let me see, um …" 0.90, and one of their own lines 0.89;
+- so at the app's threshold of 0.5, three cut-offs in eleven turns. A fixed silence did no better (1.2 s: three cut-offs, and always 1.2 s of waiting).
+
+**Changed** (2026-10-06): the threshold is now **0.95** (`SmartTurn.Sure`). On these turns: no cut-offs; most endings still end about a quarter second after the user stops; two (0.92, 0.66) wait for the 2 s quiet instead. Eleven turns is a small sample: worth looking at again after real use.
+
 ## To decide together
 
 1. **How a conversation starts:** *decided 2026-10-05* (`docs/specs/2026-10-05-hands-free-listening.md`).
    - The talk key stays the default.
    - Follow-up listening and conversations are the player's options.
    - No wake word for now.
-2. **Interrupting her on speakers:** spike Windows' echo cancellation first. If it falls short, interrupting by voice works only with headphones.
+2. **Interrupting her by voice:** *measured 2026-10-06* on the user's earphones: no echo, and their voice heard promptly (above). On speakers still unmeasured. Building it waits on the user (whether they always use earphones with her).
 3. **Tools:** *decided 2026-10-05* (`docs/specs/2026-10-05-tools-and-abilities.md`; groundwork built).
    - Built-in tools first, each with its permission (Allowed, Ask, Off).
    - Connectors the player chooses later, local MCP servers among them; no remote MCP.

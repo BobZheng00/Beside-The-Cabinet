@@ -117,7 +117,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - the CRT's small system: a click on the screen opens its menu (`CrtMenu`); memos first, focus sessions and more to join it.
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
-- the agent spike's 15-minute recording (`<tools>\agent-trial`). It unblocks talking over her by voice and tunes Smart Turn on their voice. Afterwards, run `analyze` on `recordings\<date-time>` and put the results in the agent note;
+- ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
 **Now: tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).

@@ -413,7 +413,7 @@ public partial class Listening : Node
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var complete = await Task.Run(() => model.Complete(audio));
         GD.Print($"Listening: finished? {complete:0.00} ({clock.ElapsedMilliseconds} ms)");
-        turn.Verdict(asking, complete > 0.5f);
+        turn.Verdict(asking, complete >= SmartTurn.Sure);
     }
 
     // ---- The microphone ----------------------------------------------------------------------------------------------

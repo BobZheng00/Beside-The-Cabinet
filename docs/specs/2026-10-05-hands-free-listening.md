@@ -36,7 +36,7 @@ How the player talks to her without holding the talk key. Decided with the user 
 `TurnTaking` (Mind, tested) runs on two models, both on the processor:
 - **Silero's voice detector** says, 32 ms at a time, whether someone is speaking. A quarter second of speech starts a turn; coughs and clicks are shorter. While she waits, only the last 0.6 s is kept, so the start of the first word is not lost and nothing older is held.
 - **Smart Turn v3.2**, full precision, is asked at each pause of a quarter second whether the player has finished. It judges from the voice (wording and intonation), not only the silence.
-  - If it says yes (over 0.5), the turn ends there.
+  - If it is sure (0.95 or more; at first 0.5, raised after the player's recording, below), the turn ends there.
   - If not, she waits up to 2 s of quiet.
   - A turn ends at 30 s whatever happens.
 - **Then as with the talk key:** she nods "got it", hears the turn with SenseVoice, and answers.
@@ -46,7 +46,7 @@ How the player talks to her without holding the talk key. Decided with the user 
 - Smart Turn takes about 0.1 s a pause;
 - on the first test sentence it said 0.99 at a 0.6 s pause.
 
-**Not yet measured:** a real microphone and the player's own voice. The agent spike's recording session measures how often Smart Turn cuts a turn short or waits too long on their voice, and its thresholds may change with that.
+**Measured on the player's own voice** (2026-10-06, the agent spike's recording, eleven English turns; agent note "The spike's recording"): at 0.5 Smart Turn cut them off at three thinking pauses; at 0.95 at none, and two of their endings waited for the 2 s quiet instead. Hence 0.95 (`SmartTurn.Sure`). Through their earphones her voice doesn't reach the microphone at all.
 
 ## Built (2026-10-05)
 
