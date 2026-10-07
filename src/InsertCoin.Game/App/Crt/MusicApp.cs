@@ -5,8 +5,9 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// MUSIC on the CRT: what the player's music app is playing (see <see cref="Music"/>), back, play or pause, and next,
-/// Spotify starting for them when nothing is open; their focus playlist, opened from here, and saved by pasting its link
-/// (copied in Spotify: Share, Copy link); and whether it plays along with focus sessions.
+/// Spotify starting for them when nothing is open; their focus playlist: saved by pasting its link (copied in Spotify:
+/// Share, Copy link), then opened from here, its link changed by pasting another; and whether it plays along with focus
+/// sessions.
 /// </summary>
 public partial class MusicApp(Music music, Focus focus, SettingsFile settings) : CrtApp
 {
@@ -59,9 +60,11 @@ public partial class MusicApp(Music music, Focus focus, SettingsFile settings) :
                chosen: link is not null, font: Round, size: 21);
         var line = _note ?? (link is null ? "In Spotify: Share, Copy link" : Music.Shown(link));
         Centred(line, Round, 16, _note is null ? Ink with { A = 0.6f } : Accent, new Rect2(24, 226, Size.X - 48, 22));
-        Button(new Rect2(40, 252, 150, 40), "PASTE LINK", Paste, font: Round, size: 18);
-        Button(new Rect2(206, 252, 154, 40), focus.WithMusic ? "WITH FOCUS" : "NOT IN FOCUS", () => focus.WithMusic = !focus.WithMusic,
-               chosen: focus.WithMusic, font: Round, size: 18);
+        // with no link yet, the big button is the one to paste it with; once there is one, this changes it
+        if (link is not null)
+            Button(new Rect2(40, 252, 150, 40), "CHANGE LINK", Paste, font: Round, size: 18);
+        Button(link is null ? new Rect2(40, 252, 320, 40) : new Rect2(206, 252, 154, 40), focus.WithMusic ? "WITH FOCUS" : "NOT IN FOCUS",
+               () => focus.WithMusic = !focus.WithMusic, chosen: focus.WithMusic, font: Round, size: 18);
     }
 
     /// <summary>Saves the playlist link on the clipboard (copied in the music app); playing it along with focus sessions then.</summary>
