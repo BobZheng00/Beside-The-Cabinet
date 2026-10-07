@@ -107,7 +107,12 @@ public partial class Stool : Node2D
         _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "",
                      herName: () => _chat.Ready && Her is not null ? OnStool()?.Name : null, onCabinet: window.Solid);
         _chat.PrintMemo = PrintMemo;
-        _music = new Music { Playlist = () => settings.Now.Playlist };
+        if (settings.Now.Playlist is { } kept)               // one link, saved before playlists had names: now the first of them
+            settings.Save(settings.Now with
+            {
+                Playlist = null, Playlists = [.. settings.Now.Playlists, new SavedPlaylist(kept, "My playlist")], FocusPlaylist = settings.Now.FocusPlaylist ?? kept,
+            });
+        _music = new Music { Links = () => settings.Now.Playlists.Select(p => p.Link) };
         AddChild(_music);
         _focus = new Focus();
         AddChild(_focus);
@@ -115,7 +120,7 @@ public partial class Stool : Node2D
         _focus.Told += (note, line) => _told.Enqueue(("FOCUS", note, line, DateTimeOffset.Now));
         _chat.Focus = FocusAct;
         _chat.Music = MusicAct;
-        _chat.Playlist = () => settings.Now.Playlist is { } link ? Desktop.Music.Shown(link) : null;
+        _chat.Playlist = name => SavedPlaylist(name) is { } playlist ? $"{playlist.Name} ({Desktop.Music.Shown(playlist.Link)})" : $"No saved playlist called \"{name}\"";
         _memos.Written += (title, text) =>
         {
             Her?.Play(Moment.Paper);                        // she sees it come out of the slot
@@ -335,22 +340,34 @@ public partial class Stool : Node2D
     }
 
     /// <summary>Her music tool (the player has allowed it by now).</summary>
-    private async Task<string> MusicAct(string action)
+    private async Task<string> MusicAct(string action, string? name)
     {
         var app = _music.Now?.App ?? "the music app";
+        var saved = string.Join(", ", _settings.Now.Playlists.Select(p => $"\"{p.Name}\""));
         return action switch
         {
-            "play_playlist" when _settings.Now.Playlist is null && !Desktop.Music.SpotifyHere =>
-                "There's no playlist saved and no Spotify on this PC: they can save a playlist's link in the screen's MUSIC app.",
-            "play_playlist" when await _music.OpenPlaylist(_settings.Now.Playlist) =>
-                $"Their playlist is open in {_music.Now?.App ?? "their music app"}, playing (Spotify carries on with what played last: their playlist once they have played it there).",
-            "play_playlist" => "Their playlist is open, but the music app didn't start playing: they may need to press play there once.",
-            "play" => await _music.Play() ? $"{app} is playing." : "No music app is open.",
+            "start_playlist" or "play_playlist" when SavedPlaylist(name) is not { } playlist =>
+                _settings.Now.Playlists.Length == 0 ? "No playlists are saved: they can add one in the screen's MUSIC app (a link copied in Spotify)."
+                    : $"No saved playlist matches \"{name}\". Saved: {saved}.",
+            "start_playlist" or "play_playlist" when SavedPlaylist(name) is { } playlist =>
+                await _music.StartPlaylist(playlist.Link, playlist.Name) ? $"\"{playlist.Name}\" is playing from its beginning."
+                    : $"\"{playlist.Name}\" is open in Spotify, but its play button never showed, so what played last carries on.",
+            "play" => await _music.Play() ? $"{app} is playing." : "No music app is open and Spotify isn't on this PC.",
             "pause" => await _music.Pause() ? $"{app} is paused." : "No music app is open.",
             "next" => await _music.Next() ? "Skipped to the next track." : "No music app is open.",
             "previous" => await _music.Previous() ? "Back a track." : "No music app is open.",
             _ => "Unknown action: use play_playlist, play, pause, next or previous.",
         };
+    }
+
+    /// <summary>The saved playlist a name means (the same name, else one it is part of); no name: the one focus starts with, else the first.</summary>
+    private SavedPlaylist? SavedPlaylist(string? name)
+    {
+        var saved = _settings.Now.Playlists;
+        if (name is null)
+            return saved.FirstOrDefault(p => p.Link == _settings.Now.FocusPlaylist) ?? saved.FirstOrDefault();
+        return saved.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+               ?? saved.FirstOrDefault(p => p.Name.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(p.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool Quiet(int hour) =>
@@ -820,6 +837,9 @@ public partial class Stool : Node2D
             lines.Add(session.Describe(DateTimeOffset.Now));
         if (_music.Now is not null)
             lines.Add(_music.Describe());
+        if (_settings.Now.Playlists.Length > 0)
+            lines.Add("Their saved playlists: " + string.Join(", ", _settings.Now.Playlists.Select(p =>
+                $"\"{p.Name}\"{(p.Link == _settings.Now.FocusPlaylist ? " (starts their focus sessions)" : "")}")) + ".");
         var memos = _memos.OnTheCabinet.Select(t => $"\"{t}\"").ToList();
         if (memos.Count > 0)
             lines.Add($"Memos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.");
@@ -1049,7 +1069,11 @@ public partial class Stool : Node2D
             case "musicprobe": _music.DevProbe(); break;    // checks Windows' media controls answer (how many sessions, whose; no titles)
             case "standup": MaybeStandUp(force: true); break;   // she suggests standing up, as after a long sitting
             case "musicfake": _music.DevPlaying(rest is "" or "off" ? null : text.Split(':')[0], text.Split(':').ElementAtOrDefault(1) ?? ""); break;   // musicfake:Title:Artist pretends it plays; musicfake:off none
-            case "musictool": _ = MusicAct(rest).ContinueWith(t => GD.Print($"Music: her tool says \"{t.Result}\"")); break;   // musictool:pause as her tool would
+            case "musictool":                               // musictool:pause, musictool:start_playlist:Deep_Focus as her tool would
+                var said = text.Split(':', 2);
+                _ = MusicAct(said[0], said.Length > 1 ? said[1] : null).ContinueWith(t => GD.Print($"Music: her tool says \"{t.Result}\""));
+                break;
+            case "spotifyprobe": _music.DevSpotify(rest.Length > 0 ? text : null); break;     // what Spotify's window shows to press (spotifyprobe:Deep_Focus); presses nothing
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
             case "memosheet": _memos.DevSheet(text); break;        // the latest sheet: pin, off, edit, done, print, delete, close, esc (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell, move:dx:dy
             case "memohover": _memos.DevHover(rest is "" or "off" ? null : int.Parse(rest), off: rest == "off"); break;   // memohover: the hanging one; memohover:0 the top pinned; memohover:off

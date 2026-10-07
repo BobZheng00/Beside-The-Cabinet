@@ -100,15 +100,19 @@ public class FocusTests
     [Fact]
     public async Task Her_music_tool_acts_outside_the_app_and_says_what_she_would_do_on_the_card()
     {
-        var done = new List<string>();
-        var tool = BuiltIn.Music(action => { done.Add(action); return Task.FromResult("Paused."); }, () => "open.spotify.com/playlist/abc");
+        var done = new List<(string, string?)>();
+        var tool = BuiltIn.Music((action, playlist) => { done.Add((action, playlist)); return Task.FromResult("Done."); },
+                                 name => name is null ? "Deep Focus (the focus one)" : $"{name} in Spotify");
 
         var result = await tool.Function.InvokeAsync(new AIFunctionArguments { ["action"] = "PAUSE" });
+        await tool.Function.InvokeAsync(new AIFunctionArguments { ["action"] = "start_playlist", ["playlist"] = " Peace " });
+        await tool.Function.InvokeAsync(new AIFunctionArguments { ["action"] = "start_playlist", ["playlist"] = "" });
 
-        Assert.Equal("Paused.", result?.ToString());
-        Assert.Equal(["pause"], done);
+        Assert.Equal("Done.", result?.ToString());
+        Assert.Equal([("pause", null), ("start_playlist", "Peace"), ("start_playlist", null)], done);
         Assert.True(tool.OutsideApp);
-        Assert.Equal(("Play your focus playlist?", "open.spotify.com/playlist/abc", "music"), tool.Ask!(new AIFunctionArguments { ["action"] = "play_playlist" }));
+        Assert.Equal(("Start a playlist?", "Peace in Spotify", "music"), tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist", ["playlist"] = "Peace" }));
+        Assert.Equal("Deep Focus (the focus one)", tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist" }).Detail);
         Assert.Equal("Pause your music?", tool.Ask!(new AIFunctionArguments { ["action"] = "pause" }).What);
     }
 }

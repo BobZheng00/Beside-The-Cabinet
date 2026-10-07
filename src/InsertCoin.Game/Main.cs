@@ -493,7 +493,7 @@ public partial class Main : Node2D
             return;
         if (action.StartsWith("musiclink:"))
         {
-            _musicApp.Save(action["musiclink:".Length..]);     // musiclink:<link> as if pasted into the MUSIC app
+            _ = _musicApp.Save(action["musiclink:".Length..]);     // musiclink:<link> as if added in the MUSIC app
             return;
         }
         if (action.StartsWith("crt"))

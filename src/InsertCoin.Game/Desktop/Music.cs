@@ -12,10 +12,11 @@ namespace InsertCoin.Game.Desktop;
 /// Spotify's session is the music app's whenever Spotify is open; otherwise another music app's (NetEase Cloud Music,
 /// QQ Music, Apple Music…); a browser's only when their playlist is a web one (YouTube Music). When something should
 /// play and no music app is open, Spotify is found on this PC and started (asked to start minimised, out of the way)
-/// and, once it shows up, told to play: it carries on with what played last. Their focus playlist opens by its link,
-/// in the Spotify app, which shows a playlist but can't be told to start one (an album or a track it can); so once
-/// they have played the playlist there, resuming plays it. A test run (off screen) never touches the player's music:
-/// it only says what it would do.
+/// and, once it shows up, told to play: it carries on with what played last. A saved playlist starts from its
+/// beginning: its link opens it in Spotify, and Spotify's own play button for it is pressed (see
+/// <see cref="SpotifyButtons"/>: its links and Windows' media controls can't start a playlist; an album or a track its
+/// link can); a web one (YouTube Music) starts in the browser. A test run (off screen) never touches the player's
+/// music: it only says what it would do.
 /// </summary>
 public partial class Music : Node
 {
@@ -30,8 +31,10 @@ public partial class Music : Node
     private bool _refreshing;
     private Task<bool>? _starting;                          // Spotify on its way up: anything else that wants it waits for the same
 
-    /// <summary>Their focus playlist's link, or null: a web one (not Spotify's) lets a browser's session count as the music app.</summary>
-    public Func<string?> Playlist { get; set; } = () => null;
+    private static readonly System.Net.Http.HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+
+    /// <summary>Their saved playlists' links: a web one (not Spotify's) lets a browser's session count as the music app.</summary>
+    public Func<IEnumerable<string>> Links { get; set; } = () => [];
 
     /// <summary>What is on now, or null when no music app has a session.</summary>
     public Track? Now { get; private set; }
@@ -65,7 +68,7 @@ public partial class Music : Node
             return null;
         var sessions = _manager.GetSessions();
         bool From(GlobalSystemMediaTransportControlsSession s, string app) => s.SourceAppUserModelId.Contains(app, StringComparison.OrdinalIgnoreCase);
-        var web = Playlist() is { } link && !link.Contains("spotify", StringComparison.OrdinalIgnoreCase);
+        var web = Links().Any(link => !link.Contains("spotify", StringComparison.OrdinalIgnoreCase));
         return sessions.FirstOrDefault(s => From(s, "spotify")) ?? sessions.FirstOrDefault(s => MusicApps.Any(app => From(s, app)))
                ?? (web ? sessions.FirstOrDefault(s => Browsers.Any(app => From(s, app))) : null);
     }
@@ -220,39 +223,91 @@ public partial class Music : Node
     }
 
     /// <summary>
-    /// Music for focusing, quietly: playing already, it plays on; the music app open (or Spotify, started) resumes;
-    /// with neither, a web playlist (YouTube Music) opens in the browser, which starts it.
+    /// Starts a saved playlist from its beginning (<paramref name="name"/> as Spotify shows it). A Spotify playlist's
+    /// link opens it in Spotify (started for it if it wasn't open), then Spotify's own play button for it is pressed;
+    /// started for this, Spotify is put down again once it plays. An album or a track starts by its link; a web
+    /// playlist in the browser. False when Spotify's button never showed: then what played last carries on instead.
     /// </summary>
-    public async Task<bool> PlayFocus(string? link)
+    public async Task<bool> StartPlaylist(string link, string name)
     {
-        if (Now is { Playing: true })
+        if (Address(link) is not { } address)
+            return false;
+        if (!address.StartsWith("spotify:"))
+        {
+            Launch(address);                                // the browser starts a web playlist itself
             return true;
-        var web = Address(link) is { } address && !address.StartsWith("spotify:") ? address : null;
-        if (Now is not null || Session() is not null || web is null)
-            return await Play();
-        Launch(web);
-        return true;
+        }
+        if (Regex.IsMatch(address, "^spotify:(album|track):"))
+        {
+            Launch(address + ":play");
+            return true;
+        }
+        if (Companion.Paper.OffScreen)
+        {
+            GD.Print($"Music: would open {address} and press Spotify's \"Play {name}\" (a test run touches nothing)");
+            Show(new Track("Spotify", name, "", true));
+            return true;
+        }
+        var started = !SpotifyButtons.Running;
+        Launch(address);
+        // Spotify takes a moment to show the page (and longer to start): look for its button until it's there
+        for (var i = 0; i < 40; i++)
+        {
+            await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+            var pressing = await Task.Run(() =>
+            {
+                try
+                {
+                    return SpotifyButtons.Play(name);
+                }
+                catch (Exception e)
+                {
+                    GD.PrintErr($"Music: Spotify's buttons couldn't be read ({e.Message})");
+                    return SpotifyButtons.Pressing.Missing;
+                }
+            });
+            if (pressing == SpotifyButtons.Pressing.Missing)
+                continue;
+            GD.Print(pressing == SpotifyButtons.Pressing.Pressed ? $"Music: pressed Spotify's \"Play {name}\"" : $"Music: \"{name}\" was playing already");
+            if (started)
+                SpotifyButtons.Minimise();
+            await Refresh();
+            return true;
+        }
+        GD.Print($"Music: Spotify never showed a play button for \"{name}\"; what played last carries on");
+        await Play();
+        return false;
     }
 
     /// <summary>
-    /// Their playlist, shown in its app (Spotify started for it if it wasn't open), and played: an album or a track
-    /// starts by its link; a playlist Spotify can only show, so the app resumes (the playlist, once they have played it
-    /// there). Without a link, as <see cref="Play"/>.
+    /// Music for a focus part: <paramref name="playlist"/> (link, name) from its beginning when given; otherwise what
+    /// is playing plays on, and the music app (or Spotify, started) resumes.
     /// </summary>
-    public async Task<bool> OpenPlaylist(string? link)
+    public async Task<bool> PlayFocus((string Link, string Name)? playlist)
     {
-        if (Address(link) is not { } address)
-            return await Play();
-        var starts = Regex.IsMatch(address, "^spotify:(album|track):");
-        Launch(starts ? address + ":play" : address);
-        if (starts)
-            return true;
-        if (Companion.Paper.OffScreen)
-            Show(Now ?? new Track("Spotify", "", "", false));
-        for (var i = 0; i < 50 && Session() is null && !Companion.Paper.OffScreen; i++)
-            await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
-        await Refresh();
-        return Now is { Playing: true } || await Act("play", s => s.TryPlayAsync().AsTask());
+        if (playlist is { } start)
+            return await StartPlaylist(start.Link, start.Name);
+        return Now is { Playing: true } || await Play();
+    }
+
+    /// <summary>A Spotify link's name, as Spotify shows it (from its public link preview); null when it can't say.</summary>
+    public static async Task<string?> NameOf(string link)
+    {
+        if (!link.Contains("open.spotify.com", StringComparison.OrdinalIgnoreCase))
+            return null;
+        try
+        {
+            using var answer = await Http.GetAsync("https://open.spotify.com/oembed?url=" + Uri.EscapeDataString(link.Trim().Split('?')[0]));
+            if (!answer.IsSuccessStatusCode)
+                return null;
+            using var json = System.Text.Json.JsonDocument.Parse(await answer.Content.ReadAsStringAsync());
+            return json.RootElement.TryGetProperty("title", out var title) && title.GetString() is { Length: > 0 } name ? name : null;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Music: couldn't ask Spotify the playlist's name ({e.Message})");
+            return null;
+        }
     }
 
     /// <summary>Opens a link in its app or the browser; a test run only says so.</summary>
@@ -292,6 +347,23 @@ public partial class Music : Node
     }
 
     // ---- Dev ---------------------------------------------------------------------------------------------------------
+
+    /// <summary>Dev: what Spotify's window shows to press (how many play buttons, and whether one for <paramref name="playlist"/>); presses nothing.</summary>
+    public async void DevSpotify(string? playlist)
+    {
+        var said = await Task.Run(() =>
+        {
+            try
+            {
+                return SpotifyButtons.Probe(playlist);
+            }
+            catch (Exception e)
+            {
+                return $"failed: {e}";
+            }
+        });
+        GD.Print($"Music: Spotify's window: {said}");
+    }
 
     /// <summary>Dev: checks Windows' media controls answer, saying only how many sessions there are and whose (no titles), even in a test run.</summary>
     public async void DevProbe()

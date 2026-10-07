@@ -43,6 +43,10 @@ public partial class Focus : Node
         }
     }
 
+    /// <summary>The saved playlist a session starts with (link, name), or null: what played last carries on.</summary>
+    public (string Link, string Name)? FocusPlaylist =>
+        _settings.Now.Playlists.FirstOrDefault(p => p.Link == _settings.Now.FocusPlaylist) is { } playlist ? (playlist.Link, playlist.Name) : null;
+
     /// <summary>Their music plays while they focus (the MUSIC and FOCUS apps' switch).</summary>
     public bool WithMusic
     {
@@ -63,7 +67,7 @@ public partial class Focus : Node
         var plan = Plan with { Focus = focus ?? Plan.Focus, Break = rest ?? Plan.Break };
         var session = Session = new FocusSession(plan, DateTimeOffset.Now);
         GD.Print($"Focus: a session starts ({session.Plan}){(byPlayer ? "" : ", by her")}");
-        Music(FocusPart.Focus);
+        Music(FocusPart.Focus, fromStart: true);
         if (byPlayer)
             Told?.Invoke(session.NoteOnStart(), Lines.FocusStarted(session.Plan));
         Changed?.Invoke();
@@ -130,13 +134,16 @@ public partial class Focus : Node
         Changed?.Invoke();
     }
 
-    /// <summary>With the music on: it plays while focusing and pauses at breaks.</summary>
-    private void Music(FocusPart part)
+    /// <summary>
+    /// With the music on: it plays while focusing (a session's first part starts their focus playlist from its
+    /// beginning, if they starred one; after a break what was playing carries on) and pauses at breaks.
+    /// </summary>
+    private void Music(FocusPart part, bool fromStart = false)
     {
         if (!WithMusic)
             return;
         if (part == FocusPart.Focus)
-            _ = _music.PlayFocus(_settings.Now.Playlist);
+            _ = _music.PlayFocus(fromStart ? FocusPlaylist : null);
         else
             _ = _music.Pause();
     }

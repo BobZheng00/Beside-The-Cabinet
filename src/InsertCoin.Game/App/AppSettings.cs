@@ -47,7 +47,9 @@ public sealed record AppSettings
     public int LongBreakMinutes { get; init; } = 15;
     public int LongBreakEvery { get; init; } = 4;       // focus parts before the long break
     public bool FocusMusic { get; init; }               // their music plays while focusing, and pauses at breaks
-    public string? Playlist { get; init; }              // their focus playlist's link (Spotify, YouTube Music…), pasted into the MUSIC app
+    public string? Playlist { get; init; }              // one link, kept before playlists could be saved by name: moved into Playlists
+    public SavedPlaylist[] Playlists { get; init; } = [];        // playlists saved in the MUSIC app, with the names Spotify gives them
+    public string? FocusPlaylist { get; init; }         // the link of the one a focus session starts with; unset: what played last carries on
     public int StandUpMinutes { get; init; } = 50;      // she suggests standing up and some water after this long at the PC; 0: never
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
@@ -58,6 +60,9 @@ public sealed record AppSettings
     [JsonIgnore]
     public TimeSpan? ReminderLead => ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
 }
+
+/// <summary>A playlist saved in the screen's MUSIC app: its link (Spotify, YouTube Music…), and its name as Spotify shows it.</summary>
+public sealed record SavedPlaylist(string Link, string Name);
 
 /// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>
 public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes,

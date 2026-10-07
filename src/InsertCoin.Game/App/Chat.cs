@@ -44,7 +44,7 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
-        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, () => Playlist?.Invoke())])
+        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved")])
         {
             AskPlayer = AskFirst,
         };
@@ -77,15 +77,15 @@ public sealed class Chat : IDisposable
     /// <summary>Runs focus sessions for her tool (the action, minutes of focus and of breaks) and says how things stand.</summary>
     public Func<string, int?, int?, string>? Focus { get; set; }
 
-    /// <summary>Controls the player's music for her tool and says what came of it.</summary>
-    public Func<string, Task<string>>? Music { get; set; }
+    /// <summary>Controls the player's music for her tool (the action, a playlist's name) and says what came of it.</summary>
+    public Func<string, string?, Task<string>>? Music { get; set; }
 
-    /// <summary>The player's focus playlist as her card shows it, or null when none is saved.</summary>
-    public Func<string?>? Playlist { get; set; }
+    /// <summary>The saved playlist a name means, as her card shows it.</summary>
+    public Func<string?, string>? Playlist { get; set; }
 
     private string FocusAct(string action, int? focus, int? rest) => Focus?.Invoke(action, focus, rest) ?? "Focus sessions aren't available here.";
 
-    private Task<string> MusicAct(string action) => Music?.Invoke(action) ?? Task.FromResult("The player's music can't be reached from here.");
+    private Task<string> MusicAct(string action, string? playlist) => Music?.Invoke(action, playlist) ?? Task.FromResult("The player's music can't be reached from here.");
 
     /// <summary>Asks the player whether she may use a tool (the card by her stool). Unset, the answer is always no.</summary>
     public Func<Asking, CancellationToken, Task<Answer>>? AskPlayer { get; set; }

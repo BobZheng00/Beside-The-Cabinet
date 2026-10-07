@@ -144,9 +144,9 @@ down. Each can have its own paper colour and a sticker. Memos are yours: forgett
 fourth; down and up beside each length change it): the CRT counts down, and she tells you when each part ends, with a nudge to stand
 up and drink some water at the breaks. Ask her to start one ("let's focus for 50 minutes") and she does. MUSIC shows
 what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
-nothing open, play starts Spotify for you); paste your
-focus playlist's link (Spotify: Share, Copy link) and, with WITH FOCUS on, it plays while you focus and pauses at breaks.
-She can control it too, after asking. And after 50 minutes at the PC without a break, she suggests standing up (tray →
+nothing open, play starts Spotify for you). Save playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD):
+START plays one from its beginning (the app presses Spotify's own play button for it), and the starred one starts your
+focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
 
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
@@ -207,8 +207,9 @@ moved, as holding and carrying it would), `crtaway` (a press away from the lifte
 `memorybook:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
 `focus:resume`, `focus:stop`), `focustool:start:50` (as her tool would), `standup` (she suggests standing up, as after a
 long sitting), `musicfake:Title:Artist` (pretends a music app plays; `musicfake:off`), `musiclink:<link>` (as if pasted
-into MUSIC), `musictool:pause` (her tool), `musicprobe` (checks Windows' media controls answer: how many sessions,
-whose; no titles).
+into MUSIC, named by Spotify), `musictool:pause` and `musictool:start_playlist:Deep_Focus` (her tool), `musicprobe` (checks
+Windows' media controls answer: how many sessions, whose; no titles), `spotifyprobe:Deep_Focus` (what Spotify's window
+shows to press, and whether that playlist's play button is there; presses nothing).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen

@@ -59,26 +59,28 @@ public static class BuiltIn
         OutsideApp: false);
 
     /// <summary>
-    /// The player's music app, through Windows' media controls: their focus playlist, play, pause, skip. It acts outside
-    /// the app, so she asks first.
+    /// The player's music app, through Windows' media controls: one of their saved playlists from its beginning, play
+    /// (what was playing carries on), pause, skip. It acts outside the app, so she asks first.
     /// </summary>
-    /// <param name="act">Does it and says what came of it.</param>
-    /// <param name="playlist">The player's focus playlist as the card shows it, or null when none is saved.</param>
-    public static Tool Music(Func<string, Task<string>> act, Func<string?> playlist) => new(
+    /// <param name="act">Does it (the action, and the playlist she named) and says what came of it.</param>
+    /// <param name="playlist">The saved playlist a name means, as the card shows it (no name: the one focus starts with).</param>
+    public static Tool Music(Func<string, string?, Task<string>> act, Func<string?, string> playlist) => new(
         AIFunctionFactory.Create(
-            async ([Description("play_playlist (opens the player's focus playlist), play, pause, next or previous")] string action) =>
-                await act(action.Trim().ToLowerInvariant()),
+            async ([Description("start_playlist (one of their saved playlists, from its beginning), play (whatever was playing carries on), pause, next or previous")] string action,
+                   [Description("For start_playlist: which saved playlist, by its name as the cabinet block lists them; leave it out for the one their focus sessions start with")] string? playlist = null) =>
+                await act(action.Trim().ToLowerInvariant(), string.IsNullOrWhiteSpace(playlist) ? null : playlist.Trim()),
             "music",
-            "Controls the player's music app (Spotify or another, through Windows' media controls): opens their focus playlist, plays, pauses, " +
-            "skips. What is playing is in the cabinet block. The player is asked first."),
+            "Controls the player's music app (Spotify or another, through Windows' media controls; Spotify is started if it isn't open): starts one " +
+            "of their saved playlists from its beginning, plays what was playing, pauses, skips. What is playing and the playlists they saved are in " +
+            "the cabinet block. The player is asked first."),
         "Control the music",
         OutsideApp: true,
         arguments => Text(arguments, "action")?.Trim().ToLowerInvariant() switch
         {
-            "play_playlist" => ("Play your focus playlist?", playlist() ?? "No playlist saved yet (the screen's MUSIC app keeps one)", "music"),
+            "start_playlist" or "play_playlist" => ("Start a playlist?", playlist(Text(arguments, "playlist")), "music"),
             "pause" => ("Pause your music?", "In your music app", "music"),
             "next" or "previous" => ("Skip a track?", "In your music app", "music"),
-            _ => ("Play your music?", "In your music app", "music"),
+            _ => ("Play your music?", "What was playing carries on", "music"),
         });
 
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
