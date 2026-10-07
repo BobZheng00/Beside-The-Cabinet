@@ -258,6 +258,10 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
   - **AGENDA:** what is coming up, four to a page: when (today, tomorrow, the day) and what. A click opens the memory book's Agenda tab.
   - Next: FOCUS and MUSIC, with focus sessions.
 
+**Too small at the small cabinet size** (the user, 2026-10-06): at S (0.6 of the canvas) the CRT is about 90 px wide and the memo sheet's text about 10 px. The user suggested a view that brings the viewpoint in front of the cabinet. Options:
+- **Lean in:** the whole picture zooms toward the screen. Cinematic, but at S the window is about 390×490 px, so even zoomed the screen stays small unless the window grows, and her figure and the art would need drawing at a higher resolution.
+- **Lift out** (*proposed*): as the memo sheet does, the screen's content comes out of the CRT flat and facing the player, at a fixed readable size in real pixels whatever the cabinet's size, the transparent window growing around the cabinet for the moment if it needs room. The memo sheet and the hover card get the same minimum on-screen size.
+
 ## Order (*proposed*)
 
 1. **Groundwork** (*built 2026-10-05*, above):
