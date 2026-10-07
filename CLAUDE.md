@@ -45,7 +45,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 - **Test runs** use `tools\dev\shoot.ps1 -Hidden -Out <tools>\voice-trial\shots -Tag <name> -Script "action@sec,..." -Shots sec,...`.
   - It uses a throwaway muted profile, ignores Steam, shows nothing on screen and captures from the window itself.
-  - `-Window "<title>"` also captures one of the app's own windows. `-Settings ', "Key": value'` seeds settings.
+  - `-Window "<title>"` also captures one of the app's own windows. `-Desk` puts all its windows together where they sit (memo sheets beside the cabinet), as `<Tag>-<n>-desk.png`. `-Settings ', "Key": value'` seeds settings.
+  - Script times count from about 2 s after launch, shot times from launch: shoot a beat after the last action.
   - The log is `<Out>\run-<Tag>.log` (and `.err`).
 - **Dev script text:** underscores for spaces, no commas.
 - **Never open the real microphone in tests.**
@@ -113,8 +114,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - her body in conversation: nods in pauses (`Backchannel`), looks away to think, finger to her chin, head follows her voice, grown-up applause (agent note §7);
   - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`);
   - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork");
-  - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on a sheet over the cabinet (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
-  - the CRT's small system (`App/Crt/CrtOs`): a click lifts the screen out of the cabinet to face the player (readable at any cabinet size), folds the readout away, and app icons pop in, four to a page, swiped between, held to rearrange; apps open out of their icon. Apps: MEMOS, AGENDA; focus sessions and music next (spec, "The CRT's small system").
+  - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on sheets out on the desktop, several at once, each its own small window (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
+  - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: MEMOS, AGENDA; focus sessions and music next (spec, "The CRT's small system", "Two views").
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
@@ -138,10 +139,9 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   3. focus sessions and music;
   4. LeetCode hints;
   5. web search.
-- **Next step:** focus sessions and music (the user's music service is still an open question).
+- **Next step:** focus sessions and music. Music: the user has Spotify desktop and no Premium, so a playlist's link plus Windows' media controls (no headless browser, no Web API; spec, "Music").
 
 **Open questions for the user:**
-- which music they use (Spotify desktop or YouTube Music in a browser);
 - whether her idle leg swings should be smaller and rarer;
 - whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too).
 

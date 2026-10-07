@@ -319,10 +319,10 @@ public partial class Stool : Node2D
 
     /// <summary>The window is solid here: her figure, or the slip.</summary>
     public bool Hits(Vector2 canvasPoint) =>
-        Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint) || _memos.SheetHits(canvasPoint);
+        Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
 
     /// <summary>The slip keeps the mouse here, for typing.</summary>
-    public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint) || _memos.SheetHits(canvasPoint);
+    public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint);
 
     /// <summary>Closes the slip (Escape); false when it wasn't open.</summary>
     public bool CloseSlip()
@@ -877,7 +877,7 @@ public partial class Stool : Node2D
                 break;
             case "memoseed": _memos.DevSeed(OnStool()?.Id ?? ""); break;    // memos hanging, pinned and archived, to try them on
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
-            case "memosheet": _memos.DevSheet(text); break;        // the sheet: pin, off, edit, done, print, delete, away, esc (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell
+            case "memosheet": _memos.DevSheet(text); break;        // the latest sheet: pin, off, edit, done, print, delete, close, esc (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell, move:dx:dy
             case "memohover": _memos.DevHover(rest is "" or "off" ? null : int.Parse(rest), off: rest == "off"); break;   // memohover: the hanging one; memohover:0 the top pinned; memohover:off
             case "memocarry":                               // memocarry:a:b carries the hanging memo to that spot on the side; memocarry alone, off the cabinet
                 var to = rest.Split(':');

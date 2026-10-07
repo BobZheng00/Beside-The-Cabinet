@@ -266,9 +266,17 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
   - On the small cabinet it covers her while open; on the large one it sits over the cabinet's top, her face in view.
   - The memo sheet and the hover card are drawn larger on a smaller cabinet (`MemoBoard.Readable`), so their letters stay the size they are on the medium one.
 
-**Two views, and memos on the desktop** (decided with the user, 2026-10-06; they like the on-cabinet view's retro feel):
-- **Home on the cabinet, apps lifted.** A click on the CRT opens the home screen right on the cabinet, in perspective. Opening an app lifts the screen out to read; a click outside the lifted screen settles it back onto the cabinet, still open; it closes to the readout after a while, or from the power mark. The lifted screen gets a CRT look (scanlines, glow) so it stays retro up close.
-- **Memos anywhere on the desktop.** Each open memo becomes its own paper window, like a sticky note: dragged anywhere on the screen (beside the code editor, say), several open at once for cross-referencing, each put back with its × or Esc.
+**Two views, and memos on the desktop** (decided with the user and built, 2026-10-06; they like the on-cabinet view's retro feel):
+- **Home on the cabinet, apps lifted.**
+  - A click on the CRT opens the home screen right on the cabinet, in perspective. Opening an app lifts the screen out to read while the app grows out of its icon.
+  - Going back, or a press anywhere away from the lifted screen, settles it back onto the cabinet, home still open; it closes to the readout after a while, or from the power mark. A press away on the desktop is seen by polling the mouse buttons (`DesktopWindow.PressedElsewhere`; never in a test run), so a very quick click can be missed.
+  - Lifted, it looks like a CRT up close (`screen_quad.gdshader`'s `lifted`): the glass bulges a little, its corners round off, scanlines every third pixel and a darker rim.
+- **Memos anywhere on the desktop.**
+  - Each open memo is its own small transparent window with no frame (`MemoSheet` in a `Window`, transient to the cabinet's so it stays out of the taskbar), at a readable size (at least the medium cabinet's, whatever the cabinet's size).
+  - It flies out of the cabinet to rest beside it: left of it while the screen has room, then right of it, each one after the first beside the last; with no room left, over the cabinet, a little lower each (`Memos.Home`).
+  - Dragged by the paper anywhere on the screen; several open at once; opening one already open brings it to the front.
+  - Its × puts it back, flying to where it belongs on the cabinet (keeping what was written). Esc does the same while reading; while editing, Esc goes back to reading it as it was.
+  - The cabinet underneath a sheet isn't pointed at (`DesktopWindow.Covered`), so no hover card shows through.
 
 ## Order (*proposed*)
 

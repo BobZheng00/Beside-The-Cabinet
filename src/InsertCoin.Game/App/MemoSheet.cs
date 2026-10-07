@@ -7,16 +7,21 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// A memo read and written on the paper itself: picked up off the cabinet it grows into a sheet floating over it (no
-/// window, no frame), its colour, sticker and torn edge as on the cabinet. Read, it scrolls; small drawn tools along
-/// its foot copy it, pin it, tear it off or take it down, edit it, or throw it away. Edited, it is written on where it
-/// is, with its papers and stickers in a strip. A new one rises blank out of the slot, and printing sends it back in.
-/// A click away (or Esc) puts it back where it came from.
+/// A memo read and written on the paper itself: picked up off the cabinet it grows into a sheet that flies out beside
+/// the cabinet, onto the desktop (no frame, no title bar: its own small transparent window, the paper all there is of
+/// it), its colour, sticker and torn edge as on the cabinet. Dragged by the paper it goes anywhere on the screen, and
+/// several can be open at once, to read side by side. Read, it scrolls; small drawn tools along its foot copy it, pin
+/// it, tear it off or take it down, edit it, or throw it away. Edited, it is written on where it is, with its papers
+/// and stickers in a strip. A new one rises blank out of the slot, and printing sends it back in. Its × (or Esc) puts
+/// it back where it came from on the cabinet.
 /// </summary>
 public partial class MemoSheet : Node2D
 {
     public const float Width = 348, Height = 452;
-    private const float Pad = 18, Tooth = 6;
+    private const float Pad = 18, Tooth = 6, Margin = 6;
+
+    /// <summary>The size of its window, in the sheet's own units: the paper, a margin round it and room for its shadow.</summary>
+    public static readonly Vector2 Outer = new(Width + 2 * Margin + 8, Height + 2 * Margin + 10);
     private static readonly Font Mono = new SystemFont { FontNames = ["Cascadia Mono", "Consolas", "Courier New"] };
     private static readonly Font Pixel = GD.Load<FontFile>("res://fonts/PressStart2P-Regular.ttf");
 
@@ -25,8 +30,10 @@ public partial class MemoSheet : Node2D
 
     private Memos _memos = null!;
     private Memo? _memo;                                    // null while a new one is written
-    private Func<(Vector2 Home, float Scale)> _place = null!;
-    private Vector2 _from;
+    private Window _window = null!;
+    private Vector2 _from;                                  // where it came from on the cabinet (a canvas point)
+    private Vector2I? _grip;                                // dragged: where the pointer holds it, from its window's corner
+    private bool _leaving;
     private float _fromTilt;
     private Control _root = null!;
     private Label _title = null!, _byline = null!, _note = null!;
@@ -35,7 +42,7 @@ public partial class MemoSheet : Node2D
     private TextEdit _textField = null!;
     private HBoxContainer _tools = null!, _palette = null!;
     private CheckBox _tell = null!;
-    private Tool _copy = null!, _pin = null!, _off = null!, _edit = null!, _delete = null!, _done = null!, _print = null!;
+    private Tool _copy = null!, _pin = null!, _off = null!, _edit = null!, _delete = null!, _done = null!, _print = null!, _close = null!;
     private readonly List<(string Colour, Swatch Button)> _swatches = [];
     private readonly List<(string? Sticker, Tool Button)> _stickers = [];
     private string _colour = Memo.Yellow;
@@ -43,16 +50,16 @@ public partial class MemoSheet : Node2D
     private bool _editing, _deleting;
     private Tween? _tween;
 
-    /// <param name="place">Where it rests over the cabinet, and how big (larger on a small cabinet, to stay readable).</param>
-    public void Build(Memos memos, Func<(Vector2 Home, float Scale)> place)
+    /// <summary>Builds it in the window it was put in (see <see cref="Memos"/>), hidden until a memo is read or written on it.</summary>
+    public void Build(Memos memos)
     {
         _memos = memos;
-        _place = place;
+        _window = GetWindow();
+        _window.CloseRequested += () => Finish(keep: true);
         Visible = false;
-        ZIndex = 70;
-        ZAsRelative = false;                                // over her, the cabinet, the hover card
 
         _root = new Control { Size = new Vector2(Width, Height), Theme = Paper.WindowTheme(), MouseFilter = Control.MouseFilterEnum.Stop };
+        _root.GuiInput += Drag;
         AddChild(_root);
         _title = new Label
         {
@@ -150,9 +157,12 @@ public partial class MemoSheet : Node2D
         {
             Keep();
             if (_memo is { } memo)
-                Show(memo, _byline.Text.Split(" · ")[0]);           // read again, as it now is
+                Show(memo, _memos.From(memo));                      // read again, as it now is
         });
         _print = Add("print", "Print it", Print);
+        _close = new Tool("close", "Put it back") { Position = new Vector2(Width - 32, 4), Size = new Vector2(28, 28) };
+        _close.Pressed += () => Finish(keep: true);
+        _root.AddChild(_close);
         _root.AddChild(_title);
         _root.AddChild(_titleField);
         _root.AddChild(_byline);
@@ -171,11 +181,26 @@ public partial class MemoSheet : Node2D
         }
     }
 
-    /// <summary>A memo is open on the sheet.</summary>
-    public bool IsOpen => Visible;
+    /// <summary>The memo read on it (null while a new one is written).</summary>
+    public long? MemoId => _memo?.Id;
 
-    /// <summary>The canvas point is on the sheet (it keeps the mouse: no carrying, no dragging the window from it).</summary>
-    public bool Hits(Vector2 canvasPoint) => Visible && new Rect2(Position, new Vector2(Width, Height) * Scale).Grow(6).HasPoint(canvasPoint);
+    /// <summary>A new memo is being written on it.</summary>
+    public bool WritingNew => _memo is null && !_leaving;
+
+    /// <summary>It is going back to the cabinet.</summary>
+    public bool Leaving => _leaving;
+
+    /// <summary>The screen point is on its window.</summary>
+    public bool Covers(Vector2I screenPoint) => new Rect2I(_window.Position, _window.Size).HasPoint(screenPoint);
+
+    /// <summary>Opened again while open: it comes to the front.</summary>
+    public void Raise()
+    {
+        if (Paper.OffScreen)
+            return;                                         // a test run never takes focus
+
+        _window.GrabFocus();
+    }
 
     /// <summary>Opens a memo to read, grown out of where it is on the cabinet (<paramref name="from"/>, its tilt).</summary>
     public void Read(Memo memo, string from, Vector2 at, float tilt)
@@ -191,6 +216,7 @@ public partial class MemoSheet : Node2D
         _memo = memo;
         _colour = memo.Colour;
         _sticker = memo.Sticker;
+        _window.Title = $"{memo.Title} - INSERT COIN memo";
         _title.Text = memo.Title;
         _byline.Text = $"{from} · {memo.At.ToLocalTime().ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture)}";
         _text.Text = Memo.ToBbcode(memo.Text);
@@ -202,6 +228,7 @@ public partial class MemoSheet : Node2D
     public void Write(Draft? draft, Vector2 slot)
     {
         _memo = null;
+        _window.Title = "New memo - INSERT COIN memo";
         _colour = draft?.Colour ?? Memo.Yellow;
         _sticker = draft?.Sticker;
         _titleField.Text = draft?.Title ?? "";
@@ -212,10 +239,10 @@ public partial class MemoSheet : Node2D
         Focus(_titleField.Text.Length == 0 ? _titleField : _textField);
     }
 
-    /// <summary>A click away, or Esc: written on, it keeps what was written (<paramref name="keep"/>); then it goes back.</summary>
+    /// <summary>Its ×: written on, it keeps what was written (<paramref name="keep"/>); then it goes back.</summary>
     public void Finish(bool keep)
     {
-        if (!Visible)
+        if (_leaving)
             return;
         if (_editing && keep)
         {
@@ -280,8 +307,8 @@ public partial class MemoSheet : Node2D
             };
             return;
         }
-        _memos.Delete(memo.Id);
         PutAway(_from + new Vector2(0, 200));
+        _memos.Delete(memo.Id);
     }
 
     private void Editing(bool editing)
@@ -336,47 +363,95 @@ public partial class MemoSheet : Node2D
 
     private void Focus(Control field)
     {
-        if (Companion.Paper.OffScreen)
+        if (Paper.OffScreen)
             return;                                         // a test run never takes focus
-        DisplayServer.WindowMoveToForeground();
+        _window.GrabFocus();
         field.CallDeferred(Control.MethodName.GrabFocus);
+    }
+
+    /// <summary>
+    /// Esc: written on, a memo goes back to being read as it was (what was written is dropped); otherwise it is put
+    /// back, a new one's writing kept for next time.
+    /// </summary>
+    public override void _Input(InputEvent e)
+    {
+        if (e is not InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape } || _leaving || !Visible)
+            return;
+        GetViewport().SetInputAsHandled();
+        if (_editing && _memo is { } memo)
+            Show(memo, _memos.From(memo));
+        else
+            Finish(keep: true);
+    }
+
+    /// <summary>Held by the paper (anywhere a tool or its text doesn't take the pointer), it is dragged across the desktop.</summary>
+    private void Drag(InputEvent e)
+    {
+        switch (e)
+        {
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left } button:
+                _grip = button.Pressed && !_leaving ? DisplayServer.MouseGetPosition() - _window.Position : null;
+                break;
+            case InputEventMouseMotion when _grip is { } grip:
+                _window.Position = DisplayServer.MouseGetPosition() - grip;
+                break;
+        }
     }
 
     // ---- Coming and going --------------------------------------------------------------------------------------------
 
-    /// <summary>It comes up off the cabinet: from small and tilted where the memo was, to full size over the cabinet.</summary>
+    /// <summary>
+    /// It comes up off the cabinet: from small and tilted where the memo was (<paramref name="at"/>, a canvas point),
+    /// its window flying out to rest beside the cabinet as the paper grows to full size.
+    /// </summary>
     private void Lift(Vector2 at, float tilt)
     {
         _from = at;
         _fromTilt = tilt;
-        _tween?.Kill();
+        var from = (Vector2)(_memos.OnScreen(at) - _window.Size / 2);
+        var home = (Vector2)_memos.Home(this, _window.Size);
+        _window.Position = (Vector2I)from;
+        Pose(0);
         Visible = true;
-        Position = at - new Vector2(Width, Height) * 0.08f;
-        Scale = Vector2.One * 0.16f;
-        Rotation = Mathf.DegToRad(tilt);
-        Modulate = new Color(1, 1, 1, 0.4f);
-        var (home, scale) = _place();
-        _tween = CreateTween().SetParallel();
-        _tween.TweenProperty(this, "position", home, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        _tween.TweenProperty(this, "scale", Vector2.One * scale, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        _tween.TweenProperty(this, "rotation", 0f, 0.28).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
-        _tween.TweenProperty(this, "modulate:a", 1f, 0.16);
+        _window.Show();
+        _tween?.Kill();
+        _tween = CreateTween();
+        _tween.TweenMethod(Callable.From<float>(t =>
+        {
+            _window.Position = (Vector2I)from.Lerp(home, t).Round();
+            Pose(t);
+        }), 0f, 1f, 0.38).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
     }
 
-    /// <summary>It goes back down onto the cabinet (or into the slot), shrinking to where it belongs, then is gone.</summary>
+    /// <summary>It flies back to the cabinet (or into the slot), shrinking to where it belongs, and its window closes.</summary>
     private void PutAway(Vector2 to, Action? then = null)
     {
+        _leaving = true;
+        _grip = null;
+        var from = (Vector2)_window.Position;
+        var target = (Vector2)(_memos.OnScreen(to) - _window.Size / 2);
         _tween?.Kill();
-        _tween = CreateTween().SetParallel();
-        _tween.TweenProperty(this, "position", to - new Vector2(Width, Height) * 0.06f, 0.24).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-        _tween.TweenProperty(this, "scale", Vector2.One * 0.12f, 0.24).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-        _tween.TweenProperty(this, "modulate:a", 0f, 0.24).SetDelay(0.08);
-        _tween.Chain().TweenCallback(Callable.From(() =>
+        _tween = CreateTween();
+        _tween.TweenMethod(Callable.From<float>(t =>
         {
-            Visible = false;
-            _memo = null;
+            _window.Position = (Vector2I)target.Lerp(from, t).Round();
+            Pose(t);
+        }), 1f, 0f, 0.3).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        _tween.TweenCallback(Callable.From(() =>
+        {
             then?.Invoke();
+            _window.QueueFree();
         }));
+    }
+
+    /// <summary>How far out it is (0: small and tilted where it came from, 1: full size): its size, tilt and how clearly it shows.</summary>
+    private void Pose(float t)
+    {
+        var scale = Mathf.Lerp(0.14f, 1f, t);
+        Rotation = Mathf.DegToRad(Mathf.Lerp(_fromTilt, 0, Mathf.Clamp(t, 0, 1)));
+        Scale = Vector2.One * scale;
+        Position = Outer / 2 - (new Vector2(Width, Height) / 2 * scale).Rotated(Rotation);
+        Modulate = new Color(1, 1, 1, Mathf.Clamp(0.4f + t * 1.5f, 0, 1));
     }
 
     // ---- The paper ----------------------------------------------------------------------------------------------------
@@ -395,7 +470,7 @@ public partial class MemoSheet : Node2D
         DrawPolyline([.. shape, shape[0]], MemoLook.Ink, 2.6f, true);
         DrawString(Pixel, new Vector2(Pad, 24), "MEMO", HorizontalAlignment.Left, -1, 11, new Color("c2185b"));
         if (_sticker is { } sticker)
-            MemoLook.Sticker(this, sticker, new Vector2(Width - 34, 36), 36);
+            MemoLook.Sticker(this, sticker, new Vector2(Width - 34, 52), 34);           // under its ×
     }
 
     private static StyleBoxFlat Rule(Color colour) => new()
@@ -486,6 +561,10 @@ public partial class MemoSheet : Node2D
                     DrawRect(new Rect2(c + new Vector2(-s * 0.6f, -s * 1.1f), new Vector2(s * 1.2f, s * 0.9f)), ink, false, w);
                     DrawRect(new Rect2(c + new Vector2(-s * 0.6f, s * 0.55f), new Vector2(s * 1.2f, s * 0.7f)), ink, false, w);
                     break;
+                case "close":
+                    DrawLine(c + new Vector2(-s * 0.8f, -s * 0.8f), c + new Vector2(s * 0.8f, s * 0.8f), ink, w * 1.2f, true);
+                    DrawLine(c + new Vector2(-s * 0.8f, s * 0.8f), c + new Vector2(s * 0.8f, -s * 0.8f), ink, w * 1.2f, true);
+                    break;
                 case "none":
                     DrawArc(c, s, 0, Mathf.Tau, 20, Paper.Faint, 1.6f, true);
                     DrawLine(c + new Vector2(-s * 0.7f, s * 0.7f), c + new Vector2(s * 0.7f, -s * 0.7f), Paper.Faint, 1.6f, true);
@@ -528,10 +607,15 @@ public partial class MemoSheet : Node2D
 
     // ---- Dev --------------------------------------------------------------------------------------------------------------
 
-    /// <summary>Dev: its tools by name (copy is left out: it would take the clipboard), choices and fields.</summary>
+    /// <summary>Dev: its tools by name (copy is left out: it would take the clipboard), choices and fields; move:x:y drags it.</summary>
     public void DevPress(string what)
     {
-        if (what.StartsWith("colour:"))
+        if (what.StartsWith("move:"))                       // move:dx:dy, in screen pixels, as dragging it would
+        {
+            var parts = what[5..].Split(':');
+            _window.Position += new Vector2I(int.Parse(parts[0]), int.Parse(parts[1]));
+        }
+        else if (what.StartsWith("colour:"))
             Choose(what[7..], _sticker);
         else if (what.StartsWith("sticker:"))
             Choose(_colour, what[8..] is { Length: > 0 } sticker ? sticker : null);
@@ -543,10 +627,10 @@ public partial class MemoSheet : Node2D
         }
         else if (what == "tell")
             _tell.ButtonPressed = !_tell.ButtonPressed;
-        else if (what == "away")
+        else if (what is "away" or "close")
             Finish(keep: true);
         else if (what == "esc")
-            Finish(keep: false);
+            _Input(new InputEventKey { Pressed = true, Keycode = Key.Escape });
         else if ((what switch { "pin" => _pin, "off" => _off, "edit" => _edit, "delete" => _delete, "done" => _done, "print" => _print, _ => null }) is { } tool)
             tool.EmitSignal(BaseButton.SignalName.Pressed);
     }

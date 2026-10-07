@@ -1,14 +1,15 @@
 using Godot;
 using InsertCoin.Game.Cabinet;
+using InsertCoin.Game.Companion;
 using InsertCoin.Mind;
 
 namespace InsertCoin.Game.App;
 
 /// <summary>
 /// The player's memos (see <see cref="Memo"/>): printed out of the cabinet's slot, by her or as notes to self, read
-/// and written on the paper itself (see <see cref="MemoSheet"/>) or glanced at by pointing at one, carried by hand and
-/// stuck anywhere on the cabinet's side, or kept in the archive (the memory book's Memos tab). The cabinet shows what the store holds; everything that changes a memo goes
-/// through here.
+/// and written on the paper itself, out on the desktop, several at once (see <see cref="MemoSheet"/>), or glanced at by
+/// pointing at one, carried by hand and stuck anywhere on the cabinet's side, or kept in the archive (the memory book's
+/// Memos tab). The cabinet shows what the store holds; everything that changes a memo goes through here.
 /// </summary>
 public partial class Memos : Node
 {
@@ -17,7 +18,7 @@ public partial class Memos : Node
     private Func<string?, string> _nameOf = null!;
     private Func<string?> _herName = null!;
     private Func<Vector2, bool> _onCabinet = null!;
-    private MemoSheet _sheet = null!;
+    private readonly List<MemoSheet> _sheets = [];          // open on the desktop, oldest first
     private MemoSheet.Draft? _draft;                        // a new memo left unprinted, to carry on with
     private long? _carrying;
 
@@ -37,32 +38,53 @@ public partial class Memos : Node
         _nameOf = nameOf;
         _herName = herName;
         _onCabinet = onCabinet;
-        _sheet = new MemoSheet();
-        // it rests over the cabinet's front, leaving her in view (larger on a small cabinet, and then over her too)
-        _sheet.Build(this, () =>
-        {
-            var scale = board.Readable;
-            var size = new Vector2(MemoSheet.Width, MemoSheet.Height) * scale;
-            return (new Vector2(Mathf.Clamp(board.CabinetMiddle - size.X / 2, 8, board.Canvas.X - size.X - 8),
-                                Mathf.Clamp(150 - (size.Y - MemoSheet.Height) / 2, 8, board.Canvas.Y - size.Y - 8)), scale);
-        });
-        board.AddChild(_sheet);
         Show();
     }
 
-    /// <summary>A memo is open on its sheet.</summary>
-    public bool SheetOpen => _sheet.IsOpen;
+    /// <summary>A memo's sheet is over this screen point (the cabinet underneath is not pointed at).</summary>
+    public bool Covers(Vector2I screenPoint) => _sheets.Any(s => s.Covers(screenPoint));
 
-    /// <summary>The canvas point is on the open sheet: it keeps the mouse.</summary>
-    public bool SheetHits(Vector2 canvasPoint) => _sheet.Hits(canvasPoint);
-
-    /// <summary>A click away from the sheet, or Esc (<paramref name="keep"/> false: what was being written is dropped). False when none is open.</summary>
-    public bool Dismiss(bool keep)
+    /// <summary>A sheet in a window of its own on the desktop, at a size easy to read whatever the cabinet's size.</summary>
+    private MemoSheet NewSheet()
     {
-        if (!_sheet.IsOpen)
-            return false;
-        _sheet.Finish(keep);
-        return true;
+        var scale = Mathf.Max(_board.WindowScale(), 0.82f);
+        var window = new Window
+        {
+            Title = "INSERT COIN memo", Borderless = true, Transparent = true, TransparentBg = true, Transient = true, Visible = false,
+            Unfocusable = Paper.OffScreen,                  // a test run never takes focus
+            ContentScaleFactor = scale, Size = (Vector2I)(MemoSheet.Outer * scale).Ceil(),
+        };
+        var sheet = new MemoSheet();
+        window.AddChild(sheet);
+        AddChild(window);
+        sheet.Build(this);
+        _sheets.Add(sheet);
+        sheet.TreeExiting += () => _sheets.Remove(sheet);
+        return sheet;
+    }
+
+    /// <summary>A canvas point (on the cabinet) on the screen, in pixels.</summary>
+    public Vector2I OnScreen(Vector2 canvasPoint) => (Vector2I)((Vector2)DisplayServer.WindowGetPosition() + canvasPoint * _board.WindowScale()).Round();
+
+    /// <summary>
+    /// Where a sheet rests on the screen: beside the cabinet, left of it while there is room, then right of it, each
+    /// one open after the first beside the last; with no room left, over the cabinet, a little lower each.
+    /// </summary>
+    public Vector2I Home(MemoSheet sheet, Vector2I size)
+    {
+        var cabinet = new Rect2I(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize());
+        var before = _sheets.Count(s => s != sheet && !s.Leaving);
+        var top = cabinet.Position.Y + cabinet.Size.Y / 10;
+        var step = size.X + 6;
+        if (Paper.OffScreen)
+            return new Vector2I(cabinet.Position.X - step * (before + 1), top);    // a test run: off every screen, with the cabinet
+        var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
+        var left = Math.Max(0, (cabinet.Position.X - screen.Position.X) / step);
+        var right = Math.Max(0, (screen.End.X - cabinet.End.X) / step);
+        var at = before < left ? new Vector2I(cabinet.Position.X - step * (before + 1), top)
+               : before < left + right ? new Vector2I(cabinet.End.X + 6 + step * (before - left), top)
+               : new Vector2I(cabinet.Position.X + (cabinet.Size.X - size.X) / 2, top) + Vector2I.One * 28 * (before - left - right);
+        return at.Clamp(screen.Position, screen.End - size);
     }
 
     /// <summary>Where a memo is on the cabinet now (the middle of its paper), or null when it isn't on it.</summary>
@@ -123,7 +145,7 @@ public partial class Memos : Node
         return true;
     }
 
-    public void Hover(Vector2? canvasPoint) => _board.Hover(_sheet.IsOpen ? null : _devPointer ?? canvasPoint);
+    public void Hover(Vector2? canvasPoint) => _board.Hover(_devPointer ?? canvasPoint);
 
     private Vector2? _devPointer;
 
@@ -183,20 +205,31 @@ public partial class Memos : Node
 
     // ---- Reading, writing, keeping -------------------------------------------------------------------------------------
 
-    /// <summary>Opens a memo to read (the window already open shows it instead).</summary>
+    /// <summary>Opens a memo to read, on a sheet of its own (one already open comes to the front instead).</summary>
     public void Open(long id)
     {
         if (All.FirstOrDefault(m => m.Id == id) is not { } memo)
             return;
+        if (_sheets.FirstOrDefault(s => s.MemoId == id && !s.Leaving) is { } open)
+        {
+            open.Raise();
+            return;
+        }
         var at = Where(id) ?? new Vector2(_board.CabinetMiddle, _board.Canvas.Y - 40);       // one in the archive comes up from below
-        _sheet.Read(memo, From(memo), at, memo.Place == MemoPlace.Pinned ? (float)memo.Tilt : 0);
+        NewSheet().Read(memo, From(memo), at, memo.Place == MemoPlace.Pinned ? (float)memo.Tilt : 0);
     }
 
     /// <summary>Whose it is, as the reader and the memory book say it: "From Shino", or "Your memo".</summary>
     public string From(Memo memo) => memo.By is null ? "Your memo" : $"From {_nameOf(memo.By)}";
 
-    /// <summary>A memo of their own, to write (it prints out of the slot once saved).</summary>
-    public void Write() => _sheet.Write(_draft, _board.SlotPoint);
+    /// <summary>A memo of their own, to write (it prints out of the slot once saved); one being written comes to the front.</summary>
+    public void Write()
+    {
+        if (_sheets.FirstOrDefault(s => s.WritingNew) is { } writing)
+            writing.Raise();
+        else
+            NewSheet().Write(_draft, _board.SlotPoint);
+    }
 
     /// <summary>On the cabinet's side, at a free spot (to move it, it is carried by hand); false when the side is full.</summary>
     public bool Pin(long id)
@@ -255,8 +288,8 @@ public partial class Memos : Node
             Open(memo.Id);
     }
 
-    /// <summary>Dev: the sheet's tools and choices (pin, off, edit, done, print, delete, away, esc; colour:pink, sticker:star, write:title:text, tell).</summary>
-    public void DevSheet(string what) => _sheet.DevPress(what);
+    /// <summary>Dev: the latest sheet's tools and choices (pin, off, edit, done, print, delete, close, esc; colour:pink, sticker:star, write:title:text, tell, move:dx:dy).</summary>
+    public void DevSheet(string what) => _sheets.LastOrDefault(s => !s.Leaving)?.DevPress(what);
 
     /// <summary>Dev: carries the hanging memo by hand to a spot on the side (side panel units), or off the cabinet when none, in steps.</summary>
     public async void DevCarry(Vector2? spot)

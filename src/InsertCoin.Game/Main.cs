@@ -154,6 +154,7 @@ public partial class Main : Node2D
         };
         _window.AlsoSolid = p => _stool.Hits(p) || _crt.Covers(p);       // the screen, lifted out over her
         _window.PressedElsewhere += _crt.Away;
+        _window.Covered = _stool.Memos.Covers;              // a memo's sheet over the cabinet
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
@@ -459,7 +460,7 @@ public partial class Main : Node2D
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
-        if (key.Keycode == Key.Escape && (_stool.Memos.Dismiss(keep: false) || _stool.CloseSlip()))
+        if (key.Keycode == Key.Escape && _stool.CloseSlip())
         {
             GetViewport().SetInputAsHandled();
             return;

@@ -54,7 +54,7 @@ public partial class MemoBoard : Node2D
 
     public override void _Process(double delta) => _time += delta;
 
-    /// <summary>The canvas's size, and the middle of the cabinet's front across it (where a memo's sheet rests).</summary>
+    /// <summary>The canvas's size, and the middle of the cabinet's front across it.</summary>
     public Vector2 Canvas => _canvas;
     public float CabinetMiddle { get; private set; }
 
@@ -65,7 +65,7 @@ public partial class MemoBoard : Node2D
     public Func<float> WindowScale { get; set; } = () => 1;
 
     /// <summary>
-    /// How much bigger than its canvas size anything meant to be read is drawn (the card, a memo's sheet), so that on a
+    /// How much bigger than its canvas size anything meant to be read is drawn (the card beside the pointer), so that on a
     /// small cabinet its letters are still as large as on the medium one.
     /// </summary>
     public float Readable => Mathf.Max(1, 0.82f / WindowScale());

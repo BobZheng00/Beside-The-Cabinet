@@ -131,11 +131,12 @@ can't take tools (some that run on this PC) answers as before. Design:
 Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
 phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
 copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
-where you can write your own too: click the cabinet's screen (it lifts out to face you, readable at any cabinet size) and
-open MEMOS (NEW), or tray → "Write a memo…".
+where you can write your own too: click the cabinet's screen and open MEMOS (NEW; an app lifts the screen out to face
+you, readable at any cabinet size, and a click away settles it back), or tray → "Write a memo…".
 They print the same way, and she reads them unless you untick "Let her read it": if one needs something from her (a
 reminder, a date), she does it and says so; if not, she says nothing. Point at a memo on the cabinet to read it there.
-Click one and it lifts off into a sheet over the cabinet, to read and write on; click away and it goes back.
+Click one and it flies out onto your desktop as a sheet beside the cabinet, to read and write on: drag it anywhere,
+open several side by side, and its × (or Esc) sends it back.
 Pull one off the slot (or off the side) and stick it anywhere on the cabinet's side; pull it off the cabinet to take it
 down. Each can have its own paper colour and a sticker. Memos are yours: forgetting leaves them be.
 
@@ -185,14 +186,15 @@ Hands-free, without ever opening the real microphone: `fakemic` (from then on sh
 asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab). With `--offscreen` a page she opens is
 only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
-`memosheet:pin` (the open sheet's tools: pin, off, edit, done, print, delete; `away` and `esc` put it back),
+`memosheet:pin` (the latest sheet's tools: pin, off, edit, done, print, delete; `close` and `esc` as its × and Esc;
+`memosheet:move:-200:100` drags it, in screen pixels),
 `memowrite` (one of your own),
 `memonote:title:text` (one of your own, printed as if saved: she thinks it over), `memohover` (a pretend pointer on
 the hanging memo; `memohover:0` the top one on the side, `memohover:off`), `memocarry:a:b` (the hanging memo carried
 by hand to that spot on the side; `memocarry` alone, off the cabinet), `memosheet:colour:mint`, `memosheet:sticker:cat`,
 `memosheet:write:title:text` and `memosheet:tell` (a sheet's paper, sticker, fields and tick), `crt` (the screen's
 system opens; `crt:memos` an app too), `crtclick:x:y` (a click on the screen, in its own pixels), `crtmove:0:1` (an app
-moved, as holding and carrying it would), `crtclose` and
+moved, as holding and carrying it would), `crtaway` (a press away from the lifted screen), `crtclose` and
 `memorybook:memos`.
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
@@ -220,7 +222,8 @@ tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
 tools/models              fetch.py — downloads the local models: her memory search's, her ears' (SenseVoice)
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
-                          own windows too); clip.ps1 records a clip of her moving; sheet.ps1 makes contact sheets
+                          own windows too; -Desk: all its windows where they sit together); clip.ps1 records a clip of
+                          her moving; sheet.ps1 makes contact sheets
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
 
