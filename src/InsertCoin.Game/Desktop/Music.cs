@@ -163,7 +163,11 @@ public partial class Music : Node
     /// <summary>Spotify is on this PC (its links open something).</summary>
     public static bool SpotifyHere => SpotifyPath() is not null || Registry.ClassesRoot.OpenSubKey("spotify") is not null;
 
-    /// <summary>Starts Spotify (minimised, if it lets itself be) and waits for it to show up among the sessions; false when it isn't on this PC or never does.</summary>
+    /// <summary>
+    /// Starts Spotify and waits for it to show up among the sessions; false when it isn't on this PC or never does. It
+    /// comes up in front whatever it is asked, so it is put down the moment its window appears and the keyboard given
+    /// back; should it not load while down, it is let up (without the keyboard) until it has, then put down again.
+    /// </summary>
     private Task<bool> StartSpotify() => _starting ??= Starting();
 
     private async Task<bool> Starting()
@@ -176,6 +180,7 @@ public partial class Music : Node
                 Show(new Track("Spotify", "", "", false));
                 return true;
             }
+            var before = SpotifyButtons.Foreground();
             if (SpotifyPath() is { } path)
                 Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Minimized });
             else if (SpotifyHere)
@@ -183,9 +188,27 @@ public partial class Music : Node
             else
                 return false;
             GD.Print("Music: starting Spotify");
-            // it takes a few seconds to start, and a moment more to show up among the sessions
+            for (var i = 0; i < 300 && !SpotifyButtons.Running; i++)
+                await ToSignal(GetTree().CreateTimer(0.05), SceneTreeTimer.SignalName.Timeout);
+            SpotifyButtons.Minimise();
+            SpotifyButtons.GiveBack(before);
+            // it takes a few seconds to load, and a moment more to show up among the sessions
+            var shown = false;
             for (var i = 0; i < 50 && Session() is null; i++)
+            {
                 await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+                if (i == 24 && Session() is null)
+                {
+                    GD.Print("Music: Spotify hasn't loaded while down: letting it up");
+                    SpotifyButtons.ShowQuietly();
+                    shown = true;
+                }
+            }
+            if (shown)
+            {
+                SpotifyButtons.Minimise();
+                SpotifyButtons.GiveBack(before);
+            }
             await Refresh();
             return Session() is not null;
         }
@@ -228,7 +251,8 @@ public partial class Music : Node
     /// <summary>
     /// Starts a saved playlist from its beginning (<paramref name="name"/> as Spotify shows it). A Spotify playlist's
     /// link opens it in Spotify (started for it if it wasn't open), then Spotify's own play button for it is pressed;
-    /// started for this, Spotify is put down again once it plays. An album or a track starts by its link; a web
+    /// the link brings Spotify's window up (its page loads only while up), so if it was down before (minimised, or not
+    /// running) it is put down again once it plays, and the keyboard given back. An album or a track starts by its link; a web
     /// playlist in the browser. False when Spotify's button never showed: then what played last carries on instead.
     /// </summary>
     public async Task<bool> StartPlaylist(string link, string name)
@@ -258,7 +282,8 @@ public partial class Music : Node
             Show(new Track("Spotify", name, "", true));
             return true;
         }
-        var started = !SpotifyButtons.Running;
+        var before = SpotifyButtons.Foreground();
+        var putBack = SpotifyButtons.Down;
         Launch(address);
         // Spotify takes a moment to show the page (and longer to start): look for its button until it's there
         for (var i = 0; i < 40; i++)
@@ -279,14 +304,22 @@ public partial class Music : Node
             if (pressing == SpotifyButtons.Pressing.Missing)
                 continue;
             GD.Print(pressing == SpotifyButtons.Pressing.Pressed ? $"Music: pressed Spotify's \"Play {name}\"" : $"Music: \"{name}\" was playing already");
-            if (started)
-                SpotifyButtons.Minimise();
+            PutBack();
             await Refresh();
             return true;
         }
+        PutBack();
         GD.Print($"Music: Spotify never showed a play button for \"{name}\"; what played last carries on");
         await Play();
         return false;
+
+        void PutBack()
+        {
+            if (!putBack)
+                return;
+            SpotifyButtons.Minimise();
+            SpotifyButtons.GiveBack(before);
+        }
     }
 
     /// <summary>

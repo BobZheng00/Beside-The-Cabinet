@@ -8,7 +8,10 @@ namespace InsertCoin.Game.Desktop;
 /// keystrokes, no mouse, no focus taken. A playlist's page in Spotify has a button named "Play" and the playlist's
 /// name ("Pause" and its name while it plays), which starts it from its beginning: the one thing Spotify's links and
 /// Windows' media controls can't do. Spotify names its buttons in its own language, so this works with Spotify in
-/// English (the user's, checked 2026-10-06). UI Automation is reached through its COM interface directly, the few calls
+/// English (the user's, checked 2026-10-06). Spotify builds its pages only while its window is up (a playlist's link
+/// brings it up; minimised, its buttons stay pressable), and it takes the keyboard when it comes up: so its window is put
+/// down again, and the keyboard given back, by the ones who brought it up (see <see cref="Music"/>; tried on the user's
+/// PC, 2026-10-06). UI Automation is reached through its COM interface directly, the few calls
 /// used declared below (Godot's .NET doesn't load the desktop runtime that wraps it). Every call blocks while Spotify
 /// answers: run it off the main thread.
 /// </summary>
@@ -46,6 +49,29 @@ public static class SpotifyButtons
     /// <summary>Spotify is running with a window.</summary>
     public static bool Running => Handle() is not null;
 
+    /// <summary>Spotify is out of the way: minimised, or not running.</summary>
+    public static bool Down => Handle() is not { } handle || IsIconic(handle);
+
+    /// <summary>The window that has the keyboard now (to give it back after Spotify took it).</summary>
+    public static nint Foreground() => GetForegroundWindow();
+
+    /// <summary>Gives the keyboard back to the window that had it (not to one of Spotify's own).</summary>
+    public static void GiveBack(nint window)
+    {
+        if (window == 0)
+            return;
+        GetWindowThreadProcessId(window, out var owner);
+        if (Process.GetProcessesByName("Spotify").All(p => p.Id != owner))
+            SetForegroundWindow(window);
+    }
+
+    /// <summary>Lets Spotify's window up without it taking the keyboard (it loads only while up).</summary>
+    public static void ShowQuietly()
+    {
+        if (Handle() is { } handle)
+            ShowWindow(handle, 4);                          // SW_SHOWNOACTIVATE
+    }
+
     /// <summary>Dev: how many play buttons Spotify's window shows, and whether one for <paramref name="playlist"/> is among them (presses nothing).</summary>
     public static string Probe(string? playlist)
     {
@@ -81,6 +107,18 @@ public static class SpotifyButtons
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(nint handle, int show);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(nint handle);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint handle);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint handle, out uint process);
 
     // ---- UI Automation's COM interface: only what is used; the slots before each are kept in order, unused ------------
 
