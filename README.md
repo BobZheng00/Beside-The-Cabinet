@@ -20,7 +20,7 @@ Windows, change player, quit).
 The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to
 what the cabinet does: claps for a Hard solve, a small fist pump for the others, glances at the screen, worries
 about debt, dozes while the session is paused. In a conversation she looks away to think and back to answer, nods
-in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her for where things stand. The tray menu switches her
+in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her and she waves, and the slip to type to her opens. The tray menu switches her
 off, silences her, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
 She can also talk. In tray → "Chat settings…" pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a

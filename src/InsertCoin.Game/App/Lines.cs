@@ -52,22 +52,6 @@ public static class Lines
     /// <summary>A long stretch at the PC with no break.</summary>
     public const string StandUp = "You've been at it a while. Stand up, stretch, have some water?";
 
-    /// <summary>Where things stand, for when she is asked (clicked).</summary>
-    public static string Status(LedgerState state, Rules rules, int streak)
-    {
-        var left = state.TimeLeftMs(rules);
-        if (state.DebtMs > 0 && left == 0)
-        {
-            var solves = (int)Math.Ceiling(state.DebtMs / (double)rules.TokenMs);
-            return $"You owe {Span(state.DebtMs)}. {solves} Easy {(solves == 1 ? "solve clears" : "solves clear")} it.";
-        }
-        if (state.Session is not null)
-            return $"{Span(left)} left in this session.";
-        if (left > 0)
-            return $"{Span(left)} banked." + (streak > 1 ? $" {streak}-day streak!" : " Play or save it?");
-        return $"No coins yet. One Easy problem is {Span(rules.TokenMs)} of play.";
-    }
-
     private static string? For(LedgerEvent e, LedgerState state, Rules rules, Random random) => e switch
     {
         CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, $"JACKPOT! {c.Tokens} coins for a Hard one!", $"A Hard one! That's {Span(c.Tokens * rules.TokenMs)} of play.") + Bonus(c),

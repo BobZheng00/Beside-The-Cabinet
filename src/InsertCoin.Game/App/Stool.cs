@@ -19,7 +19,7 @@ public partial class Stool : Node2D
     private SettingsFile _settings = null!;
     private CabinetView _cabinet = null!;
     private DesktopWindow _window = null!;
-    private Func<string> _situation = null!, _status = null!;
+    private Func<string> _situation = null!;
     private Action<double> _lively = null!;
     private string _characters = "";
     private Chat _chat = null!;
@@ -76,16 +76,14 @@ public partial class Stool : Node2D
     public event Action<bool>? MicChanged, ConversingChanged;
 
     /// <param name="situation">Where things stand on the cabinet, told to her mind with what the user says.</param>
-    /// <param name="status">Her line about where things stand, said when she is clicked.</param>
     /// <param name="lively">Full pace for this many seconds: something worth watching is about to happen.</param>
     public void Build(string dataDir, SettingsFile settings, CabinetView cabinet, DesktopWindow window,
-                      Func<string> situation, Func<string> status, Action<double> lively)
+                      Func<string> situation, Action<double> lively)
     {
         _settings = settings;
         _cabinet = cabinet;
         _window = window;
         _situation = situation;
-        _status = status;
         _lively = lively;
         _characters = Path.Combine(dataDir, "characters");
 
@@ -477,7 +475,7 @@ public partial class Stool : Node2D
         _listening.Said(answer: false, line);
     }
 
-    /// <summary>She waves and says where things stand; when she can talk, the slip to type to her opens too.</summary>
+    /// <summary>She waves (no line about play time: the user found it repetitive, 2026-10-07); when she can talk, the slip to type to her opens too.</summary>
     public void Clicked()
     {
         if (_listening.HeldToTalk)
@@ -487,10 +485,7 @@ public partial class Stool : Node2D
         _ = Interrupt();
         _lively(6);
         if (!replying)
-        {
-            Her?.Play(Moment.Greet);
-            Say(_status());                                 // cut off, she stops and looks at the player instead
-        }
+            Her?.Play(Moment.Greet);                        // cut off, she stops and looks at the player instead
         OpenChat();
     }
 

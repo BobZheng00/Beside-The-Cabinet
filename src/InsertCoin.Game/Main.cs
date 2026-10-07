@@ -103,7 +103,6 @@ public partial class Main : Node2D
         MoveChild(_stool, _cabinet.GetIndex() + 1);           // drawn over the cabinet art, under everything else
         _stool.Build(dataDir, _settingsFile, _cabinet, _window,
                      situation: () => Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username),
-                     status: () => Lines.Status(_state, _rules, GameCalendar.CurrentStreak(_state, DateTimeOffset.Now, _rules)),
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
