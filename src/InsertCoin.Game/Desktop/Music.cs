@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Godot;
+using Microsoft.Win32;
 using Windows.Media.Control;
 
 namespace InsertCoin.Game.Desktop;
@@ -8,10 +10,12 @@ namespace InsertCoin.Game.Desktop;
 /// The player's music app, through Windows' media controls (the system's media sessions, the same as the volume
 /// flyout's): what is playing, and play, pause and skip on the music app alone, not on a game, a video or a recorder.
 /// Spotify's session is the music app's whenever Spotify is open; otherwise another music app's (NetEase Cloud Music,
-/// QQ Music, Apple Music…); a browser's only when their playlist is a web one (YouTube Music). Their focus
-/// playlist opens by its link: a Spotify link in the Spotify app, which shows the playlist but doesn't start it (it
-/// can't be told to), so after that first time the music app is resumed instead, and it carries on where it left off.
-/// A test run (off screen) never touches the player's music: it only says what it would do.
+/// QQ Music, Apple Music…); a browser's only when their playlist is a web one (YouTube Music). When something should
+/// play and no music app is open, Spotify is found on this PC and started (asked to start minimised, out of the way)
+/// and, once it shows up, told to play: it carries on with what played last. Their focus playlist opens by its link,
+/// in the Spotify app, which shows a playlist but can't be told to start one (an album or a track it can); so once
+/// they have played the playlist there, resuming plays it. A test run (off screen) never touches the player's music:
+/// it only says what it would do.
 /// </summary>
 public partial class Music : Node
 {
@@ -24,6 +28,7 @@ public partial class Music : Node
 
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private bool _refreshing;
+    private Task<bool>? _starting;                          // Spotify on its way up: anything else that wants it waits for the same
 
     /// <summary>Their focus playlist's link, or null: a web one (not Spotify's) lets a browser's session count as the music app.</summary>
     public Func<string?> Playlist { get; set; } = () => null;
@@ -67,8 +72,8 @@ public partial class Music : Node
 
     private async Task Refresh()
     {
-        if (_refreshing)
-            return;
+        if (_refreshing || _manager is null)
+            return;                                         // a test run has no sessions to read: what it pretends stays
         _refreshing = true;
         try
         {
@@ -120,11 +125,74 @@ public partial class Music : Node
 
     // ---- Doing things ------------------------------------------------------------------------------------------------
 
-    public Task<bool> Play() => Act("play", s => s.TryPlayAsync().AsTask());
+    /// <summary>Plays: the music app open resumes; with none open, Spotify is started and then plays. False when nothing could.</summary>
+    public async Task<bool> Play() => await Open() && await Act("play", s => s.TryPlayAsync().AsTask());
+
     public Task<bool> Pause() => Act("pause", s => s.TryPauseAsync().AsTask());
-    public Task<bool> Toggle() => Act("toggle", s => s.TryTogglePlayPauseAsync().AsTask());
-    public Task<bool> Next() => Act("next", s => s.TrySkipNextAsync().AsTask());
-    public Task<bool> Previous() => Act("previous", s => s.TrySkipPreviousAsync().AsTask());
+
+    /// <summary>Play or pause; with no music app open, as <see cref="Play"/>.</summary>
+    public async Task<bool> Toggle() => Now is null ? await Play() : await Act("toggle", s => s.TryTogglePlayPauseAsync().AsTask());
+
+    public async Task<bool> Next() => await Open() && await Act("next", s => s.TrySkipNextAsync().AsTask());
+    public async Task<bool> Previous() => await Open() && await Act("previous", s => s.TrySkipPreviousAsync().AsTask());
+
+    /// <summary>A music app is open, or Spotify has been started and has shown up.</summary>
+    private async Task<bool> Open() => Now is not null || Session() is not null || await StartSpotify();
+
+    /// <summary>Where Spotify is on this PC: its own installer's copy, the Store's, or whatever its links open; null when it isn't.</summary>
+    public static string? SpotifyPath()
+    {
+        var own = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Spotify", "Spotify.exe");
+        if (File.Exists(own))
+            return own;
+        var store = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "Spotify.exe");
+        if (File.Exists(store))
+            return store;
+        var command = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Classes\spotify\shell\open\command", "", null) as string
+                      ?? Registry.GetValue(@"HKEY_CLASSES_ROOT\spotify\shell\open\command", "", null) as string;
+        return command is not null && Regex.Match(command, "^\"([^\"]+\\.exe)\"", RegexOptions.IgnoreCase) is { Success: true } path && File.Exists(path.Groups[1].Value)
+            ? path.Groups[1].Value : null;
+    }
+
+    /// <summary>Spotify is on this PC (its links open something).</summary>
+    public static bool SpotifyHere => SpotifyPath() is not null || Registry.ClassesRoot.OpenSubKey("spotify") is not null;
+
+    /// <summary>Starts Spotify (minimised, if it lets itself be) and waits for it to show up among the sessions; false when it isn't on this PC or never does.</summary>
+    private Task<bool> StartSpotify() => _starting ??= Starting();
+
+    private async Task<bool> Starting()
+    {
+        try
+        {
+            if (Companion.Paper.OffScreen)
+            {
+                GD.Print($"Music: would start Spotify ({SpotifyPath() ?? "not on this PC"}); a test run pretends it opens, paused");
+                Show(new Track("Spotify", "", "", false));
+                return true;
+            }
+            if (SpotifyPath() is { } path)
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Minimized });
+            else if (SpotifyHere)
+                OS.ShellOpen("spotify:");
+            else
+                return false;
+            GD.Print("Music: starting Spotify");
+            // it takes a few seconds to start, and a moment more to show up among the sessions
+            for (var i = 0; i < 50 && Session() is null; i++)
+                await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+            await Refresh();
+            return Session() is not null;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Music: couldn't start Spotify ({e.Message})");
+            return false;
+        }
+        finally
+        {
+            _starting = null;
+        }
+    }
 
     /// <summary>Does it on the music app's session; false when there is none, or it said no.</summary>
     private async Task<bool> Act(string what, Func<GlobalSystemMediaTransportControlsSession, Task<bool>> act)
@@ -152,31 +220,51 @@ public partial class Music : Node
     }
 
     /// <summary>
-    /// Plays the focus playlist: when the music app is open it is resumed (it carries on where it left off); when it
-    /// isn't, the playlist opens by its link, and once the app is up it is told to play. False when there is no link
-    /// and no music app either.
+    /// Music for focusing, quietly: playing already, it plays on; the music app open (or Spotify, started) resumes;
+    /// with neither, a web playlist (YouTube Music) opens in the browser, which starts it.
     /// </summary>
-    public async Task<bool> PlayPlaylist(string? link)
+    public async Task<bool> PlayFocus(string? link)
     {
         if (Now is { Playing: true })
             return true;
-        if (Now is not null)
+        var web = Address(link) is { } address && !address.StartsWith("spotify:") ? address : null;
+        if (Now is not null || Session() is not null || web is null)
             return await Play();
+        Launch(web);
+        return true;
+    }
+
+    /// <summary>
+    /// Their playlist, shown in its app (Spotify started for it if it wasn't open), and played: an album or a track
+    /// starts by its link; a playlist Spotify can only show, so the app resumes (the playlist, once they have played it
+    /// there). Without a link, as <see cref="Play"/>.
+    /// </summary>
+    public async Task<bool> OpenPlaylist(string? link)
+    {
         if (Address(link) is not { } address)
-            return false;
+            return await Play();
+        var starts = Regex.IsMatch(address, "^spotify:(album|track):");
+        Launch(starts ? address + ":play" : address);
+        if (starts)
+            return true;
+        if (Companion.Paper.OffScreen)
+            Show(Now ?? new Track("Spotify", "", "", false));
+        for (var i = 0; i < 50 && Session() is null && !Companion.Paper.OffScreen; i++)
+            await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        await Refresh();
+        return Now is { Playing: true } || await Act("play", s => s.TryPlayAsync().AsTask());
+    }
+
+    /// <summary>Opens a link in its app or the browser; a test run only says so.</summary>
+    private static void Launch(string address)
+    {
         if (Companion.Paper.OffScreen)
         {
             GD.Print($"Music: would open {address} (a test run opens nothing)");
-            return true;
+            return;
         }
+        GD.Print($"Music: opening {address}");
         OS.ShellOpen(address);
-        // the app takes a few seconds to start and show up among the sessions
-        for (var i = 0; i < 20 && Now is null; i++)
-        {
-            await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
-            await Refresh();
-        }
-        return Now is not null && await Play();
     }
 
     /// <summary>

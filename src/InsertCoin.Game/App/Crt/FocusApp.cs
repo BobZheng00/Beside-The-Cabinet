@@ -4,13 +4,13 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// FOCUS on the CRT: a focus session (Pomodoro, see <see cref="Focus"/>). Before one, the lengths (a click steps
-/// through them), whether their music plays along, and START. During one, the part and its round, the time left, how
+/// FOCUS on the CRT: a focus session (Pomodoro, see <see cref="Focus"/>). Before one, the lengths (down and up
+/// beside each, from 5 minutes of focus to 2 hours, breaks from 1 to 30), whether their music plays along, and START. During one, the part and its round, the time left, how
 /// much is behind, the rounds up to the long break, and pause, skip and stop.
 /// </summary>
 public partial class FocusApp(Focus focus) : CrtApp
 {
-    private static readonly int[] FocusLengths = [15, 20, 25, 30, 45, 50, 60, 90], BreakLengths = [3, 5, 10, 15];
+    private static readonly int[] FocusLengths = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 75, 90, 120], BreakLengths = [1, 2, 3, 4, 5, 10, 15, 20, 30];
 
     public override string Id => "focus";
     public override string Label => "FOCUS";
@@ -38,14 +38,33 @@ public partial class FocusApp(Focus focus) : CrtApp
     private void DrawReady()
     {
         var plan = focus.Plan;
-        Centred("READY?", Pixel, 14, Accent, new Rect2(0, 12, Size.X, 24));
-        Centred($"{plan.Focus:00}:00", Pixel, 54, Ink, new Rect2(0, 42, Size.X, 70));
-        Button(new Rect2(40, 122, 154, 46), $"FOCUS {plan.Focus}", () => Lengths(Following(FocusLengths, plan.Focus), plan.Break), font: Round, size: 21);
-        Button(new Rect2(206, 122, 154, 46), $"BREAK {plan.Break}", () => Lengths(plan.Focus, Following(BreakLengths, plan.Break)), font: Round, size: 21);
-        Button(new Rect2(40, 178, 320, 42), focus.WithMusic ? "WITH MY MUSIC" : "NO MUSIC", () => focus.WithMusic = !focus.WithMusic,
+        Centred("READY?", Pixel, 14, Accent, new Rect2(0, 10, Size.X, 22));
+        Centred(plan.Focus >= 100 ? $"{plan.Focus / 60}:{plan.Focus % 60:00}:00" : $"{plan.Focus:00}:00", Pixel, 46, Ink, new Rect2(0, 34, Size.X, 62));
+        Stepper(104, "FOCUS", plan.Focus, FocusLengths, minutes => focus.SetLengths(minutes, plan.Break));
+        Stepper(164, "BREAK", plan.Break, BreakLengths, minutes => focus.SetLengths(plan.Focus, minutes));
+        Button(new Rect2(40, 230, 136, 60), focus.WithMusic ? "MUSIC ON" : "NO MUSIC", () => focus.WithMusic = !focus.WithMusic,
                chosen: focus.WithMusic, font: Round, size: 20);
-        Button(new Rect2(40, 232, 320, 58), "START", () => focus.Start(), chosen: true, size: 24);
+        Button(new Rect2(188, 230, 172, 60), "START", () => focus.Start(), chosen: true, size: 22);
     }
+
+    /// <summary>A length, with down and up beside it: each steps to the next length there is, stopping at either end.</summary>
+    private void Stepper(float y, string label, int minutes, int[] lengths, Action<int> set)
+    {
+        Box(new Rect2(40, y, 320, 52), Glow, Ink, 4, 14);
+        DrawString(Pixel, new Vector2(58, y + 34), label, HorizontalAlignment.Left, -1, 15, Ink);
+        // a length set by hand in settings.json may be between two of these: down and up go to the nearest either side
+        var shorter = lengths.LastOrDefault(l => l < minutes);
+        var longer = lengths.FirstOrDefault(l => l > minutes);
+        RoundButton(new Vector2(196, y + 26), 19, Minus, () => set(shorter), enabled: shorter > 0);
+        Centred($"{minutes} MIN", Round, 22, Ink, new Rect2(216, y, 100, 52));
+        RoundButton(new Vector2(336, y + 26), 19, (c, r, ink) =>
+        {
+            Minus(c, r, ink);
+            DrawLine(c + new Vector2(0, -r * 0.45f), c + new Vector2(0, r * 0.45f), ink, 4, true);
+        }, () => set(longer), enabled: longer > 0);
+    }
+
+    private void Minus(Vector2 c, float r, Color ink) => DrawLine(c + new Vector2(-r * 0.45f, 0), c + new Vector2(r * 0.45f, 0), ink, 4, true);
 
     private void DrawSession(FocusSession session)
     {
@@ -74,9 +93,6 @@ public partial class FocusApp(Focus focus) : CrtApp
         Button(new Rect2(260, 222, 100, 58), "STOP", () => focus.Stop(), size: 14);
     }
 
-    private void Lengths(int focusMinutes, int breakMinutes) => focus.SetLengths(focusMinutes, breakMinutes);
-
-    private static int Following(int[] lengths, int now) => lengths.FirstOrDefault(l => l > now, lengths[0]);
 
     public override void DrawGlyph(CanvasItem on, Rect2 box)
     {

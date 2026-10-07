@@ -78,9 +78,16 @@ public abstract partial class CrtApp : Control
         Centred(label, font ?? Pixel, size, chosen ? Colors.White : Ink, box);
     }
 
-    /// <summary>A round button with a drawn picture (play, pause, skip): the same, as a circle.</summary>
-    protected void RoundButton(Vector2 centre, float radius, Action<Vector2, float, Color> picture, Action pressed)
+    /// <summary>A round button with a drawn picture (play, pause, skip): the same, as a circle; faded and doing nothing unless <paramref name="enabled"/>.</summary>
+    protected void RoundButton(Vector2 centre, float radius, Action<Vector2, float, Color> picture, Action pressed, bool enabled = true)
     {
+        if (!enabled)
+        {
+            DrawCircle(centre, radius, Glow with { A = 0.2f });
+            DrawArc(centre, radius, 0, Mathf.Tau, 40, Ink with { A = 0.25f }, 4, true);
+            picture(centre, radius, Ink with { A = 0.25f });
+            return;
+        }
         var box = new Rect2(centre - Vector2.One * radius, Vector2.One * radius * 2);
         _buttons.Add((box, pressed));
         var over = _pointer is { } at && at.DistanceTo(centre) <= radius;

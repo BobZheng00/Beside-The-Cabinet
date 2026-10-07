@@ -136,7 +136,7 @@ public partial class Focus : Node
         if (!WithMusic)
             return;
         if (part == FocusPart.Focus)
-            _ = _music.PlayPlaylist(_settings.Now.Playlist);
+            _ = _music.PlayFocus(_settings.Now.Playlist);
         else
             _ = _music.Pause();
     }

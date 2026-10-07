@@ -340,9 +340,11 @@ public partial class Stool : Node2D
         var app = _music.Now?.App ?? "the music app";
         return action switch
         {
-            "play_playlist" when await _music.PlayPlaylist(_settings.Now.Playlist) =>
-                _music.Now is null ? "Opened their playlist." : $"{app} is playing (it carries on with what was playing last, their playlist if they last played it).",
-            "play_playlist" => "There's no playlist saved and no music app open: they can save one in the screen's MUSIC app (paste its link).",
+            "play_playlist" when _settings.Now.Playlist is null && !Desktop.Music.SpotifyHere =>
+                "There's no playlist saved and no Spotify on this PC: they can save a playlist's link in the screen's MUSIC app.",
+            "play_playlist" when await _music.OpenPlaylist(_settings.Now.Playlist) =>
+                $"Their playlist is open in {_music.Now?.App ?? "their music app"}, playing (Spotify carries on with what played last: their playlist once they have played it there).",
+            "play_playlist" => "Their playlist is open, but the music app didn't start playing: they may need to press play there once.",
             "play" => await _music.Play() ? $"{app} is playing." : "No music app is open.",
             "pause" => await _music.Pause() ? $"{app} is paused." : "No music app is open.",
             "next" => await _music.Next() ? "Skipped to the next track." : "No music app is open.",

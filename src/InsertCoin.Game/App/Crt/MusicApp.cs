@@ -4,9 +4,9 @@ using InsertCoin.Game.Desktop;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// MUSIC on the CRT: what the player's music app is playing (see <see cref="Music"/>), back, play or pause, and next;
-/// their focus playlist, played from here, and saved by pasting its link (copied in Spotify: Share, Copy link); and
-/// whether it plays along with focus sessions.
+/// MUSIC on the CRT: what the player's music app is playing (see <see cref="Music"/>), back, play or pause, and next,
+/// Spotify starting for them when nothing is open; their focus playlist, opened from here, and saved by pasting its link
+/// (copied in Spotify: Share, Copy link); and whether it plays along with focus sessions.
 /// </summary>
 public partial class MusicApp(Music music, Focus focus, SettingsFile settings) : CrtApp
 {
@@ -47,15 +47,15 @@ public partial class MusicApp(Music music, Focus focus, SettingsFile settings) :
         }
         else
         {
-            Centred("NO MUSIC APP OPEN", Pixel, 14, Ink with { A = 0.75f }, new Rect2(0, 22, Size.X, 24));
-            Centred("Open Spotify, or your playlist", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 54, Size.X, 30));
+            Centred("NOTHING PLAYING", Pixel, 14, Ink with { A = 0.75f }, new Rect2(0, 22, Size.X, 24));
+            Centred(Music.SpotifyHere ? "Press play: Spotify starts" : "No Spotify on this PC", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 54, Size.X, 30));
         }
         RoundButton(new Vector2(128, 136), 26, (c, r, ink) => Skip(c, r, ink, forward: false), () => _ = music.Previous());
         RoundButton(new Vector2(200, 136), 32, (c, r, ink) => PlayOrPause(c, r, ink, music.Now is { Playing: true }), () => _ = music.Toggle());
         RoundButton(new Vector2(272, 136), 26, (c, r, ink) => Skip(c, r, ink, forward: true), () => _ = music.Next());
 
         var link = settings.Now.Playlist;
-        Button(new Rect2(40, 180, 320, 44), link is null ? "PASTE A PLAYLIST LINK" : "PLAY MY PLAYLIST", link is null ? Paste : () => _ = music.PlayPlaylist(link),
+        Button(new Rect2(40, 180, 320, 44), link is null ? "PASTE A PLAYLIST LINK" : "OPEN MY PLAYLIST", link is null ? Paste : () => _ = music.OpenPlaylist(link),
                chosen: link is not null, font: Round, size: 21);
         var line = _note ?? (link is null ? "In Spotify: Share, Copy link" : Music.Shown(link));
         Centred(line, Round, 16, _note is null ? Ink with { A = 0.6f } : Accent, new Rect2(24, 226, Size.X - 48, 22));

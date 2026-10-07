@@ -141,9 +141,10 @@ Pull one off the slot (or off the side) and stick it anywhere on the cabinet's s
 down. Each can have its own paper colour and a sticker. Memos are yours: forgetting leaves them be.
 
 **Focus sessions and music.** The screen's FOCUS app runs a Pomodoro (25 minutes of focus, 5 off, 15 after every
-fourth; click a length to change it): the CRT counts down, and she tells you when each part ends, with a nudge to stand
+fourth; down and up beside each length change it): the CRT counts down, and she tells you when each part ends, with a nudge to stand
 up and drink some water at the breaks. Ask her to start one ("let's focus for 50 minutes") and she does. MUSIC shows
-what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls; paste your
+what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
+nothing open, play starts Spotify for you); paste your
 focus playlist's link (Spotify: Share, Copy link) and, with WITH FOCUS on, it plays while you focus and pauses at breaks.
 She can control it too, after asking. And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
