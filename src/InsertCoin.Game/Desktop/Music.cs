@@ -42,6 +42,9 @@ public partial class Music : Node
     /// <summary>What is on changed (the screen's MUSIC app follows).</summary>
     public event Action? Changed;
 
+    /// <summary>Spotify calls a saved playlist something else now (link, its name there): the name to keep.</summary>
+    public event Action<string, string>? PlaylistRenamed;
+
     public override async void _Ready()
     {
         if (Companion.Paper.OffScreen)
@@ -241,6 +244,13 @@ public partial class Music : Node
         {
             Launch(address + ":play");
             return true;
+        }
+        // its button carries its name as Spotify has it now: ask (a name kept from before, or renamed since, would miss it)
+        if (await NameOf(link) is { } current && current != name)
+        {
+            GD.Print($"Music: Spotify calls \"{name}\" \"{current}\"");
+            PlaylistRenamed?.Invoke(link, current);
+            name = current;
         }
         if (Companion.Paper.OffScreen)
         {

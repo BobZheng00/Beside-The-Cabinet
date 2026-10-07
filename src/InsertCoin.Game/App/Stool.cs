@@ -114,6 +114,18 @@ public partial class Stool : Node2D
             });
         _music = new Music { Links = () => settings.Now.Playlists.Select(p => p.Link) };
         AddChild(_music);
+        _music.PlaylistRenamed += Rename;
+        foreach (var unnamed in settings.Now.Playlists.Where(p => p.Name == "My playlist"))     // the one carried over: its name as Spotify has it
+            _ = Named(unnamed.Link);
+
+        async Task Named(string link)
+        {
+            if (await Desktop.Music.NameOf(link) is { } name)
+                Rename(link, name);
+        }
+
+        void Rename(string link, string name) =>
+            settings.Save(settings.Now with { Playlists = [.. settings.Now.Playlists.Select(p => p.Link == link ? p with { Name = name } : p)] });
         _focus = new Focus();
         AddChild(_focus);
         _focus.Build(settings, _music);
