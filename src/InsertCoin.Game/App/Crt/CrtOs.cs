@@ -4,8 +4,9 @@ using InsertCoin.Game.Cabinet;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The CRT's own small system, like a phone's (the user's idea, 2026-10-06). A click on the screen folds the readout
-/// away and the home screen's apps pop in, four to a page, the pages a swipe apart. Holding an app picks it up, to
+/// The CRT's own small system, like a phone's (the user's idea, 2026-10-06). A click on the screen lifts it out of the
+/// cabinet to face the player, large enough to read at any cabinet size; the readout folds away, and the home
+/// screen's apps pop in, four to a page, the pages a swipe apart. Holding an app picks it up, to
 /// put it somewhere else (the order is kept). An app opens out of its icon and closes back into it; the system closes
 /// by itself after a while untouched, or from the power mark, and the readout unfolds again.
 /// </summary>
@@ -20,6 +21,8 @@ public partial class CrtOs : Node
     private static readonly Font Pixel = GD.Load<FontFile>("res://fonts/PressStart2P-Regular.ttf");
 
     private ScreenView _screen = null!;
+    private Func<float> _windowScale = null!;
+    private Rect2 _canvas;
     private readonly List<CrtApp> _apps = [];
     private Action<string[]> _keepOrder = null!;
     private Home _home = null!;
@@ -42,9 +45,13 @@ public partial class CrtOs : Node
     /// <param name="apps">Every app there is.</param>
     /// <param name="order">The home screen's order, by app id, as kept; apps not in it come after.</param>
     /// <param name="keepOrder">Keeps the order after the player has moved an app.</param>
-    public void Build(ScreenView screen, IEnumerable<CrtApp> apps, IReadOnlyList<string> order, Action<string[]> keepOrder)
+    /// <param name="windowScale">The window's pixels per canvas unit now (the screen lifts out larger on a small cabinet).</param>
+    public void Build(ScreenView screen, IEnumerable<CrtApp> apps, IReadOnlyList<string> order, Action<string[]> keepOrder,
+                      Func<float> windowScale, Vector2 canvas)
     {
         _screen = screen;
+        _windowScale = windowScale;
+        _canvas = new Rect2(Vector2.Zero, canvas);
         _keepOrder = keepOrder;
         var kept = order.ToList();
         _apps.AddRange(apps.OrderBy(a => kept.IndexOf(a.Id) is var i and >= 0 ? i : int.MaxValue));
@@ -86,17 +93,17 @@ public partial class CrtOs : Node
 
     // ---- Opening and closing ------------------------------------------------------------------------------------------
 
-    /// <summary>The readout folds away and the home screen's apps pop in.</summary>
+    /// <summary>The screen lifts out of the cabinet, the readout folds away, and the home screen's apps pop in.</summary>
     private void OpenHome()
     {
         _state = State.Moving;
         _untouched = 0;
         _screen.Live = true;
-        _screen.Fold(away: true, 0.32, () =>
+        _screen.Lift(up: true, _windowScale(), _canvas, () => _screen.Fold(away: true, 0.3, () =>
         {
             _state = State.Home;
             _home.Arrive(_time);
-        });
+        }));
     }
 
     /// <summary>Back to the readout: the apps go, and it unfolds.</summary>
@@ -111,11 +118,11 @@ public partial class CrtOs : Node
         _state = State.Moving;
         _home.Leave(() =>
         {
-            _screen.Fold(away: false, 0.32, () =>
+            _screen.Fold(away: false, 0.3, () => _screen.Lift(up: false, _windowScale(), _canvas, () =>
             {
                 _state = State.Closed;
                 _screen.Live = false;
-            });
+            }));
         });
     }
 
@@ -327,7 +334,7 @@ public partial class CrtOs : Node
             return;
         var index = _apps.FindIndex(a => a.Id == app);
         if (index >= 0)
-            GetTree().CreateTimer(_state == State.Home ? 0.05 : 0.8).Timeout += () => Launch(index);
+            GetTree().CreateTimer(_state == State.Home ? 0.05 : 1.5).Timeout += () => Launch(index);      // once lifted out and home
     }
 
     /// <summary>Dev: clicks the screen at a point in its own pixels.</summary>

@@ -131,7 +131,8 @@ can't take tools (some that run on this PC) answers as before. Design:
 Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
 phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
 copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
-where you can write your own too: click the cabinet's screen and open MEMOS (NEW), or tray → "Write a memo…".
+where you can write your own too: click the cabinet's screen (it lifts out to face you, readable at any cabinet size) and
+open MEMOS (NEW), or tray → "Write a memo…".
 They print the same way, and she reads them unless you untick "Let her read it": if one needs something from her (a
 reminder, a date), she does it and says so; if not, she says nothing. Point at a memo on the cabinet to read it there.
 Click one and it lifts off into a sheet over the cabinet, to read and write on; click away and it goes back.

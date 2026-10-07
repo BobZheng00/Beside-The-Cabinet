@@ -61,6 +61,15 @@ public partial class MemoBoard : Node2D
     /// <summary>The middle of the printer's slot, where a new memo comes out (and a written one goes in).</summary>
     public Vector2 SlotPoint { get; private set; }
 
+    /// <summary>The window's pixels per canvas unit now (smaller on a small cabinet).</summary>
+    public Func<float> WindowScale { get; set; } = () => 1;
+
+    /// <summary>
+    /// How much bigger than its canvas size anything meant to be read is drawn (the card, a memo's sheet), so that on a
+    /// small cabinet its letters are still as large as on the medium one.
+    /// </summary>
+    public float Readable => Mathf.Max(1, 0.82f / WindowScale());
+
     /// <summary>Memos can be stuck on this cabinet's side.</summary>
     public bool CanPin => _side is not null;
 
@@ -143,8 +152,8 @@ public partial class MemoBoard : Node2D
         if (id is { } shown && _time - _hoverSince >= HoverDelay && canvasPoint is { } at && _shown.TryGetValue(shown, out var memo))
         {
             _card.Show(memo, tilt: 0);
-            _card.Scale = Vector2.One;
-            _card.Position = Beside(at, _card.Size);
+            _card.Scale = Vector2.One * Readable;
+            _card.Position = Beside(at, _card.Size * Readable);
         }
         else
             _card.Visible = false;
@@ -224,8 +233,8 @@ public partial class MemoBoard : Node2D
         {
             _carried.Visible = false;
             _card.Show(memo, tilt: -3);
-            _card.Scale = Vector2.One * InHand;
-            _card.Position = at - new Vector2(_card.Size.X / 2, 10) * InHand;     // held by its top, a little smaller: the cabinet stays in view
+            _card.Scale = Vector2.One * InHand * Readable;
+            _card.Position = at - new Vector2(_card.Size.X / 2, 10) * InHand * Readable;     // held by its top, a little smaller: the cabinet stays in view
         }
     }
 

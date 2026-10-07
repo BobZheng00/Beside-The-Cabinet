@@ -260,7 +260,10 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 
 **Too small at the small cabinet size** (the user, 2026-10-06): at S (0.6 of the canvas) the CRT is about 90 px wide and the memo sheet's text about 10 px. The user suggested a view that brings the viewpoint in front of the cabinet. Options:
 - **Lean in:** the whole picture zooms toward the screen. Cinematic, but at S the window is about 390×490 px, so even zoomed the screen stays small unless the window grows, and her figure and the art would need drawing at a higher resolution.
-- **Lift out** (*proposed*): as the memo sheet does, the screen's content comes out of the CRT flat and facing the player, at a fixed readable size in real pixels whatever the cabinet's size, the transparent window growing around the cabinet for the moment if it needs room. The memo sheet and the hover card get the same minimum on-screen size.
+- **Lift out** (*chosen and built 2026-10-06*): as the memo sheet does, the screen's content comes out of the CRT flat and facing the player.
+  - When the system opens, the screen's corners glide from the cabinet's perspective to a flat screen on a little bezel (dark, inked, with the CRT's pink glow), at least 340 of the window's own pixels wide whatever the cabinet's size (`ScreenView.Lift`, `LiftedWidth`). Then the readout folds away and the apps pop in; closing runs the other way and it settles back into the cabinet. It fits in the window at every size, so the window never needs to grow.
+  - On the small cabinet it covers her while open; on the large one it sits over the cabinet's top, her face in view.
+  - The memo sheet and the hover card are drawn larger on a smaller cabinet (`MemoBoard.Readable`), so their letters stay the size they are on the medium one.
 
 ## Order (*proposed*)
 

@@ -95,6 +95,7 @@ public partial class Main : Node2D
         _window = new DesktopWindow();
         AddChild(_window);
         _window.Build(skin.Layers["base"], skin.Scale, skin.Canvas);
+        _cabinet.Memos.WindowScale = () => _window.WindowScale;
 
         _stool = new Stool();
         AddChild(_stool);
@@ -111,7 +112,7 @@ public partial class Main : Node2D
         _crt = new CrtOs();
         AddChild(_crt);
         _crt.Build(_cabinet.Screen, [new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)], _settings.CrtApps,
-                   order => SaveSettings(_settings with { CrtApps = order }));
+                   order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
         _window.Hover += p =>
         {
             _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
@@ -150,7 +151,7 @@ public partial class Main : Node2D
                 _crt.Dropped(p);
             _carrier = null;
         };
-        _window.AlsoSolid = _stool.Hits;
+        _window.AlsoSolid = p => _stool.Hits(p) || _crt.Open && _cabinet.Screen.Hits(p);       // the screen, lifted out over her
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {

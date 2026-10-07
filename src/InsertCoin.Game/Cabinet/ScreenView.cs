@@ -24,7 +24,9 @@ public sealed record ScreenState
 /// layers: the readout (a prompt for text entry over a flash over the readout / attract pages), the desk above it
 /// where the screen's own small system draws its apps (see App.CrtOs), and over both, while her microphone is open,
 /// "MIC" with a blinking dot in the top right corner. The readout folds away like a CRT switching off when the
-/// system opens, and unfolds when it closes.
+/// system opens, and unfolds when it closes. While the system is open the screen lifts out of the cabinet: its corners
+/// glide from the cabinet's perspective to a flat screen facing the player, on a little bezel, large enough to read
+/// whatever size the cabinet is.
 /// </summary>
 public partial class ScreenView : Node2D
 {
@@ -40,8 +42,16 @@ public partial class ScreenView : Node2D
     };
     private const int PxPerUnit = 2;
 
+    /// <summary>How wide the lifted screen is, at least, in the window's own pixels: its letters stay readable on the small cabinet.</summary>
+    public const float LiftedWidth = 340;
+
     private SubViewport _viewport = null!;
-    private Vector2[] _quad = [];
+    private Vector2[] _quad = [], _cabinetQuad = [];
+    private Polygon2D _surface = null!;
+    private Bezel _bezel = null!;
+    private Vector2[] _flat = [];
+    private float _lift;
+    private Tween? _lifting;
     private (Vector3 Row0, Vector3 Row1, Vector3 Row2) _toScreen;
     private Vector2 _pixels;
     private Control _readout = null!;
@@ -84,6 +94,7 @@ public partial class ScreenView : Node2D
         _fold = new ColorRect { Size = new Vector2(size.X, 6), Position = new Vector2(0, size.Y / 2f - 3), Color = new Color(1, 0.94f, 0.98f), Visible = false };
         screen.AddChild(_fold);
         _quad = [.. quad];
+        _cabinetQuad = [.. quad];
         _pixels = size;
         _top = AddLabel(root, Pixel, 21, HorizontalAlignment.Left, new Vector2(38, 26), new Vector2(size.X - 76, 28));
         _topRight = AddLabel(root, Pixel, 21, HorizontalAlignment.Right, new Vector2(38, 26), new Vector2(size.X - 76, 28));
@@ -97,20 +108,20 @@ public partial class ScreenView : Node2D
         _mic = AddLabel(overlay, Pixel, 21, HorizontalAlignment.Right, new Vector2(38, 26), new Vector2(size.X - 76, 28));
         _mic.Text = "MIC";
         _mic.LabelSettings.FontColor = Accent;
-        _micDot = new ColorRect { Position = new Vector2(size.X - 38 - 3 * 21 - 24, 33), Size = new Vector2(14, 14), Color = Accent };
+        _micDot = new ColorRect { Position = new Vector2(size.X - 38 - 3 * 21 - 24, 33), Size = new Vector2(14, 14), Color = Accent, Visible = false };     // lit only while the microphone is open
         overlay.AddChild(_micDot);
         _fuelBack = new ColorRect { Position = new Vector2(60, 258), Size = new Vector2(size.X - 120, 20), Color = Ink with { A = 0.22f } };
         _fuelFill = new ColorRect { Position = _fuelBack.Position, Size = _fuelBack.Size, Color = Ink };
         root.AddChild(_fuelBack);
         root.AddChild(_fuelFill);
 
-        var (r0, r1, r2) = _toScreen = Homography.QuadToUnit(quad);
         _material = new ShaderMaterial { Shader = GD.Load<Shader>("res://Cabinet/screen_quad.gdshader") };
         _material.SetShaderParameter("content", _viewport.GetTexture());
-        _material.SetShaderParameter("inv_h_row0", r0);
-        _material.SetShaderParameter("inv_h_row1", r1);
-        _material.SetShaderParameter("inv_h_row2", r2);
-        AddChild(new Polygon2D { Polygon = [.. quad], Material = _material });
+        _bezel = new Bezel { Visible = false, ZIndex = 64, ZAsRelative = false };      // over her and the cabinet; a memo's sheet comes over it
+        AddChild(_bezel);
+        _surface = new Polygon2D { Material = _material };
+        AddChild(_surface);
+        Place(_cabinetQuad);
 
         var attract = new Godot.Timer { WaitTime = 4.0, Autostart = true };
         attract.Timeout += () => { _attractPage = (_attractPage + 1) % 4; Redraw(); };
@@ -237,6 +248,104 @@ public partial class ScreenView : Node2D
             Live = live;
             then?.Invoke();
         }));
+    }
+
+    /// <summary>
+    /// The screen lifts out of the cabinet to face the player (<paramref name="up"/>), or settles back into it;
+    /// <paramref name="then"/> once it has.
+    /// </summary>
+    /// <param name="windowScale">The window's pixels per canvas unit: the lifted screen is <see cref="LiftedWidth"/> of them wide at least.</param>
+    public void Lift(bool up, float windowScale, Rect2 canvas, Action? then = null)
+    {
+        _lifting?.Kill();
+        if (up)
+        {
+            // flat, a little bigger than the cabinet's screen, centred on it and kept inside the window
+            var bounds = Bounds(_cabinetQuad);
+            var width = Mathf.Max(bounds.Size.X * 1.3f, LiftedWidth / windowScale);
+            var size = new Vector2(width, width * _pixels.Y / _pixels.X);
+            var margin = Vector2.One * (width * 0.05f + 20);                 // its bezel's rim and shadow stay in the window too
+            var centre = bounds.GetCenter().Clamp(canvas.Position + size / 2 + margin, canvas.End - size / 2 - margin);
+            var flat = new Rect2(centre - size / 2, size);
+            _flat = [flat.Position, new Vector2(flat.End.X, flat.Position.Y), flat.End, new Vector2(flat.Position.X, flat.End.Y)];
+        }
+        var live = _live;
+        Live = true;
+        _lifting = CreateTween();
+        _lifting.TweenMethod(Callable.From<float>(SetLift), _lift, up ? 1f : 0f, up ? 0.34 : 0.28)
+            .SetTrans(up ? Tween.TransitionType.Back : Tween.TransitionType.Cubic).SetEase(up ? Tween.EaseType.Out : Tween.EaseType.InOut);
+        _lifting.TweenCallback(Callable.From(() =>
+        {
+            Live = live || up;
+            then?.Invoke();
+        }));
+    }
+
+    /// <summary>How far out of the cabinet it is (0: in it, 1: lifted).</summary>
+    private void SetLift(float lift)
+    {
+        _lift = lift;
+        Place(lift <= 0.001f ? _cabinetQuad : [.. _cabinetQuad.Select((p, i) => p.Lerp(_flat[i], lift))]);
+        var lifted = lift > 0.001f;
+        _surface.ZIndex = lifted ? 65 : 0;
+        _surface.ZAsRelative = !lifted;
+        _bezel.Visible = lifted;
+        _bezel.Modulate = new Color(1, 1, 1, Mathf.Clamp(lift * 1.6f, 0, 1));
+        _bezel.Around = Bounds(_quad);
+    }
+
+    /// <summary>The screen's content goes onto this quad (TL, TR, BR, BL), and the pointer is read through it.</summary>
+    private void Place(Vector2[] quad)
+    {
+        _quad = quad;
+        var (r0, r1, r2) = _toScreen = Homography.QuadToUnit(quad);
+        _material.SetShaderParameter("inv_h_row0", r0);
+        _material.SetShaderParameter("inv_h_row1", r1);
+        _material.SetShaderParameter("inv_h_row2", r2);
+        _surface.Polygon = [.. quad];
+    }
+
+    private static Rect2 Bounds(Vector2[] quad)
+    {
+        var min = quad.Aggregate((a, b) => a.Min(b));
+        var max = quad.Aggregate((a, b) => a.Max(b));
+        return new Rect2(min, max - min);
+    }
+
+    /// <summary>
+    /// What the lifted screen sits in: a soft shadow, the cabinet's dark bezel outlined in its ink, and the CRT's pink
+    /// glow behind the content (on the cabinet the art draws the glow; lifted out, the screen brings its own).
+    /// </summary>
+    private partial class Bezel : Node2D
+    {
+        private Rect2 _around;
+
+        public Rect2 Around
+        {
+            set
+            {
+                _around = value;
+                QueueRedraw();
+            }
+        }
+
+        public override void _Draw()
+        {
+            var rim = _around.Size.X * 0.05f;
+            var frame = _around.Grow(rim);
+            DrawStyleBox(Box(new Color(0.12f, 0.08f, 0.2f, 0.25f), Colors.Transparent, 0, rim * 1.6f), new Rect2(frame.Position + new Vector2(8, 10), frame.Size));
+            DrawStyleBox(Box(new Color("3B2E5E"), new Color("1E1630"), 3, rim * 1.6f), frame);
+            DrawStyleBox(Box(new Color("F6A8DA"), new Color("1E1630"), 2, rim * 0.9f), _around);
+            DrawCircle(_around.GetCenter(), _around.Size.X * 0.36f, new Color(1, 0.92f, 0.98f, 0.35f));       // the glow in its middle
+        }
+
+        private static StyleBoxFlat Box(Color fill, Color line, int width, float corner)
+        {
+            var box = new StyleBoxFlat { BgColor = fill, BorderColor = line, AntiAliasing = true };
+            box.SetBorderWidthAll(width);
+            box.SetCornerRadiusAll((int)corner);
+            return box;
+        }
     }
 
     private void Refresh() => _viewport.RenderTargetUpdateMode = _live ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Once;

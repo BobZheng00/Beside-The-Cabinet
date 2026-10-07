@@ -25,7 +25,8 @@ public partial class MemoSheet : Node2D
 
     private Memos _memos = null!;
     private Memo? _memo;                                    // null while a new one is written
-    private Vector2 _home, _from;
+    private Func<(Vector2 Home, float Scale)> _place = null!;
+    private Vector2 _from;
     private float _fromTilt;
     private Control _root = null!;
     private Label _title = null!, _byline = null!, _note = null!;
@@ -42,10 +43,11 @@ public partial class MemoSheet : Node2D
     private bool _editing, _deleting;
     private Tween? _tween;
 
-    public void Build(Memos memos, Vector2 home)
+    /// <param name="place">Where it rests over the cabinet, and how big (larger on a small cabinet, to stay readable).</param>
+    public void Build(Memos memos, Func<(Vector2 Home, float Scale)> place)
     {
         _memos = memos;
-        _home = home;
+        _place = place;
         Visible = false;
         ZIndex = 70;
         ZAsRelative = false;                                // over her, the cabinet, the hover card
@@ -353,9 +355,10 @@ public partial class MemoSheet : Node2D
         Scale = Vector2.One * 0.16f;
         Rotation = Mathf.DegToRad(tilt);
         Modulate = new Color(1, 1, 1, 0.4f);
+        var (home, scale) = _place();
         _tween = CreateTween().SetParallel();
-        _tween.TweenProperty(this, "position", _home, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        _tween.TweenProperty(this, "scale", Vector2.One, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        _tween.TweenProperty(this, "position", home, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        _tween.TweenProperty(this, "scale", Vector2.One * scale, 0.32).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
         _tween.TweenProperty(this, "rotation", 0f, 0.28).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
         _tween.TweenProperty(this, "modulate:a", 1f, 0.16);
     }

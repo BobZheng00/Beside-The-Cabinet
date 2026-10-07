@@ -38,8 +38,14 @@ public partial class Memos : Node
         _herName = herName;
         _onCabinet = onCabinet;
         _sheet = new MemoSheet();
-        // it rests over the cabinet's front, leaving her in view
-        _sheet.Build(this, new Vector2(Mathf.Clamp(board.CabinetMiddle - MemoSheet.Width / 2, 8, board.Canvas.X - MemoSheet.Width - 8), 150));
+        // it rests over the cabinet's front, leaving her in view (larger on a small cabinet, and then over her too)
+        _sheet.Build(this, () =>
+        {
+            var scale = board.Readable;
+            var size = new Vector2(MemoSheet.Width, MemoSheet.Height) * scale;
+            return (new Vector2(Mathf.Clamp(board.CabinetMiddle - size.X / 2, 8, board.Canvas.X - size.X - 8),
+                                Mathf.Clamp(150 - (size.Y - MemoSheet.Height) / 2, 8, board.Canvas.Y - size.Y - 8)), scale);
+        });
         board.AddChild(_sheet);
         Show();
     }
