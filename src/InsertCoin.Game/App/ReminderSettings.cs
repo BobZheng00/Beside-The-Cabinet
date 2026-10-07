@@ -29,7 +29,9 @@ public partial class ReminderSettings : Window
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private CheckBox _spoken = null!, _sound = null!, _evenMuted = null!, _windows = null!, _ntfy = null!, _discord = null!, _telegram = null!, _webhook = null!;
-    private OptionButton _stays = null!, _snooze = null!, _lead = null!, _checkIns = null!, _quietFrom = null!, _quietUntil = null!;
+    private OptionButton _stays = null!, _snooze = null!, _lead = null!, _checkIns = null!, _quietFrom = null!, _quietUntil = null!, _standUp = null!;
+    private static readonly (string Label, int Minutes)[] StandUps =
+        [("Never", 0), ("After 30 min at the PC", 30), ("After 45 min", 45), ("After 50 min", 50), ("After 1 hour", 60), ("After 90 min", 90)];
     private static readonly (string Label, string Mode)[] CheckInModes =
         [("Off", "Off"), ("Gentle: one every three hours at most", "Gentle"), ("Chatty: whenever there is something", "Chatty")];
     private LineEdit _ntfyServer = null!, _ntfyTopic = null!, _ntfyToken = null!, _discordUrl = null!, _telegramToken = null!, _telegramChat = null!, _webhookUrl = null!;
@@ -101,6 +103,12 @@ public partial class ReminderSettings : Window
         quiet.AddChild(_quietUntil);
         asking.AddChild(quiet);
 
+        column.AddChild(new Label { Text = "Stand up, have some water", ThemeTypeVariation = "Subheading" });
+        column.AddChild(Hint("After a long stretch at the PC with no real break (five minutes away resets it), she suggests standing up and some " +
+                             "water. Never in a call or the quiet hours; in a full-screen game only a ticket; in a focus session, at its breaks."));
+        var known = Array.FindIndex(StandUps, s => s.Minutes == choices.StandUpMinutes);
+        _standUp = Choice(Grid(column), "She suggests it", StandUps.Select(s => s.Label), known >= 0 ? known : 3);
+
         column.AddChild(new Label { Text = "Send to your phone or another app", ThemeTypeVariation = "Subheading" });
         column.AddChild(Hint("Addresses and tokens stay on this PC, encrypted for your Windows account."));
         var elsewhere = choices.Elsewhere;
@@ -153,7 +161,8 @@ public partial class ReminderSettings : Window
 
     private ReminderChoices Choices() => new(
         _spoken.ButtonPressed, _sound.ButtonPressed, _evenMuted.ButtonPressed, _windows.ButtonPressed, Stays[_stays.Selected].Seconds,
-        Snoozes[_snooze.Selected], Leads[_lead.Selected].Minutes, Where(), CheckInModes[_checkIns.Selected].Mode, _quietFrom.Selected, _quietUntil.Selected);
+        Snoozes[_snooze.Selected], Leads[_lead.Selected].Minutes, Where(), CheckInModes[_checkIns.Selected].Mode, _quietFrom.Selected, _quietUntil.Selected,
+        StandUps[_standUp.Selected].Minutes);
 
     private Elsewhere Where() => new()
     {

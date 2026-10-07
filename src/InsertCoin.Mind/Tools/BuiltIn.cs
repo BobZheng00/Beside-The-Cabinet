@@ -40,6 +40,47 @@ public static class BuiltIn
         "Print a memo",
         OutsideApp: false);
 
+    /// <summary>
+    /// Runs focus sessions on the cabinet (see <see cref="FocusSession"/>): the screen counts down and she says when each
+    /// part starts and ends. It acts inside the app, so she needs no permission.
+    /// </summary>
+    /// <param name="act">Does it (the action, and for a start the minutes of focus and of each break, if she gave them) and says how things stand.</param>
+    public static Tool Focus(Func<string, int?, int?, string> act) => new(
+        AIFunctionFactory.Create(
+            ([Description("start, pause, resume, skip (ends the part under way and starts the next) or stop")] string action,
+             [Description("When starting: minutes of each focus part, if the player asked for a length; otherwise leave it out")] int? focus_minutes = null,
+             [Description("When starting: minutes of each short break, if the player asked for a length; otherwise leave it out")] int? break_minutes = null) =>
+                act(action.Trim().ToLowerInvariant(), focus_minutes, break_minutes),
+            "focus_session",
+            "Runs a focus session (Pomodoro) on the cabinet: focus, then a short break, a long one after every few, until stopped. The screen counts " +
+            "down, you are told when each part ends, and their music can play while they focus. Use it when the player wants to focus, study or " +
+            "work for a while, or asks to pause, skip or stop one. Where a session stands is in the cabinet block."),
+        "Focus sessions",
+        OutsideApp: false);
+
+    /// <summary>
+    /// The player's music app, through Windows' media controls: their focus playlist, play, pause, skip. It acts outside
+    /// the app, so she asks first.
+    /// </summary>
+    /// <param name="act">Does it and says what came of it.</param>
+    /// <param name="playlist">The player's focus playlist as the card shows it, or null when none is saved.</param>
+    public static Tool Music(Func<string, Task<string>> act, Func<string?> playlist) => new(
+        AIFunctionFactory.Create(
+            async ([Description("play_playlist (opens the player's focus playlist), play, pause, next or previous")] string action) =>
+                await act(action.Trim().ToLowerInvariant()),
+            "music",
+            "Controls the player's music app (Spotify or another, through Windows' media controls): opens their focus playlist, plays, pauses, " +
+            "skips. What is playing is in the cabinet block. The player is asked first."),
+        "Control the music",
+        OutsideApp: true,
+        arguments => Text(arguments, "action")?.Trim().ToLowerInvariant() switch
+        {
+            "play_playlist" => ("Play your focus playlist?", playlist() ?? "No playlist saved yet (the screen's MUSIC app keeps one)", "music"),
+            "pause" => ("Pause your music?", "In your music app", "music"),
+            "next" or "previous" => ("Skip a track?", "In your music app", "music"),
+            _ => ("Play your music?", "In your music app", "music"),
+        });
+
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
     public static Uri? Page(string? url) =>
         Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var page) && (page.Scheme == Uri.UriSchemeHttps || page.Scheme == Uri.UriSchemeHttp) && page.Host.Length > 0

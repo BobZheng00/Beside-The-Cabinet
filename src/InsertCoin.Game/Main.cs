@@ -46,6 +46,7 @@ public partial class Main : Node2D
     private Onboarding _onboarding = null!;
     private AudioBank _audio = null!;
     private AlertTicket _ticket = null!;
+    private MusicApp _musicApp = null!;
     private CrtOs _crt = null!;
     private object? _carrier;                               // what a pull on the cabinet is carrying: a memo, or the screen's system
     private Reminders _reminders = null!;
@@ -111,8 +112,12 @@ public partial class Main : Node2D
         _reminders.Sent += notice => _ = SendOut(notice);
         _crt = new CrtOs();
         AddChild(_crt);
-        _crt.Build(_cabinet.Screen, [new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)], _settings.CrtApps,
-                   order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
+        _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
+        _crt.Build(_cabinet.Screen, [new FocusApp(_stool.Focus), _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)],
+                   _settings.CrtApps, order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
+        // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
+        _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();
+        _stool.Notice += (title, line) => _ticket.Show(title, line, 10);
         _window.Hover += p =>
         {
             var under = p is { } c && _crt.Covers(c) ? null : p;      // the lifted screen is over what is below it
@@ -486,6 +491,11 @@ public partial class Main : Node2D
     {
         if (_stool.Dev(action))
             return;
+        if (action.StartsWith("musiclink:"))
+        {
+            _musicApp.Save(action["musiclink:".Length..]);     // musiclink:<link> as if pasted into the MUSIC app
+            return;
+        }
         if (action.StartsWith("crt"))
         {
             var parts = action.Split(':');

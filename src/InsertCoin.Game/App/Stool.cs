@@ -26,6 +26,8 @@ public partial class Stool : Node2D
     private ChatBox _chatBox = null!;
     private PermissionCard _permission = null!;
     private Memos _memos = null!;
+    private Focus _focus = null!;
+    private Music _music = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
     private ChatSettings? _chatSettings;
@@ -37,6 +39,7 @@ public partial class Stool : Node2D
     private bool _announcing;                               // passing on a reminder
     private readonly Queue<(IReadOnlyList<Plan> Due, DateTimeOffset At)> _reminding = new();
     private readonly Queue<(string Title, string Text)> _written = new();     // the player's own memos, for her to think over
+    private readonly Queue<(string Ticket, string Note, string Line, DateTimeOffset At)> _told = new();     // focus sessions' turns, a long sitting
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
     /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
@@ -44,6 +47,15 @@ public partial class Stool : Node2D
 
     /// <summary>The player's memos: on the cabinet, in the archive, and in their own hand.</summary>
     public Memos Memos => _memos;
+
+    /// <summary>Focus sessions (the screen's FOCUS app, and her tool).</summary>
+    public Focus Focus => _focus;
+
+    /// <summary>The player's music app (the screen's MUSIC app, and her tool).</summary>
+    public Music Music => _music;
+
+    /// <summary>Something she would say, while the player can't be spoken to (a full-screen game, presenting): a ticket instead (title, line).</summary>
+    public event Action<string, string>? Notice;
 
     /// <summary>Her figure, while someone is on the stool.</summary>
     public CompanionView? Her { get; private set; }
@@ -95,6 +107,15 @@ public partial class Stool : Node2D
         _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "",
                      herName: () => _chat.Ready && Her is not null ? OnStool()?.Name : null, onCabinet: window.Solid);
         _chat.PrintMemo = PrintMemo;
+        _music = new Music { Playlist = () => settings.Now.Playlist };
+        AddChild(_music);
+        _focus = new Focus();
+        AddChild(_focus);
+        _focus.Build(settings, _music);
+        _focus.Told += (note, line) => _told.Enqueue(("FOCUS", note, line, DateTimeOffset.Now));
+        _chat.Focus = FocusAct;
+        _chat.Music = MusicAct;
+        _chat.Playlist = () => settings.Now.Playlist is { } link ? Desktop.Music.Shown(link) : null;
         _memos.Written += (title, text) =>
         {
             Her?.Play(Moment.Paper);                        // she sees it come out of the slot
@@ -128,7 +149,11 @@ public partial class Stool : Node2D
         upkeep.Timeout += () => _ = _chat.Upkeep(_gameRunning);
         AddChild(upkeep);
         var checkIns = new Godot.Timer { WaitTime = 15, Autostart = true };
-        checkIns.Timeout += () => MaybeCheckIn();
+        checkIns.Timeout += () =>
+        {
+            MaybeCheckIn();
+            MaybeStandUp();
+        };
         AddChild(checkIns);
         ShowHer(settings.Now.ShowCompanion);
     }
@@ -203,6 +228,127 @@ public partial class Stool : Node2D
         _lastCheckIn = now;
         GD.Print("Check-in: she asks how something went");
         _ = AskHowItWent(plan);
+    }
+
+    // ---- Stand up, have some water --------------------------------------------------------------------------------------
+
+    private DateTimeOffset _lastStandUp = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// Every fifteen seconds: after a long stretch at the PC with no real break (five minutes away resets it, as for
+    /// check-ins), she suggests standing up and some water, and the count starts again. Never in a call or the quiet
+    /// hours, nor during a focus session (its breaks do it); in a full-screen game or presenting, only a ticket.
+    /// </summary>
+    private void MaybeStandUp(bool force = false)
+    {
+        var now = DateTimeOffset.Now;
+        var since = _activeSince ?? now.AddMinutes(-50);
+        var counted = now - (since > _lastStandUp ? since : _lastStandUp);
+        var minutes = _settings.Now.StandUpMinutes;
+        if (!force && (minutes <= 0 || _activeSince is null || counted < TimeSpan.FromMinutes(minutes) || Quiet(now.Hour) || _focus.Session is not null
+                       || UserActivity.IdleFor() > TimeSpan.FromMinutes(1) || Presence.InCall))
+            return;
+        if (Her is null || _told.Any(t => t.Ticket == "STAND UP"))
+            return;
+        _lastStandUp = now;
+        GD.Print($"Stand up: {(int)(now - since).TotalMinutes} min at the PC");
+        _told.Enqueue(("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, now));
+    }
+
+    /// <summary>What a focus session or a long sitting has for her to say, once she is free (as reminders are); stale after three minutes.</summary>
+    private void PassOnTold()
+    {
+        var now = DateTimeOffset.Now;
+        if (_told.Count == 0 || Busy || _reminding.Count > 0 || now < _quietFrom || Her is null)
+            return;
+        var (ticket, note, line, at) = _told.Dequeue();
+        if (now - at > TimeSpan.FromMinutes(3))
+            return;
+        _ = Tell(ticket, note, line);
+    }
+
+    private async Task Tell(string ticket, string note, string line)
+    {
+        if (Presence.DoNotDisturb || _gameRunning)
+        {
+            Notice?.Invoke(ticket, line);                   // they can't be spoken to now: only the ticket
+            return;
+        }
+        if (!_settings.Now.SpeechBubbles || Her is null)
+            return;
+        _announcing = true;
+        try
+        {
+            _lively(30);
+            if (_chat.Ready)
+            {
+                // in a call, only her bubble: her voice would be heard by everyone in it
+                await _chat.Announce(note, line, Situation(), Her, Presence.InCall ? null : _voice.Begin(), _voice.Language);
+                if (_chat.Replied is { } said)
+                    _listening.Said(answer: false, said);
+            }
+            else
+                Say(line);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Focus: {e}");                     // nobody awaits this task: say what went wrong here
+        }
+        finally
+        {
+            _announcing = false;
+        }
+    }
+
+    // ---- Her focus and music tools ---------------------------------------------------------------------------------------
+
+    /// <summary>Her focus_session tool: what she asked for, done, and how things stand now (what she says, she says herself).</summary>
+    private string FocusAct(string action, int? focus, int? rest)
+    {
+        string Stands() => _focus.Session!.Describe(DateTimeOffset.Now);    // read after what was done: a session just started has all its time
+        switch (action)
+        {
+            case "start" when _focus.Session is not null:
+                return $"A session is already running. {Stands()}";
+            case "start":
+                _focus.Start(focus, rest, byPlayer: false);
+                return $"Started. {Stands()} The screen counts down; you'll be told when the part ends." +
+                       (_focus.WithMusic ? " Their music plays while they focus." : "");
+            case "stop" or "pause" or "resume" or "skip" when _focus.Session is null:
+                return "No focus session is running.";
+            case "stop":
+                var done = _focus.Session!.Done;
+                _focus.Stop(byPlayer: false);
+                return $"Stopped, after {Words.Count(done, "focus part")}.";
+            case "pause":
+                _focus.Pause();
+                return $"Paused. {Stands()}";
+            case "resume":
+                _focus.Resume();
+                return $"Going again. {Stands()}";
+            case "skip":
+                _focus.Skip(byPlayer: false);
+                return $"Skipped to the next part. {Stands()}";
+            default:
+                return "Unknown action: use start, pause, resume, skip or stop.";
+        }
+    }
+
+    /// <summary>Her music tool (the player has allowed it by now).</summary>
+    private async Task<string> MusicAct(string action)
+    {
+        var app = _music.Now?.App ?? "the music app";
+        return action switch
+        {
+            "play_playlist" when await _music.PlayPlaylist(_settings.Now.Playlist) =>
+                _music.Now is null ? "Opened their playlist." : $"{app} is playing (it carries on with what was playing last, their playlist if they last played it).",
+            "play_playlist" => "There's no playlist saved and no music app open: they can save one in the screen's MUSIC app (paste its link).",
+            "play" => await _music.Play() ? $"{app} is playing." : "No music app is open.",
+            "pause" => await _music.Pause() ? $"{app} is paused." : "No music app is open.",
+            "next" => await _music.Next() ? "Skipped to the next track." : "No music app is open.",
+            "previous" => await _music.Previous() ? "Back a track." : "No music app is open.",
+            _ => "Unknown action: use play_playlist, play, pause, next or previous.",
+        };
     }
 
     private bool Quiet(int hour) =>
@@ -352,6 +498,7 @@ public partial class Stool : Node2D
     public override void _Process(double delta)
     {
         PassOnReminders();
+        PassOnTold();
         ThinkOverMemos();
     }
 
@@ -663,11 +810,18 @@ public partial class Stool : Node2D
         }
     }
 
-    /// <summary>Where things stand on the cabinet, for her: the cabinet's own account, and the memos on it.</summary>
+    /// <summary>Where things stand on the cabinet, for her: the cabinet's own account, a focus session, the music, and the memos on it.</summary>
     private string Situation()
     {
+        var lines = new List<string> { _situation() };
+        if (_focus.Session is { } session)
+            lines.Add(session.Describe(DateTimeOffset.Now));
+        if (_music.Now is not null)
+            lines.Add(_music.Describe());
         var memos = _memos.OnTheCabinet.Select(t => $"\"{t}\"").ToList();
-        return memos.Count == 0 ? _situation() : $"{_situation()}\nMemos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.";
+        if (memos.Count > 0)
+            lines.Add($"Memos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.");
+        return string.Join("\n", lines);
     }
 
     /// <summary>
@@ -876,6 +1030,24 @@ public partial class Stool : Node2D
                 GetTree().CreateTimer(4).Timeout += () => PrintMemo(parts[0], parts.Length > 1 ? parts[1] : parts[0], OnStool()?.Id ?? "");
                 break;
             case "memoseed": _memos.DevSeed(OnStool()?.Id ?? ""); break;    // memos hanging, pinned and archived, to try them on
+            case "focus":                                   // focus starts a session from the screen; focus:stop, :skip, :pause, :resume
+                switch (rest)
+                {
+                    case "": _focus.Start(); break;
+                    case "stop": _focus.Stop(); break;
+                    case "skip": _focus.Skip(); break;
+                    case "pause": _focus.Pause(); break;
+                    case "resume": _focus.Resume(); break;
+                }
+                break;
+            case "focustool":                               // focustool:start:50 as her tool would (action, minutes)
+                var asked = rest.Split(':');
+                GD.Print($"Focus: her tool says \"{FocusAct(asked[0], asked.Length > 1 ? int.Parse(asked[1]) : null, null)}\"");
+                break;
+            case "musicprobe": _music.DevProbe(); break;    // checks Windows' media controls answer (how many sessions, whose; no titles)
+            case "standup": MaybeStandUp(force: true); break;   // she suggests standing up, as after a long sitting
+            case "musicfake": _music.DevPlaying(rest is "" or "off" ? null : text.Split(':')[0], text.Split(':').ElementAtOrDefault(1) ?? ""); break;   // musicfake:Title:Artist pretends it plays; musicfake:off none
+            case "musictool": _ = MusicAct(rest).ContinueWith(t => GD.Print($"Music: her tool says \"{t.Result}\"")); break;   // musictool:pause as her tool would
             case "memoopen": _memos.DevOpen(rest.Length > 0 ? int.Parse(rest) : null); break;     // memoopen: the one hanging; memoopen:0 pinned at place 0
             case "memosheet": _memos.DevSheet(text); break;        // the latest sheet: pin, off, edit, done, print, delete, close, esc (not copy: it would take the clipboard); colour:pink, sticker:star, write:title:text, tell, move:dx:dy
             case "memohover": _memos.DevHover(rest is "" or "off" ? null : int.Parse(rest), off: rest == "off"); break;   // memohover: the hanging one; memohover:0 the top pinned; memohover:off

@@ -140,6 +140,14 @@ open several side by side, and its × (or Esc) sends it back.
 Pull one off the slot (or off the side) and stick it anywhere on the cabinet's side; pull it off the cabinet to take it
 down. Each can have its own paper colour and a sticker. Memos are yours: forgetting leaves them be.
 
+**Focus sessions and music.** The screen's FOCUS app runs a Pomodoro (25 minutes of focus, 5 off, 15 after every
+fourth; click a length to change it): the CRT counts down, and she tells you when each part ends, with a nudge to stand
+up and drink some water at the breaks. Ask her to start one ("let's focus for 50 minutes") and she does. MUSIC shows
+what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls; paste your
+focus playlist's link (Spotify: Share, Copy link) and, with WITH FOCUS on, it plays while you focus and pauses at breaks.
+She can control it too, after asking. And after 50 minutes at the PC without a break, she suggests standing up (tray →
+Reminders… to change it).
+
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
@@ -195,7 +203,11 @@ by hand to that spot on the side; `memocarry` alone, off the cabinet), `memoshee
 `memosheet:write:title:text` and `memosheet:tell` (a sheet's paper, sticker, fields and tick), `crt` (the screen's
 system opens; `crt:memos` an app too), `crtclick:x:y` (a click on the screen, in its own pixels), `crtmove:0:1` (an app
 moved, as holding and carrying it would), `crtaway` (a press away from the lifted screen), `crtclose` and
-`memorybook:memos`.
+`memorybook:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
+`focus:resume`, `focus:stop`), `focustool:start:50` (as her tool would), `standup` (she suggests standing up, as after a
+long sitting), `musicfake:Title:Artist` (pretends a music app plays; `musicfake:off`), `musiclink:<link>` (as if pasted
+into MUSIC), `musictool:pause` (her tool), `musicprobe` (checks Windows' media controls answer: how many sessions,
+whose; no titles).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen

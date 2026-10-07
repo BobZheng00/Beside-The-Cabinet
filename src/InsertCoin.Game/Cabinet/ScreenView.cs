@@ -68,6 +68,7 @@ public partial class ScreenView : Node2D
     private ScreenState _state = new();
     private (string Big, string Caption)? _flash;
     private (string Big, string Caption, string Status)? _prompt;
+    private (string Big, string Caption, float Done)? _focus;
     private int _attractPage, _flashId;
     private float _width;
 
@@ -174,6 +175,18 @@ public partial class ScreenView : Node2D
     {
         _prompt = null;
         Redraw();
+    }
+
+    /// <summary>A focus session runs: the readout counts down its part (the bar shows how much is behind) instead of its pages.</summary>
+    public (string Big, string Caption, float Done)? Focus
+    {
+        set
+        {
+            if (value == _focus)
+                return;
+            _focus = value;
+            Redraw();
+        }
     }
 
     /// <summary>Text entry holds the screen (a player's initials): nothing else can take it.</summary>
@@ -386,26 +399,27 @@ public partial class ScreenView : Node2D
         var s = _state;
         var inDebt = s.DebtMs > 0 && s.TimeLeftMs == 0;
         var takenOver = _prompt is not null || _flash is not null;
-        var page = s.Playing || takenOver ? 0 : _attractPage;
+        var focus = s.Playing ? null : _focus;              // a game's clock comes first
+        var page = s.Playing || takenOver || focus is not null ? 0 : _attractPage;
 
         _top.Text = $"CREDIT {s.Credits:00}";
         _topRight.Text = s.Streak > 0 ? $"x{s.Streak}" : "";
         _top.Visible = _prompt is null;
         _topRight.Visible = _prompt is null && !_listening;
         _mic.Visible = _listening;
-        _fuelBack.Visible = _fuelFill.Visible = page == 0 && !takenOver && !inDebt;
-        _fuelFill.Size = _fuelBack.Size with { X = _fuelBack.Size.X * Mathf.Clamp(s.Fuel, 0, 1) };
+        _fuelBack.Visible = _fuelFill.Visible = page == 0 && !takenOver && (!inDebt || focus is not null);
+        _fuelFill.Size = _fuelBack.Size with { X = _fuelBack.Size.X * Mathf.Clamp(focus?.Done ?? s.Fuel, 0, 1) };
         _status.Text = _prompt?.Status ?? s.Status;
-        _big.LabelSettings.FontColor = inDebt && !takenOver ? Debt : Ink;
+        _big.LabelSettings.FontColor = inDebt && !takenOver && focus is null ? Debt : Ink;
 
-        (_big.Text, _caption.Text) = _prompt is { } p ? (p.Big, p.Caption) : _flash ?? page switch
+        (_big.Text, _caption.Text) = _prompt is { } p ? (p.Big, p.Caption) : _flash ?? (focus is { } f ? (f.Big, f.Caption) : page switch
         {
             1 => ($"{s.BestStreak}", $"HI-SCORE {s.Initials}\nBEST STREAK"),
             2 => ($"{s.WeekSolves}/{s.WeekTokens}", $"SOLVES / TOKENS THIS WEEK\n{Clock(s.WeekPlayedMs)} PLAYED"),
             3 => ("INSERT", "COIN\nSOLVE A PROBLEM"),
             _ when inDebt => ($"-{Clock(s.DebtMs)}", $"OWED - {s.DebtMs / (15 * 60_000)} IOU"),
             _ => (Clock(s.TimeLeftMs), "TIME LEFT"),
-        };
+        });
         // Press Start 2P is square: fit the big line to the screen width.
         _big.LabelSettings.FontSize = Math.Clamp((int)((_width - 44) / Math.Max(_big.Text.Length, 1)), 16, 64);
         // Captions sit above the fuel bar; two-line captions use the bar's space when it is hidden.

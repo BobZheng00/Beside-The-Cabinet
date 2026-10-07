@@ -41,7 +41,14 @@ public sealed record AppSettings
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
-    public string[] CrtApps { get; init; } = ["memos", "agenda"];      // the order of the screen's apps, as the player arranged them
+    public string[] CrtApps { get; init; } = ["focus", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
+    public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
+    public int BreakMinutes { get; init; } = 5;
+    public int LongBreakMinutes { get; init; } = 15;
+    public int LongBreakEvery { get; init; } = 4;       // focus parts before the long break
+    public bool FocusMusic { get; init; }               // their music plays while focusing, and pauses at breaks
+    public string? Playlist { get; init; }              // their focus playlist's link (Spotify, YouTube Music…), pasted into the MUSIC app
+    public int StandUpMinutes { get; init; } = 50;      // she suggests standing up and some water after this long at the PC; 0: never
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
@@ -54,17 +61,17 @@ public sealed record AppSettings
 
 /// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>
 public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes,
-                                     InsertCoin.Mind.Elsewhere Elsewhere, string CheckIns, int QuietFrom, int QuietUntil)
+                                     InsertCoin.Mind.Elsewhere Elsewhere, string CheckIns, int QuietFrom, int QuietUntil, int StandUpMinutes)
 {
     public static ReminderChoices Of(AppSettings s) =>
         new(s.ReminderSpoken, s.ReminderSound, s.ReminderChimeWhenMuted, s.ReminderWindows, s.ReminderTicketSeconds, s.ReminderSnoozeMinutes,
-            s.ReminderLeadMinutes, s.ReminderElsewhere, s.CheckIns, s.QuietFrom, s.QuietUntil);
+            s.ReminderLeadMinutes, s.ReminderElsewhere, s.CheckIns, s.QuietFrom, s.QuietUntil, s.StandUpMinutes);
 
     public AppSettings Into(AppSettings s) => s with
     {
         ReminderSpoken = Spoken, ReminderSound = Sound, ReminderChimeWhenMuted = ChimeWhenMuted, ReminderWindows = Windows,
         ReminderTicketSeconds = TicketSeconds, ReminderSnoozeMinutes = SnoozeMinutes, ReminderLeadMinutes = LeadMinutes, ReminderElsewhere = Elsewhere,
-        CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil,
+        CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil, StandUpMinutes = StandUpMinutes,
     };
 }
 

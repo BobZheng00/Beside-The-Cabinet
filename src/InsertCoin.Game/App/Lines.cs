@@ -35,6 +35,23 @@ public static class Lines
         return string.Join(" ", said);
     }
 
+    /// <summary>A focus session started on the cabinet.</summary>
+    public static string FocusStarted(InsertCoin.Mind.FocusPlan plan) => $"{plan.Focus} minutes of focus. You've got this!";
+
+    /// <summary>A part of a focus session ended and the next began.</summary>
+    public static string Focus(InsertCoin.Mind.FocusTurn turn, InsertCoin.Mind.FocusPlan plan) => turn.Began switch
+    {
+        InsertCoin.Mind.FocusPart.Break => $"Break: {plan.Break} minutes. Stand up, stretch, have some water.",
+        InsertCoin.Mind.FocusPart.LongBreak => $"Long break: {plan.LongBreak} minutes. Well done! Step away for a bit.",
+        _ => $"Back to it: {plan.Focus} minutes.",
+    };
+
+    /// <summary>The player ended a focus session.</summary>
+    public static string FocusStopped(int done) => done == 0 ? "Session over." : $"Session over: {done} focus {(done == 1 ? "part" : "parts")}. Nice work.";
+
+    /// <summary>A long stretch at the PC with no break.</summary>
+    public const string StandUp = "You've been at it a while. Stand up, stretch, have some water?";
+
     /// <summary>Where things stand, for when she is asked (clicked).</summary>
     public static string Status(LedgerState state, Rules rules, int streak)
     {

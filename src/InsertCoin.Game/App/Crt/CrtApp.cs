@@ -58,6 +58,59 @@ public abstract partial class CrtApp : Control
         return "…";
     }
 
+    // ---- Buttons, for apps made of them ------------------------------------------------------------------------------
+
+    private readonly List<(Rect2 Box, Action Pressed)> _buttons = [];
+    private Vector2? _pointer;
+
+    /// <summary>Forgets last frame's buttons: an app made of buttons calls it first thing as it draws.</summary>
+    protected void ClearButtons() => _buttons.Clear();
+
+    /// <summary>
+    /// A button drawn this frame: a rounded box with its label, lit under the pointer, filled when <paramref name="chosen"/>;
+    /// a click on it does <paramref name="pressed"/> (see <see cref="Press"/>).
+    /// </summary>
+    protected void Button(Rect2 box, string label, Action pressed, bool chosen = false, Font? font = null, int size = 15)
+    {
+        _buttons.Add((box, pressed));
+        var over = _pointer is { } at && box.HasPoint(at);
+        Box(box, chosen ? Accent : over ? Glow with { A = 0.75f } : Glow, Ink, 4, 14);
+        Centred(label, font ?? Pixel, size, chosen ? Colors.White : Ink, box);
+    }
+
+    /// <summary>A round button with a drawn picture (play, pause, skip): the same, as a circle.</summary>
+    protected void RoundButton(Vector2 centre, float radius, Action<Vector2, float, Color> picture, Action pressed)
+    {
+        var box = new Rect2(centre - Vector2.One * radius, Vector2.One * radius * 2);
+        _buttons.Add((box, pressed));
+        var over = _pointer is { } at && at.DistanceTo(centre) <= radius;
+        DrawCircle(centre, radius, over ? Accent : Glow);
+        DrawArc(centre, radius, 0, Mathf.Tau, 40, Ink, 4, true);
+        picture(centre, radius, over ? Colors.White : Ink);
+    }
+
+    /// <summary>Does what the button under the point does; false when there is none.</summary>
+    protected bool Press(Vector2 at)
+    {
+        foreach (var (box, pressed) in _buttons)
+            if (box.HasPoint(at))
+            {
+                pressed();
+                QueueRedraw();
+                return true;
+            }
+        return false;
+    }
+
+    /// <summary>Keeps the pointer, for lighting the button under it.</summary>
+    protected void Point(Vector2? at)
+    {
+        if (at == _pointer)
+            return;
+        _pointer = at;
+        QueueRedraw();
+    }
+
     /// <summary>A rounded box: fill, ink outline.</summary>
     protected void Box(Rect2 box, Color fill, Color line, float width, int corner)
     {

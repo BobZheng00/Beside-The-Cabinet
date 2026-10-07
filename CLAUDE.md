@@ -33,7 +33,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - Build it with `dotnet build src/InsertCoin.Game/InsertCoin.Game.csproj`.
   - Do this after any change under `src/InsertCoin.Game` and before every run. Godot runs `src/InsertCoin.Game/.godot/mono/temp/bin/Debug/InsertCoin.Game.dll`, so a run without that build tests the old code.
 - dotnet prints in Chinese on this PC: `已通过` = passed, `失败` = failed, `个警告` / `个错误` = warnings / errors.
-- Keep builds at 0 warnings. Windows-only APIs need `[SupportedOSPlatform("windows")]`.
+- Keep builds at 0 warnings. Windows-only APIs need `[SupportedOSPlatform("windows")]` outside the game; the game itself targets `net10.0-windows10.0.19041.0` (Windows' media controls, a WinRT API, since 2026-10-06).
 - Line endings: git has `autocrlf=true` and normalises on commit. Python edits should read and write with `newline=''`.
 - **Editing gotchas on this PC** (each cost time on 2026-10-05):
   - Python edit scripts with Windows paths or `\n` in them: write the script to a file with the Write tool and run it. A heredoc garbles backslashes (`\v`, `\a` became control characters), and quotes can break bash. Use `chr(92)` for a lone backslash. Afterwards, check changed files for control characters.
@@ -73,7 +73,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   | `<tools>\listen-trial\fake_anthropic.py 8770` | Anthropic-style, with cache counts |
   | `<tools>\listen-trial\hook_sink.py <port>` | ntfy/webhook receiver; writes `hooks.jsonl` |
   | `<tools>\listen-trial\cal\test.ics` | a test calendar; serve it with `python -m http.server 8768` |
-  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly; told of the player's own memo, a reminder if it says "remind", else `[quiet]`); `--refuse` turns tools down |
+  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly; told of the player's own memo, a reminder if it says "remind", else `[quiet]`; "focus" starts a 50-minute session, "stop focusing" stops it; "pause the music", "my playlist"; told of a focus turn or a long sitting, a short line); `--refuse` turns tools down |
   | `<tools>\agent-trial\tools\check.cs` | `dotnet run check.cs`: her tools through both real provider clients against the mock |
 
 ## Rules the user set
@@ -115,7 +115,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - hands-free listening: follow-up listening and conversations, the MIC light on the CRT (spec `2026-10-05-hands-free-listening.md`; `App/Listening.cs`);
   - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork");
   - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on sheets out on the desktop, several at once, each its own small window (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
-  - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: MEMOS, AGENDA; focus sessions and music next (spec, "The CRT's small system", "Two views").
+  - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: FOCUS, MUSIC, MEMOS, AGENDA (spec, "The CRT's small system", "Two views");
+  - focus sessions, music and standing up: a Pomodoro counting down on the screen (`FocusSession`, `App/Focus`), she says each turn and has a `focus_session` tool; the player's music app through Windows' media controls (`Desktop/Music`, Spotify first; a `music` tool that asks); after 50 minutes at the PC she suggests standing up and water (spec, "Focus, music and standing up: built").
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
@@ -136,10 +137,10 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - **Order:**
   1. groundwork (*built 2026-10-05*);
   2. memos (*built 2026-10-05*);
-  3. focus sessions and music;
+  3. focus sessions and music (*built 2026-10-06*);
   4. LeetCode hints;
   5. web search.
-- **Next step:** focus sessions and music. Music: the user has Spotify desktop and no Premium, so a playlist's link plus Windows' media controls (no headless browser, no Web API; spec, "Music").
+- **Next step:** LeetCode hints (spec §1), once the user has tried focus and music (`docs/to-try.md`).
 
 **Open questions for the user:**
 - whether her idle leg swings should be smaller and rarer;

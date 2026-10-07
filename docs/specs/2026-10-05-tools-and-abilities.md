@@ -179,7 +179,26 @@ What works without one:
 
 Music starts with a focus session and pauses at a break, if the player wants that. Opening the link is outside the app: she asks the first time, then remembers the permission.
 
-### 2.5. Stand up, drink water (agreed; details *proposed*)
+### Focus, music and standing up: built (2026-10-06)
+
+**Focus sessions** (`InsertCoin.Mind.FocusSession`, tested; `App/Focus`):
+- Focus, a short break, a long one after every so many (25 / 5 / 15, every 4th by default), round after round until stopped; pause stops the clock, skip ends the part at once. Not kept across a restart.
+- **FOCUS on the CRT** (`App/Crt/FocusApp`): before a session, the lengths (a click steps through them: focus 15 to 90 minutes, breaks 3 to 15), whether their music plays along, and START; during one, the part and round, the time left, a bar, the rounds up to the long break, and PAUSE / GO, SKIP, STOP.
+- **The readout counts down** while a session runs and the screen is closed: the time left, "FOCUS - ROUND 2" or "BREAK - STAND UP", the bar showing how much is behind (`ScreenView.Focus`). A game's clock comes first.
+- **She says each turn** in her own words (the start and stop when the player does them on the screen, and every part running out or skipped there), once she is free, as reminders are; stale after three minutes. Breaks come with standing up, stretching and water. In a call only her bubble; in a full-screen game or presenting only a ticket. Without her mind, canned lines (`Lines.Focus`).
+- **Her tool** `focus_session` (start with optional lengths, pause, resume, skip, stop): inside the app, no permission. What she does with it she says in her reply, so it isn't announced again. Where a session stands is in the cabinet block, so she can say how long is left.
+
+**Music** (`Desktop/Music`, Windows' media sessions; the game now targets `net10.0-windows10.0.19041.0` for them):
+- The music app's session: Spotify's when it is open, else another music app's (Media Player, Apple Music, NetEase Cloud Music, QQ Music…), a browser's only when the saved playlist is a web one. Never "whatever Windows calls current": on the user's PC that was Sound Recorder.
+- **MUSIC on the CRT** (`App/Crt/MusicApp`): what is playing (app, playing or paused, title, artist), back / play-pause / next, PLAY MY PLAYLIST, PASTE LINK (the link copied in Spotify: Share, Copy link; read from the clipboard only on that click), and WITH FOCUS (pasting a link turns it on).
+- **The playlist:** a Spotify web link opens as the app's own (`spotify:playlist:…`). Spotify shows a playlist but can't be told to start it (`:play` works for albums and tracks only), so when Spotify is open it is resumed instead: it carries on with what played last, their playlist once they have played it there. When no music app is open, the link opens it and, once it shows up, it is told to play.
+- **With focus:** plays as a focus part starts, pauses at breaks, while paused and at the end.
+- **Her tool** `music` (play_playlist, play, pause, next, previous): outside the app, so the card asks ("Pause your music?", Always for music). What is playing is in the cabinet block.
+- A test run never touches the player's music or clipboard: it says what it would do (`musicfake`, `musiclink` pretend).
+
+**Stand up, have some water** (`Stool.MaybeStandUp`): after a stretch at the PC with no real break (50 minutes by default; tray → Reminders…; five minutes away resets it), she suggests standing up, stretching or water, and the count starts again. Never in a call or the quiet hours, nor in a focus session (its breaks do it); in a full-screen game or presenting only a ticket.
+
+### 2.5. Stand up, drink water (agreed; *built 2026-10-06*, above)
 
 The player sits for hours without a break or water. She notices continuous time at the PC (the cabinet already knows when they were last idle). After a while (50 minutes, say), she suggests standing up, getting some water, stretching; and says it's fine to leave the work for a bit. She does the same at Pomodoro breaks.
 - Gentle and configurable, as check-ins are.
@@ -286,7 +305,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
    - the bridging line;
    - a stable tool list.
 2. **Memos** (*built 2026-10-05*): printing, reading, pinning, the archive, the player's own, and her phone motion.
-3. **Focus sessions** with break, stand-up and water nudges, then music (a link and Windows' media controls) and opening links and apps.
+3. **Focus sessions** with break, stand-up and water nudges, then music (a link and Windows' media controls) (*built 2026-10-06*, above); opening apps still to come.
 4. **LeetCode hints**, as memos.
 5. **Web search:** the provider's own first, then the connectors window with Tavily and SearXNG.
 
