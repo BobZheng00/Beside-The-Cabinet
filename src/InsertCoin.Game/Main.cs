@@ -163,8 +163,13 @@ public partial class Main : Node2D
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
-            if (_crt.Lifted && _crt.Clicked(p))
-                return;                                     // on the lifted screen, or away from it (it settles back)
+            if (_crt.Lifted)
+            {
+                // on the lifted screen it is its; a memo on the cabinet opens and the screen stays up; anywhere else it settles back
+                if (_crt.Covers(p) || !_stool.Memos.Clicked(p))
+                    _crt.Clicked(p);
+                return;
+            }
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
             else if (_stool.Memos.Clicked(p))

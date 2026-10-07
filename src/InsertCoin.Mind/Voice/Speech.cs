@@ -23,6 +23,9 @@ public sealed class Speech(string language, Action<string> speak)
 
     public string Language => language;
 
+    /// <summary>Nothing of the reply was given to the voice (no [say], and nothing written in its language).</summary>
+    public bool Silent => _lines.Count == 0;
+
     /// <summary>The mood her body showed last in this reply (happy, sad, surprised), for a clip that suits it.</summary>
     public string? Mood { get; private set; }
 

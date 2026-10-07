@@ -100,6 +100,26 @@ public class VoiceTests
     }
 
     [Fact]
+    public async Task A_plan_noted_at_the_start_of_her_reply_leaves_what_she_says_after_it_to_her_voice()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "Shino is cheerful."), new FakeClock(DateTimeOffset.Now))
+        {
+            VoiceLanguage = "ja",
+        };
+        var model = new FakeModel("[plan: 2026-10-10 10:00 | 去超市 | 1 hour before] [say: わかった、覚えて", "おくね。] 好的，我记下了。");
+        var spoken = new List<string>();
+        var shown = new StringBuilder();
+        var speech = new Speech("ja", spoken.Add);
+
+        await conversation.Answer(model, "我这周六要去超市 早上十点吧", "", words => { shown.Append(words); speech.Text(words); }, speech.Direction);
+        speech.Finish();
+
+        Assert.Equal("好的，我记下了。", shown.ToString().Trim());
+        Assert.Equal(["わかった、覚えておくね。"], spoken);
+    }
+
+    [Fact]
     public void Without_a_voice_the_prompt_says_nothing_about_one() =>
         Assert.DoesNotContain("[say", Prompt.Build(new Persona("Shino", "x"), "", "", null, [], "", "hi")[0].Text);
 

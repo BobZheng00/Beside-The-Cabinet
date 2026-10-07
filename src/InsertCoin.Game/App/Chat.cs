@@ -346,6 +346,8 @@ public sealed class Chat : IDisposable
             if (Here())
             {
                 speech?.Finish();
+                if (speech is { Silent: true } && text.Length > 0)
+                    GD.Print($"Voice: nothing to say aloud: her reply had no [say: …] and isn't in her voice's language ({speech.Language})");
                 Replied = text.Length > 0 ? text : null;
             }
         }

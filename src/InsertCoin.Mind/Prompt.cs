@@ -121,8 +121,9 @@ public static class Prompt
             _ => "[say: Welcome back!] 欢迎回来！[say: You did well today.] 今天也很努力呢。",
         };
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
-               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard; the rest is shown as its subtitle. " +
-               $"When you write in {name}, leave [say] out.";
+               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard; the rest is shown as its subtitle, " +
+               $"so a sentence without one is silent. Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
+               $"(\"[plan: ...] [say: ...] ...\"). When you write in {name}, leave [say] out.";
     }
 
     /// <summary>The request that folds older lines into the summary (auto-compaction).</summary>

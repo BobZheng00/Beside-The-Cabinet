@@ -28,7 +28,7 @@ public partial class DesktopWindow : Node
     public Func<Vector2, bool>? Grabs { get; set; }
     /// <summary>A pull began on something that can be carried, with the canvas point pressed; then where it is carried to; then where it is let go.</summary>
     public event Action<Vector2>? CarryStarted, Carried, Dropped;
-    /// <summary>A mouse button went down somewhere else on the desktop, not on the cabinet (seen by polling, so a very quick click can be missed).</summary>
+    /// <summary>A mouse button went down somewhere else on the desktop, not on the cabinet nor on another of the app's windows over it (seen by polling, so a very quick click can be missed).</summary>
     public event Action? PressedElsewhere;
     /// <summary>Another of the app's windows is over this screen point (a memo's sheet): the cabinet underneath is not pointed at.</summary>
     public Func<Vector2I, bool>? Covered { get; set; }
@@ -79,8 +79,8 @@ public partial class DesktopWindow : Node
         SetClickThrough(!over && !_pressed);
         // a test run never watches the player's own mouse
         var down = !Companion.Paper.OffScreen && ((Win32.GetAsyncKeyState(Win32.VkLButton) | Win32.GetAsyncKeyState(Win32.VkRButton)) & 0x8000) != 0;
-        if (down && !_buttonDown && !over && !_pressed)
-            PressedElsewhere?.Invoke();
+        if (down && !_buttonDown && !over && !_pressed && Covered?.Invoke(DisplayServer.MouseGetPosition()) != true)
+            PressedElsewhere?.Invoke();                     // a memo's sheet is the app's own: reading one is not pressing away
         _buttonDown = down;
     }
 
