@@ -28,13 +28,17 @@ public partial class DesktopWindow : Node
     public Func<Vector2, bool>? Grabs { get; set; }
     /// <summary>A pull began on something that can be carried, with the canvas point pressed; then where it is carried to; then where it is let go.</summary>
     public event Action<Vector2>? CarryStarted, Carried, Dropped;
+    /// <summary>A mouse button went down somewhere else on the desktop, not on the cabinet (seen by polling, so a very quick click can be missed).</summary>
+    public event Action? PressedElsewhere;
+    /// <summary>Another of the app's windows is over this screen point (a memo's sheet): the cabinet underneath is not pointed at.</summary>
+    public Func<Vector2I, bool>? Covered { get; set; }
 
     private Bitmap _hitMask = null!;
     private float _maskScale;
     private Vector2 _canvas;
     private nint _hwnd;
     private bool? _clickThrough;
-    private bool _pressed, _dragging, _grabbed;
+    private bool _pressed, _dragging, _grabbed, _buttonDown;
     private Vector2I _pressAt, _dragOffset;
     private Vector2 _pressCanvas;
 
@@ -70,9 +74,14 @@ public partial class DesktopWindow : Node
     private void Poll()
     {
         var cursor = CursorCanvas();
-        var over = OverArt(cursor);
+        var over = Covered?.Invoke(DisplayServer.MouseGetPosition()) != true && OverArt(cursor);
         Hover?.Invoke(over ? cursor : null);
         SetClickThrough(!over && !_pressed);
+        // a test run never watches the player's own mouse
+        var down = !Companion.Paper.OffScreen && ((Win32.GetAsyncKeyState(Win32.VkLButton) | Win32.GetAsyncKeyState(Win32.VkRButton)) & 0x8000) != 0;
+        if (down && !_buttonDown && !over && !_pressed)
+            PressedElsewhere?.Invoke();
+        _buttonDown = down;
     }
 
     public override void _Input(InputEvent e)
@@ -144,6 +153,8 @@ public partial class DesktopWindow : Node
         public const nint WsExTransparent = 0x20, WsExLayered = 0x80000;
         public static readonly nint HwndTopmost = -1, HwndNoTopmost = -2;
         public const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
+        public const int VkLButton = 0x01, VkRButton = 0x02;
+        [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
         [DllImport("user32.dll")] public static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint hwnd, int index);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern nint SetWindowLongPtr(nint hwnd, int index, nint value);

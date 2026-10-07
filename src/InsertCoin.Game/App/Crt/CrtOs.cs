@@ -4,11 +4,12 @@ using InsertCoin.Game.Cabinet;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The CRT's own small system, like a phone's (the user's idea, 2026-10-06). A click on the screen lifts it out of the
-/// cabinet to face the player, large enough to read at any cabinet size; the readout folds away, and the home
-/// screen's apps pop in, four to a page, the pages a swipe apart. Holding an app picks it up, to
-/// put it somewhere else (the order is kept). An app opens out of its icon and closes back into it; the system closes
-/// by itself after a while untouched, or from the power mark, and the readout unfolds again.
+/// The CRT's own small system, like a phone's (the user's idea, 2026-10-06). A click on the screen folds the readout
+/// away and the home screen's apps pop in, right on the cabinet, four to a page, the pages a swipe apart. Holding an
+/// app picks it up, to put it somewhere else (the order is kept). An app opens out of its icon while the screen lifts
+/// out of the cabinet to face the player, large enough to read at any cabinet size; a press anywhere away from it
+/// settles it back, the app closing into its icon. The system closes by itself after a while untouched, or from the
+/// power mark, and the readout unfolds again.
 /// </summary>
 public partial class CrtOs : Node
 {
@@ -41,6 +42,12 @@ public partial class CrtOs : Node
 
     /// <summary>Whether the system is open (a click on the screen is its).</summary>
     public bool Open => _state != State.Closed;
+
+    /// <summary>The screen is lifted out of the cabinet (an app is open): a click anywhere is its, on it or away from it.</summary>
+    public bool Lifted => _screen.Lifted;
+
+    /// <summary>The canvas point is on the lifted screen: it is over whatever is below.</summary>
+    public bool Covers(Vector2 canvasPoint) => _screen.Covers(canvasPoint);
 
     /// <param name="apps">Every app there is.</param>
     /// <param name="order">The home screen's order, by app id, as kept; apps not in it come after.</param>
@@ -93,17 +100,17 @@ public partial class CrtOs : Node
 
     // ---- Opening and closing ------------------------------------------------------------------------------------------
 
-    /// <summary>The screen lifts out of the cabinet, the readout folds away, and the home screen's apps pop in.</summary>
+    /// <summary>The readout folds away and the home screen's apps pop in, on the cabinet.</summary>
     private void OpenHome()
     {
         _state = State.Moving;
         _untouched = 0;
         _screen.Live = true;
-        _screen.Lift(up: true, _windowScale(), _canvas, () => _screen.Fold(away: true, 0.3, () =>
+        _screen.Fold(away: true, 0.32, () =>
         {
             _state = State.Home;
             _home.Arrive(_time);
-        }));
+        });
     }
 
     /// <summary>Back to the readout: the apps go, and it unfolds.</summary>
@@ -116,23 +123,26 @@ public partial class CrtOs : Node
         _open = null;
         _lifted = -1;
         _state = State.Moving;
+        if (_screen.Lifted)
+            _screen.Lift(up: false, _windowScale(), _canvas);
         _home.Leave(() =>
         {
-            _screen.Fold(away: false, 0.3, () => _screen.Lift(up: false, _windowScale(), _canvas, () =>
+            _screen.Fold(away: false, 0.32, () =>
             {
                 _state = State.Closed;
                 _screen.Live = false;
-            }));
+            });
         });
     }
 
-    /// <summary>An app opens out of its icon: its tile grows to fill the screen, then the app shows.</summary>
+    /// <summary>An app opens out of its icon (its tile grows to fill the screen, then the app shows) as the screen lifts out.</summary>
     private void Launch(int index)
     {
         var app = _apps[index];
         _state = State.Moving;
         _open = app;
         app.Opened();
+        _screen.Lift(up: true, _windowScale(), _canvas);
         Zoom(_home.TileRect(index), new Rect2(Vector2.Zero, _screen.Pixels), app.Tint, grow: true, () =>
         {
             _home.Visible = false;
@@ -145,12 +155,13 @@ public partial class CrtOs : Node
         _home.Fade(away: true);
     }
 
-    /// <summary>Back to the home screen: the app goes, its tile shrinks back into its icon.</summary>
+    /// <summary>Back to the home screen: the app goes, its tile shrinks back into its icon, and the screen settles into the cabinet.</summary>
     private void Return()
     {
         if (_open is not { } app)
             return;
         _state = State.Moving;
+        _screen.Lift(up: false, _windowScale(), _canvas);
         var index = _apps.IndexOf(app);
         _page = index / 4;
         app.Visible = false;
@@ -188,11 +199,19 @@ public partial class CrtOs : Node
 
     // ---- The pointer --------------------------------------------------------------------------------------------------
 
-    /// <summary>A click on the cabinet: on the screen it opens the system, or is the system's. False when not on the screen.</summary>
+    /// <summary>
+    /// A click on the cabinet: on the screen it opens the system, or is the system's; away from the lifted screen it
+    /// settles it back. False when it is neither.
+    /// </summary>
     public bool Clicked(Vector2 canvasPoint)
     {
+        if (_screen.Lifted && !_screen.Covers(canvasPoint))
+        {
+            Away();
+            return true;
+        }
         if (_screen.ScreenPoint(canvasPoint) is not { } at || _screen.Prompting)
-            return false;
+            return _screen.Covers(canvasPoint);             // on the lifted screen's bezel: nothing
         _untouched = 0;
         if (_lifted >= 0 || _state == State.Moving)
             return true;                                    // putting an app down, or something already moving
@@ -218,6 +237,13 @@ public partial class CrtOs : Node
     }
 
     private bool PowerMark(Vector2 at) => at.Y < Bar && at.X > _screen.Pixels.X - 70;
+
+    /// <summary>A press away from the lifted screen (on the cabinet, or anywhere else on the desktop): it settles back, home.</summary>
+    public void Away()
+    {
+        if (_state == State.App && _screen.Lifted && _lifted < 0)
+            Return();
+    }
 
     /// <summary>The pointer moved over the cabinet (null: off it).</summary>
     public void Hover(Vector2? canvasPoint)
@@ -334,7 +360,7 @@ public partial class CrtOs : Node
             return;
         var index = _apps.FindIndex(a => a.Id == app);
         if (index >= 0)
-            GetTree().CreateTimer(_state == State.Home ? 0.05 : 1.5).Timeout += () => Launch(index);      // once lifted out and home
+            GetTree().CreateTimer(_state == State.Home ? 0.05 : 0.8).Timeout += () => Launch(index);      // once home
     }
 
     /// <summary>Dev: clicks the screen at a point in its own pixels.</summary>

@@ -24,9 +24,9 @@ public sealed record ScreenState
 /// layers: the readout (a prompt for text entry over a flash over the readout / attract pages), the desk above it
 /// where the screen's own small system draws its apps (see App.CrtOs), and over both, while her microphone is open,
 /// "MIC" with a blinking dot in the top right corner. The readout folds away like a CRT switching off when the
-/// system opens, and unfolds when it closes. While the system is open the screen lifts out of the cabinet: its corners
-/// glide from the cabinet's perspective to a flat screen facing the player, on a little bezel, large enough to read
-/// whatever size the cabinet is.
+/// system opens, and unfolds when it closes. With an app open the screen lifts out of the cabinet: its corners glide
+/// from the cabinet's perspective to a flat screen facing the player, on a little bezel, large enough to read whatever
+/// size the cabinet is, and it looks like a CRT up close (scanlines, rounded glass).
 /// </summary>
 public partial class ScreenView : Node2D
 {
@@ -44,6 +44,8 @@ public partial class ScreenView : Node2D
 
     /// <summary>How wide the lifted screen is, at least, in the window's own pixels: its letters stay readable on the small cabinet.</summary>
     public const float LiftedWidth = 340;
+
+    private const float Room = 14;
 
     private SubViewport _viewport = null!;
     private Vector2[] _quad = [], _cabinetQuad = [];
@@ -258,13 +260,16 @@ public partial class ScreenView : Node2D
     public void Lift(bool up, float windowScale, Rect2 canvas, Action? then = null)
     {
         _lifting?.Kill();
+        Lifted = up;
         if (up)
         {
             // flat, a little bigger than the cabinet's screen, centred on it and kept inside the window
             var bounds = Bounds(_cabinetQuad);
-            var width = Mathf.Max(bounds.Size.X * 1.3f, LiftedWidth / windowScale);
+            // its bezel's rim (a twentieth of its width each side) and a little room stay in the window too
+            var room = Mathf.Min(canvas.Size.X, canvas.Size.Y * _pixels.X / _pixels.Y) - 2 * Room;
+            var width = Mathf.Min(Mathf.Max(bounds.Size.X * 1.3f, LiftedWidth / windowScale), room / 1.1f);
             var size = new Vector2(width, width * _pixels.Y / _pixels.X);
-            var margin = Vector2.One * (width * 0.05f + 20);                 // its bezel's rim and shadow stay in the window too
+            var margin = Vector2.One * (width * 0.05f + Room);
             var centre = bounds.GetCenter().Clamp(canvas.Position + size / 2 + margin, canvas.End - size / 2 - margin);
             var flat = new Rect2(centre - size / 2, size);
             _flat = [flat.Position, new Vector2(flat.End.X, flat.Position.Y), flat.End, new Vector2(flat.Position.X, flat.End.Y)];
@@ -281,10 +286,23 @@ public partial class ScreenView : Node2D
         }));
     }
 
+    /// <summary>It is lifted out of the cabinet, or on its way out.</summary>
+    public bool Lifted { get; private set; }
+
+    /// <summary>The canvas point is on the lifted screen or its bezel (which are over whatever is below them).</summary>
+    public bool Covers(Vector2 canvasPoint)
+    {
+        if (!Lifted)
+            return false;
+        var bounds = Bounds(_quad);
+        return bounds.Grow(bounds.Size.X * 0.05f).HasPoint(canvasPoint);
+    }
+
     /// <summary>How far out of the cabinet it is (0: in it, 1: lifted).</summary>
     private void SetLift(float lift)
     {
         _lift = lift;
+        _material.SetShaderParameter("lifted", lift);
         Place(lift <= 0.001f ? _cabinetQuad : [.. _cabinetQuad.Select((p, i) => p.Lerp(_flat[i], lift))]);
         var lifted = lift > 0.001f;
         _surface.ZIndex = lifted ? 65 : 0;

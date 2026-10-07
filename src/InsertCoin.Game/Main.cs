@@ -115,17 +115,18 @@ public partial class Main : Node2D
                    order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
         _window.Hover += p =>
         {
-            _cabinet.HoverCheck(p is { } q && _cabinet.HitsCheck(q));
-            _stool.Memos.Hover(p);
+            var under = p is { } c && _crt.Covers(c) ? null : p;      // the lifted screen is over what is below it
+            _cabinet.HoverCheck(under is { } q && _cabinet.HitsCheck(q));
+            _stool.Memos.Hover(under);
             _crt.Hover(p);
         };
         // carried by hand: memos (off the slot, onto the side, off the cabinet), and on the screen, a swipe or an app being moved
-        _window.Grabs = p => _stool.Memos.Grabs(p) || _crt.Grabs(p);
+        _window.Grabs = p => !_crt.Covers(p) && _stool.Memos.Grabs(p) || _crt.Grabs(p);
         _window.Pressed += _crt.Pressed;
         _window.Released += _crt.Released;
         _window.CarryStarted += p =>
         {
-            if (_stool.Memos.Grabs(p))
+            if (!_crt.Covers(p) && _stool.Memos.Grabs(p))
             {
                 _carrier = _stool.Memos;
                 _stool.Memos.Take(p, p);
@@ -151,12 +152,13 @@ public partial class Main : Node2D
                 _crt.Dropped(p);
             _carrier = null;
         };
-        _window.AlsoSolid = p => _stool.Hits(p) || _crt.Open && _cabinet.Screen.Hits(p);       // the screen, lifted out over her
+        _window.AlsoSolid = p => _stool.Hits(p) || _crt.Covers(p);       // the screen, lifted out over her
+        _window.PressedElsewhere += _crt.Away;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
-            if (_stool.Memos.Dismiss(keep: true))
-                return;                                     // a click away from a memo's sheet puts it back
+            if (_crt.Lifted && _crt.Clicked(p))
+                return;                                     // on the lifted screen, or away from it (it settles back)
             if (_cabinet.HitsCheck(p))
                 _cabinet.PressCheck();
             else if (_stool.Memos.Clicked(p))
@@ -492,6 +494,7 @@ public partial class Main : Node2D
                 case "crtclick": _crt.DevClickScreen(new Vector2(float.Parse(parts[1]), float.Parse(parts[2]))); break;   // crtclick:x:y, in the screen's pixels
                 case "crtmove": _crt.DevMove(int.Parse(parts[1]), int.Parse(parts[2])); break;                        // crtmove:0:1 moves an app, as carrying it would
                 case "crtclose": _crt.Close(); break;
+                case "crtaway": _crt.Away(); break;                                                                   // a press away from the lifted screen
             }
             return;
         }
