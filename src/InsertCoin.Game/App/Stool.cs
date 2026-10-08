@@ -94,6 +94,20 @@ public partial class Stool : Node2D
         _chatBox = new ChatBox();
         AddChild(_chatBox);
         _chatBox.Submitted += said => _ = Ask(said);
+        _chatBox.Attaching += how =>
+        {
+            switch (how)
+            {
+                case "file": PickFiles(); break;
+                case "screen": HandScreen(); break;
+                case "phone": OpenPhone(); break;
+            }
+        };
+        _chatBox.PastedPicture += picture => HandPicture(picture, "pasted", photo: false);
+        _chatBox.PastedFiles += Hand;
+        _chat.Screen = () => Screenshot.Take() is { } screen ? Handing.Picture(screen, "screen", photo: false).Thing : null;
+        _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
+        _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
         AddChild(_permission);
         _chat.AskPlayer = AskPlayer;
@@ -716,13 +730,127 @@ public partial class Stool : Node2D
         dialog.PopupCentered();
     }
 
+    // ---- Handing her things ------------------------------------------------------------------------------------------
+
+    /// <summary>Asks for pictures or files to hand her with the next message.</summary>
+    private void PickFiles() => Pick("Hand her a picture or a file", FileDialog.FileModeEnum.OpenFiles,
+        ["*.png, *.jpg, *.jpeg, *.webp, *.gif, *.pdf, *.txt, *.md, *.csv, *.json, *.log, *.py, *.cs, *.js, *.ts, *.java, *.cpp, *.c, *.h, *.go, *.rs, *.sql, *.html, *.css ; Pictures, PDFs and text",
+         "* ; Any file"], Hand);
+
+    /// <summary>Files dropped on her, pasted or picked: each waits on the slip, as a chip, to go with the next message.</summary>
+    private void Hand(string[] paths)
+    {
+        if (!CanBeHanded())
+            return;
+        foreach (var path in paths)
+            if (!Hand(Handing.From(path)))
+                break;
+        if (_chatBox.Handed.Count > 0)
+            OpenChat();
+    }
+
+    /// <summary>One thing ready to hand over, onto the slip; false once the slip is full.</summary>
+    private bool Hand((Attachment? Thing, Texture2D? Thumb, string? Why) handing)
+    {
+        if (handing.Thing is not { } thing)
+            _cabinet.Screen.Flash("CAN'T", handing.Why!, 3.0);
+        else if (!_chatBox.Hand(thing, handing.Thumb))
+        {
+            _cabinet.Screen.Flash("SLIP FULL", $"{ChatBox.MostHanded} THINGS AT MOST", 3.0);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>A picture in hand (pasted, a screenshot), to go with the next message.</summary>
+    private void HandPicture(Image picture, string name, bool photo)
+    {
+        if (!CanBeHanded())
+            return;
+        var (thing, thumb) = Handing.Picture(picture, name, photo);
+        if (!_chatBox.Hand(thing, thumb))
+            _cabinet.Screen.Flash("SLIP FULL", $"{ChatBox.MostHanded} THINGS AT MOST", 3.0);
+        else
+            OpenChat();
+    }
+
+    private PhoneCard? _phone;
+
+    /// <summary>
+    /// The slip's "From your phone…": a card with a code to scan; a photo sent from the phone through it lands on the
+    /// slip, as one dropped on her would.
+    /// </summary>
+    private void OpenPhone()
+    {
+        if (!CanBeHanded())
+            return;
+        if (IsInstanceValid(_phone))
+        {
+            _phone!.GrabFocus();
+            return;
+        }
+        _phone = new PhoneCard();
+        AddChild(_phone);
+        _phone.Build(_chat.Conversation?.Persona.Name ?? "her", thisPcOnly: Paper.OffScreen);
+        _phone.Received += (name, data) =>
+        {
+            Hand(Handing.From(name, data));
+            if (_chatBox.Handed.Count > 0)
+                OpenChat(focus: false);
+        };
+        _phone.Open();
+    }
+
+    /// <summary>Dev: a pretend phone opens the card's page, sends a photo through it, and tries a wrong key.</summary>
+    private async Task DevPhone(string path)
+    {
+        if (_phone?.DevAddress is not { } address)
+            return;
+        using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var page = await http.GetAsync(address);
+        GD.Print($"Phone (dev): the page answers {(int)page.StatusCode} with {(await page.Content.ReadAsStringAsync()).Length} characters");
+        var photo = new System.Net.Http.ByteArrayContent(await File.ReadAllBytesAsync(path));
+        photo.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, address + "/photo") { Content = photo };
+        request.Headers.Add("X-Name", Uri.EscapeDataString(Path.GetFileName(path)));
+        GD.Print($"Phone (dev): sending {Path.GetFileName(path)} gets {(int)(await http.SendAsync(request)).StatusCode}");
+        GD.Print($"Phone (dev): a wrong key gets {(int)(await http.GetAsync(address + "x")).StatusCode}");
+    }
+
+    /// <summary>Things can be handed to her only while her mind is connected (it is what looks at them); the screen says so otherwise.</summary>
+    private bool CanBeHanded()
+    {
+        if (_chat.Ready && Her is not null)
+            return true;
+        _cabinet.Screen.Flash("HER MIND", "CONNECT IT IN CHAT SETTINGS", 3.0);
+        return false;
+    }
+
+    /// <summary>The slip's "Your screen": the screen the pointer is on, as it is now, to go with the next message.</summary>
+    private void HandScreen()
+    {
+        if (Screenshot.Take() is { } screen)
+            HandPicture(screen, "screen", photo: false);
+        else
+            _cabinet.Screen.Flash("SCREEN", "COULDN'T TAKE IT", 3.0);
+    }
+
     /// <summary>
     /// Copies models (picked or dropped) into the user's characters folder and seats the first of them. A character
     /// card goes to whoever is on the stool instead (a model dropped with it first), who then greets as the card says;
-    /// so does a voice.
+    /// so does a voice. Anything else she can take (a picture, a PDF, a text file) is handed to her: it waits on the
+    /// slip to go with the next message.
     /// </summary>
     private void Add(string[] paths)
     {
+        var handed = paths.Where(Handable).ToArray();
+        if (handed.Length > 0)
+        {
+            Hand(handed);
+            paths = [.. paths.Except(handed)];
+            if (paths.Length == 0)
+                return;
+        }
         var added = new List<string>();
         var cards = new List<string>();
         VoiceProfile? voice = null;
@@ -773,6 +901,27 @@ public partial class Stool : Node2D
             AddedVoice(voice);
     }
 
+    /// <summary>A dropped file that is for her to look at, not a character, a character card or a voice.</summary>
+    private static bool Handable(string path)
+    {
+        if (Directory.Exists(path) || !File.Exists(path) || CharacterFiles.HoldsModel(path) || VoiceProfile.LooksLikeVoice(path))
+            return false;
+        try
+        {
+            var start = new byte[8192];
+            int read;
+            using (var file = File.OpenRead(path))
+                read = file.Read(start, 0, start.Length);
+            if (Path.GetExtension(path).ToLowerInvariant() is ".png" or ".json" && InsertCoin.Mind.CharacterCard.Read(File.ReadAllBytes(path)) is not null)
+                return false;                               // a character card
+            return Attachment.TypeOf(Path.GetFileName(path), start.AsSpan(0, read)) is not null;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>The first sentence of a card's greeting, without its *actions*, if it is short enough for the bubble.</summary>
     private static string? FirstLine(string greeting)
     {
@@ -816,15 +965,25 @@ public partial class Stool : Node2D
     {
         if (Her is null)
             return;
+        var handed = _chatBox.TakeHanded();                 // what waits on the slip goes with it, typed or said
         _listening.Drop();
         await Interrupt();                                  // asking something new cuts off what she was still saying
         _chatBox.SetWaiting(true);
         _lively(120);                                       // keep her lively while she thinks and talks
         try
         {
-            await _chat.Ask(said, Situation(), Her, _voice.Begin(), _voice.Language);
+            await _chat.Ask(said, Situation(), Her, _voice.Begin(), _voice.Language, handed);
             if (_chat.Replied is { } reply)
                 _listening.Said(answer: true, reply);
+            if (_chat.TakeShot() is { } shot && Her is { } her)
+            {
+                // she took a look at their screen: once she has said she will, she sees it and answers
+                for (var waited = 0; _voice.Speaking && waited < 80; waited++)
+                    await ToSignal(GetTree().CreateTimer(0.1), Godot.Timer.SignalName.Timeout);
+                await _chat.Announce("This is the screenshot you took of the player's screen.", "", Situation(), her, _voice.Begin(), _voice.Language, [shot]);
+                if (_chat.Replied is { } seen)
+                    _listening.Said(answer: true, seen);
+            }
         }
         catch (Exception e)
         {
@@ -1050,6 +1209,15 @@ public partial class Stool : Node2D
                 _chatBox.DevSend(text);
                 break;
             case "chatbox": OpenChat(focus: false); break;
+            case "attach": Hand([rest]); break;             // attach:path as if dropped on her (a picture, a PDF, a text file)
+            case "pastepicture":                            // pastepicture:path as if that picture had been pasted (the clipboard is left alone)
+                HandPicture(Image.LoadFromFile(rest), "pasted", photo: false);
+                break;
+            case "clip": OpenChat(focus: false); _chatBox.DevClip(); break;     // clicks the slip's paper clip: its ways show
+            case "fakescreen": Screenshot.StandIn = rest; break;                // fakescreen:path: screenshots take this picture instead
+            case "screenshot": HandScreen(); break;         // the slip's "Your screen"
+            case "phone": OpenPhone(); break;               // the slip's "From your phone…": the card with its code
+            case "phonesend": _ = DevPhone(rest); break;     // phonesend:path as if a phone sent that photo through the card's page
             case "chatsettings": OpenChatSettings(); break;
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab

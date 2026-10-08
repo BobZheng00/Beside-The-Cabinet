@@ -47,6 +47,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>How much of the conversation is kept word for word, in tokens (see <see cref="Prompt.DefaultWindow"/>).</summary>
     public int Window { get; set; } = Prompt.DefaultWindow;
 
+    /// <summary>
+    /// The model she runs on can't take pictures or PDFs: it turned one down. None is sent to it, and she is told she
+    /// can't see what the player shows her. Set from what was learnt about the model, and by a reply that learns it.
+    /// </summary>
+    public bool Unseeing { get; set; }
+
     private History? _history;
 
     /// <summary>The player's "remind me before things on my agenda", as set now (null: only the reminders asked for).</summary>
@@ -63,21 +69,25 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// What she can do while she answers (see <see cref="Toolbox"/>). Each tool she uses is logged as a cabinet line
     /// between the player's line and hers.
     /// </param>
+    /// <param name="handed">
+    /// What the player hands her with it (see <see cref="Attachment"/>): she starts her reply with a [saw] line for each,
+    /// kept in the player's line in its place.
+    /// </param>
     /// <returns>Everything she said.</returns>
     public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
-                               CancellationToken cancel = default, Toolbox? tools = null) =>
-        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel);
+                               CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null) =>
+        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? []);
 
     /// <summary>
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
     /// <see cref="Agenda.Announcement"/>): answered as a message would be, but logged as the cabinet's line.
     /// </summary>
     public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
-                                 CancellationToken cancel = default, Toolbox? tools = null) =>
-        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel);
+                                 CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null) =>
+        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? []);
 
     private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
-                                     Action<string, string?> direction, Toolbox? tools, CancellationToken cancel)
+                                     Action<string, string?> direction, Toolbox? tools, CancellationToken cancel, IReadOnlyList<Attachment> handed)
     {
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
@@ -97,12 +107,22 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var offered = tools?.Offered;
-        List<ChatMessage> Messages(bool withTools) =>
-            Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                         summary, recent, situation, fromCabinet ? $"[cabinet] {said.Trim()}" : said, [.. lore, .. memories],
-                         VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools);
-        var messages = Messages(offered is not null);
-        store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, said.Trim(), now);
+        // what is handed over goes with this turn only: pictures and PDFs as they are (when the model takes them), a text file's words
+        List<ChatMessage> Messages(bool withTools, bool seeing)
+        {
+            var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + Handing(handed, seeing);
+            var built = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
+                                     summary, recent, situation, turn, [.. lore, .. memories],
+                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools);
+            foreach (var thing in handed)
+                if (thing.Text)
+                    built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
+                else if (seeing)
+                    built[^1].Contents.Add(new DataContent(thing.Data, thing.MediaType) { Name = thing.Name });
+            return built;
+        }
+        var seeing = handed.Any(a => !a.Text) && !Unseeing;
+        var line = store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, Kept(said, handed, [], seeing), now);
 
         var reply = new StringBuilder();
         void Show(string piece)
@@ -114,8 +134,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
         // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
+        // "[saw: ...]": what a picture or file handed to her shows, kept in its place
+        var seen = new List<string>();
         var stage = new StageDirections((name, payload) =>
         {
+            if (name == "saw" && payload?.Trim() is { Length: > 0 } saw)
+                seen.Add(saw);
             if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
                 store.AddFact(MindStore.Shared, payload, NoteImportance, now);
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
@@ -143,17 +167,27 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         _lastReply = null;
         try
         {
-            try
+            for (var withTools = offered is not null; ;)
             {
-                if (offered is null)
-                    await Stream(client, messages, ReplyOptions);
-                else
-                    await Stream(Calling(client, tools!), messages, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
-            }
-            catch (Exception e) when (offered is not null && !heard && !cancel.IsCancellationRequested && Toolbox.Refuses(e))
-            {
-                tools!.Refused = true;                      // a model without tools: she answers as before, with stage directions only
-                await Stream(client, Messages(withTools: false), ReplyOptions);
+                try
+                {
+                    var sent = Messages(withTools, seeing);
+                    if (withTools)
+                        await Stream(Calling(client, tools!), sent, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
+                    else
+                        await Stream(client, sent, ReplyOptions);
+                    break;
+                }
+                catch (Exception e) when (withTools && !heard && !cancel.IsCancellationRequested && Toolbox.Refuses(e))
+                {
+                    tools!.Refused = true;                  // a model without tools: she answers as before, with stage directions only
+                    withTools = false;
+                }
+                catch (Exception e) when (seeing && !heard && !cancel.IsCancellationRequested && Trouble.Refused(e))
+                {
+                    Unseeing = true;                        // a model that can't take pictures: she says she can't see it, and none is sent again
+                    seeing = false;
+                }
             }
             Show(stage.Finish());
         }
@@ -162,7 +196,60 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             Keep(reply.ToString());                         // stopped part-way (cut off, or out of time): what she had written is hers
             throw;
         }
+        finally
+        {
+            if (handed.Count > 0)
+                store.Rewrite(line, Kept(said, handed, seen, seeing));
+        }
         return Keep(reply.ToString());
+    }
+
+    /// <summary>
+    /// What the turn tells her about what was handed to her: what it is, and to start her reply with what she saw of
+    /// each (kept in its place, as she won't see it again); or that the model she runs on can't take pictures.
+    /// </summary>
+    private static string Handing(IReadOnlyList<Attachment> handed, bool seeing)
+    {
+        if (handed.Count == 0)
+            return "";
+        static string Things(IEnumerable<Attachment> things) =>
+            string.Join(" and ", things.Select(a => $"the {a.Kind} \"{a.Name}\"" + (a.Taken is { } t ? $" (taken {t.ToString("dddd d MMMM yyyy, HH:mm", Prompt.English)})" : "")));
+        var unseen = seeing ? new List<Attachment>() : handed.Where(a => !a.Text).ToList();
+        var taken = handed.Except(unseen).ToList();
+        var note = new StringBuilder();
+        if (unseen.Count > 0)
+            note.Append($"\n[cabinet] The player tried to show you {Things(unseen)}, but the model you run on can't take pictures or PDFs: say so briefly.");
+        if (taken.Count > 0)
+            note.Append($"\n[cabinet] Handed to you with this: {Things(taken)}{(taken.Any(a => a.Text) ? " (the text is below)" : "")}. Begin your reply with " +
+                        "[saw: what it is and shows, in one or two short sentences, with whatever you would want to remember, such as numbers, names and dates], " +
+                        $"one for each, in this order: that line is kept in its place, and you won't see {(taken.Count == 1 ? "it" : "them")} again.");
+        return note.ToString();
+    }
+
+    /// <summary>
+    /// The line kept for what was said and handed over: each thing in brackets, a picture or PDF with what she saw of
+    /// it, a short text file word for word.
+    /// </summary>
+    private static string Kept(string said, IReadOnlyList<Attachment> handed, IReadOnlyList<string> seen, bool seeing)
+    {
+        var line = new StringBuilder(said.Trim());
+        for (var i = 0; i < handed.Count; i++)
+        {
+            var thing = handed[i];
+            var saw = i < seen.Count ? seen[i] : null;
+            if (line.Length > 0)
+                line.Append(thing.Text ? '\n' : ' ');
+            if (thing.Text && thing.Words() is { Length: <= Attachment.KeptWordForWord } words)
+                line.Append($"[file: {thing.Name}]\n{words}\n[end of {thing.Name}]");
+            else if (!thing.Text && !seeing)
+                line.Append($"[{thing.Kind}: {thing.Name}, not seen: the model can't take them]");
+            else
+            {
+                var name = thing.Name + (thing.Taken is { } t ? $", taken {t.ToString("yyyy-MM-dd HH:mm", Prompt.English)}" : "");
+                line.Append(saw is null ? $"[{thing.Kind}: {name}]" : $"[{thing.Kind}: {name}: {saw}]");
+            }
+        }
+        return line.ToString();
     }
 
     /// <summary>

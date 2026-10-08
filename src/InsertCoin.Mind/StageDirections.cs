@@ -14,7 +14,7 @@ namespace InsertCoin.Mind;
 /// </param>
 public sealed partial class StageDirections(Action<string, string?> direction, Action<string>? text = null)
 {
-    private const int LongestDirection = 160;
+    private const int LongestDirection = 400;               // room for a [saw: ...] about a picture
 
     private readonly StringBuilder _held = new();       // from an opening bracket until we know what it is
     private bool _started;                              // some text has been shown already

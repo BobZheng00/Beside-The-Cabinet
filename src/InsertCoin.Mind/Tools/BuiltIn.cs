@@ -83,6 +83,22 @@ public static class BuiltIn
             _ => ("Play your music?", "What was playing carries on", "music"),
         });
 
+    /// <summary>
+    /// Looks at the player's screen: a screenshot of the screen they are using, which she is shown right after this
+    /// reply. A screenshot can show anything, so she asks first.
+    /// </summary>
+    /// <param name="take">Takes it, to be shown to her next (the app's own way of doing it); returns what she is told.</param>
+    public static Tool LookAtScreen(Func<string> take) => new(
+        AIFunctionFactory.Create(
+            () => take(),
+            "look_at_screen",
+            "Takes a screenshot of the screen the player is using, to be shown to you right after this reply. Use it when they ask you to look at " +
+            "their screen, at what they are doing, or at something on it. In this reply say only a few words (that you'll have a look); you answer " +
+            "once you see it. The player is asked first."),
+        "Look at the screen",
+        OutsideApp: true,
+        _ => ("Look at your screen?", "A screenshot of the screen you're using, for her to see", "screen"));
+
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
     public static Uri? Page(string? url) =>
         Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var page) && (page.Scheme == Uri.UriSchemeHttps || page.Scheme == Uri.UriSchemeHttp) && page.Host.Length > 0

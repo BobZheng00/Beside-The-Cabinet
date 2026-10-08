@@ -57,6 +57,7 @@ public sealed record AppSettings
     public int WeekendCapMinutes { get; init; } = 150;  // …and on Saturday and Sunday (a change counts from the next day)
     public string? Bedtime { get; init; }               // "23:30": play after it costs more until 04:00; unset: none
     public int FocusPerPlay { get; init; } = 4;         // minutes of focus for each minute of play
+    public string[] UnseeingModels { get; init; } = [];  // models found not to take pictures or PDFs: none is sent to them
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }

@@ -228,8 +228,8 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 
 - Weather.
 - Writing to the calendar (Google or Microsoft sign-in, a connector).
-- Reading the screen (only when asked).
-- Files the player hands her.
+- Reading the screen (only when asked): *built 2026-10-08* as `look_at_screen`, asking first (balance spec, "Handing her things: built").
+- Files the player hands her: *built 2026-10-08* (the same).
 - Reading the clipboard (asking first).
 - Local MCP servers (connectors).
 - A gesture per sentence while she speaks (the motion-file layer, §7 of the agent note).

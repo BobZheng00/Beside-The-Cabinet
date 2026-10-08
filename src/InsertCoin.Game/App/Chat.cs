@@ -44,7 +44,8 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
-        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved")])
+        Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
+                             BuiltIn.LookAtScreen(LookAtScreen)])
         {
             AskPlayer = AskFirst,
         };
@@ -84,6 +85,33 @@ public sealed class Chat : IDisposable
     public Func<string?, string>? Playlist { get; set; }
 
     private string FocusAct(string action, int? focus, int? rest) => Focus?.Invoke(action, focus, rest) ?? "Focus sessions aren't available here.";
+
+    /// <summary>Takes a screenshot of the screen the player is using, for her tool; null when it can't be taken.</summary>
+    public Func<Attachment?>? Screen { get; set; }
+
+    private Attachment? _shot;                          // a screenshot she took in the reply under way, shown to her right after it
+
+    private string LookAtScreen()
+    {
+        if (Screen?.Invoke() is not { } shot)
+            return "The screenshot couldn't be taken.";
+        _shot = shot;
+        return "Taken: you'll see it right after this reply. Say only a few words now (that you're having a look).";
+    }
+
+    /// <summary>The screenshot she took in her last reply, to show her now; null when she took none.</summary>
+    public Attachment? TakeShot()
+    {
+        var shot = _shot;
+        _shot = null;
+        return shot;
+    }
+
+    /// <summary>Whether a model is known not to take pictures or PDFs (none is sent to it; see <see cref="Conversation.Unseeing"/>).</summary>
+    public Func<string, bool> CantSee { get; set; } = _ => false;
+
+    /// <summary>A reply found that the model can't take pictures or PDFs: remember it for that model.</summary>
+    public event Action<string>? FoundCantSee;
 
     private Task<string> MusicAct(string action, string? playlist) => Music?.Invoke(action, playlist) ?? Task.FromResult("The player's music can't be reached from here.");
 
@@ -243,15 +271,17 @@ public sealed class Chat : IDisposable
     /// The language of her voice whenever she has one switched on, ready this moment or not: her instructions stay the
     /// same while her voice rests (during a game), so the start of the prompt stays cached.
     /// </param>
-    public Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null) =>
-        Respond(said, fromCabinet: false, fallback: null, situation, view, speech, voiceLanguage);
+    /// <param name="handed">What the player hands her with it: pictures, PDFs, text files (see <see cref="Attachment"/>).</param>
+    public Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null, IReadOnlyList<Attachment>? handed = null) =>
+        Respond(said, fromCabinet: false, fallback: null, situation, view, speech, voiceLanguage, handed: handed);
 
     /// <summary>
     /// Has her pass on what the cabinet asks (reminders going off, see <see cref="Agenda.Announcement"/>) in her own
     /// words, shown and said as a reply is; when that fails, she says <paramref name="fallback"/> instead.
     /// </summary>
-    public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null) =>
-        Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage);
+    public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null,
+                         IReadOnlyList<Attachment>? handed = null) =>
+        Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage, handed: handed);
 
     /// <summary>
     /// Has her think over what the cabinet tells her (a memo the player wrote, see <see cref="Memo.Written"/>) without
@@ -264,10 +294,11 @@ public sealed class Chat : IDisposable
         Respond(note, fromCabinet: true, fallback: "", situation, view, speech: null, voiceLanguage, voice);
 
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
-                               Func<Speech?>? voiceLater = null)
+                               Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
+        _shot = null;
         var client = _talk;
         var conversation = _conversation;
         conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
@@ -290,9 +321,11 @@ public sealed class Chat : IDisposable
                 began = true;
             }
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
-            Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, Task<string>> reply =
+            Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, IReadOnlyList<Attachment>?, Task<string>> reply =
                 fromCabinet ? conversation.Announce : conversation.Answer;
             Replied = null;
+            var model = _provider?.Model ?? "";
+            conversation.Unseeing = CantSee(model);
             var text = await reply(client, said, situation,
                                       words =>
                                       {
@@ -319,8 +352,15 @@ public sealed class Chat : IDisposable
                                           Act(view, name);
                                           speech?.Direction(name, payload);
                                       },
-                                      answering.Token, Tools);
+                                      answering.Token, Tools, handed);
             GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
+            if (handed is { Count: > 0 })
+                GD.Print($"Chat: handed {string.Join(", ", handed.Select(h => $"{h.Name} ({h.MediaType}, {h.Data.Length / 1024} KB)"))}");
+            if (conversation.Unseeing && !CantSee(model))
+            {
+                GD.Print($"Chat: {model} can't take pictures or PDFs; none is sent to it from now on");
+                FoundCantSee?.Invoke(model);
+            }
             if (Tools.Refused && !refused)
                 GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
             if (held is not null && Here() && text.Length > 0)

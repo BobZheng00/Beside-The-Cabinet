@@ -19,6 +19,10 @@ public static class Trouble
         null => "I can't reach the server. Check the address and your connection.",
     };
 
+    /// <summary>The provider turned the request itself down (400, 413, 415, 422): something in it the model can't take, not a fault on the way.</summary>
+    public static bool Refused(Exception e) =>
+        Status(e) is HttpStatusCode.BadRequest or HttpStatusCode.RequestEntityTooLarge or HttpStatusCode.UnsupportedMediaType or HttpStatusCode.UnprocessableEntity;
+
     private static HttpStatusCode? Status(Exception e) => e switch
     {
         ClientResultException { Status: > 0 } openAi => (HttpStatusCode)openAi.Status,

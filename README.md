@@ -163,6 +163,16 @@ START plays one from its beginning (the app presses Spotify's own play button fo
 focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
 
+**Handing her things.** Drop a picture, a PDF or a text file (notes, code, a log) on her, paste one into the slip
+(a screenshot from Win+Shift+S, a picture copied in the browser, files copied in Explorer), or use the slip's paper clip:
+"Picture or file…", "Your screen" (the screen the pointer is on, as it is now) or "From your phone…" (a card with a code:
+scan it on the same Wi-Fi and choose photos; they land on the slip; the page closes with the card or after ten
+minutes, and the first time Windows may ask to let the cabinet take connections: allow it on private networks). Each
+waits as a chip above the slip and goes with what you say next, typed or said. Ask her to look at your screen and she
+does, after asking (a card by her stool). Pictures are made no larger than models read in full (phone photos turned
+upright, with the time they were taken); she keeps what she saw in words, not the picture. With a model that can't
+take pictures or PDFs she says so, and none is sent to it again.
+
 Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
@@ -224,6 +234,11 @@ long sitting), `musicfake:Title:Artist` (pretends a music app plays; `musicfake:
 into MUSIC, named by Spotify), `musictool:pause` and `musictool:start_playlist:Deep_Focus` (her tool), `musicprobe` (checks
 Windows' media controls answer: how many sessions, whose; no titles), `spotifyprobe:Deep_Focus` (what Spotify's window
 shows to press, and whether that playlist's play button is there; presses nothing).
+Handing her things: `attach:C:\path\photo.jpg` (as if dropped on her), `pastepicture:C:\path\pic.png` (as if pasted; the
+clipboard is left alone), `clip` (the slip's paper clip, its ways showing), `screenshot` (its "Your screen"),
+`fakescreen:C:\path\pic.png` (every screenshot takes this picture instead; a test run never takes the real screen),
+`phone` (its "From your phone…" card; in a test run the page listens on this PC alone) and `phonesend:C:\path\photo.jpg`
+(a pretend phone opens the page, sends that photo and tries a wrong key).
 Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),
 `nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades), `balance`
 (tray → Balance…).

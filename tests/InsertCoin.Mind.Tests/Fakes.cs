@@ -9,6 +9,8 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public List<List<ChatMessage>> Requests { get; } = [];
     public List<ChatOptions?> Options { get; } = [];
     public Exception? Fails { get; init; }
+    /// <summary>Thrown for any streamed request carrying a picture or a PDF, as a model that can't take them does.</summary>
+    public Exception? RefusesPictures { get; init; }
     /// <summary>Answers for non-streamed requests, one per request, before falling back to the pieces.</summary>
     public Queue<string> Answers { get; } = new();
 
@@ -29,6 +31,8 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
         Options.Add(options);
         if (Fails is not null)
             throw Fails;
+        if (RefusesPictures is not null && Requests[^1].Any(m => m.Contents.OfType<DataContent>().Any()))
+            throw RefusesPictures;
         foreach (var piece in pieces)
         {
             await Task.Yield();

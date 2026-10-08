@@ -20,7 +20,7 @@ public static class Prompt
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
     public static readonly string[] Moments = ["cheer", "pump", "wave", "look", "gasp", "worry"];
 
-    private static readonly CultureInfo English = CultureInfo.InvariantCulture;
+    internal static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly TimeSpan Gap = TimeSpan.FromMinutes(30);    // a pause long enough to say when talk resumed
 
     /// <param name="voiceLanguage">The language her voice speaks (see <see cref="SpokenLanguage"/>), or null when she has no voice.</param>
