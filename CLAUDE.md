@@ -1,6 +1,6 @@
 # INSERT COIN: working notes
 
-A desktop arcade cabinet (Godot 4.7.2 .NET): LeetCode solves pay for Steam gaming time. A 3D companion sits on a stool beside it. She chats, remembers, speaks, listens, and keeps the player's agenda.
+A desktop arcade cabinet (Godot 4.7.2 .NET) for a balance of work, life and games: good work earns gaming time (so far LeetCode solves, spent on Steam games; focus and the player's own activities next). A 3D companion sits on a stool beside it. She chats, remembers, speaks, listens, and keeps the player's agenda.
 
 The README is the manual: features, every dev action, build commands. `docs/specs` records what was decided and which parts are built. Read those rather than re-deriving them. This file is about how to work here, and where we are.
 
@@ -24,6 +24,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `2026-10-04-companion-memory-v2.md`: memory, agenda, reminders, check-ins, usage and calendars, with sections marked *Built*.
   - `2026-10-05-hands-free-listening.md`: follow-up listening, conversations, the MIC light.
   - `2026-10-05-tools-and-abilities.md` (draft): built-in tools versus connectors, the first abilities, the order.
+  - `2026-10-07-balance.md` (draft): earning from more than LeetCode (focus, the player's own activities with proof), a daily cap and a nightly fade, pictures and files, rest and sleep, the order from here.
 - `docs/research`: research notes.
 
 ## Build and test
@@ -122,7 +123,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
-**Now: tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
+**Tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
 - **Decided:**
   - tools are framed like Claude Code's: built-in tools, connectors the player chooses (keys, sign-ins, local MCP servers; no remote MCP), plugins later;
   - acting outside the app asks first;
@@ -138,9 +139,18 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   1. groundwork (*built 2026-10-05*);
   2. memos (*built 2026-10-05*);
   3. focus sessions and music (*built 2026-10-06*);
-  4. LeetCode hints;
-  5. web search.
-- **Next step:** LeetCode hints (spec §1), once the user has tried focus and music (`docs/to-try.md`).
+  4. LeetCode hints and web search: moved into the balance order (below), widened to help with any learning.
+
+**Now: balance** (the user's turn, 2026-10-07: LeetCode and Steam are a small part; any learning or good habit can earn play, for a balance of work, life and games). Draft spec: `docs/specs/2026-10-07-balance.md`.
+- **Decided:**
+  - three ways to earn: checked (LeetCode), timed (focus sessions, paid by the minute), told (the player's own list of activities);
+  - a daily cap on the play that can be earned, and unplayed time fading over days, so it can't be saved up for the weekend;
+  - proof for activities when the player wants it: a photo or a screenshot she judges by how sure she is, fun and not annoying;
+  - pictures and files handed to her (drop, paste, the phone, a screenshot when asked);
+  - rest and sleep: bedtime and long-play nudges, and patterns from a record of days.
+- **Proposed, waiting on the user:** a coin per 60 focused minutes; a 2-hour cap (more at weekends?); half of unplayed time fading each night; their bedtime, and whether play after it costs more.
+- **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps.
+- **Next step:** the ledger, once the numbers are settled.
 
 **Open questions for the user:**
 - whether her idle leg swings should be smaller and rarer;

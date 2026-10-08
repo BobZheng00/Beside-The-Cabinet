@@ -43,6 +43,8 @@ The tool list sits at the start of every request, the part providers cache. It c
 
 ### 1. LeetCode hints (agreed; how, *proposed*)
 
+*Widened 2026-10-07* into help with any learning, built together with web search: see `2026-10-07-balance.md`, "Help with learning".
+
 **Which problem.** When the player asks for a hint, and only then, she reads the titles of their open windows. A browser tab on a problem is titled like "1. Two Sum - LeetCode" or "1. 两数之和 - 力扣（LeetCode）". From the title she finds the problem in LeetCode's public data: statement (in Chinese from leetcode.cn), difficulty, topics, and LeetCode's own hints.
 - *Fallbacks:* a link, number or name said or typed in the slip; or the problem they last solved, which the cabinet already tracks.
 - *Not:* reading the screen, or a browser extension.
@@ -311,6 +313,8 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 3. **Focus sessions** with break, stand-up and water nudges, then music (a link and Windows' media controls) (*built 2026-10-06*, above); opening apps still to come.
 4. **LeetCode hints**, as memos.
 5. **Web search:** the provider's own first, then the connectors window with Tavily and SearXNG.
+
+*Changed 2026-10-07:* 4 and 5 moved into the balance order (`2026-10-07-balance.md`, "Order"), after the ledger's changes, pictures and files, activities, and rest and sleep.
 
 ## Sources
 
