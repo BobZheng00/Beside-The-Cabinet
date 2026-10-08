@@ -49,6 +49,15 @@ public static class Lines
     /// <summary>The player ended a focus session.</summary>
     public static string FocusStopped(int done) => done == 0 ? "Session over." : $"Session over: {done} focus {(done == 1 ? "part" : "parts")}. Nice work.";
 
+    /// <summary>Her plain words about rest, without her mind (see <see cref="InsertCoin.Mind.Rest"/>).</summary>
+    public static string Rest(InsertCoin.Mind.Nudge nudge) => nudge switch
+    {
+        InsertCoin.Mind.Nudge.WindDown => "Half an hour to bedtime. Time to start winding down?",
+        InsertCoin.Mind.Nudge.Bedtime => "It's bedtime. Sleep well!",
+        InsertCoin.Mind.Nudge.StillUp => "Still up? It's past your bedtime.",
+        _ => "Two hours in. Rest your eyes, stretch, have some water?",
+    };
+
     /// <summary>A long stretch at the PC with no break.</summary>
     public const string StandUp = "You've been at it a while. Stand up, stretch, have some water?";
 

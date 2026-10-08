@@ -111,6 +111,9 @@ public partial class Main : Node2D
         _stool.PayActivity = (name, size, share) => Apply(new ActivityDone(name, size, share)).OfType<ActivityPaid>().FirstOrDefault()?.Paid;
         _stool.PaidToday = name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0;
         _stool.DayOf = moment => GameCalendar.DayOf(moment, _rules);
+        _stool.Ledger = () => _state;
+        _stool.Rules = () => _rules;
+        _stool.RulesChanged = UseRules;
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));

@@ -136,6 +136,20 @@ public static class BuiltIn
         "Judge proof",
         OutsideApp: false);
 
+    /// <summary>
+    /// Sets the player's bedtime (see <see cref="Rest"/>) when they tell her one or agree to one she suggested; they
+    /// confirm it on her card, and it counts from the next day. Inside the app.
+    /// </summary>
+    public static Tool SetBedtime(Func<string, CancellationToken, Task<string>> set) => new(
+        AIFunctionFactory.Create(
+            async ([Description("The bedtime, 24-hour HH:MM, from 20:00 to 03:30 (\"23:30\")")] string time, CancellationToken cancel = default) =>
+                await set(time, cancel),
+            "set_bedtime",
+            "Sets the player's bedtime, when they tell you one or agree to one you suggested: half an hour before it you give them a word to wind " +
+            "down, at it time to sleep, and play after it costs more until 04:00. The player confirms on a card; it counts from tomorrow."),
+        "Set the bedtime",
+        OutsideApp: false);
+
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
     public static Uri? Page(string? url) =>
         Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var page) && (page.Scheme == Uri.UriSchemeHttps || page.Scheme == Uri.UriSchemeHttp) && page.Host.Length > 0

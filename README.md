@@ -163,6 +163,12 @@ START plays one from its beginning (the app presses Spotify's own play button fo
 focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
 
+**Rest and sleep.** With a bedtime (tray → Balance…, or tell her one: she sets it after you confirm on her card, from the
+next day), she gives you a word to wind down half an hour before it, says it's time to sleep at it, and once more half
+an hour after, then leaves it; in a game, tickets. After two hours in one game she suggests a break. Without a bedtime
+she asks for one, once, some evening (and once more a week on, with your usual time from the record of days). At most
+once a day she mentions what the record shows: nights going on late, or days without play while time is banked.
+
 **Activities.** Tell her about something good you did ("I went to the gym", "I cooked dinner") and she counts it towards
 your play time: it pays like a problem of its size (small 1 coin, medium 2, big 4), once a day. The first time, she sizes
 it; you confirm on a card by her stool ("Yes, count it" or "Not yet": "I'm going" isn't "I went"), and from then on it
@@ -248,6 +254,8 @@ clipboard is left alone), `clip` (the slip's paper clip, its ways showing), `scr
 `fakescreen:C:\path\pic.png` (every screenshot takes this picture instead; a test run never takes the real screen),
 `phone` (its "From your phone…" card; in a test run the page listens on this PC alone) and `phonesend:C:\path\photo.jpg`
 (a pretend phone opens the page, sends that photo and tries a wrong key).
+Rest: `rest:winddown`, `rest:bedtime`, `rest:stillup`, `rest:break` (that word now), `rest:notice` (what the record of days
+shows) and `rest:ask` (asking for a bedtime).
 Activities: `done:the_gym` (as if DID IT were tapped on the DONE app), `proofroll:0` (proof always wanted; `proofroll:1`
 never) and `crt:done`; `allow` and `deny` answer her card as Yes, count it and Not yet.
 Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),

@@ -65,6 +65,13 @@ public partial class Stool : Node2D
     /// <summary>The game day of a moment; set by the cabinet's loop.</summary>
     public Func<DateTimeOffset, DateOnly>? DayOf { get; set; }
 
+    /// <summary>The cabinet's state and rules as they are now, for rest and sleep; set by the cabinet's loop.</summary>
+    public Func<LedgerState>? Ledger { get; set; }
+    public Func<Rules>? Rules { get; set; }
+
+    /// <summary>The player's settings changed what the cabinet's rules are (a bedtime set through her); set by the cabinet's loop.</summary>
+    public Action? RulesChanged { get; set; }
+
     /// <summary>The player's music app (the screen's MUSIC app, and her tool).</summary>
     public Music Music => _music;
 
@@ -131,6 +138,7 @@ public partial class Stool : Node2D
             InFront = () => _chat.InFront,
         };
         _chat.Activities = _activities;
+        _chat.Bedtime = SetBedtime;
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
@@ -207,6 +215,7 @@ public partial class Stool : Node2D
         {
             MaybeCheckIn();
             MaybeStandUp();
+            MaybeRest();
         };
         AddChild(checkIns);
         ShowHer(settings.Now.ShowCompanion);
@@ -308,6 +317,93 @@ public partial class Stool : Node2D
         _lastStandUp = now;
         GD.Print($"Stand up: {(int)(now - since).TotalMinutes} min at the PC");
         _told.Enqueue(("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, now));
+    }
+
+    // ---- Rest and sleep ---------------------------------------------------------------------------------------------
+
+    private readonly HashSet<Nudge> _givenTonight = [];
+    private DateOnly _night;
+    private DateTimeOffset? _sessionStarted;
+    private long? _breakAtMs;
+
+    /// <summary>
+    /// Every fifteen seconds (see <see cref="Rest"/>): her words around bedtime (half an hour before, at it, once more
+    /// after), whatever the quiet hours, while the player is at the PC; a break after two hours in a game (in a game,
+    /// tickets); and, at most once a day, when they are back and free, what the record of days shows, or, with no bedtime
+    /// set, asking for one in the evening.
+    /// </summary>
+    private void MaybeRest()
+    {
+        if (Her is null || Ledger?.Invoke() is not { } state || Rules?.Invoke() is not { } rules)
+            return;
+        var now = DateTimeOffset.Now;
+        var here = UserActivity.IdleFor() < TimeSpan.FromMinutes(1);
+        var night = GameCalendar.DayOf(now, rules);
+        if (night != _night)
+        {
+            _night = night;
+            _givenTonight.Clear();
+        }
+        // today's bedtime: one set today counts from tomorrow
+        if (state.Today?.Bedtime is { } bedtime && here && Rest.AtBedtime(bedtime, now, _givenTonight, rules.DayStartsAt) is { } nudge)
+        {
+            _givenTonight.Add(nudge);
+            GD.Print($"Rest: {nudge} ({Rest.Clock(bedtime)})");
+            _told.Enqueue(("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), now));
+        }
+        if (state.Session is { } session)
+        {
+            if (session.StartedAt != _sessionStarted)
+            {
+                _sessionStarted = session.StartedAt;
+                _breakAtMs = null;
+            }
+            if (!state.Paused && Rest.BreakDue(session.PlayedMs, _breakAtMs))
+            {
+                _breakAtMs = session.PlayedMs;
+                GD.Print("Rest: a break after two hours of play");
+                _told.Enqueue(("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), now));
+            }
+        }
+        if (!_chat.Ready || _gameRunning || Busy || !here || Presence.DoNotDisturb || Presence.InCall || Quiet(now.Hour)
+            || _activeSince is not { } since || now - since < BackFor)
+            return;
+        var today = night.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        if (_chat.Store.Mark("rest.said") == today)
+            return;
+        var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && now.Hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
+        note ??= Rest.Notice(state.Days, state.Today?.Bedtime, state.TimeLeftMs(rules), rules.DayStartsAt);
+        if (note is null)
+            return;
+        _chat.Store.SetMark("rest.said", today);
+        GD.Print("Rest: she has something to say about rest");
+        _told.Enqueue(("REST", note, "", now));             // only her mind says these
+    }
+
+    /// <summary>With no bedtime set: asking for one, once; a second time a week on, if the record of days shows their usual night by then.</summary>
+    private string? AskBedtime(LedgerState state, Rules rules, DateTimeOffset now)
+    {
+        var asked = _chat.Store.Mark("bedtime.asked")?.Split('|');
+        var usual = Rest.Usual(state.Days, rules.DayStartsAt);
+        var times = asked is [var count, _] && int.TryParse(count, out var n) ? n : 0;
+        if (times >= 2 || times == 1 && (usual is null || !DateOnly.TryParse(asked![1], out var first) || first.AddDays(7) > DateOnly.FromDateTime(now.DateTime)))
+            return null;
+        _chat.Store.SetMark("bedtime.asked", $"{times + 1}|{DateOnly.FromDateTime(now.DateTime):O}");
+        return Rest.AskBedtime(usual);
+    }
+
+    /// <summary>Her tool sets the player's bedtime once they confirm it on her card; it counts from tomorrow.</summary>
+    private async Task<string> SetBedtime(string time, CancellationToken cancel)
+    {
+        if (Rest.ParseBedtime(time) is not { } bedtime)
+            return "That isn't a bedtime the cabinet takes: a time from 20:00 to 03:30, like 23:30.";
+        var answer = await ConfirmOnCard($"Your bedtime: {Rest.Clock(bedtime)}?", "From tomorrow: a word half an hour before it, and play after it costs more until 04:00", cancel);
+        if (answer != true)
+            return answer is false ? "The player said not that one. Take that lightly." : "The player didn't answer, so it isn't set.";
+        _settings.Save(_settings.Now with { Bedtime = Rest.Clock(bedtime) });
+        RulesChanged?.Invoke();
+        GD.Print($"Rest: bedtime set to {Rest.Clock(bedtime)}, from tomorrow");
+        return $"Set: {Rest.Clock(bedtime)}, from tomorrow.";
     }
 
     /// <summary>What a focus session or a long sitting has for her to say, once she is free (as reminders are); stale after three minutes.</summary>
@@ -1067,14 +1163,17 @@ public partial class Stool : Node2D
     private float CardBottom => _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? _chatBox.Tall + 8 : 0);
 
     /// <summary>She counts an activity: the player confirms it on her card ("I'm going to the gym" isn't "I went").</summary>
-    private async Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel)
+    private Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel) => ConfirmOnCard(what, detail, cancel);
+
+    /// <summary>The player confirms something she does for them on her card: yes, not yet, or null when they let it be.</summary>
+    private async Task<bool?> ConfirmOnCard(string what, string detail, CancellationToken cancel)
     {
         if (Her is null)
             return null;
         Her.Play(Moment.Listen);
         var answer = await _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
         Her?.Play(Moment.Heard);
-        GD.Print($"Activities: \"{what}\" {answer switch { true => "confirmed", false => "not yet", _ => "not answered" }}");
+        GD.Print($"Card: \"{what}\" {answer switch { true => "confirmed", false => "not yet", _ => "not answered" }}");
         return answer;
     }
 
@@ -1269,6 +1368,17 @@ public partial class Stool : Node2D
             case "screenshot": HandScreen(); break;         // the slip's "Your screen"
             case "phone": OpenPhone(); break;               // the slip's "From your phone…": the card with its code
             case "done": _ = LogFromScreen(rest.Replace('_', ' ')); break;     // done:name as if DID IT were tapped on the screen's DONE app
+            case "rest":                                    // rest:winddown, bedtime, stillup or break: that word now; rest:notice or rest:ask: what the record shows, or asking for a bedtime
+                if (Enum.TryParse<Nudge>(rest, ignoreCase: true, out var word) || rest == "break")
+                {
+                    word = rest == "break" ? Nudge.LongPlay : word;
+                    _told.Enqueue(("BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), DateTimeOffset.Now));
+                }
+                else if (Ledger?.Invoke() is { } ledger && Rules?.Invoke() is { } rules)
+                    _told.Enqueue(("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
+                                       : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
+                                   "", DateTimeOffset.Now));
+                break;
             case "proofroll":                               // proofroll:0 always wants proof, proofroll:1 never (instead of chance)
                 _activities.Roll = double.Parse(rest, System.Globalization.CultureInfo.InvariantCulture);
                 break;

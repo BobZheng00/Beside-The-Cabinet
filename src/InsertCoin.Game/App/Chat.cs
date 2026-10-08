@@ -45,7 +45,7 @@ public sealed class Chat : IDisposable
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
-                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof)])
+                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct)])
         {
             AskPlayer = AskFirst,
         };
@@ -96,6 +96,11 @@ public sealed class Chat : IDisposable
         Activities?.Log(name, size, minutes, provable, confirmed: false, cancel) ?? Task.FromResult("Activities can't be counted here.");
 
     private string JudgeProof(string name, Conviction conviction, string saw) => Activities?.Judge(name, conviction, saw) ?? "Proof can't be judged here.";
+
+    /// <summary>Sets the player's bedtime for her tool (the time she gave) and says what came of it.</summary>
+    public Func<string, CancellationToken, Task<string>>? Bedtime { get; set; }
+
+    private Task<string> SetBedtimeAct(string time, CancellationToken cancel) => Bedtime?.Invoke(time, cancel) ?? Task.FromResult("Bedtimes can't be set here.");
 
     /// <summary>Takes a screenshot of the screen the player is using, for her tool; null when it can't be taken.</summary>
     public Func<Attachment?>? Screen { get; set; }
