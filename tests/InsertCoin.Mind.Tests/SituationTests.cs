@@ -67,6 +67,8 @@ public class SituationTests
                      Situation.Witness(new LateNight(new TimeSpan(0, 30, 0), 1.5), Rules));
         Assert.Equal("A new day: overnight 40 min of unplayed time faded, 40 min left.",
                      Situation.Witness(new Faded(40 * 60_000, 40 * 60_000), Rules));
+        Assert.Equal("\"the gym\" counted by half for now: 15 min of play.",
+                     Situation.Witness(new ActivityPaid("the gym", Size.Medium, 0.5, 0.5, Paid(15)), Rules));
         Assert.Equal("The player stopped playing after 1 h 5 min; 2 IOU tickets printed.",
                      Situation.Witness(new SessionEnded(new Session { PlayedMs = 65 * 60_000, IousPrinted = 2 }), Rules));
         Assert.Null(Situation.Witness(new TokenInserted(2), Rules));

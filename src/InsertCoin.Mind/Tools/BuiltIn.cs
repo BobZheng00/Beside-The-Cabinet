@@ -99,6 +99,43 @@ public static class BuiltIn
         OutsideApp: true,
         _ => ("Look at your screen?", "A screenshot of the screen you're using, for her to see", "screen"));
 
+    /// <summary>
+    /// Counts something good the player did towards their play time (see <see cref="Activities"/>): she names it and,
+    /// for a new one, sizes it; the player confirms on her card; the cabinet pays, or wants proof first. Inside the app.
+    /// </summary>
+    /// <param name="log">Logs it (name, size for a new one, minutes if they said, whether it can be photographed) and says what came of it.</param>
+    public static Tool LogActivity(Func<string, Core.Size?, int?, bool?, CancellationToken, Task<string>> log) => new(
+        AIFunctionFactory.Create(
+            async ([Description("The activity: as the cabinet block's list names it if it is there; otherwise a few words (\"the gym\", \"a walk\", \"cooking dinner\")")] string activity,
+                   [Description("Only for one not on the list yet: small (short or light: a walk, tidying up), medium (an hour or so, or hard: the gym, a class), big (half a day, or a lot of effort: a hike, a long run)")] string? size = null,
+                   [Description("How long it took in minutes, if they said")] int? minutes = null,
+                   [Description("Only for a new one: false if it couldn't be shown in a photo (meditating, a call home)")] bool? provable = null,
+                   CancellationToken cancel = default) =>
+                await log(activity, Activities.ParseSize(size), minutes, provable, cancel),
+            "log_activity",
+            "Counts something good the player has done towards their play time: exercise, a walk, chores, studying away from the PC, cooking, " +
+            "seeing friends. It pays like a solved problem (small 1 coin, medium 2, big 4), once a day. Only when they tell you they did it, " +
+            "not that they will; not for ordinary life (eating, a shower), nor what focus sessions or LeetCode already pay; and only for what " +
+            "they would want more of. The player confirms on a card. Sometimes the cabinet wants proof first: the result says so."),
+        "Count an activity",
+        OutsideApp: false);
+
+    /// <summary>
+    /// Her verdict on a picture the player showed as proof of an activity (see <see cref="Activities.Judge"/>): the
+    /// cabinet pays by how sure she is. Inside the app.
+    /// </summary>
+    public static Tool JudgeProof(Func<string, Conviction, string, string> judge) => new(
+        AIFunctionFactory.Create(
+            ([Description("The activity the picture is proof of, as it was logged")] string activity,
+             [Description("sure (it clearly shows it, done today), unsure (it might, but not clearly), or doubtful (it doesn't show it, or not today)")] string verdict,
+             [Description("What the picture shows, in a few words")] string saw) =>
+                judge(activity, Activities.ParseConviction(verdict), saw),
+            "judge_proof",
+            "When the cabinet wanted proof of an activity and the player shows you a picture of it: how sure you are that it shows the activity, " +
+            "done today. The cabinet pays by it: sure in full, unsure half (a clearer picture today pays the rest), doubtful nothing yet."),
+        "Judge proof",
+        OutsideApp: false);
+
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
     public static Uri? Page(string? url) =>
         Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var page) && (page.Scheme == Uri.UriSchemeHttps || page.Scheme == Uri.UriSchemeHttp) && page.Host.Length > 0

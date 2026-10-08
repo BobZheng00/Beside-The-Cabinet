@@ -45,7 +45,7 @@ public sealed class Chat : IDisposable
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
-                             BuiltIn.LookAtScreen(LookAtScreen)])
+                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof)])
         {
             AskPlayer = AskFirst,
         };
@@ -85,6 +85,17 @@ public sealed class Chat : IDisposable
     public Func<string?, string>? Playlist { get; set; }
 
     private string FocusAct(string action, int? focus, int? rest) => Focus?.Invoke(action, focus, rest) ?? "Focus sessions aren't available here.";
+
+    /// <summary>The activities that count, for her tools (see <see cref="Mind.Activities"/>).</summary>
+    public Activities? Activities { get; set; }
+
+    /// <summary>The pictures and files handed to her with the reply under way (for judging proof).</summary>
+    public IReadOnlyList<Attachment> InFront { get; private set; } = [];
+
+    private Task<string> LogActivity(string name, Size? size, int? minutes, bool? provable, CancellationToken cancel) =>
+        Activities?.Log(name, size, minutes, provable, confirmed: false, cancel) ?? Task.FromResult("Activities can't be counted here.");
+
+    private string JudgeProof(string name, Conviction conviction, string saw) => Activities?.Judge(name, conviction, saw) ?? "Proof can't be judged here.";
 
     /// <summary>Takes a screenshot of the screen the player is using, for her tool; null when it can't be taken.</summary>
     public Func<Attachment?>? Screen { get; set; }
@@ -299,6 +310,7 @@ public sealed class Chat : IDisposable
         if (_talk is null || _conversation is null || _answering is not null)
             return;
         _shot = null;
+        InFront = handed ?? [];
         var client = _talk;
         var conversation = _conversation;
         conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
@@ -414,6 +426,7 @@ public sealed class Chat : IDisposable
             _answering = null;
             _view = null;
             _cutting = false;
+            InFront = [];
             _written.TrySetResult();
             if (began && GodotObject.IsInstanceValid(view))
                 view.EndReply();

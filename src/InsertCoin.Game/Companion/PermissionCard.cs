@@ -6,7 +6,8 @@ namespace InsertCoin.Game.Companion;
 /// <summary>
 /// The card by her stool when she asks to use a tool that acts outside the app (see <see cref="Toolbox"/>): what
 /// she wants to do and on what, always the real address whatever she said about it, with Allow once, Always (for
-/// that site) and No. Clicks only: a key pressed in another app never answers it.
+/// that site) and No. Clicks only: a key pressed in another app never answers it. The same card confirms an activity
+/// she counts (see <see cref="Activities"/>): Yes, count it, or Not yet.
 /// </summary>
 public partial class PermissionCard : Node2D
 {
@@ -72,17 +73,34 @@ public partial class PermissionCard : Node2D
 
     /// <summary>Shows the card standing at <paramref name="bottomLeft"/> and waits for the player's answer.</summary>
     /// <returns>Their answer; <see cref="Answer.None"/> when the reply was called off or they let it be.</returns>
-    public async Task<Answer> Ask(Asking asking, Vector2 bottomLeft, CancellationToken cancel)
+    public Task<Answer> Ask(Asking asking, Vector2 bottomLeft, CancellationToken cancel)
     {
-        _answer?.TrySetResult(Answer.None);                    // one question at a time
-        var answer = _answer = new TaskCompletionSource<Answer>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _what.Text = asking.What;
-        _detail.Text = asking.Detail;
-        _detail.Visible = asking.Detail.Length > 0;
+        _once.Text = "Allow once";
+        _no.Text = "No";
+        _always.Visible = true;
         _always.Text = asking.Scope is { } site ? $"Always for {site}" : "Always";
         _always.TooltipText = asking.Scope is { } scope
             ? $"From now on she may do this on {scope} without asking. Chat settings → Abilities can take it back."
             : "From now on she may do this without asking. Chat settings → Abilities can take it back.";
+        return Show(asking.What, asking.Detail, bottomLeft, cancel);
+    }
+
+    /// <summary>Asks the player to confirm an activity she counts: true for yes, false for not yet, null when they let it be.</summary>
+    public async Task<bool?> Confirm(string what, string detail, Vector2 bottomLeft, CancellationToken cancel)
+    {
+        _once.Text = "Yes, count it";
+        _no.Text = "Not yet";
+        _always.Visible = false;                                // each time is its own: "I'm going" isn't "I went"
+        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once => true, Answer.No => false, _ => null };
+    }
+
+    private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel)
+    {
+        _answer?.TrySetResult(Answer.None);                    // one question at a time
+        var answer = _answer = new TaskCompletionSource<Answer>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _what.Text = what;
+        _detail.Text = detail;
+        _detail.Visible = detail.Length > 0;
         Position = bottomLeft;
         _tween?.Kill();
         Visible = true;

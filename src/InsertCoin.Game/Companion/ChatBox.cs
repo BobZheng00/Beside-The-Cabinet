@@ -40,6 +40,9 @@ public partial class ChatBox : Node2D
     private bool _showingHeard;
 
     public bool IsOpen => Visible;
+
+    /// <summary>How much of the foot of the stool it takes up: the slip, and the row of chips or ways above it when there is one.</summary>
+    public float Tall => Height + (_ways.Visible || _row.Visible && _row.GetChildCount() > 0 ? RowHeight + 6 : 0);
     public bool IsEmpty => _field.Text.Trim().Length == 0 && _handed.Count == 0;
 
     /// <summary>What waits to go with the next message.</summary>

@@ -4,6 +4,9 @@ namespace InsertCoin.Core;
 
 public enum Difficulty { Easy, Medium, Hard }
 
+/// <summary>How big an activity the player does is (sized by her the first time): it pays like a problem, small as Easy, medium as Medium, big as Hard.</summary>
+public enum Size { Small, Medium, Big }
+
 /// <summary>An accepted problem reported by a task source. Difficulty is null until it has been looked up.</summary>
 public sealed record SolvedTask(string Id, string Title, Difficulty? Difficulty, DateTimeOffset AcceptedAt);
 
@@ -58,6 +61,8 @@ public sealed record Rules
         _ => HardTokens,
     };
 
+    public int TokensFor(Size s) => TokensFor(s switch { Size.Small => Difficulty.Easy, Size.Medium => Difficulty.Medium, _ => Difficulty.Hard });
+
     /// <summary>The cap for a game day, by its day of the week.</summary>
     public long CapOn(DateOnly day) => day.DayOfWeek switch
     {
@@ -85,6 +90,9 @@ public sealed record Session
 public sealed record WeekStats
 {
     public int Solves { get; init; }
+
+    /// <summary>Activities that counted (each once a day).</summary>
+    public int Activities { get; init; }
 
     /// <summary>New play earned (towards the days' caps), from every source.</summary>
     public long EarnedMs { get; init; }
@@ -119,6 +127,10 @@ public sealed record DayRecord
 
     public long DebtPaidMs { get; init; }
     public int Solves { get; init; }
+
+    /// <summary>The activities that counted this day, each with the share of its worth paid so far (1 in full, 0.5 half).</summary>
+    public ImmutableDictionary<string, double> Activities { get; init; } = ImmutableDictionary<string, double>.Empty;
+
     public long FocusedMs { get; init; }
     public long PlayedMs { get; init; }
 

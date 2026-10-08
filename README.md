@@ -163,6 +163,15 @@ START plays one from its beginning (the app presses Spotify's own play button fo
 focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
 
+**Activities.** Tell her about something good you did ("I went to the gym", "I cooked dinner") and she counts it towards
+your play time: it pays like a problem of its size (small 1 coin, medium 2, big 4), once a day. The first time, she sizes
+it; you confirm on a card by her stool ("Yes, count it" or "Not yet": "I'm going" isn't "I went"), and from then on it
+pays the same. Neither its worth nor how much proof it needs is yours to set. Now and then the cabinet wants proof
+(rarely for small things, usually for big ones, always when it doesn't add up, never for what can't be photographed;
+less often once your proofs have convinced her): show her a photo or a screenshot and she judges it (sure pays in
+full, unsure half, doubtful nothing yet; a better picture that day still pays; a photo taken on another day counts half
+at most). The screen's DONE app lists what counts, with DID IT to log one yourself and × to take one off.
+
 **Handing her things.** Drop a picture, a PDF or a text file (notes, code, a log) on her, paste one into the slip
 (a screenshot from Win+Shift+S, a picture copied in the browser, files copied in Explorer), or use the slip's paper clip:
 "Picture or file…", "Your screen" (the screen the pointer is on, as it is now) or "From your phone…" (a card with a code:
@@ -239,6 +248,8 @@ clipboard is left alone), `clip` (the slip's paper clip, its ways showing), `scr
 `fakescreen:C:\path\pic.png` (every screenshot takes this picture instead; a test run never takes the real screen),
 `phone` (its "From your phone…" card; in a test run the page listens on this PC alone) and `phonesend:C:\path\photo.jpg`
 (a pretend phone opens the page, sends that photo and tries a wrong key).
+Activities: `done:the_gym` (as if DID IT were tapped on the DONE app), `proofroll:0` (proof always wanted; `proofroll:1`
+never) and `crt:done`; `allow` and `deny` answer her card as Yes, count it and Not yet.
 Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),
 `nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades), `balance`
 (tray → Balance…).

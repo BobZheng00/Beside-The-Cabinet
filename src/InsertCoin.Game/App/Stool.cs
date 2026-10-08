@@ -51,6 +51,20 @@ public partial class Stool : Node2D
     /// <summary>Focus sessions (the screen's FOCUS app, and her tool).</summary>
     public Focus Focus => _focus;
 
+    /// <summary>The activities that count (see <see cref="Mind.Activities"/>).</summary>
+    public Activities Activities => _activities;
+
+    private Activities _activities = null!;
+
+    /// <summary>The cabinet pays an activity (its name, size and the share of its worth) and says what it paid; set by the cabinet's loop.</summary>
+    public Func<string, Size, double, Payout?>? PayActivity { get; set; }
+
+    /// <summary>How much of an activity's worth the cabinet has paid today; set by the cabinet's loop.</summary>
+    public Func<string, double>? PaidToday { get; set; }
+
+    /// <summary>The game day of a moment; set by the cabinet's loop.</summary>
+    public Func<DateTimeOffset, DateOnly>? DayOf { get; set; }
+
     /// <summary>The player's music app (the screen's MUSIC app, and her tool).</summary>
     public Music Music => _music;
 
@@ -106,6 +120,17 @@ public partial class Stool : Node2D
         _chatBox.PastedPicture += picture => HandPicture(picture, "pasted", photo: false);
         _chatBox.PastedFiles += Hand;
         _chat.Screen = () => Screenshot.Take() is { } screen ? Handing.Picture(screen, "screen", photo: false).Thing : null;
+        _activities = new Activities(_chat.Store)
+        {
+            Confirm = ConfirmActivity,
+            Pay = (name, size, share) => PayActivity?.Invoke(name, size, share),
+            PaidToday = name => PaidToday?.Invoke(name) ?? 0,
+            DayOf = moment => DayOf?.Invoke(moment) ?? DateOnly.FromDateTime(moment.DateTime.AddHours(-4)),
+            AtThePc = () => _activeSince is { } since ? DateTimeOffset.Now - since : TimeSpan.Zero,
+            Blind = () => _chat.CantSee(_settings.Now.ChatModel ?? ""),
+            InFront = () => _chat.InFront,
+        };
+        _chat.Activities = _activities;
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
@@ -1007,6 +1032,7 @@ public partial class Stool : Node2D
         if (_settings.Now.Playlists.Length > 0)
             lines.Add("Their saved playlists: " + string.Join(", ", _settings.Now.Playlists.Select(p =>
                 $"\"{p.Name}\"{(p.Link == _settings.Now.FocusPlaylist ? " (starts their focus sessions)" : "")}")) + ".");
+        lines.Add(_activities.Describe());
         var memos = _memos.OnTheCabinet.Select(t => $"\"{t}\"").ToList();
         if (memos.Count > 0)
             lines.Add($"Memos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.");
@@ -1031,11 +1057,36 @@ public partial class Stool : Node2D
         if (Her is null)
             return Answer.None;
         Her.Play(Moment.Listen);
-        var bottom = _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? ChatBox.Height + 8 : 0);
-        var answer = await _permission.Ask(asking, new Vector2(14, bottom), cancel);
+        var answer = await _permission.Ask(asking, new Vector2(14, CardBottom), cancel);
         Her?.Play(Moment.Heard);
         GD.Print($"Tools: she asked to use {asking.Tool.Name} on {asking.Detail}: {answer}");
         return answer;
+    }
+
+    /// <summary>Where her card stands: at the foot of the stool, above the slip and whatever waits on it.</summary>
+    private float CardBottom => _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? _chatBox.Tall + 8 : 0);
+
+    /// <summary>She counts an activity: the player confirms it on her card ("I'm going to the gym" isn't "I went").</summary>
+    private async Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel)
+    {
+        if (Her is null)
+            return null;
+        Her.Play(Moment.Listen);
+        var answer = await _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
+        Her?.Play(Moment.Heard);
+        GD.Print($"Activities: \"{what}\" {answer switch { true => "confirmed", false => "not yet", _ => "not answered" }}");
+        return answer;
+    }
+
+    /// <summary>The player logged an activity on the screen (DONE): it counts, or waits for proof; she says so in her own words.</summary>
+    internal async Task<string> LogFromScreen(string name)
+    {
+        var said = await _activities.Log(name, null, null, null, confirmed: true);
+        GD.Print($"Activities: {name} logged on the screen: {said}");
+        var line = said.Contains("judge_proof", StringComparison.Ordinal) ? $"{name}? Show me a photo of it!"
+            : said.StartsWith("Counted", StringComparison.Ordinal) ? $"{name}: that counts. Nice!" : said;
+        _told.Enqueue(("DONE", $"The player logged \"{name}\" as done on the cabinet's screen. What came of it: {said}", line, DateTimeOffset.Now));
+        return said;
     }
 
     /// <summary>Provider, server, key and model.</summary>
@@ -1217,6 +1268,10 @@ public partial class Stool : Node2D
             case "fakescreen": Screenshot.StandIn = rest; break;                // fakescreen:path: screenshots take this picture instead
             case "screenshot": HandScreen(); break;         // the slip's "Your screen"
             case "phone": OpenPhone(); break;               // the slip's "From your phone…": the card with its code
+            case "done": _ = LogFromScreen(rest.Replace('_', ' ')); break;     // done:name as if DID IT were tapped on the screen's DONE app
+            case "proofroll":                               // proofroll:0 always wants proof, proofroll:1 never (instead of chance)
+                _activities.Roll = double.Parse(rest, System.Globalization.CultureInfo.InvariantCulture);
+                break;
             case "phonesend": _ = DevPhone(rest); break;     // phonesend:path as if a phone sent that photo through the card's page
             case "chatsettings": OpenChatSettings(); break;
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab

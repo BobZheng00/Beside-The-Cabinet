@@ -18,6 +18,7 @@ public sealed class Ledger(Rules rules)
             PlayerSet p => SetPlayer(state, p),
             TasksObserved t => Observe(TurnDay(state, now, events, deferWhilePlaying: false), t, events),
             Focused f => Focus(TurnDay(state, now, events, deferWhilePlaying: false), f, events),
+            ActivityDone a => Activity(TurnDay(state, now, events, deferWhilePlaying: false), a, events),
             Tick k => OnTick(TurnDay(state, now, events, deferWhilePlaying: true), k, now, events),
             _ => throw new ArgumentOutOfRangeException(nameof(input), input, null),
         };
@@ -121,6 +122,27 @@ public sealed class Ledger(Rules rules)
         {
             Week = paid.Week with { FocusedMs = paid.Week.FocusedMs + focusedMs },
             Today = paid.Today! with { FocusedMs = paid.Today.FocusedMs + focusedMs },
+        };
+    }
+
+    /// <summary>
+    /// An activity pays like a problem of its size, once a day: what is owed is the share given now less what it was
+    /// paid today already (half, then the rest; nothing when it was paid in full).
+    /// </summary>
+    private LedgerState Activity(LedgerState state, ActivityDone done, List<LedgerEvent> events)
+    {
+        var today = state.Today!;
+        var before = today.Activities.GetValueOrDefault(done.Name);
+        var share = Math.Clamp(done.Share, 0, 1) - before;
+        if (share <= 0)
+            return state;
+        var (paid, payout, after) = Pay(state, (long)Math.Round(Rules.TokensFor(done.Size) * Rules.TokenMs * share));
+        events.Add(new ActivityPaid(done.Name, done.Size, share, before + share, payout));
+        events.AddRange(after);
+        return paid with
+        {
+            Week = before > 0 ? paid.Week : paid.Week with { Activities = paid.Week.Activities + 1 },
+            Today = paid.Today! with { Activities = paid.Today.Activities.SetItem(done.Name, before + share) },
         };
     }
 

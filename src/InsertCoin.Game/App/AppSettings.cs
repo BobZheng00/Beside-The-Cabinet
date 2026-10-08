@@ -41,7 +41,7 @@ public sealed record AppSettings
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
-    public string[] CrtApps { get; init; } = ["focus", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
+    public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
     public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
     public int BreakMinutes { get; init; } = 5;
     public int LongBreakMinutes { get; init; } = 15;

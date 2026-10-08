@@ -108,6 +108,9 @@ public partial class Main : Node2D
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
         _stool.Focus.TimeFocused += time => Apply(new Focused(time));      // focus pays by the minute, at once
+        _stool.PayActivity = (name, size, share) => Apply(new ActivityDone(name, size, share)).OfType<ActivityPaid>().FirstOrDefault()?.Paid;
+        _stool.PaidToday = name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0;
+        _stool.DayOf = moment => GameCalendar.DayOf(moment, _rules);
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
@@ -115,7 +118,8 @@ public partial class Main : Node2D
         _crt = new CrtOs();
         AddChild(_crt);
         _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
-        _crt.Build(_cabinet.Screen, [new FocusApp(_stool.Focus), _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)],
+        _crt.Build(_cabinet.Screen, [new FocusApp(_stool.Focus), new DoneApp(_stool.Activities, name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0, _stool.LogFromScreen),
+                                     _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)],
                    _settings.CrtApps, order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
         // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
         _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();
@@ -324,7 +328,7 @@ public partial class Main : Node2D
         Poll();
     }
 
-    private void Apply(LedgerInput input)
+    private IReadOnlyList<LedgerEvent> Apply(LedgerInput input)
     {
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
@@ -337,11 +341,12 @@ public partial class Main : Node2D
         if (Lines.For(result.Events, _state, _rules, _random) is { } line && !_stool.Answering)
             _stool.Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or SessionEnded or Faded))
+        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
         RefreshScreen();
+        return result.Events;
     }
 
     // ---- Presentation ----------------------------------------------------------------------------------------------

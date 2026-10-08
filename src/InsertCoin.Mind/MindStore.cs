@@ -130,7 +130,14 @@ public sealed class MindStore : IDisposable
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE memos ADD COLUMN colour TEXT; ALTER TABLE memos ADD COLUMN sticker TEXT; " +
                     "ALTER TABLE memos ADD COLUMN a REAL; ALTER TABLE memos ADD COLUMN b REAL; ALTER TABLE memos ADD COLUMN tilt REAL NOT NULL DEFAULT 0");
-        Run("PRAGMA user_version = 9");
+        // version 10: the activities that count, as she sized them (see Activities), her verdicts on the player's proofs, and
+        // activities waiting for proof on a day
+        Run("""
+            CREATE TABLE IF NOT EXISTS activities (name TEXT PRIMARY KEY, size TEXT NOT NULL, provable INTEGER NOT NULL, added TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS proofs (id INTEGER PRIMARY KEY, at TEXT NOT NULL, activity TEXT NOT NULL, verdict TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS claims (day TEXT NOT NULL, activity TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (day, activity));
+            PRAGMA user_version = 10;
+            """);
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -638,6 +645,76 @@ public sealed class MindStore : IDisposable
         return lines;
     }
 
+    // ---- Activities (see Activities): what counts, her verdicts on proof, and what waits for proof ----------------------
+
+    public IReadOnlyList<Activity> Activities()
+    {
+        using var command = Command("SELECT name, size, provable, added FROM activities ORDER BY added, name");
+        using var reader = command.ExecuteReader();
+        var activities = new List<Activity>();
+        while (reader.Read())
+            activities.Add(new Activity(reader.GetString(0), Enum.TryParse<InsertCoin.Core.Size>(reader.GetString(1), out var size) ? size : InsertCoin.Core.Size.Small,
+                                        reader.GetInt64(2) != 0, Parse(reader.GetString(3))));
+        return activities;
+    }
+
+    /// <summary>Keeps a new activity (one she knows already keeps its size).</summary>
+    public void KeepActivity(Activity activity)
+    {
+        using var command = Command("INSERT OR IGNORE INTO activities (name, size, provable, added) VALUES ($n, $s, $p, $a)",
+            ("$n", activity.Name), ("$s", activity.Size.ToString()), ("$p", activity.Provable ? 1 : 0), ("$a", Stamp(activity.Added)));
+        command.ExecuteNonQuery();
+    }
+
+    public void ForgetActivity(string name)
+    {
+        using var command = Command("DELETE FROM activities WHERE name = $n; DELETE FROM claims WHERE activity = $n", ("$n", name));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Her latest verdicts on the player's proofs, the newest first.</summary>
+    public IReadOnlyList<Conviction> Convictions(int count)
+    {
+        using var command = Command("SELECT verdict FROM proofs ORDER BY id DESC LIMIT $c", ("$c", count));
+        using var reader = command.ExecuteReader();
+        var verdicts = new List<Conviction>();
+        while (reader.Read())
+            if (Enum.TryParse<Conviction>(reader.GetString(0), out var verdict))
+                verdicts.Add(verdict);
+        return verdicts;
+    }
+
+    public void AddConviction(string activity, Conviction verdict, DateTimeOffset at)
+    {
+        using var command = Command("INSERT INTO proofs (at, activity, verdict) VALUES ($a, $n, $v)", ("$a", Stamp(at)), ("$n", activity), ("$v", verdict.ToString()));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>The activities waiting for proof on a game day, in the order they were logged.</summary>
+    public IReadOnlyList<string> Claims(DateOnly day)
+    {
+        using var command = Command("SELECT activity FROM claims WHERE day = $d ORDER BY at", ("$d", day.ToString("O", CultureInfo.InvariantCulture)));
+        using var reader = command.ExecuteReader();
+        var claims = new List<string>();
+        while (reader.Read())
+            claims.Add(reader.GetString(0));
+        return claims;
+    }
+
+    public void Claim(DateOnly day, string activity, DateTimeOffset at)
+    {
+        using var command = Command("INSERT OR REPLACE INTO claims (day, activity, at) VALUES ($d, $n, $a)",
+            ("$d", day.ToString("O", CultureInfo.InvariantCulture)), ("$n", activity), ("$a", Stamp(at)));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>An activity's proof is done (it counted in full).</summary>
+    public void Settle(DateOnly day, string activity)
+    {
+        using var command = Command("DELETE FROM claims WHERE day = $d AND activity = $n", ("$d", day.ToString("O", CultureInfo.InvariantCulture)), ("$n", activity));
+        command.ExecuteNonQuery();
+    }
+
     private static string Stamp(DateTimeOffset at) => at.ToString("O", CultureInfo.InvariantCulture);
     private static DateTimeOffset Parse(string stamp) => DateTimeOffset.Parse(stamp, CultureInfo.InvariantCulture);
 
@@ -708,10 +785,11 @@ public sealed class MindStore : IDisposable
         Changes++;
     }
 
-    /// <summary>Forgets what every character knows about the player: the shared note and facts.</summary>
+    /// <summary>Forgets what every character knows about the player: the shared note and facts, the agenda, their activities and proofs.</summary>
     public void ForgetPlayer()
     {
-        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s; DELETE FROM agenda;", ("$s", Shared));
+        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s; DELETE FROM agenda; " +
+                                    "DELETE FROM activities; DELETE FROM proofs; DELETE FROM claims;", ("$s", Shared));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
     }
