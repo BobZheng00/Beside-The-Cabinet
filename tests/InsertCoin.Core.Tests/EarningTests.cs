@@ -28,8 +28,8 @@ public class EarningTests
         m.Now += TimeSpan.FromDays(2);
         var events = m.Solve("two-sum");
 
-        Assert.Empty(events);
-        Assert.Equal(1, m.State.Credits);
+        Assert.Empty(events.OfType<CoinsEarned>());
+        Assert.Equal(Min(15) / 4, m.State.TimeLeftMs(m.Rules));     // two nights' fade, and nothing new
     }
 
     [Fact]
@@ -93,8 +93,9 @@ public class EarningTests
 
         Assert.True(first.StarToken);
         Assert.Equal(3, first.Streak);
+        Assert.Equal(1 + 1, first.Tokens);
         Assert.False(second.StarToken);
-        Assert.Equal(1 + 1 + (1 + 1) + 1, m.State.Credits);
+        Assert.Equal(1, second.Tokens);
         Assert.Equal(3, m.State.BestStreak);
     }
 

@@ -29,7 +29,7 @@ public partial class Main : Node2D
     private static readonly string DefaultDataDir = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "InsertCoin");
 
     private readonly Stopwatch _clock = Stopwatch.StartNew();
-    private readonly Rules _rules = new();
+    private Rules _rules = new();
     private Ledger _ledger = null!;
     private LedgerState _state = null!;
     private JsonFileStore<LedgerState> _stateStore = null!;
@@ -52,6 +52,7 @@ public partial class Main : Node2D
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private ReminderSettings? _reminderSettings;
+    private BalanceSettings? _balanceSettings;
     private Calendars _calendars = null!;
     private CalendarSettings? _calendarSettings;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
@@ -78,6 +79,7 @@ public partial class Main : Node2D
         Paper.OffScreen = args.ContainsKey("offscreen");
         _settingsFile = new SettingsFile(new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json")));
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
+        _rules = RulesOf(_settings);
         _state = _stateStore.Load() ?? LedgerState.New(DateTimeOffset.Now, _rules);
         _ledger = new Ledger(_rules);
         _tasks = new LeetCodeSource(new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });
@@ -105,6 +107,7 @@ public partial class Main : Node2D
                      situation: () => Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username),
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
+        _stool.Focus.TimeFocused += time => Apply(new Focused(time));      // focus pays by the minute, at once
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
@@ -202,6 +205,7 @@ public partial class Main : Node2D
         _tray.WriteMemo += _stool.WriteMemo;
         _tray.ChatHistory += _stool.OpenChatHistory;
         _tray.Reminders += OpenReminderSettings;
+        _tray.Balance += OpenBalanceSettings;
         _tray.Calendars += OpenCalendarSettings;
         _tray.AddCharacter += _stool.PickCharacter;
         _tray.OpenCharacters += _stool.OpenCharactersFolder;
@@ -218,15 +222,15 @@ public partial class Main : Node2D
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += (initials, username) =>
         {
-            SaveSettings(_settings with { Initials = initials, Username = username });
-            _cabinet.Screen.Flash($"HI {initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
+            SaveSettings(_settings with { Initials = initials, Username = username, SetUp = true });
+            _cabinet.Screen.Flash($"HI {initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
             _audio.Play("hello");
             _backoffSeconds = 60;
             Poll();
         };
         AddTimer(0.5, _onboarding.Blink);
-        if (string.IsNullOrWhiteSpace(_settings.Username))
+        if (!_settings.SetUp && string.IsNullOrWhiteSpace(_settings.Username))
             _onboarding.Start();
 
         _cabinet.Tray.Set(_state.Credits);
@@ -271,7 +275,8 @@ public partial class Main : Node2D
         var idle = _devAfk ? TimeSpan.FromHours(1) : UserActivity.IdleFor() < sinceJoypad ? UserActivity.IdleFor() : sinceJoypad;
 
         Apply(new Tick(games, elapsed, idle));
-        if (_state.Session is not null && DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(1))
+        // while playing every minute; otherwise every ten, for the day's record (when the player was about)
+        if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
             Save();
         SaveWindowPosition();
     }
@@ -314,7 +319,7 @@ public partial class Main : Node2D
             return;
         _lastCheck = DateTimeOffset.Now;
         _audio.Play("check");
-        _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO PLAYER SET" : "ASKING LEETCODE", 1.5);
+        _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO LEETCODE NAME" : "ASKING LEETCODE", 1.5);
         _backoffSeconds = 60;
         Poll();
     }
@@ -332,7 +337,7 @@ public partial class Main : Node2D
         if (Lines.For(result.Events, _state, _rules, _random) is { } line && !_stool.Answering)
             _stool.Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or SessionEnded or WeeklyReset))
+        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
@@ -346,7 +351,8 @@ public partial class Main : Node2D
         var s = _state;
         var playing = s.Session is not null && !s.Paused;
         // Between 5 s ticks, run the clock locally so the countdown moves every second.
-        var since = playing ? (long)((_clock.Elapsed - _lastTick).TotalMilliseconds * (_devWarp ? 60 : 1)) : 0;
+        var late = GameCalendar.IsLateNight(s, DateTimeOffset.Now, _rules) ? _rules.LateNightMultiplier : 1;
+        var since = playing ? (long)((_clock.Elapsed - _lastTick).TotalMilliseconds * (_devWarp ? 60 : 1) * late) : 0;
         var left = s.TimeLeftMs(_rules);
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
@@ -361,9 +367,10 @@ public partial class Main : Node2D
             BestStreak = s.BestStreak,
             Playing = s.Session is not null,
             Status = StatusLine(),
-            WeekSolves = s.Week.Solves,
-            WeekTokens = s.Week.TokensEarned,
-            WeekPlayedMs = s.Week.PlayedMs,
+            TodayEarnedMs = s.Today?.EarnedMs ?? 0,
+            TodayCapMs = s.Today?.CapMs ?? 0,
+            TodayFocusedMs = s.Today?.FocusedMs ?? 0,
+            TodayPlayedMs = s.Today?.PlayedMs ?? 0,
             Initials = _settings.Initials,
         });
         var mood = shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
@@ -384,10 +391,13 @@ public partial class Main : Node2D
 
     private string StatusLine()
     {
+        var late = GameCalendar.IsLateNight(_state, DateTimeOffset.Now, _rules);
         if (_state.Paused) return "PAUSED - AFK";
+        if (_state.Session is not null && late) return "LATE NIGHT - PLAY x1.5";
         if (_state.Session is { } session) return "GAME: " + string.Join(" + ", session.GameNames).ToUpperInvariant();
+        if (late) return "PAST BEDTIME";
         if (_noSteam) return "NO STEAM";
-        if (string.IsNullOrWhiteSpace(_settings.Username)) return "NO PLAYER";
+        if (string.IsNullOrWhiteSpace(_settings.Username)) return $"PLAYER {_settings.Initials}";
         if (_linkDown) return "LINK DOWN - RETRYING";
         return (_settings.Username ?? "").ToUpperInvariant();
     }
@@ -549,6 +559,22 @@ public partial class Main : Node2D
             _elsewhereKeys.Save(new ElsewhereSecrets { NtfyTopic = "test", WebhookUrl = server + "/hook" }.ToJson());
             return;
         }
+        if (action.StartsWith("focuspaid:"))
+        {
+            // focuspaid:minutes pays as a focus part of that length would
+            Apply(new Focused(TimeSpan.FromMinutes(double.Parse(action["focuspaid:".Length..], System.Globalization.CultureInfo.InvariantCulture))));
+            return;
+        }
+        if (action.StartsWith("bedtime:"))
+        {
+            // bedtime:HHMM sets the player's bedtime, for today too (as if it had been set yesterday)
+            var bedtime = action["bedtime:".Length..].Insert(2, ":");
+            SaveSettings(_settings with { Bedtime = bedtime });
+            UseRules();
+            _state = _state with { Today = _state.Today! with { Bedtime = _rules.Bedtime } };
+            RefreshScreen();
+            return;
+        }
         if (action.StartsWith("remindin:") && action.Split(':', 3) is [_, var after, var what])
         {
             // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
@@ -568,6 +594,12 @@ public partial class Main : Node2D
             case "medium": DevSolve(Difficulty.Medium); break;
             case "hard": DevSolve(Difficulty.Hard); break;
             case "game": _devGame = !_devGame; Tick(); break;
+            case "balance": OpenBalanceSettings(); break;
+            case "nextday":
+                // as if the night had passed: the next check turns the day (half of the unplayed time fades)
+                _state = _state with { Today = _state.Today! with { Day = _state.Today.Day.AddDays(-1) } };
+                Tick();
+                break;
             case "warp":
                 _devWarp = !_devWarp;
                 _ledger = new Ledger(_devWarp ? _rules with { MaxTick = TimeSpan.FromMinutes(10) } : _rules);
@@ -615,6 +647,44 @@ public partial class Main : Node2D
         AddChild(_calendarSettings);
         _calendarSettings.Build(_calendars);
         _calendarSettings.Open();
+    }
+
+    /// <summary>The rules the player set (caps, bedtime, focus's rate); a new day takes them up, today keeps the ones it began with.</summary>
+    private static Rules RulesOf(AppSettings s) => new()
+    {
+        WeekdayCapMs = s.WeekdayCapMinutes * 60_000L,
+        FridayCapMs = s.FridayCapMinutes * 60_000L,
+        WeekendCapMs = s.WeekendCapMinutes * 60_000L,
+        Bedtime = TimeOnly.TryParseExact(s.Bedtime, "HH:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var bedtime)
+            ? bedtime.ToTimeSpan() : null,
+        FocusPerPlay = Math.Max(1, s.FocusPerPlay),
+    };
+
+    private void UseRules()
+    {
+        _rules = RulesOf(_settings);
+        _ledger = new Ledger(_devWarp ? _rules with { MaxTick = TimeSpan.FromMinutes(10) } : _rules);
+    }
+
+    private void OpenBalanceSettings()
+    {
+        if (IsInstanceValid(_balanceSettings))
+        {
+            _balanceSettings!.GrabFocus();
+            return;
+        }
+        _balanceSettings = new BalanceSettings();
+        AddChild(_balanceSettings);
+        var today = _state.Today is { } t
+            ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
+            : "";
+        _balanceSettings.Build(_settings, today);
+        _balanceSettings.Saved += (weekday, friday, weekend, bedtime) =>
+        {
+            SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
+            UseRules();
+        };
+        _balanceSettings.Open();
     }
 
     private void OpenReminderSettings()

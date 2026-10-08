@@ -1,9 +1,11 @@
 # INSERT COIN
 
-A desktop arcade cabinet that pays out gaming time for solved LeetCode problems and charges it back while Steam
-games run. Soft enforcement only: warnings, sounds and IOU tickets — it never closes a game.
+A desktop arcade cabinet for a balance of work, life and games: solved LeetCode problems and focus sessions pay out
+gaming time, and Steam games use it up. A day can only earn so much, unplayed time fades overnight, and play after
+your bedtime costs more. Soft enforcement only: warnings, sounds and IOU tickets — it never closes a game.
 
-Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-insert-coin-design.md)
+Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-insert-coin-design.md), and for the
+balance: [docs/specs/2026-10-07-balance.md](docs/specs/2026-10-07-balance.md)
 
 ## Run
 
@@ -15,7 +17,19 @@ Design: [docs/specs/2026-09-30-insert-coin-design.md](docs/specs/2026-09-30-inse
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu
 (size, companion, speech bubbles, characters, mute, in-game tickets, energy saver, always on top, start with
-Windows, change player, quit).
+Windows, change player, balance, quit). At first run the cabinet asks for your initials, then your LeetCode name,
+which is optional: Enter with none goes on without it (tray → "Change player…" adds one later).
+
+**Balance.** What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes, and a streak of
+three days or more adds one), and focus sessions, which pay by the minute as each part ends, however short: 15
+minutes of play for every hour focused (half an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it
+completes one). A day (04:00 to 04:00) can earn at most 1:30 from Monday to Thursday, 2:00 on Friday and 2:30 at the
+weekend; past that, work still counts in the day's record but pays nothing (paying back time owed doesn't count
+towards it). Each night half of the unplayed time fades, so it can't be saved up for the weekend (time owed never
+fades). After the bedtime you set, until 04:00, play costs ×1.5 (on credit, ×2.25): the screen says LATE NIGHT and a
+ticket tells you when it starts. Tray → "Balance…" sets the caps and your bedtime; changes count from the next day.
+The screen's attract pages show today's earnings against the cap. Every day is kept in a record (what was earned and
+from what, focused, played, when you were first and last at the PC), the start of her sense of your patterns.
 
 The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to
 what the cabinet does: claps for a Hard solve, a small fist pump for the others, glances at the screen, worries
@@ -144,7 +158,7 @@ down. Each can have its own paper colour and a sticker. Memos are yours: forgett
 fourth; down and up beside each length change it): the CRT counts down, and she tells you when each part ends, with a nudge to stand
 up and drink some water at the breaks. Ask her to start one ("let's focus for 50 minutes") and she does. MUSIC shows
 what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
-nothing open, play starts Spotify for you). Save playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD):
+nothing open, play starts Spotify for you). Each focus part pays into the cabinet as it ends (see Balance). Save playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD):
 START plays one from its beginning (the app presses Spotify's own play button for it), and the starred one starts your
 focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
 Reminders… to change it).
@@ -210,6 +224,9 @@ long sitting), `musicfake:Title:Artist` (pretends a music app plays; `musicfake:
 into MUSIC, named by Spotify), `musictool:pause` and `musictool:start_playlist:Deep_Focus` (her tool), `musicprobe` (checks
 Windows' media controls answer: how many sessions, whose; no titles), `spotifyprobe:Deep_Focus` (what Spotify's window
 shows to press, and whether that playlist's play button is there; presses nothing).
+Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),
+`nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades), `balance`
+(tray → Balance…).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen

@@ -88,6 +88,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - Commit message: a plain sentence saying what changed for the player, then details.
   - End commits with the attribution lines from the system reminder.
 - **Web research** results end with a "Sources:" list.
+- **Her manner is her character's.** The app decides what she does and when (whether she asks, a verdict, an amount, how often); her character card decides how she says it. Prompts say what to get across, never a tone ("tease", "playfully"): a gentle, considerate card must stay so (the user, 2026-10-07).
 - **Her motion is grown-up:** small, few, asymmetric moves, with feeling shown in her face and head more than her limbs. The user found the old cheer (arms up, legs kicking, bouncing on the seat) childish. Ground new motion in how people move (agent note §7).
 - **Keep the structure simple.** Add an interface only where a second implementation is planned (`ICalendarSource`, for Google or Microsoft sign-in later). Stool.cs is big but sectioned; its microphone part became `Listening.cs` when turn-taking was reworked.
 
@@ -117,6 +118,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - tools groundwork: `Toolbox` (permissions Allowed / Ask / Off, Always per site, an Auto switch), the tool loop in `Conversation` (up to 10 calls a reply), the permission card by the stool (`PermissionCard`), Chat settings → Abilities, and `open_link` (spec `2026-10-05-tools-and-abilities.md`, "Groundwork");
   - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on sheets out on the desktop, several at once, each its own small window (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
   - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: FOCUS, MUSIC, MEMOS, AGENDA (spec, "The CRT's small system", "Two views");
+  - balance, step 2 (2026-10-07, spec `2026-10-07-balance.md`, "The ledger: built"): focus pays by the minute (a coin per focused hour), a daily cap on earned play (Monday to Thursday 1:30, Friday 2:00, weekends 2:30; tray → Balance…), half of unplayed time fading each night instead of the weekly expiry, play after a set bedtime costing ×1.5 until 04:00, a record of days in the ledger (`DayRecord`), the LeetCode name optional at setup;
   - focus sessions, music and standing up: a Pomodoro counting down on the screen (`FocusSession`, `App/Focus`), she says each turn and has a `focus_session` tool; the player's music app through Windows' media controls (`Desktop/Music`, Spotify first, started when needed), saved playlists started from their beginning by pressing Spotify's own play button through UI Automation (`Desktop/SpotifyButtons`), the starred one starting focus sessions; a `music` tool that asks; after 50 minutes at the PC she suggests standing up and water (spec, "Focus, music and standing up: built").
 
 **Waiting on the user** (all in `docs/to-try.md`; keep it current):
@@ -148,9 +150,10 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - proof for activities when the player wants it: a photo or a screenshot she judges by how sure she is, fun and not annoying;
   - pictures and files handed to her (drop, paste, the phone, a screenshot when asked);
   - rest and sleep: bedtime and long-play nudges, and patterns from a record of days.
-- **Proposed, waiting on the user:** a coin per 60 focused minutes; a 2-hour cap (more at weekends?); half of unplayed time fading each night; their bedtime, and whether play after it costs more.
-- **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps.
-- **Next step:** the ledger, once the numbers are settled.
+- **Numbers, decided 2026-10-07:** a coin per focused hour, paid by the minute at once; caps Monday to Thursday 1:30, Friday 2:00, weekends 2:30 (adjustable); half of unplayed time fading each night; play after a confirmed bedtime costs ×1.5 until 04:00.
+- **Also decided:** the player sets neither what an activity is worth nor how much proof it needs; her manner always comes from her character card (the app decides what and when, the card how).
+- **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the late-night price, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps.
+- **Next step:** step 3, handing her pictures and files (drop, paste, the phone, a screenshot when asked), once the user has tried the ledger (`docs/to-try.md`).
 
 **Open questions for the user:**
 - whether her idle leg swings should be smaller and rarer;

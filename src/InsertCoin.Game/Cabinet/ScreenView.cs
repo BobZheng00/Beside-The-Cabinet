@@ -13,9 +13,10 @@ public sealed record ScreenState
     public int BestStreak { get; init; }
     public bool Playing { get; init; }
     public string Status { get; init; } = "";     // "GAME: …", "PAUSED", "LINK DOWN", "NO STEAM", …
-    public int WeekSolves { get; init; }
-    public int WeekTokens { get; init; }
-    public long WeekPlayedMs { get; init; }
+    public long TodayEarnedMs { get; init; }      // play earned today, towards its cap
+    public long TodayCapMs { get; init; }
+    public long TodayFocusedMs { get; init; }
+    public long TodayPlayedMs { get; init; }
     public string Initials { get; init; } = "";
 }
 
@@ -415,8 +416,9 @@ public partial class ScreenView : Node2D
         (_big.Text, _caption.Text) = _prompt is { } p ? (p.Big, p.Caption) : _flash ?? (focus is { } f ? (f.Big, f.Caption) : page switch
         {
             1 => ($"{s.BestStreak}", $"HI-SCORE {s.Initials}\nBEST STREAK"),
-            2 => ($"{s.WeekSolves}/{s.WeekTokens}", $"SOLVES / TOKENS THIS WEEK\n{Clock(s.WeekPlayedMs)} PLAYED"),
-            3 => ("INSERT", "COIN\nSOLVE A PROBLEM"),
+            2 => ($"{Hours(s.TodayEarnedMs)}/{Hours(s.TodayCapMs)}",
+                  (s.TodayEarnedMs >= s.TodayCapMs ? "TODAY'S PLAY EARNED" : "EARNED TODAY / CAP") + $"\nFOCUS {Hours(s.TodayFocusedMs)} - PLAYED {Hours(s.TodayPlayedMs)}"),
+            3 => ("INSERT", "COIN\nFOCUS OR SOLVE"),
             _ when inDebt => ($"-{Clock(s.DebtMs)}", $"OWED - {s.DebtMs / (15 * 60_000)} IOU"),
             _ => (Clock(s.TimeLeftMs), "TIME LEFT"),
         });
@@ -426,6 +428,9 @@ public partial class ScreenView : Node2D
         _caption.LabelSettings.FontSize = _caption.Text.Length > 34 ? 24 : 30;
         Refresh();
     }
+
+    /// <summary>"1:30", "0:45": hours and minutes.</summary>
+    private static string Hours(long ms) => $"{ms / 3_600_000}:{ms / 60_000 % 60:00}";
 
     private static string Clock(long ms)
     {

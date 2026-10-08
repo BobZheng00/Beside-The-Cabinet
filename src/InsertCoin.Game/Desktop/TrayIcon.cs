@@ -7,14 +7,14 @@ public enum TrayMood { Fine, Low, Debt }
 /// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, ChatSettings, MemoryBook, WriteMemo, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
+    public event Action? ShowCabinet, CheckNow, ChangePlayer, Balance, ChatSettings, MemoryBook, WriteMemo, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
     public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged,
         ConversationChanged;
     public event Action<string>? SizeChanged, CharacterChanged;
 
     private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
         AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
-        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003, MemoId = 1004;   // characters take the ids from 20 up
+        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003, MemoId = 1004, BalanceId = 1005;   // characters take the ids from 20 up
     private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId, ConversationId];
     private static readonly string[] Sizes = ["S", "M", "L"];
     private static readonly Dictionary<TrayMood, Color> Tint = new()
@@ -78,6 +78,7 @@ public partial class TrayIcon : Node
         _menu.AddItem("Show cabinet", ShowId);
         _menu.AddItem("Check LeetCode now", CheckId);
         _menu.AddItem("Change player…", PlayerId);
+        _menu.AddItem("Balance…", BalanceId);
         _menu.AddSeparator();
         foreach (var (name, i) in new[] { "Small", "Medium", "Large" }.Select((n, i) => (n, i)))
             Radio($"Size: {name}", SizeId + i, Sizes[i] == size);
@@ -129,6 +130,7 @@ public partial class TrayIcon : Node
             case ShowId: ShowCabinet?.Invoke(); break;
             case CheckId: CheckNow?.Invoke(); break;
             case PlayerId: ChangePlayer?.Invoke(); break;
+            case BalanceId: Balance?.Invoke(); break;
             case TopId: AlwaysOnTopChanged?.Invoke(Toggle(TopId)); break;
             case StartupId: StartWithWindowsChanged?.Invoke(Toggle(StartupId)); break;
             case MuteId: MutedChanged?.Invoke(Toggle(MuteId)); break;

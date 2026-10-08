@@ -68,8 +68,9 @@ public static class Lines
         SessionEnded end => $"Good game! {Span(end.Receipt.PlayedMs)} played." + (state.DebtMs > 0 ? $" You owe {Span(state.DebtMs)}." : ""),
         Paused => "Stepped away? I'll stop the clock.",
         Resumed => "Welcome back! The clock is running.",
-        WeeklyReset { ExpiredMs: > 0 } w => $"New week! {Span(w.ExpiredMs)} expired, sorry.",
-        WeeklyReset => "New week, fresh start!",
+        CapReached r => $"That's all the play today can earn ({Span(r.CapMs)}). Anything more is just for you.",
+        LateNight l => $"It's past your bedtime. Play costs x{l.Multiplier.ToString("0.#", CultureInfo.InvariantCulture)} now.",
+        Faded f => $"New day! {Span(f.FadedMs)} faded overnight; {Span(f.LeftMs)} left.",
         _ => null,
     };
 
@@ -78,9 +79,9 @@ public static class Lines
     private static int Urgency(LedgerEvent e) => e switch
     {
         LowTime or CreditsOut or IouPrinted => 5,
-        DebtPaid => 4,
+        DebtPaid or CapReached or LateNight => 4,
         CoinsEarned => 3,
-        SessionStarted or SessionEnded or WeeklyReset => 2,
+        SessionStarted or SessionEnded or Faded => 2,
         _ => 1,
     };
 

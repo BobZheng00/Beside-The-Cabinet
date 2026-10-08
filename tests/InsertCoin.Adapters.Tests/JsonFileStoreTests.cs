@@ -15,7 +15,8 @@ public sealed class JsonFileStoreTests : IDisposable
         var now = new DateTimeOffset(2026, 9, 30, 10, 0, 0, TimeSpan.FromHours(8));
         var result = new Ledger(rules).Step(LedgerState.New(now, rules),
             new TasksObserved([new SolvedTask("two-sum", "Two Sum", Difficulty.Hard, now)]), now);
-        return result.State with { Username = "bob" };
+        var today = result.State.Today! with { Bedtime = new TimeSpan(0, 30, 0), FirstActive = now.AddHours(-2), LastPlayed = now };
+        return result.State with { Username = "bob", Today = today, Days = [today with { Day = today.Day.AddDays(-1), FadedMs = 1_234 }] };
     }
 
     [Fact]
@@ -34,6 +35,8 @@ public sealed class JsonFileStoreTests : IDisposable
         Assert.Equal(state.WeekStart, loaded.WeekStart);
         Assert.Equal(state.Week, loaded.Week);
         Assert.Equal(state.InstalledAt, loaded.InstalledAt);
+        Assert.Equal(state.Today, loaded.Today);
+        Assert.Equal(state.Days, loaded.Days);
     }
 
     [Fact]

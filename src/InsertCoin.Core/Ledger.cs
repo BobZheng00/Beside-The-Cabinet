@@ -2,9 +2,12 @@ namespace InsertCoin.Core;
 
 public sealed record LedgerResult(LedgerState State, IReadOnlyList<LedgerEvent> Events);
 
-/// <summary>The whole rulebook (spec §3) as a pure function: no I/O, no clock, no randomness.</summary>
+/// <summary>The whole rulebook (spec §3, and the balance spec) as a pure function: no I/O, no clock, no randomness.</summary>
 public sealed class Ledger(Rules rules)
 {
+    /// <summary>Input this recent means the player is at the PC now.</summary>
+    private static readonly TimeSpan ActiveWithin = TimeSpan.FromMinutes(1);
+
     public Rules Rules { get; } = rules;
 
     public LedgerResult Step(LedgerState state, LedgerInput input, DateTimeOffset now)
@@ -13,8 +16,9 @@ public sealed class Ledger(Rules rules)
         state = input switch
         {
             PlayerSet p => SetPlayer(state, p),
-            TasksObserved t => Observe(RollWeek(state, now, events, deferWhilePlaying: false), t, events),
-            Tick k => OnTick(RollWeek(state, now, events, deferWhilePlaying: true), k, now, events),
+            TasksObserved t => Observe(TurnDay(state, now, events, deferWhilePlaying: false), t, events),
+            Focused f => Focus(TurnDay(state, now, events, deferWhilePlaying: false), f, events),
+            Tick k => OnTick(TurnDay(state, now, events, deferWhilePlaying: true), k, now, events),
             _ => throw new ArgumentOutOfRangeException(nameof(input), input, null),
         };
         return new LedgerResult(state, events);
@@ -26,16 +30,44 @@ public sealed class Ledger(Rules rules)
         SeenTaskIds = state.SeenTaskIds.Union(p.VisibleTasks.Select(t => t.Id)),
     };
 
-    // ---- Weeks ----
+    // ---- Days ----
 
-    private LedgerState RollWeek(LedgerState state, DateTimeOffset now, List<LedgerEvent> events, bool deferWhilePlaying)
+    /// <summary>
+    /// A new game day: of the unplayed time, <see cref="Rules.NightlyFade"/> fades for each night that passed (debt
+    /// never does), today's record joins the past days, and the new day takes the cap and bedtime the rules hold now.
+    /// While a game runs it waits for the session to end, or for the next earning, whichever comes first.
+    /// </summary>
+    private LedgerState TurnDay(LedgerState state, DateTimeOffset now, List<LedgerEvent> events, bool deferWhilePlaying)
     {
-        var weekStart = GameCalendar.WeekStartOf(GameCalendar.DayOf(now, Rules));
-        if (weekStart <= state.WeekStart || (deferWhilePlaying && state.Session is not null))
+        var day = GameCalendar.DayOf(now, Rules);
+        if (state.Today is not { } today)
+            return NewWeek(state with { Today = DayRecord.Begin(day, Rules) }, day);  // a save from before days were kept
+        if (day <= today.Day || (deferWhilePlaying && state.Session is not null))
             return state;
 
-        events.Add(new WeeklyReset(state.TimeLeftMs(Rules), state.DebtMs));
-        return state with { Credits = 0, FuelMs = 0, WeekStart = weekStart, Week = new WeekStats() };
+        var left = state.TimeLeftMs(Rules);
+        var kept = (long)Math.Round(left * Math.Pow(1 - Rules.NightlyFade, day.DayNumber - today.Day.DayNumber));
+        if (left > kept)
+            events.Add(new Faded(left - kept, kept));
+
+        var days = state.Days.Add(today);
+        if (days.Count > Rules.DaysKept)
+            days = days.RemoveRange(0, days.Count - Rules.DaysKept);
+        return Rearm(NewWeek(state with
+        {
+            Credits = (int)(kept / Rules.TokenMs),
+            FuelMs = kept % Rules.TokenMs,
+            Today = DayRecord.Begin(day, Rules, left - kept),
+            Days = days,
+            LateNightGiven = false,
+        }, day));
+    }
+
+    /// <summary>The week's numbers start again on the Monday game day.</summary>
+    private static LedgerState NewWeek(LedgerState state, DateOnly day)
+    {
+        var weekStart = GameCalendar.WeekStartOf(day);
+        return weekStart > state.WeekStart ? state with { WeekStart = weekStart, Week = new WeekStats() } : state;
     }
 
     // ---- Earning ----
@@ -48,12 +80,12 @@ public sealed class Ledger(Rules rules)
                 || task.AcceptedAt < state.InstalledAt
                 || state.SeenTaskIds.Contains(task.Id))
                 continue;
-            state = Earn(state, task, difficulty, events);
+            state = Solve(state, task, difficulty, events);
         }
         return state;
     }
 
-    private LedgerState Earn(LedgerState state, SolvedTask task, Difficulty difficulty, List<LedgerEvent> events)
+    private LedgerState Solve(LedgerState state, SolvedTask task, Difficulty difficulty, List<LedgerEvent> events)
     {
         var day = GameCalendar.DayOf(task.AcceptedAt, Rules);
         var firstOfDay = !state.SolveDays.Contains(day);
@@ -62,34 +94,78 @@ public sealed class Ledger(Rules rules)
         var star = firstOfDay && streak >= Rules.StreakBonusFromDay;
         var tokens = Rules.TokensFor(difficulty) + (star ? 1 : 0);
 
-        events.Add(new CoinsEarned(task, tokens, star, streak));
+        var (paid, payout, after) = Pay(state, tokens * Rules.TokenMs);
+        events.Add(new CoinsEarned(task, tokens, star, streak, payout));
+        events.AddRange(after);
+        return paid with
+        {
+            SeenTaskIds = paid.SeenTaskIds.Add(task.Id),
+            SolveDays = solveDays,
+            BestStreak = Math.Max(paid.BestStreak, streak),
+            Week = paid.Week with { Solves = paid.Week.Solves + 1 },
+            Today = paid.Today! with { Solves = paid.Today.Solves + 1 },
+        };
+    }
 
-        var earnedMs = tokens * Rules.TokenMs;
-        var paidMs = Math.Min(earnedMs, state.DebtMs);
-        var debtMs = state.DebtMs - paidMs;
-        if (paidMs > 0)
-            events.Add(new DebtPaid(paidMs, state.IouTickets(Rules), (int)(debtMs / Rules.TokenMs), debtMs));
+    /// <summary>A focus part pays for its minutes at once, however short: <see cref="Rules.FocusPerPlay"/> minutes of focus for each minute of play.</summary>
+    private LedgerState Focus(LedgerState state, Focused focused, List<LedgerEvent> events)
+    {
+        var focusedMs = (long)focused.Time.TotalMilliseconds;
+        if (focusedMs <= 0)
+            return state;
 
-        var restMs = earnedMs - paidMs;
-        var credits = state.Credits + (int)(restMs / Rules.TokenMs);
-        var fuelMs = state.FuelMs + restMs % Rules.TokenMs;
-        if (fuelMs > Rules.TokenMs)
+        var (paid, payout, after) = Pay(state, focusedMs / Rules.FocusPerPlay);
+        events.Add(new FocusPaid(focusedMs, payout));
+        events.AddRange(after);
+        return paid with
+        {
+            Week = paid.Week with { FocusedMs = paid.Week.FocusedMs + focusedMs },
+            Today = paid.Today! with { FocusedMs = paid.Today.FocusedMs + focusedMs },
+        };
+    }
+
+    /// <summary>
+    /// Pays something earned: debt first, then new play up to what is left of today's cap (whole tokens to credits,
+    /// the rest to fuel; a full tank becomes a credit, except the token in the slot while a game runs). Past the cap
+    /// it is done but not paid. Also returns the events that follow the earning's own: debt paid, the cap reached.
+    /// </summary>
+    private (LedgerState State, Payout Payout, List<LedgerEvent> After) Pay(LedgerState state, long earnedMs)
+    {
+        var after = new List<LedgerEvent>();
+        var today = state.Today!;
+
+        var debtPaid = Math.Min(earnedMs, state.DebtMs);
+        var debtMs = state.DebtMs - debtPaid;
+        if (debtPaid > 0)
+            after.Add(new DebtPaid(debtPaid, state.IouTickets(Rules), (int)(debtMs / Rules.TokenMs), debtMs));
+
+        var rest = earnedMs - debtPaid;
+        var credited = Math.Min(rest, today.RoomMs());
+        var credits = state.Credits + (int)(credited / Rules.TokenMs);
+        var fuelMs = state.FuelMs + credited % Rules.TokenMs;
+        if (fuelMs > Rules.TokenMs || (fuelMs == Rules.TokenMs && state.Session is null))
         {
             credits++;
             fuelMs -= Rules.TokenMs;
         }
+        if (credited > 0 && today.EarnedMs + credited >= today.CapMs)
+            after.Add(new CapReached(today.CapMs));
 
+        var payout = new Payout(earnedMs, debtPaid, credited, rest - credited, credits - state.Credits);
         state = state with
         {
             Credits = credits,
             FuelMs = fuelMs,
             DebtMs = debtMs,
-            SeenTaskIds = state.SeenTaskIds.Add(task.Id),
-            SolveDays = solveDays,
-            BestStreak = Math.Max(state.BestStreak, streak),
-            Week = state.Week with { Solves = state.Week.Solves + 1, TokensEarned = state.Week.TokensEarned + tokens },
+            Week = state.Week with { EarnedMs = state.Week.EarnedMs + credited },
+            Today = today with
+            {
+                EarnedMs = today.EarnedMs + credited,
+                OverCapMs = today.OverCapMs + rest - credited,
+                DebtPaidMs = today.DebtPaidMs + debtPaid,
+            },
         };
-        return Rearm(state);
+        return (Rearm(state), payout, after);
     }
 
     private LedgerState Rearm(LedgerState state)
@@ -107,6 +183,7 @@ public sealed class Ledger(Rules rules)
 
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
+        state = Seen(state, tick, now);
         if (tick.Games.Count == 0)
             return state.Session is null ? state : MissGame(state, now, events);
 
@@ -134,7 +211,16 @@ public sealed class Ledger(Rules rules)
         }
 
         var elapsedMs = (long)Math.Clamp(tick.Elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
-        return Warn(Charge(state, elapsedMs, events), events);
+        return Warn(Charge(state, elapsedMs, now, events), events);
+    }
+
+    /// <summary>The player is using the PC (input in the last minute): when they were first and last seen today.</summary>
+    private static LedgerState Seen(LedgerState state, Tick tick, DateTimeOffset now)
+    {
+        if (tick.Idle >= ActiveWithin || state.Today is not { } today)
+            return state;
+        var at = now - tick.Idle;
+        return state with { Today = today with { FirstActive = today.FirstActive ?? at, LastActive = at } };
     }
 
     private LedgerState StartSession(LedgerState state, List<string> names, DateTimeOffset now, List<LedgerEvent> events)
@@ -158,7 +244,7 @@ public sealed class Ledger(Rules rules)
             return state with { Session = session };
 
         events.Add(new SessionEnded(session));
-        return RollWeek(state with { Session = null, Paused = false }, now, events, deferWhilePlaying: false);
+        return TurnDay(state with { Session = null, Paused = false }, now, events, deferWhilePlaying: false);
     }
 
     private LedgerState InsertIfEmpty(LedgerState state, List<LedgerEvent> events)
@@ -169,14 +255,27 @@ public sealed class Ledger(Rules rules)
         return state with { Credits = state.Credits - 1, FuelMs = Rules.TokenMs };
     }
 
-    private LedgerState Charge(LedgerState state, long elapsedMs, List<LedgerEvent> events)
+    /// <summary>
+    /// Charges play: fuel first, a new token going in as each runs out, then debt at <see cref="Rules.DebtMultiplier"/>.
+    /// Past bedtime every minute costs <see cref="Rules.LateNightMultiplier"/> times as much, debt included.
+    /// </summary>
+    private LedgerState Charge(LedgerState state, long elapsedMs, DateTimeOffset now, List<LedgerEvent> events)
     {
+        var late = GameCalendar.IsLateNight(state, now, Rules);
+        if (late && !state.LateNightGiven)
+        {
+            events.Add(new LateNight(state.Today!.Bedtime!.Value, Rules.LateNightMultiplier));
+            state = state with { LateNightGiven = true };
+        }
+        var costMs = late ? (long)Math.Round(elapsedMs * Rules.LateNightMultiplier) : elapsedMs;
+
         var session = state.Session!;
         var week = state.Week;
-        var remaining = elapsedMs;
+        var remaining = costMs;
 
         while (remaining > 0)
         {
+            state = InsertIfEmpty(state, events);           // a tank emptied by a payout or the fade, with credits left
             if (state.FuelMs > 0)
             {
                 var burn = Math.Min(state.FuelMs, remaining);
@@ -208,9 +307,13 @@ public sealed class Ledger(Rules rules)
             remaining = 0;
         }
 
-        session = session with { PlayedMs = session.PlayedMs + elapsedMs };
-        week = week with { PlayedMs = week.PlayedMs + elapsedMs };
-        return state with { Session = session, Week = week };
+        var today = state.Today!;
+        return state with
+        {
+            Session = session with { PlayedMs = session.PlayedMs + elapsedMs, LateExtraMs = session.LateExtraMs + costMs - elapsedMs },
+            Week = week with { PlayedMs = week.PlayedMs + elapsedMs },
+            Today = today with { PlayedMs = today.PlayedMs + elapsedMs, LateExtraMs = today.LateExtraMs + costMs - elapsedMs, LastPlayed = now },
+        };
     }
 
     private LedgerState Warn(LedgerState state, List<LedgerEvent> events)

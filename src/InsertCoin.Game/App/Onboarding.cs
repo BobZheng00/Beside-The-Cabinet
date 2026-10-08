@@ -7,14 +7,15 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// First-run setup on the cabinet screen, arcade style: ENTER YOUR INITIALS, then the LeetCode player —
-/// typed as a username or pasted as a profile link — checked against the task source before it is accepted.
+/// typed as a username or pasted as a profile link — checked against the task source before it is accepted. The
+/// LeetCode name is optional: Enter with none goes on without one (focus and the rest earn play too).
 /// </summary>
 public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank audio)
 {
     private enum Step { Initials, Player, Checking }
 
-    /// <summary>Raised with (initials, username) once the player has been verified.</summary>
-    public event Action<string, string>? Completed;
+    /// <summary>Raised with (initials, username) once the player has been verified; the username is null when they went on without one.</summary>
+    public event Action<string, string?>? Completed;
     public event Action? Cancelled;
 
     private Step _step;
@@ -95,6 +96,12 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
             return;
         }
 
+        if (_player.Trim().Length == 0)
+        {
+            Finish();
+            Completed?.Invoke(_initials, null);
+            return;
+        }
         if (!LeetCodeProfile.TryParse(_player, out var username, out var error))
         {
             _note = error!;
@@ -140,7 +147,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
                 break;
             case Step.Player:
                 var shown = _player.Length > 22 ? "<" + _player[^21..] : _player;
-                screen.Prompt(shown + cursor, "LEETCODE NAME\nOR PROFILE LINK", Note(_canCancel ? "CTRL+V PASTES - ESC CANCELS" : "CTRL+V PASTES - ENTER"));
+                screen.Prompt(shown + cursor, "LEETCODE NAME\nOR PROFILE LINK", Note(_canCancel ? "CTRL+V PASTES - ESC CANCELS" : "OPTIONAL - ENTER TO SKIP"));
                 break;
             case Step.Checking:
                 screen.Prompt("...", "ASKING LEETCODE", "PLEASE WAIT");

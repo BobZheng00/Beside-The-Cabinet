@@ -24,6 +24,17 @@ public partial class Focus : Node
     /// <summary>Something for her to say, in her own words (a note for her mind), and the line she says without one.</summary>
     public event Action<string, string>? Told;
 
+    /// <summary>
+    /// A focus part's time, as it runs out or is skipped or stopped, however short: it pays into the cabinet. Paused
+    /// time is left out, and so is time with a game running.
+    /// </summary>
+    public event Action<TimeSpan>? TimeFocused;
+
+    /// <summary>A game is running: its time doesn't count as focus.</summary>
+    public bool GameRunning { get; set; }
+
+    private TimeSpan _inGame;                               // game time in the focus part under way
+
     public void Build(SettingsFile settings, Music music)
     {
         _settings = settings;
@@ -66,6 +77,7 @@ public partial class Focus : Node
     {
         var plan = Plan with { Focus = focus ?? Plan.Focus, Break = rest ?? Plan.Break };
         var session = Session = new FocusSession(plan, DateTimeOffset.Now);
+        _inGame = TimeSpan.Zero;
         GD.Print($"Focus: a session starts ({session.Plan}){(byPlayer ? "" : ", by her")}");
         Music(FocusPart.Focus, fromStart: true);
         if (byPlayer)
@@ -77,6 +89,7 @@ public partial class Focus : Node
     {
         if (Session is not { } session)
             return;
+        Pay(session, DateTimeOffset.Now);
         Session = null;
         GD.Print($"Focus: the session ends after {Words.Count(session.Done, "focus part")}");
         if (WithMusic)
@@ -110,6 +123,7 @@ public partial class Focus : Node
     {
         if (Session is not { } session)
             return null;
+        Pay(session, DateTimeOffset.Now);
         var turn = session.Skip(DateTimeOffset.Now);
         Turned(session, turn, tell: byPlayer);
         return turn;
@@ -119,7 +133,12 @@ public partial class Focus : Node
     {
         if (Session is not { } session)
             return;
-        if (session.Tick(DateTimeOffset.Now) is { } turn)
+        var now = DateTimeOffset.Now;
+        if (GameRunning && session is { Part: FocusPart.Focus, Paused: false })
+            _inGame += TimeSpan.FromSeconds(1);             // the clock ticks every second
+        if (!session.Paused && session.Left(now) <= TimeSpan.Zero)
+            Pay(session, now);                              // it runs out now
+        if (session.Tick(now) is { } turn)
             Turned(session, turn, tell: true);
         else
             Changed?.Invoke();
@@ -132,6 +151,17 @@ public partial class Focus : Node
         if (tell)
             Told?.Invoke(session.NoteOn(turn), Lines.Focus(turn, session.Plan));
         Changed?.Invoke();
+    }
+
+    /// <summary>The focus part under way pays for its time so far, as it ends (a break pays nothing).</summary>
+    private void Pay(FocusSession session, DateTimeOffset now)
+    {
+        if (session.Part != FocusPart.Focus)
+            return;
+        var focused = session.Length - session.Left(now) - _inGame;
+        _inGame = TimeSpan.Zero;
+        if (focused > TimeSpan.Zero)
+            TimeFocused?.Invoke(focused);
     }
 
     /// <summary>

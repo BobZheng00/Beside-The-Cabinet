@@ -25,4 +25,17 @@ public static class GameCalendar
         var streak = StreakEndingOn(state.SolveDays, today);
         return streak > 0 ? streak : StreakEndingOn(state.SolveDays, today.AddDays(-1));
     }
+
+    /// <summary>
+    /// Whether it is past the bedtime that holds today: from bedtime until the game day ends (later still while a
+    /// session keeps the day from turning). Never without a bedtime the player confirmed.
+    /// </summary>
+    public static bool IsLateNight(LedgerState state, DateTimeOffset now, Rules rules)
+    {
+        if (state.Today is not { Bedtime: { } bedtime } today)
+            return false;
+        var into = now.DateTime - rules.DayStartsAt - today.Day.ToDateTime(TimeOnly.MinValue);
+        var bedtimeInto = ((bedtime - rules.DayStartsAt).Ticks % TimeSpan.TicksPerDay + TimeSpan.TicksPerDay) % TimeSpan.TicksPerDay;
+        return into.Ticks >= bedtimeInto;
+    }
 }

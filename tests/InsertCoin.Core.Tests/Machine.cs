@@ -9,17 +9,25 @@ internal sealed class Machine
     public static readonly DateTimeOffset T0 = new(2026, 9, 30, 10, 0, 0, TimeSpan.FromHours(8));
     public static readonly TimeSpan Check = TimeSpan.FromSeconds(5);
 
-    public Rules Rules { get; } = new();
-    public Ledger Ledger { get; }
+    public Rules Rules { get; private set; }
+    public Ledger Ledger { get; private set; }
     public LedgerState State { get; set; }
     public DateTimeOffset Now { get; set; }
     public List<LedgerEvent> Events { get; } = new();
 
-    public Machine(DateTimeOffset? start = null)
+    public Machine(DateTimeOffset? start = null, Rules? rules = null)
     {
         Now = start ?? T0;
+        Rules = rules ?? new Rules();
         Ledger = new Ledger(Rules);
         State = LedgerState.New(Now, Rules);
+    }
+
+    /// <summary>The player changes a setting: the ledger works by the new rules from now on.</summary>
+    public void Change(Rules rules)
+    {
+        Rules = rules;
+        Ledger = new Ledger(rules);
     }
 
     public List<LedgerEvent> Send(LedgerInput input)
@@ -32,6 +40,15 @@ internal sealed class Machine
 
     public List<LedgerEvent> Solve(string id, Difficulty? difficulty = Difficulty.Easy, DateTimeOffset? acceptedAt = null) =>
         Send(new TasksObserved([new SolvedTask(id, id, difficulty, acceptedAt ?? Now)]));
+
+    public List<LedgerEvent> Focus(TimeSpan time) => Send(new Focused(time));
+
+    /// <summary>A quiet check (no game) at <paramref name="when"/>, with the player last seen <paramref name="idle"/> ago.</summary>
+    public List<LedgerEvent> CheckAt(DateTimeOffset when, TimeSpan? idle = null)
+    {
+        Now = when;
+        return Send(new Tick([], TimeSpan.Zero, idle ?? TimeSpan.FromHours(1)));
+    }
 
     public void GiveTokens(int tokens)
     {

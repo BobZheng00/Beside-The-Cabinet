@@ -183,6 +183,7 @@ public partial class Stool : Node2D
         {
             _gameRunning = value;
             _voice.GameRunning = value;
+            _focus.GameRunning = value;
             if (value && _trainer.Running)
                 _trainer.Stop("Training stopped: a game started (training takes the whole graphics card). Train again when you're done.");
         }

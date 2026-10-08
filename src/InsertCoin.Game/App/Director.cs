@@ -18,18 +18,26 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
         {
             case CoinsEarned c:
                 var kind = c.Task.Difficulty switch { Difficulty.Hard => CoinKind.Gold, Difficulty.Medium => CoinKind.Silver, _ => CoinKind.Bronze };
-                var coins = Enumerable.Repeat(kind, c.Tokens - (c.StarToken ? 1 : 0)).ToList();
-                if (c.StarToken)
-                    coins.Add(CoinKind.Star);
-                cabinet.Tray.Drop(coins);
-                for (var i = 0; i < coins.Count; i++)
-                    audio.Play("coin", pitch: 1f + 0.07f * i, delay: 0.18 * i + 0.25);      // each coin lands a little higher
+                Drop(kind, c.Paid.Coins, star: c.StarToken);
                 var jackpot = c.Task.Difficulty == Difficulty.Hard;
                 if (jackpot)
                     audio.Play("jackpot");
                 cabinet.Lights.Burst(LightMode.Celebrate, jackpot ? 3.5 : 1.8);
                 companion?.Play(jackpot ? Moment.Cheer : Moment.Pump);
-                cabinet.Screen.Flash(jackpot ? "JACKPOT" : $"+{c.Tokens}", Truncate(c.Task.Title, 40) + (c.StarToken ? $"\nSTREAK x{c.Streak} BONUS" : ""), 3.0);
+                cabinet.Screen.Flash(jackpot ? "JACKPOT" : Gain(c.Paid, $"+{c.Tokens}"),
+                                     Truncate(c.Task.Title, 40) + (c.StarToken ? $"\nSTREAK x{c.Streak} BONUS" : "") + Capped(c.Paid), 3.0);
+                break;
+            case FocusPaid f when f.Paid.EarnedMs >= 30_000:  // less than two minutes of focus: nothing to show
+                Drop(CoinKind.Bronze, f.Paid.Coins, star: false);
+                if (f.Paid.Coins == 0 && f.Paid.CreditedMs > 0)
+                    audio.Play("coin", pitch: 1.3f, delay: 0.25);                          // the fuel bar fills, no coin yet
+                cabinet.Lights.Burst(LightMode.Celebrate, 1.2);
+                companion?.Play(Moment.Glance);
+                cabinet.Screen.Flash(Gain(f.Paid, $"+{Clock(f.Paid.EarnedMs)}"), $"FOCUS {Minutes(f.FocusedMs)}" + Capped(f.Paid), 3.0);
+                break;
+            case CapReached r:
+                audio.Play("cashbox", delay: 0.6);
+                cabinet.GetTree().CreateTimer(3.2).Timeout += () => cabinet.Screen.Flash("CAP", $"TODAY'S PLAY EARNED\n{r.CapMs / 3_600_000}:{r.CapMs / 60_000 % 60:00}", 3.0);
                 break;
             case DebtPaid p:
                 audio.Play("paid", delay: 0.4);
@@ -89,12 +97,43 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
             case Resumed:
                 companion?.Play(Moment.Wake);
                 break;
-            case WeeklyReset w:
+            case LateNight l:
+                audio.Alert("remind");
+                companion?.Play(Moment.Worry);
+                var times = l.Multiplier.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                cabinet.Screen.Flash("LATE NIGHT", $"PAST BEDTIME\nPLAY COSTS x{times}", 4.0);
+                Ticket("LATE NIGHT", $"Past your bedtime: play costs x{times} until {rules.DayStartsAt.Hours:00}:00");
+                break;
+            case Faded f:
                 audio.Play("cashbox");
-                cabinet.Tray.Set(0);
-                cabinet.Screen.Flash("CASH BOX", w.ExpiredMs > 0 ? $"COLLECTED\n{Minutes(w.ExpiredMs)} EXPIRED" : "NEW WEEK", 4.0);
+                cabinet.Tray.Set((int)(f.LeftMs / rules.TokenMs));
+                cabinet.Screen.Flash("NEW DAY", $"{Clock(f.FadedMs)} FADED OVERNIGHT\n{Clock(f.LeftMs)} LEFT", 4.0);
                 break;
         }
+    }
+
+    /// <summary>Coins into the tray, each landing a little higher; with a star, the last one is it.</summary>
+    private void Drop(CoinKind kind, int count, bool star)
+    {
+        var coins = Enumerable.Repeat(kind, Math.Max(0, count - (star && count > 0 ? 1 : 0))).ToList();
+        if (star && count > 0)
+            coins.Add(CoinKind.Star);
+        cabinet.Tray.Drop(coins);
+        for (var i = 0; i < coins.Count; i++)
+            audio.Play("coin", pitch: 1f + 0.07f * i, delay: 0.18 * i + 0.25);
+    }
+
+    /// <summary>The big line for an earning: as usual, or what today's cap let through.</summary>
+    private static string Gain(Payout paid, string usual) =>
+        paid.OverCapMs <= 0 ? usual : paid.CreditedMs > 0 ? $"+{Clock(paid.CreditedMs)}" : "CAP";
+
+    private static string Capped(Payout paid) => paid.OverCapMs > 0 ? "\nTODAY'S CAP" : "";
+
+    /// <summary>"7:30", "1:05:00".</summary>
+    private static string Clock(long ms)
+    {
+        var total = ms / 1000;
+        return total >= 3600 ? $"{total / 3600}:{total / 60 % 60:00}:{total % 60:00}" : $"{total / 60}:{total % 60:00}";
     }
 
     private void Ticket(string title, string detail)
