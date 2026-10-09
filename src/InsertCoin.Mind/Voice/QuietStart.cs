@@ -1,18 +1,24 @@
 namespace InsertCoin.Mind;
 
 /// <summary>
-/// Drops the quiet at the start of a line of her voice. GPT-SoVITS once began a line with about 2.4 s of near-silence
-/// (agent note §5), which the player hears as her being slow to answer. Fed the line's audio piece by piece, it passes
+/// Drops the quiet at the start of a line of her voice. GPT-SoVITS often begins a line with about a second of near-silence
+/// (0.85 to 1.36 s with Hana's voice, 2026-10-09; 2.4 s once, agent note §5), which the player hears as her being slow
+/// to answer. Fed the line's audio piece by piece, it passes
 /// nothing until the first sound, then everything from just before it (a little lead-in, so the sound isn't clipped).
 /// A line that stays quiet for <see cref="Longest"/> is passed on as it is.
 /// </summary>
-public sealed class QuietStart(int sampleRate)
+public sealed class QuietStart(int sampleRate, TimeSpan? leadIn = null)
 {
     /// <summary>Louder than this is sound (about -34 dB of full scale); GPT-SoVITS's silence is far below it.</summary>
     public const float Loud = 0.02f;
 
     /// <summary>The lead-in kept before the first sound.</summary>
     public static readonly TimeSpan LeadIn = TimeSpan.FromMilliseconds(60);
+
+    /// <summary>The pause kept before a line that follows another she is saying: a breath between sentences.</summary>
+    public static readonly TimeSpan Between = TimeSpan.FromMilliseconds(300);
+
+    private readonly TimeSpan _leadIn = leadIn ?? LeadIn;
 
     /// <summary>Quiet longer than this isn't dropped: something else is going on.</summary>
     public static readonly TimeSpan Longest = TimeSpan.FromSeconds(4);
@@ -41,7 +47,7 @@ public sealed class QuietStart(int sampleRate)
             return [];
         }
         _sounding = true;
-        var from = Math.Max(0, first - (int)(LeadIn.TotalSeconds * sampleRate));
+        var from = Math.Max(0, first - (int)(_leadIn.TotalSeconds * sampleRate));
         Dropped += from;
         return from == 0 ? samples : samples[from..];
     }

@@ -131,7 +131,7 @@ When she's slow to find her words (a model that thinks first, a tool running) an
 her own voice now and then ("um…", "let's see…", "えっと…": made in her voice when it loads, varied, at most twice a
 reply, never on a quick one). When her card asks you something, you can answer it aloud: a short "yes", "always" or
 "no" (in Chinese, Japanese or Korean too) does what its buttons do; anything else is a new message. GPT-SoVITS's
-occasional silence at the start of a line is cut.
+habit of starting a line with up to a second of silence is cut, so her first word comes sooner.
 
 She can also listen without the key, if you choose (Chat settings → Listening). With follow-up listening she listens a few
 seconds after she speaks (3 to 20, after her answers, her own questions or anything she says, as ticked), and if you
@@ -248,7 +248,8 @@ server), `checkin` (she asks about something past now), `presence` (logs do-not-
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago), `usage` (the Usage tab),
 `calendar:URL` (links a calendar named Test), `calendars`, `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
-sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language) and
+sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language), `thinkingsounds:C:\path\folder` (her
+thinking sounds saved as WAV files) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
 window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording she hears as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: she

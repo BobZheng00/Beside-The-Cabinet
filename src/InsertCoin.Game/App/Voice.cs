@@ -372,10 +372,12 @@ public partial class Voice : Node
                 var clip = profile.ClipFor(line.Mood)!;
                 var clock = Stopwatch.StartNew();
                 var first = true;
+                // a line after one still playing keeps a breath before it; the first is said at once
+                var leadIn = _audio.Count > 0 || _sentenceEnds.Count > 0 ? QuietStart.Between : QuietStart.LeadIn;
                 await _engineFree.WaitAsync(stop);
                 try
                 {
-                    await foreach (var audio in engine.Speak(line.Text, profile, _folder, clip, stop))
+                    await foreach (var audio in engine.Speak(line.Text, profile, _folder, clip, stop, leadIn))
                     {
                         if (first)
                             GD.Print($"Voice: first audio of \"{Short(line.Text)}\" after {clock.ElapsedMilliseconds} ms");
@@ -458,8 +460,10 @@ public partial class Voice : Node
                     _engineFree.Release();
                 }
                 var sound = rate == 0 ? [] : QuietStart.Trim([.. samples], rate);
-                if (sound.Length >= rate * 0.15 && sound.Length <= rate * 2.2)
+                var kept = sound.Length >= rate * 0.15 && sound.Length <= rate * 2.2;
+                if (kept)
                     made.Add((words, new VoiceAudio(rate, sound)));
+                GD.Print($"Voice: thinking sound \"{words}\" came out {(rate == 0 ? 0 : (double)sound.Length / rate):0.00} s{(kept ? "" : ", left out")}");
             }
         }
         catch (OperationCanceledException)
@@ -476,6 +480,33 @@ public partial class Voice : Node
         _sounds = made;
         _soundsFor = profile;
         GD.Print($"Voice: {made.Count} of {wanted.Count} thinking sounds made in {clock.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>Dev: saves her thinking sounds as WAV files in <paramref name="folder"/>, to listen to; how many.</summary>
+    public int DevSaveSounds(string folder)
+    {
+        Directory.CreateDirectory(folder);
+        for (var i = 0; i < _sounds.Count; i++)
+        {
+            var (_, audio) = _sounds[i];
+            using var file = new BinaryWriter(File.Create(Path.Combine(folder, $"thinking-{i + 1}.wav")));
+            var bytes = audio.Samples.Length * 2;
+            file.Write("RIFF"u8);
+            file.Write(36 + bytes);
+            file.Write("WAVEfmt "u8);
+            file.Write(16);
+            file.Write((short)1);                           // PCM
+            file.Write((short)1);                           // mono
+            file.Write(audio.SampleRate);
+            file.Write(audio.SampleRate * 2);
+            file.Write((short)2);
+            file.Write((short)16);
+            file.Write("data"u8);
+            file.Write(bytes);
+            foreach (var s in audio.Samples)
+                file.Write((short)Math.Clamp(s * 32767, -32768, 32767));
+        }
+        return _sounds.Count;
     }
 
     /// <summary>While the player waits and her words are slow to come, now and then a thinking sound (see <see cref="Thinking"/>).</summary>

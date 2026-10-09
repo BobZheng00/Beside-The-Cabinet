@@ -106,11 +106,12 @@ public sealed class GptSoVits(HttpClient http)
 
     /// <summary>
     /// Says <paramref name="text"/> in the voice's language with the tone of <paramref name="clip"/> (blended, for v2
-    /// models, with its first few clips). Audio comes back in pieces as it is made. Clips are named relative to
-    /// <paramref name="folder"/>.
+    /// models, with its first few clips). Audio comes back in pieces as it is made, without the quiet GPT-SoVITS often
+    /// puts before a line (about a second, measured 2026-10-09): <paramref name="leadIn"/> of it is kept (see
+    /// <see cref="QuietStart"/>). Clips are named relative to <paramref name="folder"/>.
     /// </summary>
     public async IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string folder, VoiceClip clip,
-                                                    [EnumeratorCancellation] CancellationToken cancel = default)
+                                                    [EnumeratorCancellation] CancellationToken cancel = default, TimeSpan? leadIn = null)
     {
         var clipPath = Path.GetFullPath(Path.Combine(folder, clip.File));
         if (_stale)
@@ -150,7 +151,7 @@ public sealed class GptSoVits(HttpClient http)
         while ((read = await stream.ReadAsync(buffer, cancel)) > 0)
             if (wav.Feed(buffer.AsSpan(0, read)) is { Length: > 0 } samples)
             {
-                quiet ??= new QuietStart(wav.SampleRate);
+                quiet ??= new QuietStart(wav.SampleRate, leadIn);
                 var heard = quiet.Feed(samples);
                 LastTrimmed = quiet.DroppedTime;
                 if (heard.Length > 0)

@@ -78,6 +78,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly; told of the player's own memo, a reminder if it says "remind", else `[quiet]`; "focus" starts a 50-minute session, "stop focusing" stops it; "pause the music", "my playlist"; told of a focus turn or a long sitting, a short line; "screen" calls `look_at_screen`; a message with a picture gets `[saw: …]`; "went to the gym" logs it, and a picture while it waits for proof gets `judge_proof`, unsure if the line says "blurry"; "my bedtime is" sets 23:30; "help me with this" reads window titles then looks the problem up; "search for …", "read https://…", "open the app …"; Anthropic-style, "search the web" searches on its side then prints a memo); `--refuse` turns tools down |
   | `<tools>\agent-trial\tools\fake_searxng.py 8889` | a stand-in SearXNG (JSON results; 403 without `format=json`); logs `searxng.jsonl`. Not 8888: that's where the player's own would be |
   | `<tools>\agent-trial\tools\search_loop_check.cs` | `dotnet run search_loop_check.cs`: Anthropic's own search then a memo through the real client, against `mock_tools.py` |
+  | `<tools>\agent-trial\probe\hear.cs` | `dotnet run hear.cs <folder>`: her ears (SenseVoice) on WAV files, e.g. her thinking sounds |
+  | `<tools>\agent-trial\files\say-*.wav` | short spoken answers made with Windows' speech synthesiser ("Yes.", "Yes, always.", a longer sentence) for `talk:` while her card asks |
   | `<tools>\agent-trial\probe\page.cs` | `dotnet run page.cs <address>`: a real page as `read_page` gives it to her (this PC's DNS can't resolve example.com: use docs.python.org) |
   | `<tools>\agent-trial\tools\check.cs` | `dotnet run check.cs`: her tools through both real provider clients against the mock |
 
@@ -173,12 +175,12 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 **On the plate** (explained to the user 2026-10-09; the order is theirs to choose):
 1. ~~the streak counting any good day~~ *built 2026-10-09*;
-2. ~~thinking sounds~~ *built 2026-10-09, not yet heard in her real voice* (tools spec, "Bridging a tool's wait"; `Thinking`, `Voice.MakeSounds`);
-3. ~~answering her card by voice~~ *built 2026-10-09, untried with a real microphone* (`SpokenAnswer`; tools spec, "Not yet");
+2. ~~thinking sounds~~ *built 2026-10-09* and made in Hana's voice in a test run; how they sound is for the user's ears (`<tools>\voice-trial\thinking`) (tools spec, "Bridging a tool's wait"; `Thinking`, `Voice.MakeSounds`);
+3. ~~answering her card by voice~~ *built 2026-10-09*, tried with recordings through her real ears, not yet with the real microphone (`SpokenAnswer`; tools spec, "Not yet");
 4. an agenda item that is an activity ("gym at 6": her check-in afterwards can count it);
 5. bedtime drift: when nights run late, suggesting a bedtime earlier by steps;
 6. memos: dragged onto the cabinet's side by hand; her phone and paper on other skins;
-7. ~~the 2.4 s of near-silence once seen at the start of her audio~~ cut since 2026-10-09 (`QuietStart`); the log says how often it happens;
+7. ~~the 2.4 s of near-silence once seen at the start of her audio~~ cut since 2026-10-09 (`QuietStart`): measured, almost every line began with 0.4 to 1.4 s of it, so she now answers that much sooner;
 8. later abilities, most as add-ons: the clipboard (asking first), weather, writing to the calendar (Google or Microsoft sign-in), local MCP servers, a gesture per sentence (parked: motion files);
 9. the next phase: character import, mini-games on the CRT, Steam last.
 

@@ -1476,6 +1476,7 @@ public partial class Stool : Node2D
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice
+            case "thinkingsounds": GD.Print($"Voice: {_voice.DevSaveSounds(rest)} thinking sounds saved in {rest}"); break;    // thinkingsounds:folder: her thinking sounds as WAV files
             case "voicesettings": OpenVoiceSettings(); break;
             case "voicetest": _ = _voice.Test(); break;      // her voice says its sample line (waiting for it to be ready)
             case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
