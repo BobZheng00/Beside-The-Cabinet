@@ -40,6 +40,8 @@ The tool list sits at the start of every request, the part providers cache. It c
 
 *To check:* some models call tools without writing anything first. For those, her body bridges the wait alone, or a line is asked for in the prompt more firmly.
 
+*Decided 2026-10-09 (the user):* **a short thinking sound in her own voice** as well: "emm", "hmm", "let's see" and the like, varied, never the same one twice running, while she thinks before her first words and while a tool runs. The aim is that she sounds natural and the waiting is pleasant. *Not built yet* (on the plate: CLAUDE.md).
+
 ## The first abilities
 
 ### 1. LeetCode hints (agreed; how, *proposed*)

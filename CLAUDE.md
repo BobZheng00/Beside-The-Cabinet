@@ -123,6 +123,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on sheets out on the desktop, several at once, each its own small window (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
   - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: FOCUS, MUSIC, MEMOS, AGENDA (spec, "The CRT's small system", "Two views");
   - balance, step 2 (2026-10-07, spec `2026-10-07-balance.md`, "The ledger: built"): focus pays by the minute (a coin per focused hour), a daily cap on earned play (Monday to Thursday 1:30, Friday 2:00, weekends 2:30; tray → Balance…), half of unplayed time fading each night instead of the weekly expiry, play after a set bedtime costing ×1.5 until 04:00, a record of days in the ledger (`DayRecord`), the LeetCode name optional at setup;
+  - the streak counts good days (2026-10-09, spec `2026-10-07-balance.md`, "The streak"): a solve, an activity or 25 minutes of focus; from the third in a row the day's first earning brings a star (`GoodDays`, `StreakStar`);
   - balance, step 6 (2026-10-09, spec `2026-10-07-balance.md`, "Help with learning: built"): hints in tiers for anything (her prompt), `window_titles` (Privacy tab, allowed), `leetcode_problem` (leetcode.com's GraphQL; leetcode.cn by number), `read_page` (public web only, `Pages`, `HtmlText`), `web_search` (Anthropic's own, hosted; or the SearXNG add-on), `look_at_screen` taking the window the player was working in (the card names it), `open_app` (Start menu), Auto pausing for the rest of a reply once she has read the web, Chat settings → Privacy (Auto never skips it; music and record-of-days ticks) and → Add-ons;
   - balance, step 5 (2026-10-08, spec `2026-10-07-balance.md`, "Rest and sleep: built"): words around bedtime (half an hour before, at it, once after), a break after two hours of play, what the record of days shows once a day, asking for a bedtime (`Rest`, `Stool.MaybeRest`, `set_bedtime` confirmed on her card);
   - balance, step 4 (2026-10-08, spec `2026-10-07-balance.md`, "Activities: built"): activities she sizes and the player confirms on her card (`log_activity`; `Activities`), paid like problems once a day (`ActivityDone` in the ledger), proof when the cabinet's rule wants it (`judge_proof`: sure, unsure half, doubtful nothing yet), DONE on the CRT (`DoneApp`);
@@ -165,8 +166,21 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - **Next step:** the user tries steps 2 to 6 for real (`docs/to-try.md`; the phone's QR code is untested with a real phone; their provider is an OpenAI-compatible server, so no web search without the SearXNG add-on). Then: what the balance order leaves (the streak counting more than LeetCode, clipboard reading, local MCP servers as add-ons), or character import.
 
 **Open questions for the user:**
-- whether her idle leg swings should be smaller and rarer;
-- whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too).
+- ~~whether her idle leg swings should be smaller and rarer~~ keep them as they are (2026-10-09);
+- whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too): they are checking it on the demo (2026-10-09).
+
+**Answered 2026-10-09:** earphones almost always (a roommate), so no echo test on speakers; mainly English, sometimes Chinese (a Chinese recording for Smart Turn whenever they like); **thinking sounds: yes** (below).
+
+**On the plate** (explained to the user 2026-10-09; the order is theirs to choose):
+1. ~~the streak counting any good day~~ *built 2026-10-09*;
+2. **thinking sounds** (decided 2026-10-09): short sounds in her own voice ("emm", "hmm", "let's see"), varied, while she thinks before her first words and while a tool runs; natural, the waiting pleasant. Made in her voice when it loads (GPT-SoVITS), played at once, never the same twice running; silent where her voice is (calls, games, no voice);
+3. answering her card by voice ("yes", "always", "no");
+4. an agenda item that is an activity ("gym at 6": her check-in afterwards can count it);
+5. bedtime drift: when nights run late, suggesting a bedtime earlier by steps;
+6. memos: dragged onto the cabinet's side by hand; her phone and paper on other skins;
+7. the 2.4 s of near-silence once seen at the start of her audio (agent note §5);
+8. later abilities, most as add-ons: the clipboard (asking first), weather, writing to the calendar (Google or Microsoft sign-in), local MCP servers, a gesture per sentence (parked: motion files);
+9. the next phase: character import, mini-games on the CRT, Steam last.
 
 **To check:** about 2.4 s of near-silence once seen at the start of her GPT-SoVITS audio (agent note §5).
 

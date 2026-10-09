@@ -41,6 +41,12 @@ public sealed record FocusPaid(long FocusedMs, Payout Paid) : LedgerEvent;
 /// <summary>An activity paid: <paramref name="Share"/> of its worth just now, <paramref name="Total"/> of it today in all.</summary>
 public sealed record ActivityPaid(string Name, Size Size, double Share, double Total, Payout Paid) : LedgerEvent;
 
+/// <summary>
+/// Focus or an activity made today a good day on a streak of <paramref name="Streak"/> days: a star token (a solve's
+/// star comes with its coins, in <see cref="CoinsEarned"/>).
+/// </summary>
+public sealed record StreakStar(int Streak, Payout Paid) : LedgerEvent;
+
 public sealed record DebtPaid(long PaidMs, int TicketsBefore, int TicketsAfter, long DebtLeftMs) : LedgerEvent;
 
 /// <summary>Today's cap is reached: nothing more is paid until tomorrow.</summary>

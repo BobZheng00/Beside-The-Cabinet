@@ -44,6 +44,14 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 companion?.Play(Moment.Pump);
                 cabinet.Screen.Flash(a.Total < 1 ? "HALF" : "STAMPED", Truncate(a.Name, 28) + "\n" + Gain(a.Paid, $"+{Clock(a.Paid.EarnedMs)}") + Capped(a.Paid), 3.0);
                 break;
+            case StreakStar s:
+                Drop(CoinKind.Star, s.Paid.Coins, star: true);
+                audio.Play("paid", delay: 0.1);
+                cabinet.Lights.Burst(LightMode.Celebrate, 1.8);
+                companion?.Play(Moment.Pump);
+                cabinet.GetTree().CreateTimer(3.2).Timeout += () =>      // after the earning that made the day good
+                    cabinet.Screen.Flash(Gain(s.Paid, "+1"), $"STREAK x{s.Streak} BONUS" + Capped(s.Paid), 3.0);
+                break;
             case CapReached r:
                 audio.Play("cashbox", delay: 0.6);
                 cabinet.GetTree().CreateTimer(3.2).Timeout += () => cabinet.Screen.Flash("CAP", $"TODAY'S PLAY EARNED\n{r.CapMs / 3_600_000}:{r.CapMs / 60_000 % 60:00}", 3.0);

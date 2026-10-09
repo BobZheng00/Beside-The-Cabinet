@@ -9,21 +9,22 @@ public static class GameCalendar
     public static DateOnly WeekStartOf(DateOnly day) =>
         day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
-    /// <summary>Consecutive solve days ending on <paramref name="day"/> (0 if that day has no solve).</summary>
-    public static int StreakEndingOn(IReadOnlySet<DateOnly> solveDays, DateOnly day)
+    /// <summary>Consecutive streak days ending on <paramref name="day"/> (0 if that day isn't one).</summary>
+    public static int StreakEndingOn(IReadOnlySet<DateOnly> days, DateOnly day)
     {
         var streak = 0;
-        while (solveDays.Contains(day.AddDays(-streak)))
+        while (days.Contains(day.AddDays(-streak)))
             streak++;
         return streak;
     }
 
-    /// <summary>The live streak: ends today, or yesterday if today has no solve yet.</summary>
+    /// <summary>The live streak of good days (a solve, an activity, enough focus): ends today, or yesterday if today isn't one yet.</summary>
     public static int CurrentStreak(LedgerState state, DateTimeOffset now, Rules rules)
     {
         var today = DayOf(now, rules);
-        var streak = StreakEndingOn(state.SolveDays, today);
-        return streak > 0 ? streak : StreakEndingOn(state.SolveDays, today.AddDays(-1));
+        var days = state.StreakDays();
+        var streak = StreakEndingOn(days, today);
+        return streak > 0 ? streak : StreakEndingOn(days, today.AddDays(-1));
     }
 
     /// <summary>

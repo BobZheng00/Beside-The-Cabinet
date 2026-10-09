@@ -31,6 +31,9 @@ public sealed record Rules
     /// <summary>Minutes of focus for each minute of play: 4 is a coin (15 minutes) for every hour of focus.</summary>
     public int FocusPerPlay { get; init; } = 4;
 
+    /// <summary>Focus in a day that makes it a good day for the streak, like a solve or an activity: one focus part's worth.</summary>
+    public long GoodDayFocusMs { get; init; } = 25 * 60_000;
+
     /// <summary>The most play that can be earned in a game day from Monday to Thursday.</summary>
     public long WeekdayCapMs { get; init; } = 90 * 60_000;
 
@@ -167,7 +170,16 @@ public sealed record LedgerState
     public string? Username { get; init; }
     public ImmutableHashSet<string> SeenTaskIds { get; init; } = ImmutableHashSet<string>.Empty;
     public ImmutableSortedSet<DateOnly> SolveDays { get; init; } = ImmutableSortedSet<DateOnly>.Empty;
+
+    /// <summary>
+    /// Days that count towards the streak: a solve, an activity, or <see cref="Rules.GoodDayFocusMs"/> of focus. Days
+    /// with a solve from before good days were counted (2026-10-09) are only in <see cref="SolveDays"/>: see <see cref="StreakDays"/>.
+    /// </summary>
+    public ImmutableSortedSet<DateOnly> GoodDays { get; init; } = ImmutableSortedSet<DateOnly>.Empty;
     public int BestStreak { get; init; }
+
+    /// <summary>Every day that counts towards the streak.</summary>
+    public ImmutableSortedSet<DateOnly> StreakDays() => GoodDays.Union(SolveDays);
 
     /// <summary>Game day of the Monday that starts the current week, for the week's numbers.</summary>
     public DateOnly WeekStart { get; init; }

@@ -66,6 +66,7 @@ public static class Lines
         CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, $"JACKPOT! {c.Tokens} coins for a Hard one!", $"A Hard one! That's {Span(c.Tokens * rules.TokenMs)} of play.") + Bonus(c),
         CoinsEarned { Tokens: 1 } c => Pick(random, "+1 coin. Every one counts!", $"Solved! {Span(rules.TokenMs)} more to play.") + Bonus(c),
         CoinsEarned c => Pick(random, $"Nice! +{c.Tokens} coins.", $"Solved! {Span(c.Tokens * rules.TokenMs)} more to play.") + Bonus(c),
+        StreakStar s => Pick(random, $"Day {s.Streak} of your streak! A bonus coin.", $"That's {s.Streak} good days in a row. Bonus coin!"),
         DebtPaid { DebtLeftMs: 0 } => "Debt cleared. Clean slate!",
         DebtPaid p => $"That paid off {Span(p.PaidMs)}. {Span(p.DebtLeftMs)} still owed.",
         TokenInserted t => t.CreditsLeft > 0 ? $"Token in. {t.CreditsLeft} left after this one." : "Token in. That was your last one.",
@@ -89,7 +90,7 @@ public static class Lines
     {
         LowTime or CreditsOut or IouPrinted => 5,
         DebtPaid or CapReached or LateNight => 4,
-        CoinsEarned => 3,
+        CoinsEarned or StreakStar => 3,
         SessionStarted or SessionEnded or Faded => 2,
         _ => 1,
     };

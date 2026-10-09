@@ -89,9 +89,9 @@ public sealed class Ledger(Rules rules)
     private LedgerState Solve(LedgerState state, SolvedTask task, Difficulty difficulty, List<LedgerEvent> events)
     {
         var day = GameCalendar.DayOf(task.AcceptedAt, Rules);
-        var firstOfDay = !state.SolveDays.Contains(day);
+        var firstOfDay = !state.StreakDays().Contains(day);           // not a good day yet: the star comes with these coins
         var solveDays = state.SolveDays.Add(day);
-        var streak = GameCalendar.StreakEndingOn(solveDays, day);
+        var streak = GameCalendar.StreakEndingOn(state.StreakDays().Add(day), day);
         var star = firstOfDay && streak >= Rules.StreakBonusFromDay;
         var tokens = Rules.TokensFor(difficulty) + (star ? 1 : 0);
 
@@ -102,6 +102,7 @@ public sealed class Ledger(Rules rules)
         {
             SeenTaskIds = paid.SeenTaskIds.Add(task.Id),
             SolveDays = solveDays,
+            GoodDays = paid.GoodDays.Add(day),
             BestStreak = Math.Max(paid.BestStreak, streak),
             Week = paid.Week with { Solves = paid.Week.Solves + 1 },
             Today = paid.Today! with { Solves = paid.Today.Solves + 1 },
@@ -118,11 +119,12 @@ public sealed class Ledger(Rules rules)
         var (paid, payout, after) = Pay(state, focusedMs / Rules.FocusPerPlay);
         events.Add(new FocusPaid(focusedMs, payout));
         events.AddRange(after);
-        return paid with
+        paid = paid with
         {
             Week = paid.Week with { FocusedMs = paid.Week.FocusedMs + focusedMs },
             Today = paid.Today! with { FocusedMs = paid.Today.FocusedMs + focusedMs },
         };
+        return paid.Today.FocusedMs >= Rules.GoodDayFocusMs ? GoodDay(paid, paid.Today.Day, events) : paid;
     }
 
     /// <summary>
@@ -139,11 +141,31 @@ public sealed class Ledger(Rules rules)
         var (paid, payout, after) = Pay(state, (long)Math.Round(Rules.TokensFor(done.Size) * Rules.TokenMs * share));
         events.Add(new ActivityPaid(done.Name, done.Size, share, before + share, payout));
         events.AddRange(after);
-        return paid with
+        return GoodDay(paid with
         {
             Week = before > 0 ? paid.Week : paid.Week with { Activities = paid.Week.Activities + 1 },
             Today = paid.Today! with { Activities = paid.Today.Activities.SetItem(done.Name, before + share) },
-        };
+        }, paid.Today!.Day, events);
+    }
+
+    /// <summary>
+    /// A day counts towards the streak through focus or an activity (a solve counts in <see cref="Solve"/>, its star
+    /// in its coins): the first time it does, the streak grows, and from its <see cref="Rules.StreakBonusFromDay"/>th
+    /// day a star token is paid, under the day's cap like everything else. Past the cap the day still counts.
+    /// </summary>
+    private LedgerState GoodDay(LedgerState state, DateOnly day, List<LedgerEvent> events)
+    {
+        if (state.StreakDays().Contains(day))
+            return state;
+        state = state with { GoodDays = state.GoodDays.Add(day) };
+        var streak = GameCalendar.StreakEndingOn(state.StreakDays(), day);
+        state = state with { BestStreak = Math.Max(state.BestStreak, streak) };
+        if (streak < Rules.StreakBonusFromDay)
+            return state;
+        var (paid, payout, after) = Pay(state, Rules.TokenMs);
+        events.Add(new StreakStar(streak, payout));
+        events.AddRange(after);
+        return paid;
     }
 
     /// <summary>

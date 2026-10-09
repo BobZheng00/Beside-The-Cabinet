@@ -44,7 +44,7 @@ public static class Situation
         }
 
         var streak = GameCalendar.CurrentStreak(s, now, rules);
-        lines.Add($"Daily solve streak: {Words.Count(streak, "day")} (best {s.BestStreak}).");
+        lines.Add($"Streak of good days (a solve, an activity, or {Words.Span(rules.GoodDayFocusMs)} of focus): {Words.Count(streak, "day")} (best {s.BestStreak}).");
         lines.Add($"This week: {Words.Count(s.Week.Solves, "problem")} solved, " +
                   (s.Week.FocusedMs >= 60_000 ? $"{Words.Span(s.Week.FocusedMs)} focused, " : "no focus sessions, ") +
                   $"{Earned(s.Week.EarnedMs)}, " +
@@ -68,6 +68,7 @@ public static class Situation
         CoinsEarned c => $"The player solved \"{c.Task.Title}\" ({c.Task.Difficulty?.ToString() ?? "unknown difficulty"}): " +
                          $"+{Words.Count(c.Tokens, "token")}" + (c.StarToken ? $", with a day-{c.Streak} streak bonus" : "") + Capped(c.Paid) + ".",
         FocusPaid f => $"A focus part ended: {Words.Span(f.FocusedMs)} focused, worth {Words.Span(f.Paid.EarnedMs)} of play" + Capped(f.Paid) + ".",
+        StreakStar star => $"Today became a good day, day {star.Streak} of a streak: a bonus token" + Capped(star.Paid) + ".",
         ActivityPaid a => $"\"{a.Name}\" counted{(a.Total < 1 ? " by half for now" : a.Share < 1 ? " in full now" : "")}: {Words.Span(a.Paid.EarnedMs)} of play" + Capped(a.Paid) + ".",
         DebtPaid { DebtLeftMs: 0 } => "That paid off all the debt.",
         DebtPaid p => $"That paid off {Words.Span(p.PaidMs)} of debt; {Words.Span(p.DebtLeftMs)} still owed.",

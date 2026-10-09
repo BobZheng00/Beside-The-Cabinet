@@ -20,15 +20,16 @@ Drag the cabinet by its body. The big gold button asks LeetCode right away. The 
 Windows, change player, balance, quit). At first run the cabinet asks for your initials, then your LeetCode name,
 which is optional: Enter with none goes on without it (tray → "Change player…" adds one later).
 
-**Balance.** What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes, and a streak of
-three days or more adds one), and focus sessions, which pay by the minute as each part ends, however short: 15
+**Balance.** What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), and focus sessions, which pay by the minute as each part ends, however short: 15
 minutes of play for every hour focused (half an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it
 completes one). A day (04:00 to 04:00) can earn at most 1:30 from Monday to Thursday, 2:00 on Friday and 2:30 at the
 weekend; past that, work still counts in the day's record but pays nothing (paying back time owed doesn't count
 towards it). Each night half of the unplayed time fades, so it can't be saved up for the weekend (time owed never
 fades). After the bedtime you set, until 04:00, play costs ×1.5 (on credit, ×2.25): the screen says LATE NIGHT and a
 ticket tells you when it starts. Tray → "Balance…" sets the caps and your bedtime; changes count from the next day.
-The screen's attract pages show today's earnings against the cap. Every day is kept in a record (what was earned and
+The screen's attract pages show today's earnings against the cap. A day with a solve, an activity or 25 minutes of
+focus is a good day; from the third good day in a row, the first thing each day earns brings a bonus star coin
+(STREAK xN BONUS). Every day is kept in a record (what was earned and
 from what, focused, played, when you were first and last at the PC), the start of her sense of your patterns.
 
 The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to

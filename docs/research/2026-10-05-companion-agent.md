@@ -253,7 +253,7 @@ The user recorded the session (`<tools>\agent-trial\recordings\20261006-2119`, r
    - Built-in tools first, each with its permission (Allowed, Ask, Off).
    - Connectors the player chooses later, local MCP servers among them; no remote MCP.
 4. **Which abilities first:** the brainstorm.
-5. **Bridging the wait:** is a short sound in her own voice welcome, or should only her body bridge it?
+5. **Bridging the wait:** is a short sound in her own voice welcome, or should only her body bridge it? *Answered 2026-10-09: yes, short thinking sounds, varied, while she thinks or a tool runs (tools spec, "Bridging a tool's wait").*
 
 ## A possible order, once decided
 

@@ -32,7 +32,7 @@ public class SituationTests
         Assert.Contains("Today (Friday): 45 min earned of the day's cap of 2 h; 1 h 15 min more can be earned.", text);
         Assert.Contains("So far today: 1 problem solved, 1 h 10 min focused, 25 min played.", text);
         Assert.DoesNotContain("Bedtime", text);
-        Assert.Contains("Daily solve streak: 2 days (best 7).", text);
+        Assert.Contains("Streak of good days (a solve, an activity, or 25 min of focus): 2 days (best 7).", text);
         Assert.Contains("This week: 4 problems solved, 2 h 30 min focused, 1 h 40 min earned, 1 h 30 min played.", text);
         Assert.Contains("Right now: playing Hades, 25 min into the session.", text);
     }

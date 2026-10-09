@@ -344,7 +344,7 @@ public partial class Main : Node2D
         if (Lines.For(result.Events, _state, _rules, _random) is { } line && !_stool.Answering)
             _stool.Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or SessionEnded or Faded))
+        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
