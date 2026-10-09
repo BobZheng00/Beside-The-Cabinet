@@ -63,6 +63,9 @@ public sealed class GptSoVits(HttpClient http)
     private (string Gpt, string Sovits)? _loaded;
     private bool _stale;
 
+    /// <summary>The quiet dropped from the start of the last line said (see <see cref="QuietStart"/>).</summary>
+    public TimeSpan LastTrimmed { get; private set; }
+
     /// <summary>Whether the server answers.</summary>
     public async Task<bool> Alive(CancellationToken cancel = default)
     {
@@ -140,11 +143,19 @@ public sealed class GptSoVits(HttpClient http)
             throw VoiceException.From(await response.Content.ReadAsStringAsync(cancel));
         await using var stream = await response.Content.ReadAsStreamAsync(cancel);
         var wav = new Wav();
+        QuietStart? quiet = null;
+        LastTrimmed = TimeSpan.Zero;
         var buffer = new byte[16384];
         int read;
         while ((read = await stream.ReadAsync(buffer, cancel)) > 0)
             if (wav.Feed(buffer.AsSpan(0, read)) is { Length: > 0 } samples)
-                yield return new VoiceAudio(wav.SampleRate, samples);
+            {
+                quiet ??= new QuietStart(wav.SampleRate);
+                var heard = quiet.Feed(samples);
+                LastTrimmed = quiet.DroppedTime;
+                if (heard.Length > 0)
+                    yield return new VoiceAudio(wav.SampleRate, heard);
+            }
     }
 
     private async Task Call(string path, CancellationToken cancel)

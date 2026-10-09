@@ -131,6 +131,6 @@ public partial class PermissionCard : Node2D
 
     public bool Hits(Vector2 canvasPoint) => Visible && new Rect2(Position + _panel.Position, _panel.Size).Grow(4).HasPoint(canvasPoint);
 
-    /// <summary>Dev: answers the card showing, as its buttons would.</summary>
-    public void DevAnswer(Answer answer) => _answer?.TrySetResult(answer);
+    /// <summary>Answers the card showing as its buttons would: the player said it aloud (see <see cref="SpokenAnswer"/>), or a dev action.</summary>
+    public void Choose(Answer answer) => _answer?.TrySetResult(answer);
 }

@@ -67,16 +67,28 @@ public partial class Voice : Node
     // stream each spoken sentence's audio ends (frames queued since the stream opened)
     private int _givenChars, _heardChars;
     private long _queued;
-    private readonly Queue<(long End, int Chars)> _sentenceEnds = new();
+    private readonly Queue<(long End, int Chars, bool Line)> _sentenceEnds = new();      // Line: a line of the reply, not a thinking sound
     private int _heardLines;                            // lines of the reply heard in full
     private long _lastEnd;                              // where in the stream the last of those ended
     private Speech? _for;                               // the reply being spoken (see Begin)
     private Stopwatch? _asked;                          // since the reply now being spoken was asked for, until its first sound is heard
 
+    // thinking aloud while the player waits (see Thinking): her sounds, made in her voice when it loads, and this reply's wait
+    private readonly Thinking _thinking = new();
+    private List<(string Words, VoiceAudio Audio)> _sounds = [];
+    private VoiceProfile? _soundsFor;
+    private readonly SemaphoreSlim _engineFree = new(1, 1);     // one request at a time: a line she says, or a sound being made
+    private bool _thinkAloud;
+    private int _thought, _pieces;
+    private double _sinceWords, _sinceSound;
+
     /// <summary>The phase changed (for the settings window's status line).</summary>
     public event Action? Changed;
     /// <summary>Test is saying its sample line: the line for her bubble, in English like the rest of the cabinet (a subtitle when she speaks another language).</summary>
     public event Action<string>? Testing;
+
+    /// <summary>Whether a reply is still under way (being written, or waiting on her card): she may think aloud while it is.</summary>
+    public Func<bool> Answering { get; set; } = () => false;
 
     public Phase Now { get; private set; } = Phase.NotSetUp;
     public VoiceProfile? Profile => _profile;
@@ -244,6 +256,7 @@ public partial class Voice : Node
             {
                 _warm = profile;
                 Set(Phase.Ready);
+                _ = MakeSounds(profile, cancel);
             }
         }
         catch (OperationCanceledException)
@@ -257,11 +270,13 @@ public partial class Voice : Node
     }
 
     /// <summary>A reply is starting: whatever she was saying stops, and the reply goes to her voice as it streams in (null when she can't speak now).</summary>
-    public Speech? Begin()
+    /// <param name="thinkAloud">The player is waiting for it: while her words are slow to come, she may make a thinking sound.</param>
+    public Speech? Begin(bool thinkAloud = false)
     {
         Stop();
         if (!CanSpeak)
             return null;
+        _thinkAloud = thinkAloud;
         Speech? speech = null;
         var clock = _asked = Stopwatch.StartNew();
         var first = true;
@@ -306,6 +321,9 @@ public partial class Voice : Node
         _speaking = new CancellationTokenSource();
         _asked = null;
         _for = null;
+        _thinkAloud = false;
+        _thought = _pieces = 0;
+        _sinceWords = _sinceSound = 0;
         _toSay.Clear();
         _audio.Clear();
         _audioOffset = 0;
@@ -354,13 +372,23 @@ public partial class Voice : Node
                 var clip = profile.ClipFor(line.Mood)!;
                 var clock = Stopwatch.StartNew();
                 var first = true;
-                await foreach (var audio in engine.Speak(line.Text, profile, _folder, clip, stop))
+                await _engineFree.WaitAsync(stop);
+                try
                 {
-                    if (first)
-                        GD.Print($"Voice: first audio of \"{(line.Text.Length > 24 ? line.Text[..24] + "…" : line.Text)}\" after {clock.ElapsedMilliseconds} ms");
-                    first = false;
-                    Queue(audio);
+                    await foreach (var audio in engine.Speak(line.Text, profile, _folder, clip, stop))
+                    {
+                        if (first)
+                            GD.Print($"Voice: first audio of \"{Short(line.Text)}\" after {clock.ElapsedMilliseconds} ms");
+                        first = false;
+                        Queue(audio);
+                    }
                 }
+                finally
+                {
+                    _engineFree.Release();
+                }
+                if (engine.LastTrimmed > TimeSpan.FromMilliseconds(300))
+                    GD.Print($"Voice: {engine.LastTrimmed.TotalSeconds:0.00} s of quiet cut from the start of \"{Short(line.Text)}\"");
                 if (stop.IsCancellationRequested)
                     break;
                 if (first)
@@ -369,7 +397,7 @@ public partial class Voice : Node
                     _heardLines++;
                 }
                 else
-                    _sentenceEnds.Enqueue((_queued, line.Text.Length));
+                    _sentenceEnds.Enqueue((_queued, line.Text.Length, true));
             }
         }
         catch (OperationCanceledException)
@@ -390,6 +418,87 @@ public partial class Voice : Node
             if (_workingFor == stop)
                 _working = false;
         }
+    }
+
+    private static string Short(string text) => text.Length > 24 ? text[..24] + "…" : text;
+
+    // ---- Thinking aloud ------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Makes her thinking sounds in this voice, once it is loaded and while she has nothing to say: each is said, its
+    /// quiet trimmed, and kept if it came out short (a sound that came out long or garbled is left out).
+    /// </summary>
+    private async Task MakeSounds(VoiceProfile profile, CancellationToken cancel)
+    {
+        if (ReferenceEquals(_soundsFor, profile) || _engine is not { } engine)
+            return;
+        var clock = Stopwatch.StartNew();
+        var made = new List<(string, VoiceAudio)>();
+        var wanted = Thinking.Sounds(profile.Language);
+        try
+        {
+            foreach (var words in wanted)
+            {
+                while (Speaking)
+                    await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+                cancel.ThrowIfCancellationRequested();
+                var samples = new List<float>();
+                var rate = 0;
+                await _engineFree.WaitAsync(cancel);
+                try
+                {
+                    await foreach (var audio in engine.Speak(words, profile, _folder, profile.ClipFor(null)!, cancel))
+                    {
+                        rate = audio.SampleRate;
+                        samples.AddRange(audio.Samples);
+                    }
+                }
+                finally
+                {
+                    _engineFree.Release();
+                }
+                var sound = rate == 0 ? [] : QuietStart.Trim([.. samples], rate);
+                if (sound.Length >= rate * 0.15 && sound.Length <= rate * 2.2)
+                    made.Add((words, new VoiceAudio(rate, sound)));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Voice: thinking sounds weren't made: {e.Message}");
+            return;
+        }
+        if (!ReferenceEquals(_profile, profile))
+            return;
+        _sounds = made;
+        _soundsFor = profile;
+        GD.Print($"Voice: {made.Count} of {wanted.Count} thinking sounds made in {clock.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>While the player waits and her words are slow to come, now and then a thinking sound (see <see cref="Thinking"/>).</summary>
+    private void Think(double delta)
+    {
+        if (_for is not { } speech || !_thinkAloud)
+            return;
+        if (speech.Pieces != _pieces)
+        {
+            _pieces = speech.Pieces;
+            _sinceWords = 0;
+        }
+        else
+            _sinceWords += delta;
+        _sinceSound = Speaking ? 0 : _sinceSound + delta;
+        if (_sounds.Count == 0 || !ReferenceEquals(_soundsFor, _profile)
+            || !Thinking.Due(Answering() && !speech.Finished, Speaking, TimeSpan.FromSeconds(_sinceWords), TimeSpan.FromSeconds(_sinceSound), _thought))
+            return;
+        var (words, audio) = _sounds[_thinking.Pick(_sounds.Count)];
+        _thought++;
+        GD.Print($"Voice: thinking aloud (\"{words}\"){(_asked is { } asked ? $" {asked.ElapsedMilliseconds} ms after asking" : "")}");
+        Queue(audio);
+        _sentenceEnds.Enqueue((_queued, 0, false));     // not a line of the reply: what was heard of it is unchanged
     }
 
     private void Set(Phase phase)
@@ -430,15 +539,17 @@ public partial class Voice : Node
         _pushed = 0;
         _levels.Clear();
         while (_sentenceEnds.TryDequeue(out var end))   // marks in the old stream will never be reached in this one
-        {
-            _heardChars += end.Chars;
-            _heardLines++;
-        }
+            if (end.Line)
+            {
+                _heardChars += end.Chars;
+                _heardLines++;
+            }
         _queued = _lastEnd = 0;
     }
 
     public override void _Process(double delta)
     {
+        Think(delta);
         if (_playback is null)
             return;
         var room = _playback.GetFramesAvailable();
@@ -478,8 +589,11 @@ public partial class Voice : Node
         while (_sentenceEnds.Count > 0 && _sentenceEnds.Peek().End <= playing)
         {
             var heard = _sentenceEnds.Dequeue();
-            _heardChars += heard.Chars;
-            _heardLines++;
+            if (heard.Line)
+            {
+                _heardChars += heard.Chars;
+                _heardLines++;
+            }
             _lastEnd = heard.End;
         }
         var level = _levels.Count > 0 ? _levels.Peek().Level : 0;

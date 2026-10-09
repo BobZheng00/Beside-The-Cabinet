@@ -173,14 +173,21 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 **On the plate** (explained to the user 2026-10-09; the order is theirs to choose):
 1. ~~the streak counting any good day~~ *built 2026-10-09*;
-2. **thinking sounds** (decided 2026-10-09): short sounds in her own voice ("emm", "hmm", "let's see"), varied, while she thinks before her first words and while a tool runs; natural, the waiting pleasant. Made in her voice when it loads (GPT-SoVITS), played at once, never the same twice running; silent where her voice is (calls, games, no voice);
-3. answering her card by voice ("yes", "always", "no");
+2. ~~thinking sounds~~ *built 2026-10-09, not yet heard in her real voice* (tools spec, "Bridging a tool's wait"; `Thinking`, `Voice.MakeSounds`);
+3. ~~answering her card by voice~~ *built 2026-10-09, untried with a real microphone* (`SpokenAnswer`; tools spec, "Not yet");
 4. an agenda item that is an activity ("gym at 6": her check-in afterwards can count it);
 5. bedtime drift: when nights run late, suggesting a bedtime earlier by steps;
 6. memos: dragged onto the cabinet's side by hand; her phone and paper on other skins;
-7. the 2.4 s of near-silence once seen at the start of her audio (agent note §5);
+7. ~~the 2.4 s of near-silence once seen at the start of her audio~~ cut since 2026-10-09 (`QuietStart`); the log says how often it happens;
 8. later abilities, most as add-ons: the clipboard (asking first), weather, writing to the calendar (Google or Microsoft sign-in), local MCP servers, a gesture per sentence (parked: motion files);
 9. the next phase: character import, mini-games on the CRT, Steam last.
+
+**Release, talked over 2026-10-09** (the user's idea: open source on GitHub, and on Steam at a low price for those who want it easy and updated; the community contributes): an established model (Krita, Mindustry, Shattered Pixel Dungeon). To settle before then:
+- the licence, before the first outside contribution: Valve says copyleft (GPL) is problematic with the Steamworks SDK, permissive (MIT, Apache 2.0) is fine; we use no Steamworks SDK today;
+- the name, the cabinet's art and the default character kept outside the code's licence, so a resold copy isn't ours;
+- every bundled model and library allows commercial redistribution (SenseVoice, Smart Turn, the e5 model…; GPT-SoVITS is the player's own install; test characters never ship);
+- the repository's history checked for anything personal before it goes public;
+- Steam Direct is $100 per app; Valve takes 30%.
 
 **To check:** about 2.4 s of near-silence once seen at the start of her GPT-SoVITS audio (agent note §5).
 

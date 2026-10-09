@@ -111,6 +111,15 @@ public partial class Listening : Node
     /// </summary>
     public void Said(bool answer, string line) => _after = HandsFree.Kind(answer, line);
 
+    /// <summary>
+    /// Her card asks something: once she has finished saying it, she listens for the answer as after a question of hers,
+    /// if the player listens hands-free after questions (or they are in a conversation).
+    /// </summary>
+    public void CardShown() => _after = HandsFree.Said.Question;
+
+    /// <summary>Her card was answered, or went: a microphone opened for it closes, unless the player is talking.</summary>
+    public void CardGone() => Drop();
+
     /// <summary>The player did something else (clicked her, typed): nothing hands-free now.</summary>
     public void Drop()
     {
@@ -160,7 +169,7 @@ public partial class Listening : Node
         _clock += delta;
         Held(delta);
         Key(delta);
-        if (_after is { } after && _talking == Talk.None && !_understanding && !_stool.Replying)
+        if (_after is { } after && _talking == Talk.None && !_understanding && (!_stool.Replying || _stool.CardOpen && !_stool.Speaking))
         {
             _after = null;
             if (_settings.Now.HandsFree.After(after, Conversing) is { } seconds && MayListen(out _))
@@ -242,7 +251,10 @@ public partial class Listening : Node
             Close();                                        // the key or a hold takes over from hands-free
         _after = null;
         _hearing ??= Task.Run(LoadHearing);                 // loads while the player talks
-        _ = _stool.Interrupt();                             // talking over her stops her
+        if (_stool.CardOpen)
+            _stool.Hush();                                  // her card waits for an answer: she stops talking, the question stands
+        else
+            _ = _stool.Interrupt();                         // talking over her stops her
         _talking = how;
         OpenMicrophone();
         _nods = new Backchannel();
@@ -303,10 +315,23 @@ public partial class Listening : Node
                 return;
             if (how == Talk.Mic)
                 _chatBox.Insert(words);
-            else if (!_stool.Thinking)
+            else
             {
-                _chatBox.ShowHeard(words);
-                await _stool.Ask(words);
+                if (_stool.CardOpen)
+                {
+                    if (SpokenAnswer.Of(words) is { } answer)
+                    {
+                        GD.Print($"Ears: her card answered aloud: {answer}");
+                        _stool.AnswerCard(answer);
+                        return;
+                    }
+                    await _stool.Interrupt();               // something else to say: the card goes unanswered, as with a new message
+                }
+                if (!_stool.Thinking)
+                {
+                    _chatBox.ShowHeard(words);
+                    await _stool.Ask(words);
+                }
             }
         }
         finally

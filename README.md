@@ -127,6 +127,12 @@ apart by itself): about a tenth of a second for a sentence. The microphone is op
 nothing is recorded or kept. The talk key's state is read each frame (no keyboard hook), so the key still does what
 it does in the app in front.
 
+When she's slow to find her words (a model that thinks first, a tool running) and you're waiting, she thinks aloud in
+her own voice now and then ("um…", "let's see…", "えっと…": made in her voice when it loads, varied, at most twice a
+reply, never on a quick one). When her card asks you something, you can answer it aloud: a short "yes", "always" or
+"no" (in Chinese, Japanese or Korean too) does what its buttons do; anything else is a new message. GPT-SoVITS's
+occasional silence at the start of a line is cut.
+
 She can also listen without the key, if you choose (Chat settings → Listening). With follow-up listening she listens a few
 seconds after she speaks (3 to 20, after her answers, her own questions or anything she says, as ticked), and if you
 start talking she hears it as your answer. A conversation (the tray's Conversation switch, or a double tap of the talk

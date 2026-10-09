@@ -40,7 +40,11 @@ The tool list sits at the start of every request, the part providers cache. It c
 
 *To check:* some models call tools without writing anything first. For those, her body bridges the wait alone, or a line is asked for in the prompt more firmly.
 
-*Decided 2026-10-09 (the user):* **a short thinking sound in her own voice** as well: "emm", "hmm", "let's see" and the like, varied, never the same one twice running, while she thinks before her first words and while a tool runs. The aim is that she sounds natural and the waiting is pleasant. *Not built yet* (on the plate: CLAUDE.md).
+*Decided 2026-10-09 (the user):* **a short thinking sound in her own voice** as well: "emm", "hmm", "let's see" and the like, varied, never the same one twice running, while she thinks before her first words and while a tool runs. The aim is that she sounds natural and the waiting is pleasant. *Built 2026-10-09* (`Thinking`; `Voice.MakeSounds`, `Voice.Think`):
+- **Made once in her voice**, after it loads and warms up, while she has nothing to say: seven or eight per language (English "Um…", "Hmm…", "Let's see…"; Chinese "嗯……", "我想想……"; Japanese "えっと…", "うーん…"; Korean "음…"), each trimmed of its quiet and kept only if it came out between 0.15 and 2.2 s (a short text sometimes comes out garbled or long). Her voice's language decides which; a language without a list has none. One request at a time goes to GPT-SoVITS, so making them never overlaps a line she says.
+- **Played only when her words are slow:** while a reply to the player is under way, she is quiet, and nothing new has come for a second (a thinking model, a tool running, a slow provider). A quick reply gets none. At most two a reply, the second six seconds after the first; never one of the last two played. Not while her card waits for the player (she isn't thinking then), not for reminders or check-ins (nobody is waiting), and never where her voice is silent (no voice, a game, a call).
+- They go through her voice like a line (her mouth moves) but are not lines of the reply: what the player heard of it, for cutting her off, is unchanged.
+- The log says each one (`Voice: thinking aloud ("えっと…") 1200 ms after asking`) and how many were made.
 
 ## The first abilities
 
@@ -260,7 +264,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 **In the app:**
 - **The permission card** (`PermissionCard`) stands by her stool, above the slip you type on.
   - It shows what and where, always the real address (a look-alike domain shows in its `xn--` spelling).
-  - Clicks only: no key answers it.
+  - Clicks only: no key answers it. *Since 2026-10-09 the voice does too:* a short "yes", "always" or "no" said aloud (below, "Not yet").
   - It waits 2 minutes, then counts as no answer. Cutting her off (a click on her, a new message) counts as no answer too.
   - While it waits, the reply's 90-second clock is stopped, and each tool she uses starts it afresh, so a longer piece of work isn't cut short.
 - **Her body:** she leans in with her eyes on you while you decide (the listening pose). Your answer gets a small "got it". While the tool runs and the model answers again, she looks away to think; then she carries on.
@@ -272,7 +276,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - Each tool call adds one more trip to the model: about 0.4–0.7 s with the mock.
 
 **Not yet:**
-- answering the card by voice ("yes");
+- ~~answering the card by voice ("yes")~~ *built 2026-10-09:* while the card asks, a short "yes", "always" or "no" said aloud answers it (`SpokenAnswer`: English, Chinese, Japanese and Korean words, a few together if they agree, "yes, always" being always; six words at most). The talk key no longer cuts her off while the card waits: she stops talking and the question stands. Anything else said is a message, and the card goes unanswered, as before. With follow-up listening after questions (or in a conversation) she listens for the answer once she has asked. Typing still can't answer it: clicks or the voice;
 - a real provider's model choosing tools well, and how varied its bridging lines are. Both are in `docs/to-try.md`.
 
 ## The CRT's small system (the user's idea, 2026-10-06; *built*)

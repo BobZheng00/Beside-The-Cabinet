@@ -194,6 +194,7 @@ public partial class Stool : Node2D
         AddChild(_voice);
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => Her);
         _voice.Muted = settings.Now.Muted;
+        _voice.Answering = () => _chat.Answering && !_permission.IsOpen;     // waiting on her card, she isn't thinking: no thinking sounds
         _voice.Testing += line =>                           // only the bubble: she is already saying it in her own language
         {
             if (_settings.Now.SpeechBubbles)
@@ -550,6 +551,18 @@ public partial class Stool : Node2D
 
     /// <summary>The player cut her off: see <see cref="Chat.Interrupt"/>.</summary>
     internal Task Interrupt() => _chat.Interrupt(_voice, Her);
+
+    /// <summary>Her card is asking: what the player says next may answer it (see <see cref="SpokenAnswer"/>).</summary>
+    internal bool CardOpen => _permission.IsOpen;
+
+    /// <summary>The player answered her card aloud.</summary>
+    internal void AnswerCard(Answer answer) => _permission.Choose(answer);
+
+    /// <summary>She stops talking, but the reply goes on (her card still waits for its answer).</summary>
+    internal void Hush() => _voice.Stop();
+
+    /// <summary>Her voice is saying something, or about to.</summary>
+    internal bool Speaking => _voice.Speaking;
 
     /// <summary>Full pace for this many seconds: something worth watching is under way.</summary>
     internal void Lively(double seconds) => _lively(seconds);
@@ -1099,7 +1112,7 @@ public partial class Stool : Node2D
         _lively(120);                                       // keep her lively while she thinks and talks
         try
         {
-            await _chat.Ask(said, Situation(), Her, _voice.Begin(), _voice.Language, handed);
+            await _chat.Ask(said, Situation(), Her, _voice.Begin(thinkAloud: true), _voice.Language, handed);
             if (_chat.Replied is { } reply)
                 _listening.Said(answer: true, reply);
             if (_chat.TakeShot() is { } shot && Her is { } her)
@@ -1107,7 +1120,7 @@ public partial class Stool : Node2D
                 // she took a look at their screen: once she has said she will, she sees it and answers
                 for (var waited = 0; _voice.Speaking && waited < 80; waited++)
                     await ToSignal(GetTree().CreateTimer(0.1), Godot.Timer.SignalName.Timeout);
-                await _chat.Announce($"This is the screenshot you took of {shot.Of}.", "", Situation(), her, _voice.Begin(), _voice.Language, [shot.Shot]);
+                await _chat.Announce($"This is the screenshot you took of {shot.Of}.", "", Situation(), her, _voice.Begin(thinkAloud: true), _voice.Language, [shot.Shot]);
                 if (_chat.Replied is { } seen)
                     _listening.Said(answer: true, seen);
             }
@@ -1159,7 +1172,10 @@ public partial class Stool : Node2D
         if (Her is null)
             return Answer.None;
         Her.Play(Moment.Listen);
-        var answer = await _permission.Ask(asking, new Vector2(14, CardBottom), cancel);
+        var asked = _permission.Ask(asking, new Vector2(14, CardBottom), cancel);
+        _listening.CardShown();
+        var answer = await asked;
+        _listening.CardGone();
         Her?.Play(Moment.Heard);
         GD.Print($"Tools: she asked to use {asking.Tool.Name} on {asking.Detail}: {answer}");
         return answer;
@@ -1177,7 +1193,10 @@ public partial class Stool : Node2D
         if (Her is null)
             return null;
         Her.Play(Moment.Listen);
-        var answer = await _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
+        var asked = _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
+        _listening.CardShown();
+        var answer = await asked;
+        _listening.CardGone();
         Her?.Play(Moment.Heard);
         GD.Print($"Card: \"{what}\" {answer switch { true => "confirmed", false => "not yet", _ => "not answered" }}");
         return answer;
@@ -1438,9 +1457,9 @@ public partial class Stool : Node2D
                 var note = text.Split(':', 2);
                 _memos.Print(note[0], note.Length > 1 ? note[1] : note[0], by: null);
                 break;
-            case "allow": _permission.DevAnswer(Answer.Once); break;       // answers the card she asks with, as its buttons would
-            case "always": _permission.DevAnswer(Answer.Always); break;
-            case "deny": _permission.DevAnswer(Answer.No); break;
+            case "allow": _permission.Choose(Answer.Once); break;       // answers the card she asks with, as its buttons would
+            case "always": _permission.Choose(Answer.Always); break;
+            case "deny": _permission.Choose(Answer.No); break;
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)

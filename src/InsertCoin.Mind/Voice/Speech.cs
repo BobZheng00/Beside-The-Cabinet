@@ -26,6 +26,12 @@ public sealed class Speech(string language, Action<string> speak)
     /// <summary>Nothing of the reply was given to the voice (no [say], and nothing written in its language).</summary>
     public bool Silent => _lines.Count == 0;
 
+    /// <summary>Pieces of the reply's text that have come in: while it stays the same, she is still thinking (see <see cref="Thinking"/>).</summary>
+    public int Pieces { get; private set; }
+
+    /// <summary>The whole reply has come in.</summary>
+    public bool Finished => _finished;
+
     /// <summary>The mood her body showed last in this reply (happy, sad, surprised), for a clip that suits it.</summary>
     public string? Mood { get; private set; }
 
@@ -39,6 +45,7 @@ public sealed class Speech(string language, Action<string> speak)
             "gasp" => "surprised",
             _ => Mood,
         };
+        Pieces++;
         if (name != "say" || payload?.Trim() is not { Length: > 0 } spoken)
             return;
         _subtitled = true;
@@ -51,6 +58,7 @@ public sealed class Speech(string language, Action<string> speak)
     /// <summary>The next piece of the reply's shown text.</summary>
     public void Text(string piece)
     {
+        Pieces++;
         _shown.Append(piece);
         foreach (var sentence in _sentences.Feed(piece))
             Written(sentence);
