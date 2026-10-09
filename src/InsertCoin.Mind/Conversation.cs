@@ -147,6 +147,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back
+        var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {
             var afterTool = false;
@@ -155,6 +156,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 heard = true;
                 if (tools is not null && Provider.ToolStarting(update) is { } starting)
                     tools.Begun(starting);
+                foreach (var content in update.Contents)
+                    if (content is WebSearchToolCallContent search)
+                    {
+                        searches[search.CallId] = string.Join("; ", search.Queries ?? []);
+                        tools?.Hosted(BuiltIn.SearchName);
+                    }
+                    else if (content is WebSearchToolResultContent found)
+                        store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
                 if (update.Contents.Any(c => c is FunctionResultContent))
                     afterTool = true;                       // what she says next carries on after a pause
                 else if (update.Text is { Length: > 0 } piece)
@@ -165,6 +174,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         _lastReply = null;
+        tools?.Fresh();
         try
         {
             for (var withTools = offered is not null; ;)
@@ -177,6 +187,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     else
                         await Stream(client, sent, ReplyOptions);
                     break;
+                }
+                catch (Exception e) when (withTools && !heard && !cancel.IsCancellationRequested && tools!.Hosting && (Toolbox.RefusesHosted(e) || Toolbox.Refuses(e)))
+                {
+                    // its own web search turned down (switched off for the account, or a server that doesn't run it): the other
+                    // tools stay, and only if those are turned down too does she answer without any
+                    tools.HostedRefused = true;
+                    offered = tools.Offered;
+                    withTools = offered is not null;
                 }
                 catch (Exception e) when (withTools && !heard && !cancel.IsCancellationRequested && Toolbox.Refuses(e))
                 {
@@ -287,6 +305,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         store.Add(character, Speaker.Cabinet, record, _clock.GetLocalNow());
         return result;
+    }
+
+    /// <summary>
+    /// The line kept for a web search the provider ran: what for, and the pages it found (the sources, for the chat
+    /// history), like the line for one of her own tools.
+    /// </summary>
+    private static string Searched(string? query, WebSearchToolResultContent found)
+    {
+        var pages = (found.Outputs ?? []).OfType<UriContent>().Select(u => BuiltIn.Shown(u.Uri)).Distinct().Take(5).ToList();
+        var line = $"You searched the web for \"{query ?? "?"}\": " + (pages.Count == 0 ? "nothing came back." : $"found {string.Join(", ", pages)}.");
+        return line.Length <= 300 ? line : line[..299] + "…";
     }
 
     /// <summary>Her first words after a tool ran, spaced from what she said before it (not in Chinese or Japanese, which use no spaces).</summary>

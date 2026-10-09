@@ -12,6 +12,7 @@ Modular, framed like Claude Code's tools, connectors and plugins:
   - **Local MCP servers** the player adds count as connectors too: the command that runs one on their PC. Its tools appear beside hers.
 - **Remote MCP is out for now.** We run no cloud service and hold nothing for the player, so we don't set one up for them.
 - **Plugins** are later, if at all: bundles of a connector, its prompt guidance and maybe her motions for it. Perhaps something a character brings with them at character import.
+- *Changed 2026-10-09* (the user): optional extras are framed as **add-ons** (Chat settings → Add-ons), "functionality that ppl may not want to enable and they can choose to install": off until turned on, each saying what it needs and where the player's data goes. Connectors (a key, a sign-in, a local MCP server) become add-ons. The first is web search through the player's own SearXNG. And what she can see of the player's own has a **Privacy** tab (balance spec, "Help with learning").
 
 **Permission per tool**, set like Claude Code's permission rules (*built 2026-10-05, as proposed; open to change*):
 - **Allowed** by default: reading, and acting inside the app.
@@ -22,7 +23,7 @@ Modular, framed like Claude Code's tools, connectors and plugins:
   - She still says what she's doing, and each use is in the chat history.
   - Tools switched Off stay off.
   - Nothing is remembered per tool: switching Auto off brings the asking back as it was.
-  - *When web reading comes:* a page could try to talk her into opening things. Auto may then need to exclude what a page suggested, or local MCP servers' tools. Decide then.
+  - *When web reading comes:* a page could try to talk her into opening things. Auto may then need to exclude what a page suggested, or local MCP servers' tools. Decide then. *Built 2026-10-09:* once she has read a page or search results in a reply, Auto stops going ahead for the rest of that reply; and Auto never skips asking for what is on the Privacy tab. Local MCP servers: still to decide when they come.
 - A local MCP server's tools all start at Ask, even those that say they only read: the server's word is a hint, not a guarantee.
 
 **Where it's set:** Chat settings → Abilities.
@@ -210,7 +211,10 @@ The player sits for hours without a break or water. She notices continuous time 
 - Never in a call. In a full-screen game, only the ticket.
 - The timer resets when they have actually been away.
 
-### 3. Web search (agreed; providers *proposed*)
+### 3. Web search (agreed; *built 2026-10-09*, balance spec, "Help with learning: built")
+
+*Decided 2026-10-09:* the provider's own search where the app can use it (measured: only Anthropic's, through Microsoft.Extensions.AI; OpenAI's chat client asks for it in a way only OpenAI's search models take), else SearXNG as an add-on the player runs. No service of ours and no third party's free tier as a fallback: the user wants no resources or holdbacks on their side. Tavily, or another service with the player's own key, would be an add-on if wanted. The notes below are as first proposed.
+
 
 A general ability, not just for LeetCode. It reads, so it needs no permission.
 - **Providers with their own search** (Anthropic, OpenAI): theirs, through Microsoft.Extensions.AI's hosted web search. *To check* for our Anthropic client.
@@ -223,6 +227,8 @@ A general ability, not just for LeetCode. It reads, so it needs no permission.
 ### 4. Open a link or an app (agreed)
 
 Built-in, outside the app: she asks first. Examples: today's daily problem, a game, a playlist.
+
+*Built:* links 2026-10-05 (`open_link`); apps 2026-10-09 (`open_app`, from the Start menu; games stay the cabinet's, so a Steam game isn't one she opens).
 
 ## Later (recorded, to discuss)
 
@@ -326,6 +332,17 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - [SearXNG as a local search API](https://docs.litellm.ai/docs/search/searxng)
 - [LeetCode GraphQL: question content and hints](https://github.com/akarsh1995/leetcode-graphql-queries/blob/main/README.md)
 - [Hosted web search across OpenAI and Anthropic through Microsoft.Extensions.AI](https://github.com/ghostflyby/Maieutics/pull/100)
+- [Anthropic: the web search tool (versions, "not enabled" errors, encrypted results, pricing)](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)
+- [SearXNG: the search API](https://docs.searxng.org/dev/search_api.html)
+- [SearXNG: search settings (formats: html only by default)](https://docs.searxng.org/admin/settings/settings_search.html)
+- [Parallel: the best free web search APIs for AI agents in 2026](https://parallel.ai/articles/best-free-web-search-api)
+- [Parallel Search is free for agents via MCP](https://parallel.ai/blog/free-web-search-mcp)
+- [Firecrawl: best free web search APIs](https://www.firecrawl.dev/blog/best-free-web-search-apis)
+- [Firecrawl's keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless)
+- [You.com's MCP server](https://you.com/docs/build-with-agents/mcp-server)
+- [LangSearch API limits](https://docs.langsearch.com/limits/api-limits)
+- [Brave drops its free search API tier](https://www.implicator.ai/brave-drops-free-search-api-tier-puts-all-developers-on-metered-billing/)
+- [CostBench: Tavily's free plan](https://costbench.com/software/web-scraping/tavily/free-plan/)
 - [Spotify Community: links don't autoplay in the desktop app](https://community.spotify.com/t5/Other-Partners-Web-Player-etc/Spotify-link-does-not-autoplay-in-desktop-app-Windows/td-p/1336587)
 - [AutoIt forum: starting a Spotify playlist (the `:play` ending)](https://www.autoitscript.com/forum/topic/193665-start-spotify-and-play-a-playlist/)
 - [MDN: autoplay policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy/autoplay)

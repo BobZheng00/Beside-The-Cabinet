@@ -14,10 +14,11 @@ public partial class ChatSettings : Window
     /// <summary>
     /// After Save: the provider chosen (null: none), the memory search (see <see cref="Chat.UseSearch"/>), the talk key
     /// (see <see cref="TalkKey"/>), when she listens without it (see <see cref="HandsFree"/>), the window, the
-    /// permission for each of her tools (see <see cref="Toolbox.Chosen"/>) and whether she asks at all (see
-    /// <see cref="Toolbox.Auto"/>); the API key is already stored by then.
+    /// permission for each of her tools (see <see cref="Toolbox.Chosen"/>), whether she asks at all (see
+    /// <see cref="Toolbox.Auto"/>), what she is told in the background (<see cref="Privacy"/>) and the add-ons; the API
+    /// key is already stored by then.
     /// </summary>
-    public event Action<Provider?, string, string, HandsFree, int?, IReadOnlyDictionary<string, Permission>, bool>? Saved;
+    public event Action<Provider?, string, string, HandsFree, int?, IReadOnlyDictionary<string, Permission>, bool, Privacy, AddOns>? Saved;
 
     /// <summary>The permissions offered for a tool, as the Abilities tab names them.</summary>
     private static readonly (Permission Permission, string Label)[] Permissions =
@@ -43,7 +44,12 @@ public partial class ChatSettings : Window
         _inCalls = null!, _inFullScreen = null!, _whilePlaying = null!;
     private SpinBox _followUpSeconds = null!;
     private HandsFree _handsFree = new();
-    private readonly List<(Tool Tool, OptionButton Choice)> _abilities = [];
+    private readonly List<(Tool Tool, OptionButton Choice)> _abilities = [];         // on the Abilities tab and the Privacy tab alike
+    private CheckBox _music = null!, _days = null!, _searxng = null!;
+    private LineEdit _searxngAddress = null!;
+    private Label _searxngResult = null!;
+    private Privacy _privacy = new();
+    private AddOns _addOns = new();
     private readonly Dictionary<string, Permission> _always = [];      // "tool:site" the player answered Always for
     private Label _result = null!;
     private Protocol _protocol;
@@ -53,10 +59,12 @@ public partial class ChatSettings : Window
     /// <param name="window">Tokens of the conversation she keeps word for word, or null for what suits the provider.</param>
     /// <param name="prices">What the player's provider charges, per model, as they entered it (see the Usage tab).</param>
     public void Build(Chat chat, Provider? current, string characterName, string? search, string talkKey, HandsFree handsFree, bool hears, bool turns,
-                      int? window, IReadOnlyDictionary<string, Prices> prices, string currency)
+                      int? window, IReadOnlyDictionary<string, Prices> prices, string currency, Privacy privacy, AddOns addOns)
     {
         _chat = chat;
         _handsFree = handsFree;
+        _privacy = privacy;
+        _addOns = addOns;
         Title = $"Talk with {characterName}";
         Visible = false;
         Transient = true;
@@ -83,6 +91,16 @@ public partial class ChatSettings : Window
         var abilities = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         abilities.AddThemeConstantOverride("separation", 10);
         abilitiesTab.AddChild(abilities);
+        var privacyTab = new ScrollContainer { Name = "Privacy", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        tabs.AddChild(privacyTab);
+        var privacyPage = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        privacyPage.AddThemeConstantOverride("separation", 10);
+        privacyTab.AddChild(privacyPage);
+        var addOnsTab = new ScrollContainer { Name = "Add-ons", HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        tabs.AddChild(addOnsTab);
+        var addOnsPage = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        addOnsPage.AddThemeConstantOverride("separation", 10);
+        addOnsTab.AddChild(addOnsPage);
         var usage = new VBoxContainer { Name = "Usage" };
         usage.AddThemeConstantOverride("separation", 8);
         tabs.AddChild(usage);
@@ -144,6 +162,8 @@ public partial class ChatSettings : Window
 
         BuildListening(listening, characterName, talkKey, hears, turns);
         BuildAbilities(abilities, characterName);
+        BuildPrivacy(privacyPage, characterName, current);
+        BuildAddOns(addOnsPage, characterName, current);
 
         column.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         var buttons = new HBoxContainer();
@@ -239,23 +259,13 @@ public partial class ChatSettings : Window
                            "her stool lets you say yes or no. Off: she doesn't have it. Whatever acts outside this app asks first unless you allow it."));
         _auto = Tick(page, "Auto: she goes ahead without asking", tools.Auto);
         page.AddChild(Hint($"Like an auto mode: where she would ask first, she just does it. She still says what she's doing, and what's " +
-                           "switched off stays off. Every use is in the chat history."));
+                           "switched off stays off. Every use is in the chat history. Two exceptions: what's on the Privacy tab, and the rest " +
+                           "of a reply once she has read a page or search results, since a page could try to talk her into things."));
         page.AddChild(new Label { Text = "Built in", ThemeTypeVariation = "Subheading" });
-        var grid = new GridContainer { Columns = 2 };
-        grid.AddThemeConstantOverride("h_separation", 12);
-        grid.AddThemeConstantOverride("v_separation", 8);
-        foreach (var tool in tools.All.Where(t => t.Source == Tool.BuiltIn))
-        {
-            var choice = new OptionButton { CustomMinimumSize = new Vector2(160, 0) };
-            foreach (var (_, label) in Permissions)
-                choice.AddItem(label);
-            choice.Select(Array.FindIndex(Permissions, p => p.Permission == tools.PermissionOf(tool)));
-            grid.AddChild(new Label { Text = tool.Title, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tool.Function.Description,
-                                      MouseFilter = Control.MouseFilterEnum.Pass });
-            grid.AddChild(choice);
-            _abilities.Add((tool, choice));
-        }
-        page.AddChild(grid);
+        page.AddChild(Choices(tools.All.Where(t => t.Source == Tool.BuiltIn && !t.Private)));
+        page.AddChild(Hint(_chat.WebSearch is { } searching
+            ? $"She searches the web {searching}."
+            : "She can't search the web: your provider has no search of its own that this app can use. The SearXNG add-on gives her one."));
 
         foreach (var (key, permission) in tools.Chosen.Where(c => c.Key.Contains(':')))
             _always[key] = permission;
@@ -284,6 +294,97 @@ public partial class ChatSettings : Window
             page.AddChild(Hint("Your model turned tools down, so for now she answers without them. Choosing a model that takes tools brings them back."));
     }
 
+    /// <summary>A permission to choose for each tool (the provider's own search only runs or doesn't: it can't ask).</summary>
+    private GridContainer Choices(IEnumerable<Tool> listed)
+    {
+        var tools = _chat.Tools;
+        var grid = new GridContainer { Columns = 2 };
+        grid.AddThemeConstantOverride("h_separation", 12);
+        grid.AddThemeConstantOverride("v_separation", 8);
+        foreach (var tool in listed)
+        {
+            var offered = Permissions.Where(p => tool.Hosted is null || p.Permission != Permission.Ask).ToList();
+            var choice = new OptionButton { CustomMinimumSize = new Vector2(160, 0) };
+            foreach (var (_, label) in offered)
+                choice.AddItem(label);
+            choice.Select(Math.Max(0, offered.FindIndex(p => p.Permission == tools.PermissionOf(tool))));
+            grid.AddChild(new Label { Text = tool.Title, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = tool.Function.Description,
+                                      MouseFilter = Control.MouseFilterEnum.Pass });
+            grid.AddChild(choice);
+            _abilities.Add((tool, choice));
+        }
+        return grid;
+    }
+
+    /// <summary>The permission chosen for a tool on its row.</summary>
+    private static Permission Chosen(Tool tool, OptionButton choice) =>
+        Permissions.Where(p => tool.Hosted is null || p.Permission != Permission.Ask).ElementAt(choice.Selected).Permission;
+
+    /// <summary>
+    /// The Privacy tab: what she can look at that is the player's own (asked for, like her other abilities, but never
+    /// skipped by Auto), and what she is told in the background. All of it goes to their provider with the conversation.
+    /// </summary>
+    private void BuildPrivacy(VBoxContainer page, string name, Provider? current)
+    {
+        var provider = current is not null && Uri.TryCreate(current.BaseUrl, UriKind.Absolute, out var server) ? server.Host : "your AI provider";
+        page.AddChild(new Label { Text = "Privacy", ThemeTypeVariation = "Heading" });
+        page.AddChild(Hint($"What {name} can see of what's yours. Whatever she looks at or is told goes to {provider} with your conversation, " +
+                           "as everything you say to her does; nothing else leaves this PC."));
+        page.AddChild(new Label { Text = "When you ask for help", ThemeTypeVariation = "Subheading" });
+        page.AddChild(Choices(_chat.Tools.All.Where(t => t.Private)));
+        page.AddChild(Hint("Auto never skips these: whatever is set to ask first here always asks."));
+        page.AddChild(new Label { Text = "In the background", ThemeTypeVariation = "Subheading" });
+        _music = Tick(page, "What's playing in your music app (track and artist)", _privacy.Music);
+        _days = Tick(page, "What your record of days shows: nights running late, days without play", _privacy.Days);
+        page.AddChild(Hint("Your play time, focus and what you've done today she always knows: the cabinet runs on them. Web searches go to your " +
+                           "provider, or to your own SearXNG (Add-ons); pages she reads are fetched by this PC from their site."));
+    }
+
+    /// <summary>
+    /// The Add-ons tab: optional extras, off until the player turns them on, each saying what it needs and where their
+    /// data goes. The first: web search through their own SearXNG.
+    /// </summary>
+    private void BuildAddOns(VBoxContainer page, string name, Provider? current)
+    {
+        page.AddChild(new Label { Text = "Add-ons", ThemeTypeVariation = "Heading" });
+        page.AddChild(Hint("Extras that are off until you turn them on. Each says what it needs and where what you give it goes."));
+        page.AddChild(new Label { Text = "Web search with SearXNG", ThemeTypeVariation = "Subheading" });
+        _searxng = Tick(page, "Search the web through my SearXNG", _addOns.SearXng);
+        var row = Indented(page);
+        row.AddChild(new Label { Text = "Address" });
+        _searxngAddress = new LineEdit { Text = _addOns.SearXngAddress, PlaceholderText = "http://localhost:8888", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddChild(_searxngAddress);
+        var test = new Button { Text = "Test", ThemeTypeVariation = "Quiet" };
+        row.AddChild(test);
+        _searxngResult = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(400, 0), Visible = false };
+        page.AddChild(_searxngResult);
+        var own = current?.Protocol == Protocol.Anthropic ? "your provider's own search" : "no search at all (your provider has none this app can use)";
+        page.AddChild(Hint($"SearXNG is a free, open-source search engine you run yourself, on this PC or one you trust: it asks the big search " +
+                           $"engines for you, and nothing goes through anyone else. With it on, {name} searches through it; without it, {own}. " +
+                           "To run it: Docker Desktop, then docker run -d -p 8888:8080 searxng/searxng, and in its settings.yml add json under " +
+                           "search: formats: (and restart it)."));
+        test.Pressed += async () =>
+        {
+            if (SearXng.Parse(_searxngAddress.Text) is not { } address)
+            {
+                Show(_searxngResult, "That isn't an address (like http://localhost:8888).", Paper.Bad);
+                return;
+            }
+            Show(_searxngResult, "Searching…", Paper.Faint);
+            try
+            {
+                var said = await Chat.TrySearXng(address);
+                if (IsInstanceValid(this))
+                    Show(_searxngResult, said, said.StartsWith("Works") ? Paper.Good : Paper.Bad);
+            }
+            catch (Exception e)
+            {
+                if (IsInstanceValid(this))
+                    Show(_searxngResult, e.Message, Paper.Bad);
+            }
+        };
+    }
+
     /// <summary>The permissions as chosen: only what differs from a tool's standard, the sites still allowed always, and choices for tools not listed here kept.</summary>
     private Dictionary<string, Permission> PermissionsChosen()
     {
@@ -291,7 +392,7 @@ public partial class ChatSettings : Window
         foreach (var (key, permission) in _chat.Tools.Chosen.Where(c => !c.Key.Contains(':') && _abilities.All(a => a.Tool.Name != c.Key)))
             chosen[key] = permission;
         foreach (var (tool, choice) in _abilities)
-            if (Permissions[choice.Selected].Permission is var permission && permission != tool.Standard)
+            if (Chosen(tool, choice) is var permission && permission != tool.Standard)
                 chosen[tool.Name] = permission;
         return chosen;
     }
@@ -328,7 +429,13 @@ public partial class ChatSettings : Window
     public void Open() => Paper.Open(this, new Vector2(560, 720));
 
     /// <summary>Dev: shows the Usage tab.</summary>
-    public void DevUsage() => _tabs.CurrentTab = 3;
+    public void DevUsage() => _tabs.CurrentTab = 5;
+
+    /// <summary>Dev: shows the Privacy tab.</summary>
+    public void DevPrivacy() => _tabs.CurrentTab = 3;
+
+    /// <summary>Dev: shows the Add-ons tab.</summary>
+    public void DevAddOns() => _tabs.CurrentTab = 4;
 
     /// <summary>Dev: shows the Abilities tab.</summary>
     public void DevAbilities() => _tabs.CurrentTab = 2;
@@ -382,7 +489,8 @@ public partial class ChatSettings : Window
         if (_key.Text.Trim().Length > 0)
             _chat.Keys.Save(_key.Text);
         Saved?.Invoke(Chosen(), _searches[_search.Selected], TalkKey.Keys[_talkKey.Selected].Name, HandsFreeChosen(), Windows[_window.Selected].Tokens,
-                      PermissionsChosen(), _auto.ButtonPressed);
+                      PermissionsChosen(), _auto.ButtonPressed, _privacy with { Music = _music.ButtonPressed, Days = _days.ButtonPressed },
+                      _addOns with { SearXng = _searxng.ButtonPressed, SearXngAddress = _searxngAddress.Text.Trim() });
         if (_model.Text.Trim() is { Length: > 0 } model)
             PricesSaved?.Invoke(model, _usage.Prices, _usage.Currency);
         QueueFree();
@@ -399,6 +507,7 @@ public partial class ChatSettings : Window
 
     private static void Show(Label label, string text, Color colour)
     {
+        label.Visible = true;
         label.Text = text;
         label.AddThemeColorOverride("font_color", colour);
     }

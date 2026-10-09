@@ -41,6 +41,8 @@ public sealed record AppSettings
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
+    public Privacy Privacy { get; init; } = new();      // what she is told in the background (the Privacy tab; what she looks at is in ToolPermissions)
+    public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (the Add-ons tab)
     public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
     public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
     public int BreakMinutes { get; init; } = 5;
@@ -66,6 +68,24 @@ public sealed record AppSettings
     /// <summary><see cref="ReminderLeadMinutes"/> as a span of time, or null.</summary>
     [JsonIgnore]
     public TimeSpan? ReminderLead => ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
+}
+
+/// <summary>What she is told in the background, as the player chose on the Privacy tab: all of it goes to their AI provider.</summary>
+public sealed record Privacy
+{
+    public bool Music { get; init; } = true;            // what is playing in their music app (track and artist)
+    public bool Days { get; init; } = true;             // what the record of days shows: nights going on late, days without play
+}
+
+/// <summary>Optional extras, off until the player turns them on (the Add-ons tab).</summary>
+public sealed record AddOns
+{
+    public bool SearXng { get; init; }                  // she searches the web through the player's own SearXNG, in place of the provider's search
+    public string SearXngAddress { get; init; } = "http://localhost:8888";
+
+    /// <summary>The SearXNG she searches through, or null when the add-on is off (or its address isn't one).</summary>
+    [JsonIgnore]
+    public Uri? Search => SearXng ? Mind.SearXng.Parse(SearXngAddress) : null;
 }
 
 /// <summary>A playlist saved in the screen's MUSIC app: its link (Spotify, YouTube Music…), and its name as Spotify shows it.</summary>

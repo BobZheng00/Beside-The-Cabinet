@@ -111,8 +111,8 @@ public class FocusTests
         Assert.Equal("Done.", result?.ToString());
         Assert.Equal([("pause", null), ("start_playlist", "Peace"), ("start_playlist", null)], done);
         Assert.True(tool.OutsideApp);
-        Assert.Equal(("Start a playlist?", "Peace in Spotify", "music"), tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist", ["playlist"] = "Peace" }));
-        Assert.Equal("Deep Focus (the focus one)", tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist" }).Detail);
-        Assert.Equal("Pause your music?", tool.Ask!(new AIFunctionArguments { ["action"] = "pause" }).What);
+        Assert.Equal(("Start a playlist?", "Peace in Spotify", "music"), tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist", ["playlist"] = "Peace" })!.Value);
+        Assert.Equal("Deep Focus (the focus one)", tool.Ask!(new AIFunctionArguments { ["action"] = "start_playlist" })!.Value.Detail);
+        Assert.Equal("Pause your music?", tool.Ask!(new AIFunctionArguments { ["action"] = "pause" })!.Value.What);
     }
 }

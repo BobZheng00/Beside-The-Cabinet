@@ -75,7 +75,10 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   | `<tools>\listen-trial\fake_anthropic.py 8770` | Anthropic-style, with cache counts |
   | `<tools>\listen-trial\hook_sink.py <port>` | ntfy/webhook receiver; writes `hooks.jsonl` |
   | `<tools>\listen-trial\cal\test.ics` | a test calendar; serve it with `python -m http.server 8768` |
-  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly; told of the player's own memo, a reminder if it says "remind", else `[quiet]`; "focus" starts a 50-minute session, "stop focusing" stops it; "pause the music", "my playlist"; told of a focus turn or a long sitting, a short line; "screen" calls `look_at_screen`; a message with a picture gets `[saw: …]`; "went to the gym" logs it, and a picture while it waits for proof gets `judge_proof`, unsure if the line says "blurry"; "my bedtime is" sets 23:30); `--refuse` turns tools down |
+  | `<tools>\agent-trial\tools\mock_tools.py 8771 [--refuse]` | OpenAI- and Anthropic-style; makes tool calls ("open" in a line calls `open_link`, "memo" writes one, its words coming slowly; told of the player's own memo, a reminder if it says "remind", else `[quiet]`; "focus" starts a 50-minute session, "stop focusing" stops it; "pause the music", "my playlist"; told of a focus turn or a long sitting, a short line; "screen" calls `look_at_screen`; a message with a picture gets `[saw: …]`; "went to the gym" logs it, and a picture while it waits for proof gets `judge_proof`, unsure if the line says "blurry"; "my bedtime is" sets 23:30; "help me with this" reads window titles then looks the problem up; "search for …", "read https://…", "open the app …"; Anthropic-style, "search the web" searches on its side then prints a memo); `--refuse` turns tools down |
+  | `<tools>\agent-trial\tools\fake_searxng.py 8889` | a stand-in SearXNG (JSON results; 403 without `format=json`); logs `searxng.jsonl`. Not 8888: that's where the player's own would be |
+  | `<tools>\agent-trial\tools\search_loop_check.cs` | `dotnet run search_loop_check.cs`: Anthropic's own search then a memo through the real client, against `mock_tools.py` |
+  | `<tools>\agent-trial\probe\page.cs` | `dotnet run page.cs <address>`: a real page as `read_page` gives it to her (this PC's DNS can't resolve example.com: use docs.python.org) |
   | `<tools>\agent-trial\tools\check.cs` | `dotnet run check.cs`: her tools through both real provider clients against the mock |
 
 ## Rules the user set
@@ -120,6 +123,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - memos: `print_memo`, printed out of the slot, pinned on the cabinet's side, read and written on sheets out on the desktop, several at once, each its own small window (`MemoSheet`), kept in the memory book's Memos tab, the player's own (the CRT's menu or the tray; she thinks each over unseen and acts or stays quiet, `Chat.Consider`, unless kept from her); she types hers on her phone; carried by hand and stuck anywhere on the side, read by pointing at them, a paper colour and a sticker each (spec, "Memos: built", "Memos, next");
   - the CRT's small system (`App/Crt/CrtOs`): a click folds the readout away and app icons pop in on the cabinet, four to a page, swiped between, held to rearrange; an app opens out of its icon as the screen lifts out to face the player (readable at any cabinet size, a CRT look up close), and a press away settles it back. Apps: FOCUS, MUSIC, MEMOS, AGENDA (spec, "The CRT's small system", "Two views");
   - balance, step 2 (2026-10-07, spec `2026-10-07-balance.md`, "The ledger: built"): focus pays by the minute (a coin per focused hour), a daily cap on earned play (Monday to Thursday 1:30, Friday 2:00, weekends 2:30; tray → Balance…), half of unplayed time fading each night instead of the weekly expiry, play after a set bedtime costing ×1.5 until 04:00, a record of days in the ledger (`DayRecord`), the LeetCode name optional at setup;
+  - balance, step 6 (2026-10-09, spec `2026-10-07-balance.md`, "Help with learning: built"): hints in tiers for anything (her prompt), `window_titles` (Privacy tab, allowed), `leetcode_problem` (leetcode.com's GraphQL; leetcode.cn by number), `read_page` (public web only, `Pages`, `HtmlText`), `web_search` (Anthropic's own, hosted; or the SearXNG add-on), `open_app` (Start menu), Auto pausing for the rest of a reply once she has read the web, Chat settings → Privacy (Auto never skips it; music and record-of-days ticks) and → Add-ons;
   - balance, step 5 (2026-10-08, spec `2026-10-07-balance.md`, "Rest and sleep: built"): words around bedtime (half an hour before, at it, once after), a break after two hours of play, what the record of days shows once a day, asking for a bedtime (`Rest`, `Stool.MaybeRest`, `set_bedtime` confirmed on her card);
   - balance, step 4 (2026-10-08, spec `2026-10-07-balance.md`, "Activities: built"): activities she sizes and the player confirms on her card (`log_activity`; `Activities`), paid like problems once a day (`ActivityDone` in the ledger), proof when the cabinet's rule wants it (`judge_proof`: sure, unsure half, doubtful nothing yet), DONE on the CRT (`DoneApp`);
   - balance, step 3 (2026-10-08, spec `2026-10-07-balance.md`, "Handing her things: built"): pictures, PDFs and text files handed to her with a message (`Attachment`; dropped on her, pasted, the slip's paper clip; chips above the slip), her `[saw]` line kept in their place, models that can't see remembered (`UnseeingModels`), EXIF orientation and time (`Exif`), `look_at_screen` (asks first; `Screenshot`), photos from a phone through a QR code and a page on the home network (`PhoneCard`, `PhonePage`, our own `QrCode`);
@@ -132,6 +136,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 **Tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
 - **Decided:**
   - tools are framed like Claude Code's: built-in tools, connectors the player chooses (keys, sign-ins, local MCP servers; no remote MCP), plugins later;
+  - optional extras are **add-ons** (the user, 2026-10-09): off until turned on, each saying what it needs and where data goes; connectors become add-ons. No service of ours and no third party's free tier as a default: "no resources or holdbacks on my side";
   - acting outside the app asks first;
   - while a tool works, she says a short line the model writes itself, fitting what she's doing.
 - **First abilities, agreed:**
@@ -139,7 +144,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - memos: long text printed from the cabinet, pinned on its side, archived, the player's own too, and she types them on her phone;
   - focus sessions with stand-up and water nudges;
   - music by a link plus Windows' media controls (Spotify's and YouTube Music's APIs are closed);
-  - web search: the provider's own, or Tavily or SearXNG (DuckDuckGo has no search API);
+  - web search: the provider's own (only Anthropic's works through our clients), else SearXNG as an add-on the player runs (DuckDuckGo has no search API);
   - opening links and apps.
 - **Order:**
   1. groundwork (*built 2026-10-05*);
@@ -156,8 +161,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - rest and sleep: bedtime and long-play nudges, and patterns from a record of days.
 - **Numbers, decided 2026-10-07:** a coin per focused hour, paid by the minute at once; caps Monday to Thursday 1:30, Friday 2:00, weekends 2:30 (adjustable); half of unplayed time fading each night; play after a confirmed bedtime costs ×1.5 until 04:00.
 - **Also decided:** the player sets neither what an activity is worth nor how much proof it needs; her manner always comes from her character card (the app decides what and when, the card how).
-- **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the late-night price, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps.
-- **Next step:** step 6, help with learning (window titles when asked, hints in tiers for any subject, LeetCode's problem data) with web search, and opening apps; once the user has tried steps 2 to 5 (`docs/to-try.md`; the phone's QR code is untested with a real phone).
+- **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the late-night price, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps. *All built by 2026-10-09.*
+- **Next step:** the user tries steps 2 to 6 for real (`docs/to-try.md`; the phone's QR code is untested with a real phone; their provider is an OpenAI-compatible server, so no web search without the SearXNG add-on). Then: what the balance order leaves (the streak counting more than LeetCode, clipboard reading, local MCP servers as add-ons), or character import.
 
 **Open questions for the user:**
 - whether her idle leg swings should be smaller and rarer;

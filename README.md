@@ -134,13 +134,31 @@ by herself (Silero's voice detector and Pipecat's Smart Turn, on the processor).
 in full screen or quiet time, or while a game runs, unless you allow it, and never while she is speaking. The CRT shows
 MIC whenever the microphone is open.
 
-She can do things too, with tools (Chat settings → Abilities). So far she can open a web page in your browser. She
+She can do things too, with tools (Chat settings → Abilities): open a web page in your browser or an app from your
+Start menu, read a page, search the web, look up a LeetCode problem, and the rest below. She
 says what she's about to do in her own words, and anything acting outside the app asks first: a card by her stool
-shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site) and No.
+shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site or app) and No.
 Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there to forget. Auto lets her
-go ahead without asking at all (what's switched off stays off). A model that
+go ahead without asking (what's switched off stays off), except for what's on the Privacy tab, and for the rest of a
+reply once she has read a page or search results: a page could try to talk her into things. A model that
 can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](docs/specs/2026-10-05-tools-and-abilities.md).
+
+**Help with learning.** Ask her for help with what you're on ("help me with this") and she reads your window titles to
+see what it is (a browser tab's title, an editor's file), then helps a step at a time, each only when you ask for more: a
+nudge, the approach, an outline, and the whole answer only if you ask again after that; long steps come as a memo. For a
+LeetCode problem she looks up its statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is
+found by its number). She can read a web page you name, and search the web: with your provider's own search where it
+has one this app can use (Anthropic's), or through your own SearXNG (Add-ons). She opens apps from your Start menu after
+asking (games stay the cabinet's).
+
+**Privacy and add-ons.** Chat settings → Privacy gathers what she can see of yours: your window titles (allowed unless
+you change it) and your screen (she asks first), which Auto never skips; and what she is told in the background, each
+with a tick: what's playing in your music app, and what the record of days shows. What she sees goes to your AI
+provider with the conversation; pages she reads are fetched by this PC. Chat settings → Add-ons holds extras that stay
+off until you turn them on. The first is web search through SearXNG, a free, open-source search engine you run
+yourself (with Docker: `docker run -d -p 8888:8080 searxng/searxng`, then add `json` under `search: formats:` in its
+settings.yml); its Test button says whether it answers, and what to change if not.
 
 Anything too long for her bubble (a hint written out, a plan, a list) she hands over as a memo. She types it on her
 phone and sends it, and it prints out of the cabinet's slot. Click it to read it whole (code in a fixed-width font),
@@ -231,7 +249,8 @@ held on her, then let go), and `closeup:hands` (her camera narrowed onto her han
 Hands-free, without ever opening the real microphone: `fakemic` (from then on she hears only recordings),
 `mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`) and
 `listeningsettings` (the Chat settings Listening tab). Her tools: `allow`, `always` and `deny` (answer the card she
-asks with, as its buttons do) and `abilities` (the Chat settings Abilities tab). With `--offscreen` a page she opens is
+asks with, as its buttons do), `abilities`, `privacy` and `addons` (those Chat settings tabs), and
+`fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles she reads instead; a test run reads stand-ins anyway). With `--offscreen` a page she opens is
 only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
 `memosheet:pin` (the latest sheet's tools: pin, off, edit, done, print, delete; `close` and `esc` as its × and Esc;

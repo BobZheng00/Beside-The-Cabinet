@@ -6,6 +6,9 @@ namespace InsertCoin.Mind;
 /// <summary>The tools built into the app: always there, nothing to set up (docs/specs/2026-10-05-tools-and-abilities.md).</summary>
 public static class BuiltIn
 {
+    /// <summary>The web search's name, whichever runs it: the provider (<see cref="ProviderSearch"/>) or the player's SearXNG (<see cref="WebSearch"/>).</summary>
+    public const string SearchName = "web_search";
+
     /// <summary>Opens a web page in the player's browser. It acts outside the app, so she asks first.</summary>
     /// <param name="open">Opens the page (the app's own way of doing it).</param>
     public static Tool OpenLink(Action<Uri> open) => new(
@@ -95,9 +98,108 @@ public static class BuiltIn
             "Takes a screenshot of the screen the player is using, to be shown to you right after this reply. Use it when they ask you to look at " +
             "their screen, at what they are doing, or at something on it. In this reply say only a few words (that you'll have a look); you answer " +
             "once you see it. The player is asked first."),
-        "Look at the screen",
+        "Look at your screen",
         OutsideApp: true,
-        _ => ("Look at your screen?", "A screenshot of the screen you're using, for her to see", "screen"));
+        _ => ("Look at your screen?", "A screenshot of the screen you're using, for her to see", "screen"))
+    {
+        Private = true,
+    };
+
+    /// <summary>
+    /// Reads the titles of the player's open windows, to see what they are working on when they ask for help with it.
+    /// Titles are the player's own, so it is set on the Privacy tab; it only reads, so it needs no asking unless they want that.
+    /// </summary>
+    /// <param name="titles">The titles, the window in front first (with the app each belongs to).</param>
+    public static Tool WindowTitles(Func<IReadOnlyList<string>> titles) => new(
+        AIFunctionFactory.Create(
+            () => titles() is { Count: > 0 } open
+                ? "The player's open windows, the one in front first:\n" + string.Join("\n", open.Select(t => "- " + t))
+                : "No windows are open.",
+            "window_titles",
+            "Reads the titles of the player's open windows, the one in front first: a browser shows its tab's title (\"1. Two Sum - LeetCode\"), " +
+            "an editor its file, a video player its video. Use it when they ask for help with what they're working on and haven't said what it is; not otherwise."),
+        "Read your window titles",
+        OutsideApp: false)
+    {
+        Private = true,
+    };
+
+    /// <summary>Reads one web page's words (see <see cref="Pages"/>). It only reads, so she needs no permission.</summary>
+    /// <param name="read">Reads it; throws, saying why, when it can't.</param>
+    public static Tool ReadPage(Func<Uri, CancellationToken, Task<string>> read) => new(
+        AIFunctionFactory.Create(
+            async ([Description("The page's full address, starting with https://")] string url, CancellationToken cancel = default) =>
+                await read(Page(url) ?? throw new ArgumentException("only web pages (addresses starting with https:// or http://) can be read"), cancel),
+            "read_page",
+            "Reads a web page's words: an article, documentation, a page from search results, a link the player gave you. A page that only fills " +
+            "in with scripts in a browser comes back empty (LeetCode's problems: use leetcode_problem)."),
+        "Read web pages",
+        OutsideApp: false)
+    {
+        FromWeb = true,
+    };
+
+    /// <summary>Web search through the player's own SearXNG (an add-on, see <see cref="SearXng"/>). It only reads.</summary>
+    /// <param name="search">Searches; throws, saying what to fix, when SearXNG can't.</param>
+    public static Tool WebSearch(Func<string, CancellationToken, Task<string>> search) => new(
+        AIFunctionFactory.Create(
+            async ([Description("What to search for, as you would type it into a search engine")] string query, CancellationToken cancel = default) =>
+                await search(query, cancel),
+            SearchName,
+            "Searches the web: for what is current or that you don't know (news, opening times, documentation, an explanation to point them to). " +
+            "Gives the first results' titles, addresses and snippets; read_page reads one in full."),
+        "Search the web",
+        OutsideApp: false)
+    {
+        FromWeb = true,
+    };
+
+    /// <summary>
+    /// The provider's own web search (Anthropic's): run by the provider in the middle of her reply, its results seen by
+    /// her alone. Offered in place of a function, so it is never asked about.
+    /// </summary>
+    public static Tool ProviderSearch() => new(
+        AIFunctionFactory.Create(() => "", SearchName, "Searches the web, run by the player's AI provider itself."),
+        "Search the web",
+        OutsideApp: false)
+    {
+        Hosted = new HostedWebSearchTool(),
+        FromWeb = true,
+    };
+
+    /// <summary>A LeetCode problem's public data, for hints (see <see cref="LeetCodeProblems"/>). It only reads.</summary>
+    /// <param name="describe">Looks it up; throws, saying why, when it can't.</param>
+    public static Tool LeetCodeProblem(Func<string, CancellationToken, Task<string>> describe) => new(
+        AIFunctionFactory.Create(
+            async ([Description("The problem: its link, number (\"1\"), name (\"Two Sum\") or a browser tab's title (\"1. Two Sum - LeetCode\")")] string problem,
+                   CancellationToken cancel = default) =>
+                await describe(problem, cancel),
+            "leetcode_problem",
+            "Looks up a LeetCode problem: its statement, difficulty, topics and LeetCode's own hints, to help the player with it a step at a time. " +
+            "To see which problem they are on, read their window titles first, if you can."),
+        "Look up LeetCode problems",
+        OutsideApp: false);
+
+    /// <summary>Opens an app from the player's Start menu (see <see cref="Apps"/>). It acts outside the app, so she asks first.</summary>
+    /// <param name="apps">The apps in the player's Start menu.</param>
+    /// <param name="open">Opens one (the app's own way of doing it).</param>
+    public static Tool OpenApp(Func<IReadOnlyList<AppShortcut>> apps, Action<AppShortcut> open) => new(
+        AIFunctionFactory.Create(
+            ([Description("The app's name, as their Start menu shows it (\"Visual Studio Code\", \"Anki\", \"Notion\")")] string app) =>
+            {
+                var (found, maybe) = Apps.Find(apps(), app);
+                if (found is null)
+                    return maybe.Count > 0 ? $"Several apps match: {string.Join(", ", maybe.Select(a => a.Name))}. Ask which one they mean."
+                                           : $"There's no app called \"{app}\" in their Start menu.";
+                open(found);
+                return $"Opened {found.Name}.";
+            },
+            "open_app",
+            "Opens an app on the player's PC from their Start menu: an editor, a study app, a notes app. Not games: those are started from the cabinet. " +
+            "The player is asked first."),
+        "Open an app",
+        OutsideApp: true,
+        arguments => Apps.Find(apps(), Text(arguments, "app") ?? "").Found is { } found ? Asked("Open this app?", found.Name, found.Name) : null);
 
     /// <summary>
     /// Counts something good the player did towards their play time (see <see cref="Activities"/>): she names it and,
@@ -149,6 +251,8 @@ public static class BuiltIn
             "down, at it time to sleep, and play after it costs more until 04:00. The player confirms on a card; it counts from tomorrow."),
         "Set the bedtime",
         OutsideApp: false);
+
+    private static (string What, string Detail, string? Scope)? Asked(string what, string detail, string? scope) => (what, detail, scope);
 
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>
     public static Uri? Page(string? url) =>

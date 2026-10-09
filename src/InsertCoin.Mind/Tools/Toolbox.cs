@@ -40,9 +40,12 @@ public sealed record Asking(Tool Tool, string What, string Detail, string? Scope
 /// </summary>
 /// <param name="Title">What the player sees it called (Chat settings → Abilities).</param>
 /// <param name="OutsideApp">It acts outside the app (opens a page, plays music): she asks first unless the player allowed it.</param>
-/// <param name="Ask">What the card says for a call's arguments; without it, the title and the arguments as given.</param>
+/// <param name="Ask">
+/// What the card says for a call's arguments; without it, the title and the arguments as given. Null for a call that
+/// would do nothing outside the app (no app by that name): nothing to ask about.
+/// </param>
 /// <param name="Source">Where it comes from: <see cref="BuiltIn"/>, or a connector's name.</param>
-public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Func<AIFunctionArguments, (string What, string Detail, string? Scope)>? Ask = null,
+public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Func<AIFunctionArguments, (string What, string Detail, string? Scope)?>? Ask = null,
                           string Source = Tool.BuiltIn)
 {
     public const string BuiltIn = "built-in";
@@ -51,6 +54,24 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
 
     /// <summary>Its permission until the player chooses: acting outside the app asks first; reading, and acting inside it, don't.</summary>
     public Permission Standard => OutsideApp ? Permission.Ask : Permission.Allowed;
+
+    /// <summary>
+    /// It looks at what is the player's own (their screen, their window titles): it is set on the Privacy tab, and Auto
+    /// never skips asking for it.
+    /// </summary>
+    public bool Private { get; init; }
+
+    /// <summary>
+    /// It brings in text from the web (a page, search results), which may try to talk her into things: once it has run
+    /// in a reply, Auto stops going ahead for the rest of that reply, and what acts outside the app asks again.
+    /// </summary>
+    public bool FromWeb { get; init; }
+
+    /// <summary>
+    /// Run by the provider itself (its own web search): offered in place of <see cref="Function"/>, which then only names
+    /// and describes it. The provider runs it in the middle of a reply, so it is never asked about.
+    /// </summary>
+    public AITool? Hosted { get; init; }
 }
 
 /// <summary>
@@ -72,7 +93,7 @@ public sealed class Toolbox
     private readonly SortedDictionary<string, Tool> _tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Permission> _chosen = [];
     private IList<AITool>? _offered;
-    private bool _refused;
+    private bool _refused, _hostedRefused, _readTheWeb;
 
     public Toolbox(IEnumerable<Tool> tools, IReadOnlyDictionary<string, Permission>? chosen = null)
     {
@@ -122,11 +143,57 @@ public sealed class Toolbox
         }
     }
 
+    /// <summary>
+    /// The provider turned its own tools down (web search not enabled for the account, say): the others are still
+    /// offered, without those, until the provider changes.
+    /// </summary>
+    public bool HostedRefused
+    {
+        get => _hostedRefused;
+        set
+        {
+            _hostedRefused = value;
+            _offered = null;
+        }
+    }
+
+    /// <summary>Whether a tool the provider runs is offered now.</summary>
+    public bool Hosting => !_refused && !_hostedRefused && _tools.Values.Any(t => t.Hosted is not null && PermissionOf(t) != Permission.Off);
+
+    /// <summary>Adds a tool, or replaces the one with its name (the web search, when the player changes how she searches).</summary>
+    public void Put(Tool tool)
+    {
+        _tools[tool.Name] = tool;
+        _offered = null;
+    }
+
+    /// <summary>Takes a tool away (no web search at all, say).</summary>
+    public void Take(string name)
+    {
+        if (_tools.Remove(name))
+            _offered = null;
+    }
+
+    /// <summary>A new reply begins: nothing from the web has been read in it yet (see <see cref="Tool.FromWeb"/>).</summary>
+    public void Fresh() => _readTheWeb = false;
+
     /// <summary>The model has begun calling <paramref name="name"/> (one of hers): <see cref="Starting"/> is raised.</summary>
     public void Begun(string name)
     {
         if (_tools.TryGetValue(name, out var tool))
             Starting?.Invoke(tool);
+    }
+
+    /// <summary>
+    /// The provider is running one of its own tools (<paramref name="name"/>, its web search) in the middle of the reply:
+    /// <see cref="Using"/> is raised, so her body shows her busy, and what it brings in counts as read from the web.
+    /// </summary>
+    public void Hosted(string name)
+    {
+        if (!_tools.TryGetValue(name, out var tool) || tool.Hosted is null)
+            return;
+        _readTheWeb |= tool.FromWeb;
+        Using?.Invoke(tool);
     }
 
     /// <summary>The player's choices replace the ones held (from settings, or the Abilities tab).</summary>
@@ -152,7 +219,8 @@ public sealed class Toolbox
         {
             if (_refused)
                 return null;
-            _offered ??= [.. _tools.Values.Where(t => PermissionOf(t) != Permission.Off).Select(t => (AITool)t.Function)];
+            _offered ??= [.. _tools.Values.Where(t => PermissionOf(t) != Permission.Off && !(t.Hosted is not null && _hostedRefused))
+                                          .Select(t => t.Hosted ?? t.Function)];
             return _offered.Count > 0 ? _offered : null;
         }
     }
@@ -166,12 +234,15 @@ public sealed class Toolbox
         var given = Describe(arguments);
         if (!_tools.TryGetValue(function.Name, out var tool))
             return ($"There is no tool called {function.Name}.", $"You tried to use {function.Name}, which you don't have.");
-        var (what, detail, scope) = tool.Ask?.Invoke(arguments) ?? (tool.Title, given, null);
-        switch (PermissionOf(tool, scope))
+        var asking = tool.Ask is null ? (tool.Title, given, null) : tool.Ask(arguments);
+        var (what, detail, scope) = asking ?? ("", "", null);
+        var permission = PermissionOf(tool, scope);
+        switch (asking is null && permission == Permission.Ask ? Permission.Allowed : permission)
         {
             case Permission.Off:
                 return ("The player has switched this off.", $"You tried to use {tool.Name} ({given}), which the player has switched off.");
-            case Permission.Ask when !Auto:
+            // Auto goes ahead, except for what is the player's own, and once something from the web is in front of her
+            case Permission.Ask when !Auto || tool.Private || _readTheWeb:
                 var answer = await AskPlayer(new Asking(tool, what, detail, scope), cancel);
                 cancel.ThrowIfCancellationRequested();
                 if (answer == Answer.No)
@@ -187,6 +258,7 @@ public sealed class Toolbox
                 break;
         }
         Using?.Invoke(tool);
+        _readTheWeb |= tool.FromWeb;
         object? result;
         try
         {
@@ -207,6 +279,14 @@ public sealed class Toolbox
     public static bool Refuses(Exception e) =>
         e is not OperationCanceledException && e is not TimeoutException
         && (e.Message.Contains("tool", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("function", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Whether a failed request looks like the provider turning its own web search down: Anthropic answers "web search
+    /// is not enabled" when the account's administrator switched it off.
+    /// </summary>
+    public static bool RefusesHosted(Exception e) =>
+        e is not OperationCanceledException && e is not TimeoutException
+        && (e.Message.Contains("web search", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("web_search", StringComparison.OrdinalIgnoreCase));
 
     private static string Describe(AIFunctionArguments arguments) =>
         arguments.Count == 0 ? "" : Short(JsonSerializer.Serialize(arguments.ToDictionary(a => a.Key, a => a.Value), Readable), 160);

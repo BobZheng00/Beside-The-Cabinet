@@ -154,6 +154,6 @@ public class AttachmentTests
         var tool = BuiltIn.LookAtScreen(() => "Taken.");
 
         Assert.Equal(Permission.Ask, tool.Standard);
-        Assert.Equal("screen", tool.Ask!(new AIFunctionArguments()).Scope);
+        Assert.Equal("screen", tool.Ask!(new AIFunctionArguments())!.Value.Scope);
     }
 }

@@ -111,6 +111,7 @@ public partial class Stool : Node2D
         _chat = new Chat(dataDir) { ReminderLead = () => settings.Now.ReminderLead };
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
+        _chat.SearchThrough(settings.Now.AddOns.Search);
         _chat.Connect(ChatProvider());
         _chatBox = new ChatBox();
         AddChild(_chatBox);
@@ -372,7 +373,8 @@ public partial class Stool : Node2D
         if (_chat.Store.Mark("rest.said") == today)
             return;
         var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && now.Hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
-        note ??= Rest.Notice(state.Days, state.Today?.Bedtime, state.TimeLeftMs(rules), rules.DayStartsAt);
+        if (_settings.Now.Privacy.Days)                    // what the record of days shows, unless the player keeps it from her
+            note ??= Rest.Notice(state.Days, state.Today?.Bedtime, state.TimeLeftMs(rules), rules.DayStartsAt);
         if (note is null)
             return;
         _chat.Store.SetMark("rest.said", today);
@@ -384,7 +386,7 @@ public partial class Stool : Node2D
     private string? AskBedtime(LedgerState state, Rules rules, DateTimeOffset now)
     {
         var asked = _chat.Store.Mark("bedtime.asked")?.Split('|');
-        var usual = Rest.Usual(state.Days, rules.DayStartsAt);
+        var usual = _settings.Now.Privacy.Days ? Rest.Usual(state.Days, rules.DayStartsAt) : null;
         var times = asked is [var count, _] && int.TryParse(count, out var n) ? n : 0;
         if (times >= 2 || times == 1 && (usual is null || !DateOnly.TryParse(asked![1], out var first) || first.AddDays(7) > DateOnly.FromDateTime(now.DateTime)))
             return null;
@@ -1123,7 +1125,7 @@ public partial class Stool : Node2D
         var lines = new List<string> { _situation() };
         if (_focus.Session is { } session)
             lines.Add(session.Describe(DateTimeOffset.Now));
-        if (_music.Now is not null)
+        if (_music.Now is not null && _settings.Now.Privacy.Music)
             lines.Add(_music.Describe());
         if (_settings.Now.Playlists.Length > 0)
             lines.Add("Their saved playlists: " + string.Join(", ", _settings.Now.Playlists.Select(p =>
@@ -1201,7 +1203,7 @@ public partial class Stool : Node2D
         _chatSettings = new ChatSettings();
         AddChild(_chatSettings);
         _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, _settings.Now.HandsFree, Listening.HasEars, Listening.HasTurns, _settings.Now.ChatWindow,
-                            _settings.Now.ChatPrices, _settings.Now.Currency);
+                            _settings.Now.ChatPrices, _settings.Now.Currency, _settings.Now.Privacy, _settings.Now.AddOns);
         _chatSettings.PricesSaved += (model, prices, currency) =>
         {
             var all = new Dictionary<string, Prices>(_settings.Now.ChatPrices);
@@ -1211,13 +1213,15 @@ public partial class Stool : Node2D
                 all[model] = prices;
             _settings.Save(_settings.Now with { ChatPrices = all, Currency = currency });
         };
-        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions, auto) =>
+        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions, auto, privacy, addOns) =>
         {
             _settings.Save(_settings.Now with
             {
                 ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
                 TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window, ToolPermissions = new(permissions), ToolsAuto = auto,
+                Privacy = privacy, AddOns = addOns,
             });
+            _chat.SearchThrough(addOns.Search);
             _chat.Tools.Choose(permissions);
             _chat.Tools.Auto = auto;
             _chat.UseWindow(window);
@@ -1387,6 +1391,9 @@ public partial class Stool : Node2D
             case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
             case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab
             case "abilities": OpenChatSettings(); _chatSettings?.DevAbilities(); break;     // its Abilities tab
+            case "privacy": OpenChatSettings(); _chatSettings?.DevPrivacy(); break;     // its Privacy tab
+            case "addons": OpenChatSettings(); _chatSettings?.DevAddOns(); break;     // its Add-ons tab
+            case "fakewindows": OpenWindows.StandIn = text.Split('|'); break;    // fakewindows:title|title: the window titles she reads instead
             case "memo":                                    // memo:title:text: she prints a memo, as the tool has her do
                 var parts = text.Split(':', 2);
                 Her?.Typing();

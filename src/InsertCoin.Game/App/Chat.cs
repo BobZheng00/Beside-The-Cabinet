@@ -4,6 +4,7 @@ using System.Runtime.Versioning;
 using Godot;
 using InsertCoin.Core;
 using InsertCoin.Game.Companion;
+using InsertCoin.Game.Desktop;
 using InsertCoin.Mind;
 using Microsoft.Extensions.AI;
 
@@ -20,6 +21,7 @@ namespace InsertCoin.Game.App;
 public sealed class Chat : IDisposable
 {
     private static readonly TimeSpan AnswerTimeout = TimeSpan.FromSeconds(90);
+    private static readonly System.Net.Http.HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
     /// <summary>The <see cref="UseSearch"/> choice for no local model: recall by shared words only.</summary>
     public const string WordsOnly = "words";
@@ -38,6 +40,9 @@ public sealed class Chat : IDisposable
     private CompanionView? _view;                       // where the reply under way is played
     private bool _folding, _upkeeping, _cutting;
     private DateTimeOffset _upkeepAfter;
+    private readonly Pages _pages = new(Pages.Web());
+    private readonly LeetCodeProblems _leetCode = new(Http);
+    private SearXng? _searxng;
 
     public Chat(string dataDir)
     {
@@ -45,7 +50,9 @@ public sealed class Chat : IDisposable
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
-                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct)])
+                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
+                             BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
+                             BuiltIn.OpenApp(StartMenu.Apps, StartMenu.Open)])
         {
             AskPlayer = AskFirst,
         };
@@ -182,8 +189,43 @@ public sealed class Chat : IDisposable
         _talk = timed is null ? null : new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies");
         _usage.Clear();
         Tools.Refused = false;                          // a new provider or model may take tools
+        Tools.HostedRefused = false;
+        UseWebSearch();
         UseWindow(_window);
         UseSearch(_search);
+    }
+
+    /// <summary>
+    /// Searches the web through the player's own SearXNG (the add-on) from now on, or, with null, through the provider's
+    /// own search where it has one.
+    /// </summary>
+    public void SearchThrough(Uri? searxng)
+    {
+        _searxng = searxng is null ? null : new SearXng(Http, searxng);
+        UseWebSearch();
+    }
+
+    /// <summary>How she searches the web now, in a few words for the settings; null when she can't.</summary>
+    public string? WebSearch => _searxng is { } searx ? $"through your SearXNG at {searx.Address.Authority}"
+                              : _provider?.Protocol == Protocol.Anthropic ? (Tools.HostedRefused ? null : "with your provider's own search (Anthropic's)")
+                              : null;
+
+    /// <summary>Her web search: the player's SearXNG when the add-on is on, else the provider's own (Anthropic's), else none.</summary>
+    private void UseWebSearch()
+    {
+        if (_searxng is { } searx)
+            Tools.Put(BuiltIn.WebSearch(searx.Search));
+        else if (_provider?.Protocol == Protocol.Anthropic)
+            Tools.Put(BuiltIn.ProviderSearch());
+        else
+            Tools.Take(BuiltIn.SearchName);
+    }
+
+    /// <summary>A search through SearXNG at <paramref name="address"/>, for the add-on's Test button: how many results, or what is wrong.</summary>
+    public static async Task<string> TrySearXng(Uri address)
+    {
+        var found = await new SearXng(Http, address).Results("LeetCode two sum");
+        return found.Count == 0 ? "SearXNG answered, but with no results: check its search engines." : $"Works: {found.Count} results, the first {found[0].Url}";
     }
 
     /// <summary>How much of the conversation she keeps word for word (tokens); null: what suits the provider.</summary>
