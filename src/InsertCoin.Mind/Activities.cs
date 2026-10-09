@@ -198,6 +198,16 @@ public sealed class Activities(MindStore store, TimeProvider? clock = null, Rand
 
     private Payout? Paid(Activity activity, double share) => Pay(activity.Name, activity.Size, share);
 
+    /// <summary>
+    /// The activity she knows that something on the agenda is ("Go to the gym" is the gym, "Walk with Sam" a walk): every
+    /// word of its name is among the plan's words; the one with the most words, when more than one is.
+    /// </summary>
+    public Activity? Within(string plan)
+    {
+        var words = Key(plan).Split(' ').Select(w => w.Trim(',', '.', '!', '?', ';', ':', '(', ')')).ToHashSet();
+        return store.Activities().Where(a => Key(a.Name).Split(' ').All(words.Contains)).MaxBy(a => Key(a.Name).Split(' ').Length);
+    }
+
     /// <summary>The one she knows by that name: the same words, whatever the case, the spacing or a leading "the", "a" or "my".</summary>
     private Activity? Find(string name) => store.Activities().FirstOrDefault(a => Key(a.Name) == Key(name));
 

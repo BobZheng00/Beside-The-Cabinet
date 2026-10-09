@@ -29,6 +29,25 @@ public class CheckInTests
         Assert.Equal(["Job interview"], Agenda.ToAskAbout(plans, Monday, lastTalked: Monday.AddHours(-6), After).Select(p => p.Text));
         Assert.Empty(Agenda.ToAskAbout(plans, Monday, lastTalked: Monday.AddHours(-1), After));        // they have talked since: she had her chance
         Assert.Contains("They had \"Job interview\" (Mon 5 Oct 11:00, 3 hours ago) and you have not heard how it went.", Agenda.CheckIn(interview, Monday));
+        Assert.DoesNotContain("log_activity", Agenda.CheckIn(interview, Monday));
+    }
+
+    [Fact]
+    public void Something_on_the_agenda_that_is_an_activity_she_knows_can_count_when_she_asks_how_it_went()
+    {
+        using var temp = new TempStore();
+        temp.Store.KeepActivity(new Activity("the gym", Core.Size.Medium, true, Monday.AddDays(-7)));
+        temp.Store.KeepActivity(new Activity("a walk", Core.Size.Small, true, Monday.AddDays(-7)));
+        temp.Store.KeepActivity(new Activity("a long walk", Core.Size.Medium, true, Monday.AddDays(-7)));
+        var activities = new Activities(temp.Store, new FakeClock(Monday));
+        var gym = new Plan(1, "Go to the gym", Monday.AddHours(-3), false, null, null, Monday.AddDays(-1), null, Repeat.Once, null, null);
+
+        var note = Agenda.CheckIn(gym, Monday, activities.Within(gym.Text));
+
+        Assert.Contains("one of the activities that count towards their play time (the gym): if they say they did it, log it with log_activity", note);
+        Assert.Equal("a long walk", activities.Within("Long walk by the river")?.Name);     // the one that says most
+        Assert.Equal("a walk", activities.Within("Walk with Sam")?.Name);
+        Assert.Null(activities.Within("Job interview"));
     }
 
     [Fact]

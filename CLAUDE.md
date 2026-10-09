@@ -177,8 +177,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 1. ~~the streak counting any good day~~ *built 2026-10-09*;
 2. ~~thinking sounds~~ *built 2026-10-09* and made in Hana's voice in a test run; how they sound is for the user's ears (`<tools>\voice-trial\thinking`) (tools spec, "Bridging a tool's wait"; `Thinking`, `Voice.MakeSounds`);
 3. ~~answering her card by voice~~ *built 2026-10-09*, tried with recordings through her real ears, not yet with the real microphone (`SpokenAnswer`; tools spec, "Not yet");
-4. an agenda item that is an activity ("gym at 6": her check-in afterwards can count it);
-5. bedtime drift: when nights run late, suggesting a bedtime earlier by steps;
+4. ~~an agenda item that is an activity~~ *built 2026-10-09* (`Activities.Within`, `Agenda.CheckIn`);
+5. ~~bedtime drift~~ *built 2026-10-09*: a step towards the bedtime in her notice (`Rest.Drift`, `Rest.Step`); the bedtime itself stays the player's;
 6. memos: dragged onto the cabinet's side by hand; her phone and paper on other skins;
 7. ~~the 2.4 s of near-silence once seen at the start of her audio~~ cut since 2026-10-09 (`QuietStart`): measured, almost every line began with 0.4 to 1.4 s of it, so she now answers that much sooner;
 8. later abilities, most as add-ons: the clipboard (asking first), weather, writing to the calendar (Google or Microsoft sign-in), local MCP servers, a gesture per sentence (parked: motion files);

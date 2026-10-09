@@ -65,6 +65,27 @@ public class RestTests
     }
 
     [Fact]
+    public void Nights_well_past_bedtime_bring_a_step_towards_it_not_the_whole_way()
+    {
+        DayRecord[] days = [Night(1, 1, 30), Night(2, 1, 20), Night(3, 1, 40), Night(4, 1, 30), Night(5, 1, 35), Night(6, 1, 25)];
+
+        var notice = Rest.Notice(days, Eleven, 0, Four);
+
+        Assert.Contains("usually end around 01:30", notice);
+        Assert.Contains("in bed by about 01:00 for the next few nights, then earlier again", notice);
+        Assert.Contains("the bedtime is theirs to keep", notice);
+    }
+
+    [Fact]
+    public void Nights_just_past_bedtime_or_too_few_to_tell_bring_no_step()
+    {
+        DayRecord[] near = [Night(1, 23, 32), Night(2, 23, 36), Night(3, 23, 33), Night(4, 23, 36), Night(5, 23, 32), Night(6, 23, 36)];
+
+        Assert.DoesNotContain("in bed by", Rest.Notice(near, Eleven, 0, Four));       // usually about 23:30: half an hour isn't drift
+        Assert.DoesNotContain("in bed by", Rest.Notice([Night(3, 0, 30), Night(4, 1, 15), Night(5, 23, 10), Night(6, 2, 0)], Eleven, 0, Four));
+    }
+
+    [Fact]
     public void Without_a_bedtime_late_is_past_one_in_the_morning()
     {
         Assert.Null(Rest.Notice([Night(3, 0, 30), Night(4, 1, 15), Night(5, 1, 0), Night(6, 0, 50)], null, 0, Four));

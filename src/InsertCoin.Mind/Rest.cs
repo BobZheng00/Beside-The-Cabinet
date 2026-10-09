@@ -16,6 +16,13 @@ public enum Nudge { WindDown, Bedtime, StillUp, LongPlay }
 public static class Rest
 {
     public static readonly TimeSpan Before = TimeSpan.FromMinutes(30), After = TimeSpan.FromMinutes(30), LongPlay = TimeSpan.FromHours(2);
+
+    /// <summary>
+    /// When the player's usual night ends this far past their bedtime, she suggests a step towards it rather than the
+    /// whole way at once: in bed <see cref="Step"/> earlier than usual for a few nights, then earlier again. Sleep
+    /// times move best in small steps; the bedtime they set stays theirs.
+    /// </summary>
+    public static readonly TimeSpan Drift = TimeSpan.FromMinutes(45), Step = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan Day = TimeSpan.FromDays(1), LastWord = TimeSpan.FromHours(1);
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
@@ -63,13 +70,28 @@ public static class Rest
             var latest = late.Max(d => Into(d.LastActive!.Value.TimeOfDay, dayStartsAt));
             return $"From the record of days: the player was still at the PC past {(bedtime is null ? "one in the morning" : $"their bedtime ({Clock(line)})")} " +
                    $"on {late.Count} of the last {nights.Count} nights, once until about {Clock(latest + dayStartsAt)}. If it fits, mention it once, briefly " +
-                   "and without lecturing; the bedtime is theirs to keep.";
+                   "and without lecturing; the bedtime is theirs to keep." + StepTowards(days, bedtime, dayStartsAt);
         }
         var quiet = days.TakeLast(3).ToList();
         if (quiet.Count == 3 && quiet.All(d => d.PlayedMs < 60_000) && bankedMs >= 30 * 60_000)
             return $"From the record of days: the player hasn't played for three days, with {Words.Span(bankedMs)} banked (half of it fades each night). " +
                    "Rest counts too: you might suggest they enjoy some of it.";
         return null;
+    }
+
+    /// <summary>
+    /// A step towards the player's bedtime, when their nights usually end <see cref="Drift"/> or more past it: in bed
+    /// <see cref="Step"/> earlier than usual (never earlier than the bedtime itself), as a sentence for the notice; empty
+    /// otherwise.
+    /// </summary>
+    private static string StepTowards(IReadOnlyList<DayRecord> days, TimeSpan? bedtime, TimeSpan dayStartsAt)
+    {
+        if (bedtime is not { } goal || Usual(days, dayStartsAt) is not { } usual || Into(usual, dayStartsAt) - Into(goal, dayStartsAt) < Drift)
+            return "";
+        var step = Into(usual, dayStartsAt) - Step;
+        var by = (step < Into(goal, dayStartsAt) ? goal : step + dayStartsAt);
+        return $" Their nights usually end around {Clock(usual)}: rather than the whole way at once, you might suggest a step, in bed by about " +
+               $"{Clock(TimeSpan.FromTicks(by.Ticks % Day.Ticks))} for the next few nights, then earlier again once that holds.";
     }
 
     /// <summary>

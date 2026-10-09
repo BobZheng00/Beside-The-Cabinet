@@ -194,7 +194,10 @@ Reminders… to change it).
 next day), she gives you a word to wind down half an hour before it, says it's time to sleep at it, and once more half
 an hour after, then leaves it; in a game, tickets. After two hours in one game she suggests a break. Without a bedtime
 she asks for one, once, some evening (and once more a week on, with your usual time from the record of days). At most
-once a day she mentions what the record shows: nights going on late, or days without play while time is banked.
+once a day she mentions what the record shows: nights going on late, or days without play while time is banked. When your
+nights usually end well past your bedtime, she suggests a step towards it (in bed half an hour earlier than usual for a
+few nights) rather than the whole way at once; your bedtime stays as you set it. And when she asks how something on your
+agenda went that is one of your activities ("gym at 6"), saying you went counts it.
 
 **Activities.** Tell her about something good you did ("I went to the gym", "I cooked dinner") and she counts it towards
 your play time: it pays like a problem of its size (small 1 coin, medium 2, big 4), once a day. The first time, she sizes

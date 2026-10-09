@@ -535,7 +535,7 @@ public partial class Stool : Node2D
         {
             _lively(60);
             Her!.Play(Moment.Greet);
-            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now), "", Situation(), Her, _voice.Begin(), _voice.Language);
+            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now, _activities.Within(plan.Text)), "", Situation(), Her, _voice.Begin(), _voice.Language);
             if (_chat.Replied is { } asked)
                 _listening.Said(answer: false, asked);
         }
