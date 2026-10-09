@@ -37,7 +37,7 @@ public partial class PermissionCard : Node2D
         _what.AddThemeColorOverride("font_color", Paper.Ink);
         _detail = new Label
         {
-            AutowrapMode = TextServer.AutowrapMode.Arbitrary, MaxLinesVisible = 2, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart, MaxLinesVisible = 3, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             CustomMinimumSize = new Vector2(Width - 32, 0),
         };
         _detail.AddThemeFontSizeOverride("font_size", 14);

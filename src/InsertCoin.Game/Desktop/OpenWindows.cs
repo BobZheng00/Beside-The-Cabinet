@@ -41,6 +41,32 @@ public static class OpenWindows
         return [.. found.OrderBy(f => f.Window == front ? 0 : 1).Select(f => f.Title).Distinct().Take(MostShown)];
     }
 
+    /// <summary>
+    /// The window the player was working in: the frontmost the taskbar would show that isn't the cabinet's or minimised
+    /// (typing to her, the slip is in front; the window under it is theirs). Null when there is none. A test run gets the
+    /// first stand-in title, with no window.
+    /// </summary>
+    public static (IntPtr Window, string Title)? Working()
+    {
+        if (StandIn is not null || Paper.OffScreen)
+            return (StandIn ?? TestTitles) is [var first, ..] ? (IntPtr.Zero, Bare(first)) : null;
+        var own = Environment.ProcessId;
+        (IntPtr, string)? found = null;
+        EnumWindowsProc each = (window, _) =>
+        {
+            if (IsIconic(window) || Shown(window, own) is not { } title)
+                return true;
+            found = (window, Bare(title));
+            return false;                                   // windows come frontmost first
+        };
+        EnumWindows(each, IntPtr.Zero);
+        GC.KeepAlive(each);
+        return found;
+    }
+
+    /// <summary>A title as listed, without the app it belongs to.</summary>
+    private static string Bare(string listed) => listed.EndsWith(')') && listed.LastIndexOf(" (", StringComparison.Ordinal) is > 0 and var app ? listed[..app] : listed;
+
     /// <summary>A window's title and app as listed, or null for one the taskbar wouldn't show.</summary>
     private static string? Shown(IntPtr window, int own)
     {
@@ -73,6 +99,7 @@ public static class OpenWindows
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc each, IntPtr data);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window, uint relation);
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr window, int index);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextLength(IntPtr window);

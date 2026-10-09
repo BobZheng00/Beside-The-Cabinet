@@ -50,7 +50,7 @@ public sealed class Chat : IDisposable
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
-                             BuiltIn.LookAtScreen(LookAtScreen), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
+                             BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
                              BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
                              BuiltIn.OpenApp(StartMenu.Apps, StartMenu.Open)])
         {
@@ -109,21 +109,24 @@ public sealed class Chat : IDisposable
 
     private Task<string> SetBedtimeAct(string time, CancellationToken cancel) => Bedtime?.Invoke(time, cancel) ?? Task.FromResult("Bedtimes can't be set here.");
 
-    /// <summary>Takes a screenshot of the screen the player is using, for her tool; null when it can't be taken.</summary>
-    public Func<Attachment?>? Screen { get; set; }
+    /// <summary>
+    /// Takes a screenshot for her tool, of the whole screen or of the window the player was working in: the picture, and
+    /// what it is of; null when it can't be taken.
+    /// </summary>
+    public Func<bool, (Attachment Shot, string Of)?>? Screen { get; set; }
 
-    private Attachment? _shot;                          // a screenshot she took in the reply under way, shown to her right after it
+    private (Attachment Shot, string Of)? _shot;        // a screenshot she took in the reply under way, shown to her right after it
 
-    private string LookAtScreen()
+    private string LookAtScreen(bool whole)
     {
-        if (Screen?.Invoke() is not { } shot)
+        if (Screen?.Invoke(whole) is not { } shot)
             return "The screenshot couldn't be taken.";
         _shot = shot;
         return "Taken: you'll see it right after this reply. Say only a few words now (that you're having a look).";
     }
 
-    /// <summary>The screenshot she took in her last reply, to show her now; null when she took none.</summary>
-    public Attachment? TakeShot()
+    /// <summary>The screenshot she took in her last reply, and what it is of, to show her now; null when she took none.</summary>
+    public (Attachment Shot, string Of)? TakeShot()
     {
         var shot = _shot;
         _shot = null;

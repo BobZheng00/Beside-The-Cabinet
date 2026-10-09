@@ -5,14 +5,15 @@ using InsertCoin.Game.Companion;
 namespace InsertCoin.Game.Desktop;
 
 /// <summary>
-/// A screenshot of the monitor the mouse pointer is on, as the screen shows it (the cabinet too), through Windows' own
-/// drawing, as a Godot image. A test run (off screen) never takes the player's screen: only a stand-in picture, if one
+/// A screenshot as the screen shows it (the cabinet too), through Windows' own drawing, as a Godot image: of the monitor
+/// the mouse pointer is on, or of the window the player was working in (or its monitor). A test run (off screen) never takes the player's screen: only a stand-in picture, if one
 /// was given.
 /// </summary>
 public static class Screenshot
 {
     private const int SrcCopy = 0x00CC0020, CaptureBlt = 0x40000000;
     private const uint DefaultToNearest = 2;
+    private const int ExtendedFrameBounds = 9;
 
     /// <summary>A picture taken instead of the screen (test runs; the dev action <c>fakescreen</c>).</summary>
     public static string? StandIn { get; set; }
@@ -25,10 +26,39 @@ public static class Screenshot
             return null;
         GetCursorPos(out var pointer);
         var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        if (!GetMonitorInfo(MonitorFromPoint(pointer, DefaultToNearest), ref info))
+        return GetMonitorInfo(MonitorFromPoint(pointer, DefaultToNearest), ref info) ? Capture(info.Monitor) : null;
+    }
+
+    /// <summary>
+    /// A screenshot of a window as the screen shows it (its frame, without the shadow, within its monitor): what the
+    /// player was working in, at full detail. With <paramref name="whole"/>, of the whole monitor it is on.
+    /// </summary>
+    public static Image? Of(IntPtr window, bool whole)
+    {
+        if (StandIn is not null)
+            return Image.LoadFromFile(StandIn);
+        if (Paper.OffScreen || window == IntPtr.Zero)
             return null;
-        var (left, top) = (info.Monitor.Left, info.Monitor.Top);
-        var (width, height) = (info.Monitor.Right - left, info.Monitor.Bottom - top);
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(MonitorFromWindow(window, DefaultToNearest), ref info))
+            return null;
+        if (whole)
+            return Capture(info.Monitor);
+        if (DwmGetWindowAttribute(window, ExtendedFrameBounds, out var frame, Marshal.SizeOf<Rect>()) != 0 && !GetWindowRect(window, out frame))
+            return Capture(info.Monitor);
+        var seen = new Rect
+        {
+            Left = Math.Max(frame.Left, info.Monitor.Left), Top = Math.Max(frame.Top, info.Monitor.Top),
+            Right = Math.Min(frame.Right, info.Monitor.Right), Bottom = Math.Min(frame.Bottom, info.Monitor.Bottom),
+        };
+        return seen.Right - seen.Left < 50 || seen.Bottom - seen.Top < 50 ? Capture(info.Monitor) : Capture(seen);
+    }
+
+    /// <summary>What the screen shows in <paramref name="area"/> (the cabinet too, where it is over it).</summary>
+    private static Image? Capture(Rect area)
+    {
+        var (left, top) = (area.Left, area.Top);
+        var (width, height) = (area.Right - left, area.Bottom - top);
         var screen = GetDC(IntPtr.Zero);
         var memory = CreateCompatibleDC(screen);
         var bitmap = CreateCompatibleBitmap(screen, width, height);
@@ -88,6 +118,9 @@ public static class Screenshot
 
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out Point point);
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromPoint(Point point, uint flags);
+    [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out Rect area);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out Rect value, int size);
     [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
     [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
     [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);

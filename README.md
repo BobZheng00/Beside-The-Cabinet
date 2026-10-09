@@ -145,7 +145,9 @@ can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](docs/specs/2026-10-05-tools-and-abilities.md).
 
 **Help with learning.** Ask her for help with what you're on ("help me with this") and she reads your window titles to
-see what it is (a browser tab's title, an editor's file), then helps a step at a time, each only when you ask for more: a
+see what it is (a browser tab's title, an editor's file), and when she needs to see it (your code, an error, an
+exercise) she asks to take a screenshot of the window you were working in (the card names it; "your whole screen" if you
+say so). Then she helps a step at a time, each only when you ask for more: a
 nudge, the approach, an outline, and the whole answer only if you ask again after that; long steps come as a memo. For a
 LeetCode problem she looks up its statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is
 found by its number). She can read a web page you name, and search the web: with your provider's own search where it

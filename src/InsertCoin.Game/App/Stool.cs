@@ -127,7 +127,11 @@ public partial class Stool : Node2D
         };
         _chatBox.PastedPicture += picture => HandPicture(picture, "pasted", photo: false);
         _chatBox.PastedFiles += Hand;
-        _chat.Screen = () => Screenshot.Take() is { } screen ? Handing.Picture(screen, "screen", photo: false).Thing : null;
+        // her screenshots: the window the player was working in (or its whole monitor), else the screen the pointer is on
+        _chat.Screen = whole => OpenWindows.Working() is { } working && Screenshot.Of(working.Window, whole) is { } picture
+            ? (Handing.Picture(picture, whole ? "screen" : "window", photo: false).Thing,
+               whole ? $"the player's screen ({working.Title} in front)" : $"the window the player was working in ({working.Title})")
+            : Screenshot.Take() is { } screen ? (Handing.Picture(screen, "screen", photo: false).Thing, "the player's screen") : null;
         _activities = new Activities(_chat.Store)
         {
             Confirm = ConfirmActivity,
@@ -1103,7 +1107,7 @@ public partial class Stool : Node2D
                 // she took a look at their screen: once she has said she will, she sees it and answers
                 for (var waited = 0; _voice.Speaking && waited < 80; waited++)
                     await ToSignal(GetTree().CreateTimer(0.1), Godot.Timer.SignalName.Timeout);
-                await _chat.Announce("This is the screenshot you took of the player's screen.", "", Situation(), her, _voice.Begin(), _voice.Language, [shot]);
+                await _chat.Announce($"This is the screenshot you took of {shot.Of}.", "", Situation(), her, _voice.Begin(), _voice.Language, [shot.Shot]);
                 if (_chat.Replied is { } seen)
                     _listening.Said(answer: true, seen);
             }

@@ -87,23 +87,34 @@ public static class BuiltIn
         });
 
     /// <summary>
-    /// Looks at the player's screen: a screenshot of the screen they are using, which she is shown right after this
-    /// reply. A screenshot can show anything, so she asks first.
+    /// Looks at the player's screen: a screenshot, shown to her right after this reply, of the window they were working
+    /// in (at full detail, for code, an error, an exercise) or of their whole screen. It is how she helps with what they
+    /// see. A screenshot can show anything, so it is on the Privacy tab and asks first unless they allowed it; the card
+    /// names the window.
     /// </summary>
-    /// <param name="take">Takes it, to be shown to her next (the app's own way of doing it); returns what she is told.</param>
-    public static Tool LookAtScreen(Func<string> take) => new(
+    /// <param name="take">Takes it, of the whole screen or not, to be shown to her next (the app's own way of doing it); returns what she is told.</param>
+    /// <param name="working">The title of the window the player was working in, for the card; null when there is none.</param>
+    public static Tool LookAtScreen(Func<bool, string> take, Func<string?> working) => new(
         AIFunctionFactory.Create(
-            () => take(),
+            ([Description("window (the default): the window they were working in, at full detail; screen: their whole screen")] string? part = null) =>
+                take(Whole(part)),
             "look_at_screen",
-            "Takes a screenshot of the screen the player is using, to be shown to you right after this reply. Use it when they ask you to look at " +
-            "their screen, at what they are doing, or at something on it. In this reply say only a few words (that you'll have a look); you answer " +
-            "once you see it. The player is asked first."),
+            "Takes a screenshot, shown to you right after this reply: of the window the player was working in (their editor, a browser tab, " +
+            "a PDF), or of their whole screen. Use it when they ask you to look at their screen or something on it, or for help with what " +
+            "they're working on when you need to see it: their code, an error, an exercise, a diagram (the window titles name it; this shows " +
+            "it). In this reply say only a few words (that you'll have a look); you answer once you see it. The player is asked first, unless " +
+            "they allowed it."),
         "Look at your screen",
         OutsideApp: true,
-        _ => ("Look at your screen?", "A screenshot of the screen you're using, for her to see", "screen"))
+        arguments => Whole(Text(arguments, "part")) || working() is not { } title
+            ? ("Look at your screen?", "A screenshot of the screen you're working on, for her to see", "screen")
+            : ("Look at this window?", $"A screenshot of {title}, for her to see", "screen"))
     {
         Private = true,
     };
+
+    /// <summary>Whether she asked for the whole screen rather than the window they were working in.</summary>
+    private static bool Whole(string? part) => part?.Trim().ToLowerInvariant() is "screen" or "whole" or "full" or "whole screen";
 
     /// <summary>
     /// Reads the titles of the player's open windows, to see what they are working on when they ask for help with it.
@@ -117,7 +128,8 @@ public static class BuiltIn
                 : "No windows are open.",
             "window_titles",
             "Reads the titles of the player's open windows, the one in front first: a browser shows its tab's title (\"1. Two Sum - LeetCode\"), " +
-            "an editor its file, a video player its video. Use it when they ask for help with what they're working on and haven't said what it is; not otherwise."),
+            "an editor its file, a video player its video. Use it when they ask for help with what they're working on and haven't said what it is; " +
+            "not otherwise. A title names it; to see it (their code, an error), look at their screen."),
         "Read your window titles",
         OutsideApp: false)
     {

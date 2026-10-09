@@ -15,7 +15,7 @@ public class LearningTests
     public async Task What_is_the_players_own_still_asks_in_auto()
     {
         var asked = new List<string>();
-        var tools = new Toolbox([BuiltIn.LookAtScreen(() => "Taken."), BuiltIn.WindowTitles(() => ["1. Two Sum - LeetCode (chrome)"])])
+        var tools = new Toolbox([BuiltIn.LookAtScreen(_ => "Taken.", () => null), BuiltIn.WindowTitles(() => ["1. Two Sum - LeetCode (chrome)"])])
         {
             Auto = true,
             AskPlayer = (asking, _) => { asked.Add(asking.Tool.Name); return Task.FromResult(Answer.Once); },

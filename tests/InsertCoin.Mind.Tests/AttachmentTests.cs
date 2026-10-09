@@ -149,11 +149,21 @@ public class AttachmentTests
     }
 
     [Fact]
-    public void Looking_at_the_screen_asks_first_and_always_covers_every_screenshot()
+    public async Task Looking_at_the_screen_asks_first_naming_the_window_and_always_covers_every_screenshot()
     {
-        var tool = BuiltIn.LookAtScreen(() => "Taken.");
+        var whole = new List<bool>();
+        var tool = BuiltIn.LookAtScreen(screen => { whole.Add(screen); return "Taken."; }, () => "solution.py - Visual Studio Code");
+
+        var window = tool.Ask!(new AIFunctionArguments())!.Value;
+        var screen = tool.Ask!(new AIFunctionArguments { ["part"] = "Screen" })!.Value;
+        await tool.Function.InvokeAsync(new AIFunctionArguments());
+        await tool.Function.InvokeAsync(new AIFunctionArguments { ["part"] = "screen" });
 
         Assert.Equal(Permission.Ask, tool.Standard);
-        Assert.Equal("screen", tool.Ask!(new AIFunctionArguments())!.Value.Scope);
+        Assert.True(tool.Private);
+        Assert.Equal(("Look at this window?", "A screenshot of solution.py - Visual Studio Code, for her to see", "screen"), window);
+        Assert.Equal(("Look at your screen?", "screen"), (screen.What, screen.Scope));
+        Assert.Equal([false, true], whole);                 // the window they were working in unless she asks for the whole screen
+        Assert.Equal("Look at your screen?", BuiltIn.LookAtScreen(_ => "", () => null).Ask!(new AIFunctionArguments())!.Value.What);
     }
 }
