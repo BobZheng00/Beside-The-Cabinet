@@ -43,7 +43,7 @@ public static class Prompt
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.{(tools ? Abilities : "")}
 
-            Lines starting with [cabinet], and the <now>, <agenda>, <cabinet> and <character> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
+            Lines starting with [cabinet], and the <now>, <agenda>, <cabinet>, <character> and <voice> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
             Remembering: when the player's message is mainly telling you something worth keeping (a plan, a date, a goal, a like or dislike, something about their life), start your reply with [note: the fact in one short third-person sentence, dates made absolute] and say briefly that you'll remember it. Don't do this when it comes up in the middle of something else, for small talk, or for the cabinet's numbers; you remember those anyway.
 
@@ -89,7 +89,10 @@ public static class Prompt
         // last of all, after what the player said: who she is, so a long conversation doesn't wear her character down
         // (character-card apps' post-history instructions; here in the turn, which is never cached anyway)
         var steady = persona.Steady ?? $"Reply as {persona.Name}, in character: {persona.Name}'s own voice, manner and way of speaking, as described at the start.";
-        Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>");
+        // and how her voice works, as her earlier lines in the history show only what was shown, never a [say]
+        var voice = voiceLanguage is null ? ""
+            : $"\n<voice>\nYour voice speaks {SpokenLanguage.Name(voiceLanguage)}. Writing in another language, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
+        Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>{voice}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));
@@ -125,7 +128,8 @@ public static class Prompt
         };
         var letters = language switch
         {
-            "ja" => " In Japanese, write names and other foreign words in katakana (サム, リートコード): your voice reads Latin letters as English.",
+            "ja" => " In Japanese, write names and other foreign words in katakana (サム, リートコード): your voice reads Latin letters as English. " +
+                    "Call the player by name with さん (サムさん), unless your character's description or the player says otherwise.",
             "ko" => " In Korean, write names and other foreign words in Hangul (샘, 리트코드): your voice reads Latin letters as English.",
             _ => "",
         };

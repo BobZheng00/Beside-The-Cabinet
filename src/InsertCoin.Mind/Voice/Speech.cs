@@ -18,13 +18,19 @@ public sealed class Speech(string language, Action<string> speak)
     private readonly Sentences _sentences = new();
     private readonly StringBuilder _shown = new();
     private readonly List<(int Start, int? End)> _lines = [];  // each spoken line's part of the shown text (a [say]'s ends where the next begins)
-    private int _searchFrom;
+    private int _searchFrom, _written, _given;          // sentences shown and sentences given to her voice (see Unheard)
     private bool _subtitled, _finished;
 
     public string Language => language;
 
     /// <summary>Nothing of the reply was given to the voice (no [say], and nothing written in its language).</summary>
     public bool Silent => _lines.Count == 0;
+
+    /// <summary>
+    /// About how many sentences of the reply were shown with nothing for her voice to say: the model gave several
+    /// sentences one [say], or none. Counted over the whole reply, since a translation keeps to its sentences.
+    /// </summary>
+    public int Unheard => Math.Max(0, _written - _given);
 
     /// <summary>Pieces of the reply's text that have come in: while it stays the same, she is still thinking (see <see cref="Thinking"/>).</summary>
     public int Pieces { get; private set; }
@@ -52,6 +58,7 @@ public sealed class Speech(string language, Action<string> speak)
         if (_lines.Count > 0 && _lines[^1].End is null)
             _lines[^1] = (_lines[^1].Start, _shown.Length);
         _lines.Add((_shown.Length, null));                  // its subtitle is what is shown from here to the next [say]
+        _given += Count(spoken);
         speak(spoken);
     }
 
@@ -91,6 +98,8 @@ public sealed class Speech(string language, Action<string> speak)
 
     private void Written(string sentence)
     {
+        if (SpokenLanguage.Of(sentence) is not null)
+            _written++;
         if (_subtitled || !Speaks(language, sentence))
             return;
         // the sentence's place in the shown text (it was trimmed, and is found from where the last one ended)
@@ -100,6 +109,13 @@ public sealed class Speech(string language, Action<string> speak)
             at = _searchFrom;
         _searchFrom = Math.Min(shown.Length, at + sentence.Length);
         _lines.Add((at, _searchFrom));
+        _given++;
         speak(sentence);
+    }
+
+    private static int Count(string text)
+    {
+        var sentences = new Sentences();
+        return sentences.Feed(text).Count + (sentences.Finish() is null ? 0 : 1);
     }
 }

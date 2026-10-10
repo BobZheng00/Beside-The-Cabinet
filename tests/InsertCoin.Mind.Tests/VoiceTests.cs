@@ -55,6 +55,20 @@ public class VoiceTests
         speech.Text("You did well.");
         speech.Finish();
         Assert.Equal(["おかえり！", "よく頑張ったね。"], spoken);
+        Assert.Equal(0, speech.Unheard);
+    }
+
+    [Fact]
+    public void Sentences_shown_under_one_say_that_covers_only_the_first_go_unheard_and_are_counted()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("say", "おかえり、ボブ！");
+        speech.Text("晚上好，回来啦！明早十点要去超市。顺便问一句，你希望每天几点前睡着？");
+        speech.Finish();
+
+        Assert.Equal(["おかえり、ボブ！"], spoken);
+        Assert.Equal(2, speech.Unheard);
     }
 
     [Fact]
@@ -127,7 +141,18 @@ public class VoiceTests
 
         Assert.Contains("the two say the same thing: nothing added or left out, names included", ja);
         Assert.Contains("In Japanese, write names and other foreign words in katakana", ja);
+        Assert.Contains("Call the player by name with さん", ja);
         Assert.DoesNotContain("katakana", en);
+    }
+
+    [Fact]
+    public void With_a_voice_her_turn_ends_with_a_reminder_of_say_since_her_lines_in_the_history_have_none()
+    {
+        var ja = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "ja")[^1].Text;
+        var none = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi")[^1].Text;
+
+        Assert.EndsWith("<voice>\nYour voice speaks Japanese. Writing in another language, put a [say: ...] in front of every sentence, the last ones too.\n</voice>", ja);
+        Assert.DoesNotContain("<voice>", none);
     }
 
     [Fact]

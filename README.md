@@ -113,8 +113,10 @@ laptop graphics card with 8 GB, which it all but fills; once it starts it tells 
 this PC's own); her voice rests meanwhile, and a game starting stops it. The model
 (about 0.3 GB) goes into the voice's folder, and the window swaps between it and the clones. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
-like a subtitled anime (the model writes `[say: …]` before each sentence, told the two must say the same; a Japanese
-voice gets names in katakana, since it reads Latin letters as English). While a game runs she rests her voice:
+like a subtitled anime (the model writes `[say: …]` before each sentence, told the two must say the same and reminded
+at the end of each turn; a Japanese voice gets names in katakana, since it reads Latin letters as English, and calls
+you by name with さん unless her character or you say otherwise). A sentence left without a `[say]` is silent, and
+the log counts them ("went unheard"). While a game runs she rests her voice:
 the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
 "Mute sounds" mutes her too. Clicking her stops her mid-sentence, and so does talking over her with the talk key
 or asking something new. She then remembers only what you heard, ending where she stopped, plus what she hadn't said

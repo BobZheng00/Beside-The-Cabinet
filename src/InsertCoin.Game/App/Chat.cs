@@ -450,6 +450,8 @@ public sealed class Chat : IDisposable
                 speech?.Finish();
                 if (speech is { Silent: true } && text.Length > 0)
                     GD.Print($"Voice: nothing to say aloud: her reply had no [say: …] and isn't in her voice's language ({speech.Language})");
+                else if (speech is { Unheard: > 0 } partly)
+                    GD.Print($"Voice: about {partly.Unheard} of her reply's sentences went unheard: the model gave them no [say: …] of their own");
                 Replied = text.Length > 0 ? text : null;
             }
         }
