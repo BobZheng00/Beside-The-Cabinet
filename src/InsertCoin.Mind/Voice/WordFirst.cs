@@ -16,8 +16,12 @@ public static class WordFirst
     public const string Ask = "In a moment you will bring something up with the player on your own. First, only get their attention: " +
                               "a few words of your own, in character (their name, say). Nothing else yet.";
 
-    /// <summary>What her mind is told with the remark itself, so that she doesn't call them a second time.</summary>
-    public const string Called = "You have just called them by name to get their attention, and they are listening: go straight to it.";
+    /// <summary>
+    /// What her mind is told with the remark itself, so that she doesn't call them a second time: told only to go
+    /// straight to it, the user's model still opened with their name again ("BobSmith? BobSmith, stand up…", 2026-10-10).
+    /// </summary>
+    public const string Called = "You have just called them by name to get their attention, and they answered: go straight to it, " +
+                                 "without their name or a greeting.";
 
     /// <summary>What the player's answer to her call means.</summary>
     public enum Reply { GoOn, NotNow }

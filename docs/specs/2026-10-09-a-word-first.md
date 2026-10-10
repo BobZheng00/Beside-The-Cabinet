@@ -99,7 +99,7 @@ The user, on their own model (a GPT model through their provider), with two remi
 
 Then hidden runs with Hana's voice and a mock model, standing up as the remark: Not now stopped her after "Bob, got a
 sec?" (68 characters kept unsaid), Yes? brought the rest, a reminder went straight on, and the requests carried the
-new wording. Not yet tried: the real mouse on Yes? and Not now, and the new wording on the user's model.
+new wording. The user has since tried Yes? with the real mouse, on their model (below).
 
 ## The call asked for on its own (2026-10-10, the user's design)
 
@@ -113,7 +113,12 @@ request each time she brings something up herself, a few a day.
 Tried in hidden runs with Hana's voice and a mock model answering the two requests apart: a fresh call ("Bob, got a
 sec?") and Not now, the rest kept unsaid; then the call request failing, her last call used, and Yes? bringing the
 remark alone; in a new profile with the call request failing, she went straight on. Her line is the call and the
-remark together. Not yet tried: the user's own model.
+remark together.
+
+Then the user, on their own model (F8, 2026-10-10): the call came on its own in 11 seconds ("BobSmith?"), the remark in
+38 (their provider was slow), unseen while she waited; Yes? brought the rest, in English, her voice in Japanese; a
+second F8 within two minutes went straight on. The remark opened with their name again ("BobSmith? BobSmith, stand
+up…"), so it is now told to go straight to it without their name or a greeting.
 
 ## Not built, and why
 
