@@ -265,27 +265,26 @@ public partial class Stool : Node2D
     // ---- Check-ins: how did it go? ---------------------------------------------------------------------------------
 
     private static readonly TimeSpan CheckInAfter = TimeSpan.FromMinutes(15), BackFor = TimeSpan.FromMinutes(2), Away = TimeSpan.FromMinutes(5),
-        GentleGap = TimeSpan.FromHours(3);
+        Pause = TimeSpan.FromMinutes(1), GentleGap = TimeSpan.FromHours(3);
     private DateTimeOffset? _activeSince;                   // the player has been at the PC since then, with no break of five minutes
+    private DateTimeOffset? _settledSince;                  // and using it since then, with no pause of a minute: they have sat down to something
     private DateTimeOffset _lastCheckIn = DateTimeOffset.MinValue;
 
     /// <summary>
     /// Every fifteen seconds: when something the player told her about has been over for a while (see
-    /// <see cref="Agenda.ToAskAbout"/>), she asks how it went, but only once they are back and free: at the PC for two
-    /// minutes and using it now, not in a call (another app has the microphone or camera), not in anything Windows
-    /// holds notifications back for (full screen, presenting, quiet time, locked), not in the quiet hours, and not while
-    /// she is busy. Gentle: one every three hours at most. A meeting that runs over keeps its call going, so she waits.
+    /// <see cref="Agenda.ToAskAbout"/>), she asks how it went, but only once they are back and free: settled at the PC
+    /// (see <see cref="Settled"/>, so not as they sit down) and using it now, not in a call (another app has the microphone
+    /// or camera), not in anything Windows holds notifications back for (full screen, presenting, quiet time, locked), not
+    /// in the quiet hours, and not while she is busy. Gentle: one every three hours at most. A meeting that runs over keeps its call going, so she waits.
     /// </summary>
     private void MaybeCheckIn(bool force = false)
     {
         var now = DateTimeOffset.Now;
         var idle = UserActivity.IdleFor();
-        if (idle >= Away)
-            _activeSince = null;
-        else
-            _activeSince ??= now - idle;
+        _activeSince = idle >= Away ? null : _activeSince ?? now - idle;
+        _settledSince = idle >= Pause ? null : _settledSince ?? now - idle;
         var mode = _settings.Now.CheckIns;
-        if (!force && (mode == "Off" || Quiet(now.Hour) || idle > TimeSpan.FromMinutes(1) || _activeSince is not { } since || now - since < BackFor
+        if (!force && (mode == "Off" || Quiet(now.Hour) || idle > Pause || !Settled(now)
                        || mode == "Gentle" && now - _lastCheckIn < GentleGap))
             return;
         if (!_chat.Ready || Her is null || !_settings.Now.SpeechBubbles || Busy || _reminding.Count > 0 || _chat.Conversation is not { } conversation)
@@ -371,8 +370,7 @@ public partial class Stool : Node2D
                 _told.Enqueue(("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), now));
             }
         }
-        if (!_chat.Ready || _gameRunning || Busy || !here || Presence.DoNotDisturb || Presence.InCall || Quiet(now.Hour)
-            || _activeSince is not { } since || now - since < BackFor)
+        if (!_chat.Ready || _gameRunning || Busy || !here || Presence.DoNotDisturb || Presence.InCall || Quiet(now.Hour) || !Settled(now))
             return;
         var today = night.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         if (_chat.Store.Mark("rest.said") == today)
@@ -386,6 +384,12 @@ public partial class Stool : Node2D
         GD.Print("Rest: she has something to say about rest");
         _told.Enqueue(("REST", note, "", now));             // only her mind says these
     }
+
+    /// <summary>
+    /// Whether the player has settled at the PC: two minutes of use since they last left it for a minute or more. What
+    /// can wait waits for this, so it doesn't meet them as they sit down, while they aren't listening yet.
+    /// </summary>
+    private bool Settled(DateTimeOffset now) => _settledSince is { } since && now - since >= BackFor;
 
     /// <summary>With no bedtime set: asking for one, once; a second time a week on, if the record of days shows their usual night by then.</summary>
     private string? AskBedtime(LedgerState state, Rules rules, DateTimeOffset now)

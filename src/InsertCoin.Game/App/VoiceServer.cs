@@ -97,6 +97,7 @@ public sealed class VoiceServer : IDisposable
         foreach (var arg in new[] { "api_v2.py", "-a", "127.0.0.1", "-p", port.ToString() })
             start.ArgumentList.Add(arg);
         start.Environment["PYTHONIOENCODING"] = "utf-8";
+        start.Environment["PYTHONUNBUFFERED"] = "1";          // its log keeps up: every line she was given to say, as it came
         var process = _process = Process.Start(start) ?? throw new InvalidOperationException("GPT-SoVITS did not start");
         CabinetJob.Tie(process, "GPT-SoVITS");
         var writer = _logWriter;

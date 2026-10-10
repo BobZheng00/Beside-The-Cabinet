@@ -120,6 +120,17 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_japanese_voice_is_told_its_lines_match_their_subtitles_and_names_go_in_katakana()
+    {
+        var ja = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "ja")[0].Text;
+        var en = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "en")[0].Text;
+
+        Assert.Contains("the two say the same thing: nothing added or left out, names included", ja);
+        Assert.Contains("In Japanese, write names and other foreign words in katakana", ja);
+        Assert.DoesNotContain("katakana", en);
+    }
+
+    [Fact]
     public void Without_a_voice_the_prompt_says_nothing_about_one() =>
         Assert.DoesNotContain("[say", Prompt.Build(new Persona("Shino", "x"), "", "", null, [], "", "hi")[0].Text);
 

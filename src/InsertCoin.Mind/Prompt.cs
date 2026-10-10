@@ -108,7 +108,8 @@ public static class Prompt
 
     /// <summary>
     /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in
-    /// another (the bubble is the subtitle), nothing extra when she writes in her voice's own language.
+    /// another (the bubble is the subtitle, so the two say the same), nothing extra when she writes in her voice's own
+    /// language. Names go in the letters of her voice's language: in Latin letters a Japanese voice says them as English.
     /// </summary>
     private static string Voice(string? language)
     {
@@ -122,10 +123,17 @@ public static class Prompt
             "ko" => "[say: 어서 와!] Welcome back! [say: 오늘도 수고했어.] You did well today.",
             _ => "[say: Welcome back!] 欢迎回来！[say: You did well today.] 今天也很努力呢。",
         };
+        var letters = language switch
+        {
+            "ja" => " In Japanese, write names and other foreign words in katakana (サム, リートコード): your voice reads Latin letters as English.",
+            "ko" => " In Korean, write names and other foreign words in Hangul (샘, 리트코드): your voice reads Latin letters as English.",
+            _ => "",
+        };
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
                $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard; the rest is shown as its subtitle, " +
-               $"so a sentence without one is silent. Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
-               $"(\"[plan: ...] [say: ...] ...\"). When you write in {name}, leave [say] out.";
+               $"so a sentence without one is silent, and the two say the same thing: nothing added or left out, names included. " +
+               $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
+               $"(\"[plan: ...] [say: ...] ...\"). When you write in {name}, leave [say] out.{letters}";
     }
 
     /// <summary>The request that folds older lines into the summary (auto-compaction).</summary>

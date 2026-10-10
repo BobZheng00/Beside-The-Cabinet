@@ -191,7 +191,9 @@ chunked one). Checked against a local receiver; the Windows notification was see
 - **Check-ins.** She asks how something went once it has been over 15 minutes, only for things the player told her
   about (not reminders to do something, repeats or calendar entries: a busy calendar would have her asking all
   day), once, and not if they have talked since it ended (her turn had it under "Just past"). Only when the player
-  is back and free: at the PC for two minutes and active now; not in a call (another program has the microphone
+  is back and free: settled at the PC (two minutes of use since they last left it for a minute or more; *since
+  2026-10-09*: it counted from their last five-minute break, so after a shorter one she spoke as they sat back down)
+  and active now; the once-a-day word on rest waits the same way; not in a call (another program has the microphone
   or camera, from Windows' own record of their use: a start with no stop counts only within 12 hours and while
   that program runs, as programs that end mid-call never record the stop); not when Windows holds notifications
   back (`SHQueryUserNotificationState`: locked, full screen, presenting, quiet time); not in quiet hours
