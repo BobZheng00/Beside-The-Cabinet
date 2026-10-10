@@ -134,15 +134,17 @@ public class VoiceTests
     }
 
     [Fact]
-    public void A_japanese_voice_is_told_its_lines_match_their_subtitles_and_names_go_in_katakana()
+    public void A_japanese_voice_is_told_its_subtitles_translate_it_names_go_in_katakana_and_san_stays_in_the_japanese()
     {
         var ja = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "ja")[0].Text;
         var en = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "en")[0].Text;
 
-        Assert.Contains("the two say the same thing: nothing added or left out, names included", ja);
+        Assert.Contains("a faithful translation in the player's language: nothing added or left out, names included", ja);
         Assert.Contains("In Japanese, write names and other foreign words in katakana", ja);
-        Assert.Contains("Call the player by name with さん", ja);
+        Assert.Contains("When you say the player's name in Japanese, add さん", ja);
+        Assert.Contains("the subtitle, being a translation, has just their name: [say: サムさん？] Sam?", ja);
         Assert.DoesNotContain("katakana", en);
+        Assert.DoesNotContain("さん", en);
     }
 
     [Fact]
@@ -151,7 +153,7 @@ public class VoiceTests
         var ja = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "ja")[^1].Text;
         var none = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi")[^1].Text;
 
-        Assert.EndsWith("<voice>\nYour voice speaks Japanese, and you write in the language the player writes in. When that isn't Japanese, " +
+        Assert.EndsWith("<voice>\nYour voice speaks Japanese, and you write in the language the player last wrote in. When that isn't Japanese, " +
                         "put a [say: ...] in front of every sentence, the last ones too.\n</voice>", ja);
         Assert.DoesNotContain("<voice>", none);
     }

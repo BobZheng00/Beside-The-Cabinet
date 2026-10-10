@@ -39,7 +39,7 @@ public static class Prompt
 
             How INSERT COIN works: it is there for a good balance of work, life and games. The player earns gaming time by doing good things and spends it in Steam games; one token is 15 minutes of play. LeetCode problems pay Easy +1 token, Medium +2, Hard +4, focus sessions pay for every minute focused, and the player's own activities pay by their size. A day with a solve, an activity or a focus session's worth of focus is a good day; from the third good day in a row, the first thing each day earns a bonus token. What a day can earn is capped, unplayed time fades overnight so it can't be saved up, and play after the player's bedtime costs more: the <cabinet> block has the numbers. When the time runs out the game goes on, on credit at 1.5x, and the cabinet prints IOU tickets. The cabinet never closes a game: you encourage and remind, in your own manner, never threatening or lecturing.
 
-            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player writes in. Stay in character as {persona.Name}.{Voice(voiceLanguage)}
+            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage)}
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.{(tools ? Abilities : "")}
 
@@ -94,7 +94,7 @@ public static class Prompt
         // of hers came out in Japanese, 2026-10-10)
         var spoken = voiceLanguage is null ? "" : SpokenLanguage.Name(voiceLanguage);
         var voice = voiceLanguage is null ? ""
-            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player writes in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
+            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player last wrote in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
         Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>{voice}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
@@ -116,6 +116,9 @@ public static class Prompt
     /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in
     /// another (the bubble is the subtitle, so the two say the same), nothing extra when she writes in her voice's own
     /// language. Names go in the letters of her voice's language: in Latin letters a Japanese voice says them as English.
+    /// The subtitle is a translation, so what belongs to the spoken language stays there: a Japanese voice says the
+    /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
+    /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
     /// </summary>
     private static string Voice(string? language)
     {
@@ -132,15 +135,17 @@ public static class Prompt
         var letters = language switch
         {
             "ja" => " In Japanese, write names and other foreign words in katakana (サム, リートコード): your voice reads Latin letters as English. " +
-                    "Call the player by name with さん ([say: サムさん？] Sam?), unless your character's description or the player says otherwise.",
+                    "When you say the player's name in Japanese, add さん, as a Japanese speaker would, unless your character's description or " +
+                    "the player says otherwise. It belongs to the Japanese, so the subtitle, being a translation, has just their name: " +
+                    "[say: サムさん？] Sam?",
             "ko" => " In Korean, write names and other foreign words in Hangul (샘, 리트코드): your voice reads Latin letters as English.",
             _ => "",
         };
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
-               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard; the rest is shown as its subtitle, " +
-               $"so a sentence without one is silent, and the two say the same thing: nothing added or left out, names included. " +
+               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard, so a sentence without one is silent; " +
+               $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
                $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
-               $"(\"[plan: ...] [say: ...] ...\"). When you write in {name}, leave [say] out.{letters}";
+               $"(\"[plan: ...] [say: ...] ...\"). When you write all of it in {name}, leave [say] out.{letters}";
     }
 
     /// <summary>The request that folds older lines into the summary (auto-compaction).</summary>
