@@ -169,7 +169,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 **Open questions for the user:**
 - ~~whether her idle leg swings should be smaller and rarer~~ keep them as they are (2026-10-09);
-- whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too): they are checking it on the demo (2026-10-09).
+- whether Chat settings is cut off on the right on their real screen (it is in off-screen captures, old version too): they are checking it on the demo (2026-10-09);
+- a remark she starts herself is easy to miss when the player isn't expecting it (2026-10-09, the bedtime question as they sat down). Fixed: she waits until they've settled (`Stool.Settled`). Proposed: hearing her last line again by clicking her bubble, and for things that can wait, getting their attention first and going on once they look her way. How she addresses them in Japanese (ボブ or ボブさん) is her character's: with no card, they can tell her once.
 
 **Answered 2026-10-09:** earphones almost always (a roommate), so no echo test on speakers; mainly English, sometimes Chinese (a Chinese recording for Smart Turn whenever they like); **thinking sounds: yes** (below).
 
