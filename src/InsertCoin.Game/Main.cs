@@ -115,7 +115,11 @@ public partial class Main : Node2D
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
-        _reminders.Sent += notice => _ = SendOut(notice);
+        _reminders.Sent += SendOut;
+        // where the player is goes by their input, a game pad's too; what reaches them away goes to their phone
+        _stool.Idle = Idle;
+        _stool.TextOut = Text;
+        _stool.CanText = () => _settings.ReminderElsewhere.Any;
         _crt = new CrtOs();
         AddChild(_crt);
         _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
@@ -269,10 +273,7 @@ public partial class Main : Node2D
         if (_devGame)
             games.Add(new RunningGame("dev", "Dev Game"));
 
-        var sinceJoypad = DateTimeOffset.Now - _lastJoypad;
-        var idle = _devAfk ? TimeSpan.FromHours(1) : UserActivity.IdleFor() < sinceJoypad ? UserActivity.IdleFor() : sinceJoypad;
-
-        Apply(new Tick(games, elapsed, idle));
+        Apply(new Tick(games, elapsed, Idle()));
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
             Save();
@@ -650,16 +651,36 @@ public partial class Main : Node2D
         public IReadOnlyList<RunningGame> RunningGames() => [];
     }
 
-    /// <summary>A reminder going off, sent beyond the cabinet as the player chose: a Windows notification, their phone…</summary>
-    private async Task SendOut(Notice notice)
+    /// <summary>
+    /// A reminder going off, also kept in Windows' notification centre if the player chose that. It reaches their phone
+    /// through her (see <see cref="Stool.TextOut"/>): while they are away, or also at the PC if they chose that.
+    /// </summary>
+    private void SendOut(Notice notice)
     {
         if (_settings.ReminderWindows)
             WindowsNotice.Show(notice.Title, notice.Text);
+    }
+
+    /// <summary>A text to the player's phone, through each place on Settings → Your phone; a place that fails is logged.</summary>
+    private async Task Text(Notice notice)
+    {
         if (!_settings.ReminderElsewhere.Any)
             return;
         foreach (var (name, error) in await Couriers.Send(Couriered, _settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), notice))
             if (error is not null)
-                GD.PrintErr($"Reminders: could not reach {name}: {error}");
+                GD.PrintErr($"Reaching: could not reach {name}: {error}");
+            else
+                GD.Print($"Reaching: sent to {name}");
+    }
+
+    /// <summary>How long since the player's last input: keys and the mouse, as Windows counts it, or a game pad (the dev key F7 pretends an hour).</summary>
+    private TimeSpan Idle()
+    {
+        if (_devAfk)
+            return TimeSpan.FromHours(1);
+        var sinceJoypad = DateTimeOffset.Now - _lastJoypad;
+        var idle = UserActivity.IdleFor();
+        return idle < sinceJoypad ? idle : sinceJoypad;
     }
 
     // ---- Settings ------------------------------------------------------------------------------------------------------
@@ -741,12 +762,14 @@ public partial class Main : Node2D
     private Control YourPhonePage()
     {
         var page = new PhoneSettings();
-        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
+        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), _settings.AwayMinutes, _settings.AlsoAtThePc);
         page.Chosen += (where, secrets) =>
         {
             SaveSettings(_settings with { ReminderElsewhere = where });
             _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
         };
+        page.AwayChosen += minutes => SaveSettings(_settings with { AwayMinutes = minutes });
+        page.AtThePcChosen += on => SaveSettings(_settings with { AlsoAtThePc = on });
         return page;
     }
 

@@ -6,17 +6,17 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// The agenda's reminders going off. Every few seconds, any whose time has come is printed on a ticket at the screen
-/// corner (always; with Snooze and OK), chimed if the player chose the sound, passed to her to say (she waits until
-/// she has finished what she is saying), and sent on to the other places the player picked. One that came due while
-/// the cabinet was closed (or the PC asleep) goes off when it next runs, saying so. A repeating item moves on to its
-/// next time; past items leave the agenda now and then.
+/// corner (always; with Snooze and OK), chimed if the player chose the sound, passed to her to tell them (said once she
+/// has finished what she is saying, or texted to their phone while they are away), and kept in Windows' notification
+/// centre if they chose. One that came due while the cabinet was closed (or the PC asleep) goes off when it next runs,
+/// saying so. A repeating item moves on to its next time; past items leave the agenda now and then.
 /// </summary>
 public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank audio, Func<AppSettings> settings,
                               Action<IReadOnlyList<Plan>, DateTimeOffset> say)
 {
     private DateTimeOffset _closed = DateTimeOffset.MinValue;
 
-    /// <summary>Somewhere else a reminder goes (a Windows notification, the player's phone…).</summary>
+    /// <summary>A reminder went off: for Windows' notification centre, if the player chose it (their phone hears of it through her).</summary>
     public event Action<Notice>? Sent;
 
     /// <summary>The player's "remind me before things on my agenda", or null.</summary>

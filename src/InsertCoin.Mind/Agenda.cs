@@ -243,10 +243,13 @@ public static partial class Agenda
              .OrderBy(p => p.End)
              .ToList();
 
-    /// <summary>What the cabinet tells her when the player is back and free after <paramref name="plan"/>, for her to ask about it.</summary>
+    /// <summary>
+    /// What the cabinet tells her after <paramref name="plan"/>, for her to ask how it went: at the PC once the player is back
+    /// and free, or in a text while they are out (see <see cref="Reaching"/>), so it says nothing of where they are.
+    /// </summary>
     /// <param name="counts">The activity the plan is, when it is one that counts towards play (see <see cref="Activities.Within"/>).</param>
     public static string CheckIn(Plan plan, DateTimeOffset now, Activity? counts = null) =>
-        $"The player is back at the cabinet and free. They had \"{plan.Text}\" ({plan.Label}, {When.Ago(plan.AllDay ? plan.At.AddHours(12) : plan.At, now)}) " +
+        $"They had \"{plan.Text}\" ({plan.Label}, {When.Ago(plan.AllDay ? plan.At.AddHours(12) : plan.At, now)}) " +
         "and you have not heard how it went. Ask them about it in one short sentence, without pushing." +
         (counts is null ? "" : $" It is one of the activities that count towards their play time ({counts.Name}): if they say they did it, log it with log_activity.");
 

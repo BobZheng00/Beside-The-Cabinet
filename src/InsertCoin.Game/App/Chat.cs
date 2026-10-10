@@ -362,9 +362,23 @@ public sealed class Chat : IDisposable
     public Task Consider(string note, string situation, CompanionView view, Func<Speech?> voice, string? voiceLanguage = null) =>
         Respond(note, fromCabinet: true, fallback: "", situation, view, speech: null, voiceLanguage, voice);
 
+    /// <summary>
+    /// Has her write what the cabinet asks as a text to the player's phone, as they are away from the PC (see
+    /// <see cref="Reaching"/>): written as a remark is and kept in the conversation, but nothing is shown, acted or said
+    /// here. Her words as shown, or null when none came: her mind failed, or took longer than <paramref name="within"/>,
+    /// and then nothing of hers is kept either.
+    /// </summary>
+    public async Task<string?> Text(string note, string situation, CompanionView view, string? voiceLanguage, TimeSpan? within = null)
+    {
+        if (!Ready || Answering)
+            return null;
+        await Respond(note, fromCabinet: true, fallback: null, situation, view, speech: null, voiceLanguage, texting: true, within: within);
+        return Replied;
+    }
+
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
                                Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null,
-                               Func<string, CancellationToken, Task<bool>>? call = null)
+                               Func<string, CancellationToken, Task<bool>>? call = null, bool texting = false, TimeSpan? within = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
@@ -374,6 +388,8 @@ public sealed class Chat : IDisposable
         var conversation = _conversation;
         conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
+        if (within is { } limit)
+            answering.CancelAfter(limit);
         _written = new TaskCompletionSource();
         _speech = speech;
         _view = view;
@@ -382,8 +398,8 @@ public sealed class Chat : IDisposable
         var clock = Stopwatch.StartNew();
         long? shown = null;
         // thought over unseen (see Consider), or written whole while her call is asked for (see WordFirst): her words and
-        // directions are held, and played after
-        var held = voiceLater is null && call is null ? null : new List<Piece>();
+        // directions are held, and played after; a text for the player's phone is held and never played
+        var held = voiceLater is null && call is null && !texting ? null : new List<Piece>();
         var began = false;
         try
         {
@@ -431,7 +447,7 @@ public sealed class Chat : IDisposable
                                       answering.Token, Tools, handed);
             GD.Print(shown is { } ms
                 ? $"Chat: her bubble showed its first words {ms} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms"
-                : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, held to be played after");
+                : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, {(texting ? "written as a text" : "held to be played after")}");
             if (handed is { Count: > 0 })
                 GD.Print($"Chat: handed {string.Join(", ", handed.Select(h => $"{h.Name} ({h.MediaType}, {h.Data.Length / 1024} KB)"))}");
             if (conversation.Unseeing && !CantSee(model))
@@ -441,7 +457,7 @@ public sealed class Chat : IDisposable
             }
             if (Tools.Refused && !refused)
                 GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
-            if (held is not null && Here() && text.Length > 0)
+            if (held is not null && Here() && text.Length > 0 && !texting)
             {
                 void Play(List<Piece> pieces)
                 {
@@ -494,6 +510,10 @@ public sealed class Chat : IDisposable
         {
             // the player cut her off: Interrupt takes it from here
         }
+        catch (OperationCanceledException) when (texting && within is { } allowed && clock.Elapsed >= allowed)
+        {
+            GD.Print($"Chat: her words for a text took longer than {allowed.TotalSeconds:0} s; given up");
+        }
         catch (Exception e)
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
@@ -509,7 +529,7 @@ public sealed class Chat : IDisposable
                     view.Continue(fallback);                // a reminder still gets said, in the plain words; a check-in just lapses
                 }
             }
-            else if (Here())
+            else if (Here() && !texting)                    // a text that failed shows nothing: the plain line goes instead
             {
                 view.Play(Moment.Worry);
                 view.Continue(Trouble.Explain(e));

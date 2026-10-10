@@ -6,14 +6,20 @@ using HttpClient = System.Net.Http.HttpClient;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Your phone: where reminders go besides the cabinet, through ntfy, Discord, Telegram or any webhook, each
-/// with its address or token (kept on this PC, encrypted, see <see cref="KeyStore"/>), and a test that sends one through
-/// those ticked. The fields only show for what is ticked. Each change is used at once.
+/// Settings → Your phone: what reaches the player while they are away from the PC (see <see cref="Reaching"/>): how
+/// long without input makes them away, and whether reminders reach their phone at the PC too; and where it goes,
+/// through ntfy, Discord, Telegram or any webhook, each with its address or token (kept on this PC, encrypted, see
+/// <see cref="KeyStore"/>), with a test that sends one through those ticked. The fields only show for what is ticked.
+/// Each change is used at once.
 /// </summary>
 public partial class PhoneSettings : VBoxContainer
 {
-    /// <summary>Where reminders go, and the addresses and tokens for it, as they are now.</summary>
+    /// <summary>Where her texts go, and the addresses and tokens for it, as they are now.</summary>
     public event Action<Elsewhere, ElsewhereSecrets>? Chosen;
+    /// <summary>The away time, in minutes.</summary>
+    public event Action<int>? AwayChosen;
+    /// <summary>Reminders reach the phone while the player is at the PC too, or not.</summary>
+    public event Action<bool>? AtThePcChosen;
 
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
@@ -21,11 +27,20 @@ public partial class PhoneSettings : VBoxContainer
     private LineEdit _ntfyServer = null!, _ntfyTopic = null!, _ntfyToken = null!, _discordUrl = null!, _telegramToken = null!, _telegramChat = null!, _webhookUrl = null!;
     private Label _result = null!;
 
-    public void Build(Elsewhere elsewhere, ElsewhereSecrets secrets)
+    public void Build(Elsewhere elsewhere, ElsewhereSecrets secrets, int awayMinutes, bool alsoAtThePc)
     {
         Form.Page(this, "Your phone");
-        Form.Hint(this, "Reminders can reach you away from the PC too: on your phone, or in another app. Tick where, and fill in what it asks. " +
-                        "Addresses and tokens stay on this PC, encrypted for your Windows account.");
+        Form.Hint(this, "At the PC she tells you herself. When you're away from it, what matters reaches you here instead, in her words: " +
+                        "reminders, a focus session's turns, and asking how something went. What only makes sense at the PC waits for you.");
+        Form.Slider(Form.Grid(this), "Away after", Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes, awayMinutes,
+                    minutes => $"{minutes} minutes", minutes => AwayChosen?.Invoke(minutes));
+        Form.Hint(this, "Without the mouse or keys; away at once when the screen is locked, or when you tell her you're heading out. In " +
+                        "between she isn't sure: she calls you first, and texts if you don't come back.");
+        Form.Tick(this, "Also while I'm at the PC", alsoAtThePc, on => AtThePcChosen?.Invoke(on));
+        Form.Hint(this, "Reminders reach your phone even when you're at the PC, as a plain line, as they used to.");
+
+        Form.Subheading(this, "Where it goes");
+        Form.Hint(this, "Tick where, and fill in what it asks. Addresses and tokens stay on this PC, encrypted.");
 
         _ntfy = Channel("ntfy", elsewhere.Ntfy, "Free phone notifications, no account: install the ntfy app and subscribe to a topic name only you know.",
                         grid =>

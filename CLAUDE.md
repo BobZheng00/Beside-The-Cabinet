@@ -71,6 +71,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - **Test assets** go in `<tools>\...`, not %TEMP%: a cleanup tool on this PC empties %TEMP%. Pictures and files to hand her: `<tools>\agent-trial\files` (`rotated.jpg`: sideways, with an EXIF time; `screen.png`: a stand-in screenshot; `notes.txt`, `hello.pdf`, `dot.png`; `attach_check.cs` sends a picture and a PDF through both real provider clients to the mock).
 - **Screenshots and the phone page in tests:** a test run never takes the real screen (`fakescreen:` gives a stand-in) and its phone page listens on 127.0.0.1 only, so Windows' firewall never asks.
 - **Settings in tests:** `settings:<page>` opens it at a page, `settingsdo:<label>[:<value>]` presses, ticks, chooses or types there, `settingswidths` logs a page too wide for the window (capture with `-Window "Settings"`). Never flip "Start with Windows" in a test: it is Windows' real setting, not the test profile's. Don't untick "Mute sounds" either, nor tick a chime "even when muted" before a "Try it".
+- **Where the player is, in tests:** a test run takes the player as here (it never goes by the user's own input on this PC); `whereabouts:away` (here, unsure, asleep) says otherwise. Texts go to `hook_sink.py` through `elsewhere:http://127.0.0.1:<port>`.
 - **Mock servers** (never the user's real keys):
 
   | Command | What it is |
@@ -176,15 +177,15 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 **Now: settings and setup** (the user, 2026-10-10: "our config is too long and hard to navigate and there is no clear on boarding guide"; spec `docs/specs/2026-10-10-settings-and-setup.md`).
 - **Decided:** one Settings window, pages listed by what the player wants to do, saved as changed (a connection waits for its own button or guide); guides a step at a time for setup outside the app (Telegram's first, paired by a code, no chat id); Getting started after the initials; a tray of about ten entries.
-- **Order:** 1. the window and the short tray (*built 2026-10-10*: `SettingsWindow`, a page class each, `Form`; the old windows are pages now, Chat settings split into Her mind, Talking aloud, Abilities, Privacy, Add-ons and Usage); 2. reaching the player's step 2 (below), its settings on Your phone; 3. Telegram both ways with the first guide; 4. Getting started, with guides for her mind and the rest.
+- **Order:** 1. the window and the short tray (*built 2026-10-10*: `SettingsWindow`, a page class each, `Form`; the old windows are pages now, Chat settings split into Her mind, Talking aloud, Abilities, Privacy, Add-ons and Usage); 2. reaching the player's step 2 (below), its settings on Your phone (*built 2026-10-10*); 3. Telegram both ways with the first guide; 4. Getting started, with guides for her mind and the rest.
 
-**Next: reaching the player** (the user's turn, 2026-10-10: her as a roommate in real life; spec `docs/specs/2026-10-10-reaching-the-player.md`, not built; its settings go on Settings → Your phone).
+**Next: reaching the player** (the user's turn, 2026-10-10: her as a roommate in real life; spec `docs/specs/2026-10-10-reaching-the-player.md`; its settings are on Settings → Your phone).
 - **Decided:**
   - features only hand over something to tell, with how much it matters (must, should, could) and where it makes sense (anywhere, only at the PC); where the player is (here, unsure, away, asleep) is worked out in one place, and one table decides voice, a word first, or a text;
   - one setting, how much she reaches out: only what you set, like a roommate (default), keeps in touch (texts of her own: some players want a companion app that reaches out);
   - one conversation and memory, at the PC and by text; she answers where the player last spoke to her;
   - Telegram first (paired by a `?start=` code, locked to that chat; not end-to-end encrypted, and the window says so). Discord's text isn't end-to-end encrypted either; Discord and a private route (Tailscale and the phone page) come later.
-- **Order:** 1. the spec (*2026-10-10*); 2. where the player is and the routing, today's features moved onto it, the one-way places in her words; 3. Telegram both ways; 4. how much she reaches out; 5. later: voice notes, Discord, the private route, a channel for mainland China.
+- **Order:** 1. the spec (*2026-10-10*); 2. where the player is and the routing, today's features moved onto it, the one-way places in her words (*built 2026-10-10*: `Reaching` and `Telling` in the Mind, `Stool.Hand`/`PassOn`/`Track`, `Chat.Text`; the spec's "Built" section has what differs from the plan); 3. Telegram both ways; 4. how much she reaches out; 5. later: voice notes, Discord, the private route, a channel for mainland China.
 
 **Open questions for the user:**
 - ~~whether her idle leg swings should be smaller and rarer~~ keep them as they are (2026-10-09);

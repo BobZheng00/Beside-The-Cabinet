@@ -82,7 +82,8 @@ memo…, Check LeetCode now, the switches flipped often (Mute sounds, Voice, Con
 1. The Settings window and the short tray, today's pages moved in as they are (*built 2026-10-10*: `SettingsWindow`,
    a page class each, `Form` for their parts; "Reminders & check-ins" became two pages, Reminders and Check-ins, to
    stay short).
-2. Where the player is and the routing (reaching the player, step 2); its settings go on Your phone.
+2. Where the player is and the routing (reaching the player, step 2); its settings go on Your phone (*built
+   2026-10-10*: the away time on a slider, and "Also while I'm at the PC").
 3. Telegram both ways, with the first guide.
 4. Getting started, with guides for her mind and the rest.
 

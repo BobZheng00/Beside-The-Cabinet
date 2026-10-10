@@ -136,7 +136,7 @@ public partial class SettingsWindow : Window
             return;
         }
         var at = all.FindIndex(c => c is Label named && named.Text.Equals(label, StringComparison.OrdinalIgnoreCase));
-        switch (at < 0 ? null : all.Skip(at + 1).FirstOrDefault(c => c is OptionButton or LineEdit or SpinBox))
+        switch (at < 0 ? null : all.Skip(at + 1).FirstOrDefault(c => c is OptionButton or LineEdit or Godot.Range))
         {
             case OptionButton choice when int.TryParse(value, out var index) && index < choice.ItemCount:
                 choice.Select(index);
@@ -149,7 +149,7 @@ public partial class SettingsWindow : Window
                 field.EmitSignal(LineEdit.SignalName.TextSubmitted, value);
                 GD.Print($"Settings: {label} typed in");
                 break;
-            case SpinBox number:
+            case Godot.Range number:                        // a number to set, or a slider
                 number.Value = double.Parse(value, CultureInfo.InvariantCulture);
                 GD.Print($"Settings: {label} is {number.Value}");
                 break;

@@ -30,7 +30,7 @@ public partial class ReminderSettings : VBoxContainer
     {
         Form.Page(this, "Reminders");
         Form.Hint(this, "Ask her to remind you of something and it goes off at that time, always on a ticket at the corner of the screen, " +
-                        "with Snooze and OK. To have reminders reach your phone too, see Your phone.");
+                        "with Snooze and OK. While you're away from the PC, it reaches your phone instead (see Your phone).");
         var ticket = Form.Grid(this);
         _stays = Form.Choice(ticket, "Ticket stays", Stays.Select(s => s.Label), Array.FindIndex(Stays, s => s.Seconds == choices.TicketSeconds), _ => Changed());
         _snooze = Form.Choice(ticket, "Snooze for", Snoozes.Select(m => $"{m} minutes"), Array.IndexOf(Snoozes, choices.SnoozeMinutes), _ => Changed());

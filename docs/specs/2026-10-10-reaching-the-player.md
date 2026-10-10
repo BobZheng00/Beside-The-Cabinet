@@ -1,6 +1,7 @@
 # Reaching the player
 
-*Decided with the user, 2026-10-10. Not built yet. Numbers marked (to tune) are first guesses, to be set on real use.*
+*Decided with the user, 2026-10-10. Step 2 built the same day (see "Built" below); Telegram both ways and how much she
+reaches out are not built yet. Numbers marked (to tune) are first guesses, to be set on real use.*
 
 ## Why
 
@@ -163,19 +164,60 @@ The reminders' one-way Telegram option becomes this one: a token and chat id alr
 ## The one-way places
 
 ntfy, the Discord webhook and any webhook stay, for players who want notifications only: what she would text goes
-there in her words, with nothing to reply to. They move with Telegram into one window (tray → "Her phone…", name to
-settle), with how much she reaches out, the away time and "also when I'm at the PC". The Windows notification stays with the
-reminders.
+there in her words, with nothing to reply to. They are on Settings → Your phone (spec `2026-10-10-settings-and-setup.md`),
+with the away time and "Also while I'm at the PC", and Telegram and how much she reaches out join them there. The
+Windows notification stays with the reminders.
 
 ## Order
 
 1. This spec.
 2. Where the player is and the routing, with today's features moved onto it. At the PC nothing changes; away, must
    and should reach the one-way places in her words; reminders stop going out while the player is at the PC.
+   *Built 2026-10-10* (below).
 3. Telegram, both ways: pairing, texting, photos and files, buttons for her cards, messages that waited.
 4. How much she reaches out, with "keeps in touch".
 5. Later: voice notes; Discord; the private route; a channel for players in mainland China, where Telegram and
    Discord are blocked.
+
+## Built (step 2, 2026-10-10)
+
+- **One place.** `Reaching` (in the Mind library, with tests) works out where the player is (`Where`), holds the table
+  (`Route`) and says how something comes at the PC (`AtThePc`); `Telling` is what every feature hands over. In the
+  game, `Stool.Hand` takes it, `PassOn` routes it once she is free (the most important first), `Track` watches every
+  second, and `TextOut` (set by `Main`) sends a text through the places on Your phone.
+- **Today's features on it:**
+
+  | What | Matters | Makes sense | Fresh for |
+  |---|---|---|---|
+  | A reminder | must | anywhere | 10 minutes (its ticket has shown it) |
+  | A focus session's turn | must | anywhere | 3 minutes |
+  | Her answer to the player's own press (DONE, START) | must | only at the PC | 3 minutes |
+  | How did it go | should | anywhere | 12 hours (through the night) |
+  | Bedtime words, a break after long play | should | only at the PC | 20 minutes |
+  | Asking for a bedtime | should | only at the PC | 2 hours |
+  | What the record of days shows | could | only at the PC | 2 hours |
+  | Standing up | could | only at the PC | 3 minutes |
+
+- **At the PC, one rule for all** (it was a check in each feature): what stays fresh an hour or more can wait, so
+  it waits until the player has settled in (two minutes of use since sitting down), and is out of a call and a
+  full-screen app or game; the rest comes now: in a call in her bubble only, in full screen or a game only as a
+  ticket. Unsure, she doesn't wait for settled: she reaches out. A must in a game shows only its own ticket now
+  (before, a reminder also went into her bubble, unseen behind a full-screen game).
+- **Texts.** Away, her words are written told it is a text (`Reaching.AsText`, kept with the note), and nothing
+  is shown or said at the PC (`Chat.Text`). A must waits at most 30 seconds for them; then the plain line goes. Her
+  texts come as messages from her (her name, a speech balloon on ntfy), the plain lines as notices (an alarm clock).
+  With no place to text through, what would be texted waits for the player instead.
+- **Kept in case they had gone.** A must said while unsure, or a should whose call goes unanswered, keeps her
+  words as a text; it goes once the player is away (the away time with no input, a locked screen), and is dropped at
+  their next input.
+- **Heading out.** Her mind marks `[out]` or `[sleep]` when the player says they are leaving now or going to
+  sleep; it holds until they use the PC again more than a minute after (`Reaching.Leaving`).
+- **Asleep** is away in the quiet hours, or after `[sleep]`.
+- **The check-in's note** no longer says the player is back at the cabinet, as it may go by text.
+- **Settings → Your phone:** "Away after" (a slider, 2 to 30 minutes, 5 by default) and "Also while I'm at the PC"
+  (reminders to the phone as a plain line at the PC too, as before).
+- **Tests and dev.** A test run takes the player as here (it never goes by whoever sits at this PC);
+  `whereabouts:away` (here, unsure, asleep) says where they are, `whereabouts:off` watches again.
 
 ## Not chosen, and why
 

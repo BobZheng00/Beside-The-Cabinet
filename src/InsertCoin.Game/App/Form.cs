@@ -85,6 +85,28 @@ public static class Form
         return choice;
     }
 
+    /// <summary>A slider for a whole number, what it is set to written beside it, and what to do when it moves.</summary>
+    public static HSlider Slider(GridContainer grid, string label, int min, int max, int value, Func<int, string> says, Action<int> moved)
+    {
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", 12);
+        var slider = new HSlider
+        {
+            MinValue = min, MaxValue = max, Step = 1, Value = value, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, CustomMinimumSize = new Vector2(160, 0),
+        };
+        var shown = new Label { Text = says(value), CustomMinimumSize = new Vector2(100, 0) };
+        slider.ValueChanged += now =>
+        {
+            shown.Text = says((int)now);
+            moved((int)now);
+        };
+        row.AddChild(slider);
+        row.AddChild(shown);
+        Row(grid, label, row);
+        return slider;
+    }
+
     /// <summary>A field to type in, and what to do with each change.</summary>
     public static LineEdit Field(GridContainer grid, string label, string? value, string placeholder, bool secret = false, Action<string>? typed = null)
     {

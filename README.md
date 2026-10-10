@@ -66,16 +66,16 @@ it out. She knows the cabinet's numbers and remembers:
   A reminder goes off on a ticket at the screen corner with Snooze and OK, and she tells you in her own words and
   your language once she has finished what she is saying (never cutting herself or you off). Settings →
   Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the agenda, a
-  chime (even when muted) and a Windows notification ("Try it" sends one everywhere a reminder goes). Settings →
-  Your phone sends them on to your phone or elsewhere, through [ntfy](https://ntfy.sh), a Discord webhook, a Telegram
-  bot or any webhook (addresses and tokens stored encrypted, "Send a test" to check). One that came
+  chime (even when muted) and a Windows notification ("Try it" sends one everywhere a reminder goes). While you're
+  away from the PC, it reaches your phone instead, as a text in her words (below). One that came
   due while the cabinet was closed goes off when it next starts, saying so. Settings → Calendars links your Google
   or Outlook calendar by its private address (read every 15 minutes, read-only, the address stored encrypted): its
   next two weeks join the agenda;
 - she asks how things went: after something you told her about is over, once you are back at the PC and free (not
   in a call, which she tells from another app using the microphone or camera, not in a full-screen game or
-  presentation, not outside 08:00–22:00), once, and only if you have not talked since. Gentle (at most one every
-  three hours), Chatty or Off in Settings → Check-ins. Not for each calendar meeting, nor for plain reminders;
+  presentation, not outside 08:00–22:00), or by text while you're still out; once, and only if you have not talked
+  since. Gentle (at most one every three hours), Chatty or Off in Settings → Check-ins. Not for each calendar
+  meeting, nor for plain reminders;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
@@ -87,6 +87,17 @@ it out. She knows the cabinet's numbers and remembers:
   while quiet, she reviews her facts: what says the same thing is merged, and what is out of date (a plan already
   past, something since changed, trivia that never came up again) is retired. Retired is not deleted: the memory
   book lists it under "Retired by her review", to bring back, and it comes back by itself if it comes up again.
+
+**Away from the PC.** She reaches you as a roommate would ([docs/specs/2026-10-10-reaching-the-player.md](docs/specs/2026-10-10-reaching-the-player.md)).
+At the PC she tells you herself. You're away after five minutes without the mouse or keys (Settings → Your phone,
+"Away after", 2 to 30), at once with the screen locked, or when you tell her you're heading out or going to bed;
+asleep if that's in the quiet hours. Away, what matters reaches your phone as a text in her words, through
+[ntfy](https://ntfy.sh), a Discord webhook, a Telegram bot or any webhook (Settings → Your phone; addresses and tokens
+stored encrypted, "Send a test" to check): reminders, a focus session's turns, and asking how something went (a
+reminder never waits more than 30 seconds for her words: then the plain line goes). Asleep, only reminders. What only
+makes sense at the PC (bedtime words, a break from a long game) waits for you while it still matters; a suggestion
+to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
+I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to.
 
 A SillyTavern-style character card (`.png` or `.json`, V1 to V3) dropped on the cabinet or picked with "Add a
 character…" gives whoever is on the stool its personality, example dialogue and lorebook (background that comes
@@ -278,6 +289,8 @@ agenda items, retired facts and a moment to try it on), `remind:some_text` (a re
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
+`whereabouts:away` (the player is away whatever the cabinet watches; `here`, `unsure`, `asleep`; `whereabouts:off` watches
+again; a test run takes the player as here),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicetest` (her voice's

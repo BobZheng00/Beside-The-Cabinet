@@ -26,7 +26,9 @@ public sealed record AppSettings
     public int QuietFrom { get; init; } = 22;           // no check-ins from this hour…
     public int QuietUntil { get; init; } = 8;           // …until this one
     public bool ReminderWindows { get; init; }          // reminders also raise a Windows notification
-    public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // and go to the phone or another app (secrets apart, encrypted)
+    public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // where her texts go while the player is away (secrets apart, encrypted)
+    public int AwayMinutes { get; init; } = InsertCoin.Mind.Reaching.AwayMinutes;   // no input this long and the player is away (2 to 30)
+    public bool AlsoAtThePc { get; init; }              // reminders reach the phone too while the player is at the PC, as a plain line (the old way)
     public string Companion { get; init; } = "shino";   // character folder under res://characters
     public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
     public bool SpeechBubbles { get; init; } = true;    // false: she still reacts, but says nothing

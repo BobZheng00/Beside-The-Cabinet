@@ -123,7 +123,33 @@ public static class Paper
         theme.SetFont("font", "Group", Font(600));
         theme.SetFontSize("font_size", "Group", 12);
         theme.SetColor("font_color", "Group", Faint);
+
+        // a slider: a soft track, filled in purple up to a round knob
+        StyleBoxFlat Track(Color fill) => Box(fill, fill, 0, 4, 0, 3);
+        theme.SetStylebox("slider", "HSlider", Track(new Color("E2DAF7")));
+        theme.SetStylebox("grabber_area", "HSlider", Track(Accent));
+        theme.SetStylebox("grabber_area_highlight", "HSlider", Track(AccentLight));
+        theme.SetIcon("grabber", "HSlider", Knob(AccentDark));
+        theme.SetIcon("grabber_highlight", "HSlider", Knob(Accent));
         return theme;
+    }
+
+    /// <summary>A slider's round knob, drawn in code: <paramref name="fill"/> inside a white ring.</summary>
+    private static Texture2D Knob(Color fill)
+    {
+        const int size = 18;
+        var image = Image.CreateEmpty(size, size, false, Image.Format.Rgba8);
+        var centre = new Vector2((size - 1) / 2f, (size - 1) / 2f);
+        for (var y = 0; y < size; y++)
+        for (var x = 0; x < size; x++)
+        {
+            var d = new Vector2(x, y).DistanceTo(centre);
+            var colour = d <= 6.5f ? fill : d <= 8.5f ? Colors.White : Colors.Transparent;
+            if (d is > 8.5f and < 9.5f)
+                colour = new Color(Colors.White, 9.5f - d);     // a soft edge
+            image.SetPixel(x, y, colour);
+        }
+        return ImageTexture.CreateFromImage(image);
     }
 
     /// <summary>Dev (--offscreen): windows open off every monitor and leave focus alone, so tests never get in the way.</summary>

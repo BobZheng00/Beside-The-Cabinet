@@ -3,13 +3,17 @@ using System.Text.Json.Serialization;
 
 namespace InsertCoin.Mind;
 
-/// <summary>A reminder on its way out of the cabinet: a title ("Reminder", "Missed reminder") and what it says.</summary>
-public sealed record Notice(string Title, string Text);
+/// <summary>
+/// Something on its way out of the cabinet: a title ("Reminder", "Missed reminder") and what it says; or, with
+/// <paramref name="Hers"/>, a text from her in her own words, with her name as its title.
+/// </summary>
+public sealed record Notice(string Title, string Text, bool Hers = false);
 
 /// <summary>
-/// Where reminders also go, besides the cabinet (each off until the player turns it on): an
-/// <see href="https://ntfy.sh">ntfy</see> topic (phone push, free, no account), a Discord webhook, a Telegram bot,
-/// or any webhook (a JSON POST). The addresses and tokens are <see cref="ElsewhereSecrets"/>, kept apart, encrypted.
+/// Where her texts go while the player is away from the PC, and reminders too while they are at it if they choose
+/// (see <see cref="Reaching"/>); each off until the player turns it on: an <see href="https://ntfy.sh">ntfy</see> topic
+/// (phone push, free, no account), a Discord webhook, a Telegram bot, or any webhook (a JSON POST). The addresses and
+/// tokens are <see cref="ElsewhereSecrets"/>, kept apart, encrypted.
 /// </summary>
 public sealed record Elsewhere
 {
@@ -61,20 +65,25 @@ public sealed record Parcel(string Name, string Url, object Body, string? Bearer
 /// <summary>Sends a <see cref="Notice"/> to the places the player chose; each place's failure is reported, none stops the others.</summary>
 public static class Couriers
 {
-    /// <summary>What goes to each place that is on and has what it needs.</summary>
+    /// <summary>What goes to each place that is on and has what it needs. A text of hers comes as a message from her, a notice with an alarm clock.</summary>
     public static IEnumerable<Parcel> Parcels(Elsewhere where, ElsewhereSecrets secrets, Notice notice)
     {
+        var mark = notice.Hers ? "" : "⏰ ";
         if (where.Ntfy && secrets.NtfyTopic is { Length: > 0 } topic)
             // JSON publishing, so the title and text can be in any language (headers would have to be ASCII)
             yield return new Parcel("ntfy", where.NtfyServer.Trim().TrimEnd('/') + "/",
-                                    new { topic = topic.Trim(), title = notice.Title, message = notice.Text, tags = new[] { "alarm_clock" }, priority = 4 },
+                                    new
+                                    {
+                                        topic = topic.Trim(), title = notice.Title, message = notice.Text,
+                                        tags = new[] { notice.Hers ? "speech_balloon" : "alarm_clock" }, priority = 4,
+                                    },
                                     secrets.NtfyToken is { Length: > 0 } token ? token.Trim() : null);
         if (where.Discord && secrets.DiscordWebhook is { Length: > 0 } discord)
             yield return new Parcel("Discord", discord.Trim(),
-                                    new { content = $"⏰ **{notice.Title}**: {notice.Text}", allowed_mentions = new { parse = Array.Empty<string>() } });
+                                    new { content = $"{mark}**{notice.Title}**: {notice.Text}", allowed_mentions = new { parse = Array.Empty<string>() } });
         if (where.Telegram && secrets.TelegramToken is { Length: > 0 } bot && secrets.TelegramChat is { Length: > 0 } chat)
             yield return new Parcel("Telegram", $"https://api.telegram.org/bot{bot.Trim()}/sendMessage",
-                                    new { chat_id = chat.Trim(), text = $"⏰ {notice.Title}: {notice.Text}" });
+                                    new { chat_id = chat.Trim(), text = $"{mark}{notice.Title}: {notice.Text}" });
         if (where.Webhook && secrets.WebhookUrl is { Length: > 0 } hook)
             yield return new Parcel("webhook", hook.Trim(), new { app = "INSERT COIN", title = notice.Title, message = notice.Text });
     }

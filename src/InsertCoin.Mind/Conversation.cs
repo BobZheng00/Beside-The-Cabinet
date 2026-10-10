@@ -196,6 +196,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 store.AddFact(MindStore.Shared, payload, NoteImportance, now);
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
+            // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
+            if (name is "out" or "sleep")
+                store.SetMark(Reaching.Mark, Reaching.Marked(name == "sleep", now));
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back

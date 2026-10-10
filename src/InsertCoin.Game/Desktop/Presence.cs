@@ -31,6 +31,9 @@ public static class Presence
         }
     }
 
+    /// <summary>The screen is locked, or its saver runs: nobody is at the PC (Windows' "not present").</summary>
+    public static bool Locked => SHQueryUserNotificationState(out var state) == 0 && state == 1;
+
     /// <summary>Another app is using the microphone or the camera right now: most likely a call or a meeting.</summary>
     public static bool InCall => !IgnoreCalls && (InUse("microphone") || InUse("webcam"));
 

@@ -34,10 +34,10 @@ public partial class Stool : Node2D
     private ChatHistory? _history;
     private bool _gameRunning;
     private Listening _listening = null!;
-    private bool _announcing;                               // passing on a reminder
-    private readonly Queue<(IReadOnlyList<Plan> Due, DateTimeOffset At)> _reminding = new();
+    private bool _announcing;                               // telling the player something
     private readonly Queue<(string Title, string Text)> _written = new();     // the player's own memos, for her to think over
-    private readonly Queue<(string Ticket, string Note, string Line, DateTimeOffset At, Telling How)> _told = new();     // focus sessions' turns, a long sitting, rest
+    private readonly List<Telling> _toTell = [];            // what she has to tell the player: reminders, focus turns, check-ins, rest… (see Reaching)
+    private readonly List<(Notice Text, DateTimeOffset Since)> _inCase = [];   // texts that go if the player turns out to have gone
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
     /// <summary>Settings should open at this page (a voice just added that still needs something).</summary>
@@ -81,6 +81,15 @@ public partial class Stool : Node2D
 
     /// <summary>The ticket at the screen corner, for a call of hers left unanswered (see <see cref="WaitForAnswer"/>).</summary>
     public AlertTicket? Ticket { get; set; }
+
+    /// <summary>Sends a text to the player's phone, through the places on Settings → Your phone; set by the cabinet's loop.</summary>
+    public Func<Notice, Task>? TextOut { get; set; }
+
+    /// <summary>Whether any place to text the player through is on; set by the cabinet's loop. With none, what would be texted waits for them.</summary>
+    public Func<bool> CanText { get; set; } = () => false;
+
+    /// <summary>How long since the player's last input (keys, the mouse, a game pad); set by the cabinet's loop.</summary>
+    public Func<TimeSpan> Idle { get; set; } = UserActivity.IdleFor;
 
     /// <summary>Her figure, while someone is on the stool.</summary>
     public CompanionView? Her { get; private set; }
@@ -187,7 +196,8 @@ public partial class Stool : Node2D
         {
             if (!answer)                                    // a turn shows at the corner as it comes, as a reminder does (the user, 2026-10-10)
                 Ticket?.Show("FOCUS", line, _settings.Now.ReminderTicketSeconds, [("OK", () => { })]);
-            _told.Enqueue(("FOCUS", note, line, DateTimeOffset.Now, answer ? Telling.Answer : Telling.Turn));
+            // a turn reaches them anywhere (focus can be a book away from the PC); her answer to their own press, only here
+            Hand(new Telling("FOCUS", note, line, Matters.Must, Anywhere: !answer, DateTimeOffset.Now, TimeSpan.FromMinutes(3), Ticketed: !answer));
         };
         _chat.Focus = FocusAct;
         _chat.Music = MusicAct;
@@ -233,6 +243,12 @@ public partial class Stool : Node2D
             MaybeRest();
         };
         AddChild(checkIns);
+        var track = new Godot.Timer { WaitTime = 1, Autostart = true };
+        track.Timeout += Track;
+        AddChild(track);
+        // a test run never goes by whoever is at this PC (the user, busy elsewhere): the player is here, unless a dev action says otherwise
+        if (Paper.OffScreen)
+            _pretend = Whereabouts.Here;
         ShowHer(settings.Now.ShowCompanion);
     }
 
@@ -265,47 +281,44 @@ public partial class Stool : Node2D
     public MindStore Store => _chat.Store;
 
     /// <summary>
-    /// Reminders going off: she tells the player once she has finished what she is doing (answering, speaking,
-    /// listening), never cutting herself or them off; in her own words when her mind is connected. The ticket has
-    /// shown them already, so after ten minutes of waiting she lets them go.
+    /// A reminder going off: something she must tell the player, wherever they are (see <see cref="Hand"/>); at the PC,
+    /// once she has finished what she is doing, in her own words when her mind is connected. Its ticket has shown it
+    /// already, so after ten minutes of waiting to say it she lets it go.
     /// </summary>
-    public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now) => _reminding.Enqueue((due, now));
+    public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now) =>
+        Hand(new Telling("REMINDER", Agenda.Announcement(due, now, _settings.Now.ReminderLead), Lines.Reminder(due, now), Matters.Must, Anywhere: true, now,
+                         TimeSpan.FromMinutes(10), Ticketed: true, Plain: !_settings.Now.ReminderSpoken, Greet: true));
 
     // ---- Check-ins: how did it go? ---------------------------------------------------------------------------------
 
     private static readonly TimeSpan CheckInAfter = TimeSpan.FromMinutes(15), BackFor = TimeSpan.FromMinutes(2), Away = TimeSpan.FromMinutes(5),
-        Pause = TimeSpan.FromMinutes(1), GentleGap = TimeSpan.FromHours(3);
+        GentleGap = TimeSpan.FromHours(3);
     private DateTimeOffset? _activeSince;                   // the player has been at the PC since then, with no break of five minutes
     private DateTimeOffset? _settledSince;                  // and using it since then, with no pause of a minute: they have sat down to something
     private DateTimeOffset _lastCheckIn = DateTimeOffset.MinValue;
 
     /// <summary>
     /// Every fifteen seconds: when something the player told her about has been over for a while (see
-    /// <see cref="Agenda.ToAskAbout"/>), she asks how it went, but only once they are back and free: settled at the PC
-    /// (see <see cref="Settled"/>, so not as they sit down) and using it now, not in a call (another app has the microphone
-    /// or camera), not in anything Windows holds notifications back for (full screen, presenting, quiet time, locked), not
-    /// in the quiet hours, and not while she is busy. Gentle: one every three hours at most. A meeting that runs over keeps its call going, so she waits.
+    /// <see cref="Agenda.ToAskAbout"/>), she has something to ask: how it went. Not in the quiet hours; Gentle, one every
+    /// three hours at most. How it reaches them is the routing's (see <see cref="Hand"/>): at the PC once they are
+    /// settled and free (a meeting that runs over keeps its call going, so she waits), by text while they are out.
     /// </summary>
     private void MaybeCheckIn(bool force = false)
     {
         var now = DateTimeOffset.Now;
-        var idle = UserActivity.IdleFor();
-        _activeSince = idle >= Away ? null : _activeSince ?? now - idle;
-        _settledSince = idle >= Pause ? null : _settledSince ?? now - idle;
         var mode = _settings.Now.CheckIns;
-        if (!force && (mode == "Off" || Quiet(now.Hour) || idle > Pause || !Settled(now)
-                       || mode == "Gentle" && now - _lastCheckIn < GentleGap))
+        if (!force && (mode == "Off" || Quiet(now.Hour) || mode == "Gentle" && now - _lastCheckIn < GentleGap))
             return;
-        if (!_chat.Ready || Her is null || !_settings.Now.SpeechBubbles || Busy || _reminding.Count > 0 || _chat.Conversation is not { } conversation)
-            return;
-        if (!force && (Presence.DoNotDisturb || Presence.InCall))
+        if (!_chat.Ready || Her is null || !_settings.Now.SpeechBubbles || _chat.Conversation is not { } conversation || _toTell.Any(t => t.Title == "CHECK-IN"))
             return;
         if (conversation.ToAskAbout(CheckInAfter) is not { } plan)
             return;
         _chat.Store.Asked(plan.Id, now);                    // once, whatever comes of it
         _lastCheckIn = now;
-        GD.Print("Check-in: she asks how something went");
-        _ = AskHowItWent(plan);
+        GD.Print("Check-in: she has something to ask about");
+        // only her mind asks it; it can wait for them, through the night if need be
+        Hand(new Telling("CHECK-IN", Agenda.CheckIn(plan, now, _activities.Within(plan.Text)), "", Matters.Should, Anywhere: true, now,
+                         TimeSpan.FromHours(12), Greet: true));
     }
 
     // ---- Stand up, have some water --------------------------------------------------------------------------------------
@@ -313,9 +326,9 @@ public partial class Stool : Node2D
     private DateTimeOffset _lastStandUp = DateTimeOffset.MinValue;
 
     /// <summary>
-    /// Every fifteen seconds: after a long stretch at the PC with no real break (five minutes away resets it, as for
-    /// check-ins), she suggests standing up and some water, and the count starts again. Never in a call or the quiet
-    /// hours, nor during a focus session (its breaks do it); in a full-screen game or presenting, only a ticket.
+    /// Every fifteen seconds: after a long stretch at the PC with no real break (five minutes away resets it), she
+    /// suggests standing up and some water, and the count starts again. Never in a call or the quiet hours, nor during a
+    /// focus session (its breaks do it); in a full-screen game or presenting, only a ticket (see <see cref="Hand"/>).
     /// </summary>
     private void MaybeStandUp(bool force = false)
     {
@@ -324,13 +337,13 @@ public partial class Stool : Node2D
         var counted = now - (since > _lastStandUp ? since : _lastStandUp);
         var minutes = _settings.Now.StandUpMinutes;
         if (!force && (minutes <= 0 || _activeSince is null || counted < TimeSpan.FromMinutes(minutes) || Quiet(now.Hour) || _focus.Session is not null
-                       || UserActivity.IdleFor() > TimeSpan.FromMinutes(1) || Presence.InCall))
+                       || Idle() > Reaching.Pause || Presence.InCall))
             return;
-        if (Her is null || _told.Any(t => t.Ticket == "STAND UP"))
+        if (Her is null || _toTell.Any(t => t.Title == "STAND UP"))
             return;
         _lastStandUp = now;
         GD.Print($"Stand up: {(int)(now - since).TotalMinutes} min at the PC");
-        _told.Enqueue(("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, now, Telling.Suggestion));
+        Hand(new Telling("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, Matters.Could, Anywhere: false, now, TimeSpan.FromMinutes(3)));
     }
 
     // ---- Rest and sleep ---------------------------------------------------------------------------------------------
@@ -343,15 +356,15 @@ public partial class Stool : Node2D
     /// <summary>
     /// Every fifteen seconds (see <see cref="Rest"/>): her words around bedtime (half an hour before, at it, once more
     /// after), whatever the quiet hours, while the player is at the PC; a break after two hours in a game (in a game,
-    /// tickets); and, at most once a day, when they are back and free, what the record of days shows, or, with no bedtime
-    /// set, asking for one in the evening.
+    /// tickets); and, at most once a day, with the player at the PC, what the record of days shows, or, with no bedtime
+    /// set, asking for one in the evening, which wait until they are settled and free (see <see cref="Hand"/>).
     /// </summary>
     private void MaybeRest()
     {
         if (Her is null || Ledger?.Invoke() is not { } state || Rules?.Invoke() is not { } rules)
             return;
         var now = DateTimeOffset.Now;
-        var here = UserActivity.IdleFor() < TimeSpan.FromMinutes(1);
+        var here = Idle() < Reaching.Pause;
         var night = GameCalendar.DayOf(now, rules);
         if (night != _night)
         {
@@ -363,7 +376,8 @@ public partial class Stool : Node2D
         {
             _givenTonight.Add(nudge);
             GD.Print($"Rest: {nudge} ({Rest.Clock(bedtime)})");
-            _told.Enqueue(("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), now, Telling.Own));
+            Hand(new Telling("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), Matters.Should, Anywhere: false, now,
+                             TimeSpan.FromMinutes(20)));
         }
         if (state.Session is { } session)
         {
@@ -376,29 +390,33 @@ public partial class Stool : Node2D
             {
                 _breakAtMs = session.PlayedMs;
                 GD.Print("Rest: a break after two hours of play");
-                _told.Enqueue(("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), now, Telling.Own));
+                Hand(new Telling("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), Matters.Should, Anywhere: false, now,
+                                 TimeSpan.FromMinutes(20)));
             }
         }
-        if (!_chat.Ready || _gameRunning || Busy || !here || Presence.DoNotDisturb || Presence.InCall || Quiet(now.Hour) || !Settled(now))
+        if (!_chat.Ready || !here || Quiet(now.Hour))
             return;
         var today = night.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         if (_chat.Store.Mark("rest.said") == today)
             return;
         var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && now.Hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
+        var asking = note is not null;
         if (_settings.Now.Privacy.Days)                    // what the record of days shows, unless the player keeps it from her
             note ??= Rest.Notice(state.Days, state.Today?.Bedtime, state.TimeLeftMs(rules), rules.DayStartsAt);
         if (note is null)
             return;
         _chat.Store.SetMark("rest.said", today);
         GD.Print("Rest: she has something to say about rest");
-        _told.Enqueue(("REST", note, "", now, Telling.Own));     // only her mind says these
+        // only her mind says these; asking for a bedtime matters more than what the record shows
+        Hand(new Telling("REST", note, "", asking ? Matters.Should : Matters.Could, Anywhere: false, now, TimeSpan.FromHours(2)));
     }
 
     /// <summary>
     /// Whether the player has settled at the PC: two minutes of use since they last left it for a minute or more. What
-    /// can wait waits for this, so it doesn't meet them as they sit down, while they aren't listening yet.
+    /// can wait waits for this, so it doesn't meet them as they sit down, while they aren't listening yet. Where a dev
+    /// action (or a test run) says the player is, they are settled there.
     /// </summary>
-    private bool Settled(DateTimeOffset now) => _settledSince is { } since && now - since >= BackFor;
+    private bool Settled(DateTimeOffset now) => _pretend is not null || _settledSince is { } since && now - since >= BackFor;
 
     /// <summary>With no bedtime set: asking for one, once; a second time a week on, if the record of days shows their usual night by then.</summary>
     private string? AskBedtime(LedgerState state, Rules rules, DateTimeOffset now)
@@ -426,65 +444,243 @@ public partial class Stool : Node2D
         return $"Set: {Rest.Clock(bedtime)}, from tomorrow.";
     }
 
-    /// <summary>What she has to tell the player (a focus session's turn, a long sitting, rest), once she is free (as reminders are); stale after three minutes.</summary>
-    private void PassOnTold()
+    // ---- Reaching the player (docs/specs/2026-10-10-reaching-the-player.md) ------------------------------------------
+
+    private Whereabouts? _where;                            // where the player was last made out to be, for the log
+    private Whereabouts? _pretend;                          // dev: where the player is said to be, whatever the cabinet watches
+    private DateTimeOffset _nextPass;                       // when what waits is looked at again: once a second, at once when something new comes
+
+    /// <summary>
+    /// Something to tell the player, from any feature: told at the PC, texted, kept for when they are back, or let go,
+    /// as <see cref="Reaching"/> says for where they are; the most important first, once she is free (see <see cref="PassOn"/>).
+    /// </summary>
+    private void Hand(Telling telling)
+    {
+        _toTell.Add(telling);
+        _nextPass = DateTimeOffset.MinValue;
+        GD.Print($"Reaching: {telling.Title} to tell ({telling.Matters.ToString().ToLowerInvariant()}{(telling.Anywhere ? "" : ", only at the PC")})");
+    }
+
+    /// <summary>Where the player is now (see <see cref="Reaching.Where"/>).</summary>
+    private Whereabouts Where(DateTimeOffset now) => _pretend ?? Reaching.Where(Watching(now), AwayAfter, now);
+
+    /// <summary>
+    /// What the cabinet watches: their last input, a locked screen, being with her (in a conversation, being listened
+    /// to, writing to her) or playing, the quiet hours, and what they last told her about leaving.
+    /// </summary>
+    private Watched Watching(DateTimeOffset now) =>
+        new(Idle(), Presence.Locked, _listening.Conversing || _listening.Busy || _chatBox.IsOpen && !_chatBox.IsEmpty || Playing, Quiet(now.Hour),
+            Reaching.Said(_chat.Store.Mark(Reaching.Mark)));
+
+    /// <summary>A game runs and isn't paused for being away from the keyboard.</summary>
+    private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false };
+
+    /// <summary>The away time the player chose (Settings → Your phone).</summary>
+    private TimeSpan AwayAfter => TimeSpan.FromMinutes(Math.Clamp(_settings.Now.AwayMinutes, Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes));
+
+    /// <summary>
+    /// Every second: how long the player has been at the PC and settled there; where they are (logged when it changes);
+    /// what they said about leaving, let go once they are back; and each text kept in case they had gone (see
+    /// <see cref="InCase"/>), sent once they turn out to be away, or dropped once they use the PC again.
+    /// </summary>
+    private void Track()
     {
         var now = DateTimeOffset.Now;
-        if (_told.Count == 0 || Busy || _reminding.Count > 0 || now < _quietFrom || Her is null)
-            return;
-        var (ticket, note, line, at, how) = _told.Dequeue();
-        if (now - at > TimeSpan.FromMinutes(3))
-            return;
-        _ = Tell(ticket, note, line, how);
-    }
-
-    /// <summary>How something she has to tell the player comes (see <see cref="Tell"/>).</summary>
-    private enum Telling
-    {
-        /// <summary>An answer to what the player just did on the cabinet (pressed START, logged an activity): said at once.</summary>
-        Answer,
-        /// <summary>A focus session's turn: its ticket shows at the screen corner as it comes, and she says it at once (the user, 2026-10-10).</summary>
-        Turn,
-        /// <summary>Her own idea (a word on rest or bedtime): a word first, and a ticket above every window if her call goes unanswered.</summary>
-        Own,
-        /// <summary>A suggestion of hers that may pass unnoticed (standing up): a word first, and no ticket (the user, 2026-10-10).</summary>
-        Suggestion,
-    }
-
-    private async Task Tell(string ticket, string note, string line, Telling how)
-    {
-        if (Presence.DoNotDisturb || _gameRunning)
+        var idle = Idle();
+        _activeSince = idle >= Away ? null : _activeSince ?? now - idle;
+        _settledSince = idle >= Reaching.Pause ? null : _settledSince ?? now - idle;
+        var watched = Watching(now);
+        if (watched.Said is not null && Reaching.Back(watched, now))
         {
-            if (how != Telling.Turn)                        // a turn has shown its own
-                Notice?.Invoke(ticket, line);               // they can't be spoken to now: only the ticket
+            _chat.Store.SetMark(Reaching.Mark, "");
+            watched = watched with { Said = null };
+            GD.Print("Reaching: they are back at the PC after saying they were off");
+        }
+        var where = Where(now);
+        if (where != _where)
+        {
+            _where = where;
+            GD.Print($"Reaching: the player is {where.ToString().ToLowerInvariant()} (no input for {idle.TotalMinutes:0.0} min" +
+                     (watched.Locked ? ", the screen locked" : "") + (watched.Said is { } said ? $", they said {(said.Asleep ? "goodnight" : "they were off")}" : "") +
+                     (_pretend is not null ? ", as a dev action has it" : "") + ")");
+        }
+        foreach (var kept in _inCase.ToList())
+        {
+            if (_pretend is null && idle < now - kept.Since)       // used the PC since: they were there after all
+            {
+                _inCase.Remove(kept);
+                GD.Print("Reaching: they were at the PC after all; no text");
+            }
+            else if (where is Whereabouts.Away or Whereabouts.Asleep)
+            {
+                _inCase.Remove(kept);
+                GD.Print("Reaching: they had gone; the text kept for it goes");
+                _ = Send(kept.Text);
+            }
+        }
+    }
+
+    /// <summary>
+    /// What she has to tell the player, once she is free, the most important first, by the routing (see
+    /// <see cref="Reaching.Route"/>): at the PC as <see cref="Reaching.AtThePc"/> says (never cutting herself or them
+    /// off), a text, or kept for when they are back. What is no longer worth saying is let go. What waits is looked at
+    /// once a second (asking Windows about calls takes a moment), anything new at once.
+    /// </summary>
+    private void PassOn()
+    {
+        var now = DateTimeOffset.Now;
+        if (Busy)
+            _quietFrom = now.AddSeconds(1.5);               // a breath after she stops before she starts again
+        if (_toTell.Count == 0 || Busy || now < _quietFrom || now < _nextPass)
+            return;
+        _nextPass = now.AddSeconds(1);
+        foreach (var stale in _toTell.Where(t => !t.FreshAt(now)).ToList())
+        {
+            _toTell.Remove(stale);
+            GD.Print($"Reaching: {stale.Title} let go, no longer worth saying");
+        }
+        var where = Where(now);
+        foreach (var telling in _toTell.OrderBy(t => t.Matters).ThenBy(t => t.At).ToList())
+        {
+            var route = Reaching.Route(telling.Matters, telling.Anywhere, where, CanText());
+            switch (route.Way)
+            {
+                case Way.Wait:
+                    continue;                               // kept for when they are back at the PC
+                case Way.Lapse:
+                    _toTell.Remove(telling);
+                    GD.Print($"Reaching: {telling.Title} let go: the player is {where.ToString().ToLowerInvariant()}");
+                    continue;
+                case Way.Text:
+                    _toTell.Remove(telling);
+                    _ = TextIt(telling, where);
+                    return;
+            }
+            if (Her is null || !_settings.Now.SpeechBubbles)
+            {
+                _toTell.Remove(telling);                    // nobody on the stool, or quiet asked for: a ticket showed what must be seen
+                continue;
+            }
+            var saying = Reaching.AtThePc(telling, where, Settled(now), Presence.DoNotDisturb || _gameRunning, Presence.InCall);
+            if (saying == Saying.Later)
+                continue;
+            _toTell.Remove(telling);
+            if (saying == Saying.Ticket)
+            {
+                if (!telling.Ticketed && telling.Line.Length > 0)
+                    Notice?.Invoke(telling.Title, telling.Line);    // they can't be spoken to now: only the ticket
+                GD.Print($"Reaching: {telling.Title} only on a ticket: they can't be spoken to now");
+                continue;
+            }
+            GD.Print($"Reaching: {telling.Title} told at the PC ({(route.Way == Way.Call ? "a word first" : "straight on")}" +
+                     $"{(saying == Saying.Bubble ? ", her bubble only" : "")}), {(now - telling.At).TotalSeconds:0.0} s after it came");
+            _ = Tell(telling, route, bubbleOnly: saying == Saying.Bubble);
             return;
         }
-        if (!_settings.Now.SpeechBubbles || Her is null)
-            return;
+    }
+
+    /// <summary>
+    /// Tells the player at the PC: in her own words when her mind is connected, after a word first when the route has
+    /// one, else the plain line. With "Also while I'm at the PC", what must reach them goes to their phone too, as a
+    /// plain line, as reminders used to. When the route says so, a text is kept in case they had gone after all.
+    /// </summary>
+    /// <param name="bubbleOnly">They are in a call: her voice would be heard by everyone in it.</param>
+    private async Task Tell(Telling telling, Route route, bool bubbleOnly)
+    {
         _announcing = true;
         try
         {
-            _lively(30);
-            if (_chat.Ready)
+            _lively(telling.Greet ? 60 : 30);
+            if (telling.Greet)
+                Her!.Play(Moment.Greet);
+            if (_settings.Now.AlsoAtThePc && telling.Matters == Matters.Must && telling.Anywhere && telling.Line.Length > 0 && CanText())
+                _ = Send(new Notice(telling.Heading, telling.Line));
+            string? said = null;
+            if (_chat.Ready && !telling.Plain && telling.Note.Length > 0)
             {
-                // in a call, only her bubble: her voice would be heard by everyone in it
-                var speech = Presence.InCall ? null : _voice.Begin();
-                var call = how is Telling.Own or Telling.Suggestion ? WordFirstFor(speech, withTicket: how == Telling.Own) : null;
-                await _chat.Announce(note, line, Situation(), Her, speech, _voice.Language, call: call);
-                if (_chat.Replied is { } said)
+                var speech = bubbleOnly ? null : _voice.Begin();
+                var call = route.Way == Way.Call ? WordFirstFor(speech, withTicket: route.Ticket, unanswered: route.TextIfGone ? InCase : null) : null;
+                await _chat.Announce(telling.Note, telling.Line, Situation(), Her!, speech, _voice.Language, call: call);
+                said = _chat.Replied;
+                if (said is not null)
                     _listening.Said(answer: false, said);
             }
-            else
-                Say(line);
+            else if (telling.Line.Length > 0)
+            {
+                Say(telling.Line);
+                said = telling.Line;
+            }
+            if (route.Way == Way.Say && route.TextIfGone && (said ?? telling.Line) is { Length: > 0 } words)
+                InCase(words);
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Focus: {e}");                     // nobody awaits this task: say what went wrong here
+            GD.PrintErr($"Reaching: {telling.Title}: {e}");      // nobody awaits this task: say what went wrong here
         }
         finally
         {
             _announcing = false;
         }
+    }
+
+    /// <summary>
+    /// A text to the player's phone while they are away (see <see cref="Way.Text"/>): in her words when her mind can
+    /// write them, told it goes as a text, else the plain line. What must reach them never waits long on her mind: after
+    /// <see cref="Reaching.HerWordsWithin"/> the plain line goes, and her words don't follow.
+    /// </summary>
+    private async Task TextIt(Telling telling, Whereabouts where)
+    {
+        string? words = null;
+        if (_chat.Ready && Her is not null && !telling.Plain && telling.Note.Length > 0)
+        {
+            _announcing = true;
+            try
+            {
+                words = await _chat.Text($"{telling.Note}\n{Reaching.AsText}", Situation(), Her, _voice.Language,
+                                         telling.Matters == Matters.Must ? Reaching.HerWordsWithin : null);
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr($"Reaching: {telling.Title}: {e}");
+            }
+            finally
+            {
+                _announcing = false;
+            }
+            if (words is null && telling.Line.Length > 0)
+            {
+                GD.Print("Reaching: her words didn't come in time; the plain line goes");
+                _chat.Said(telling.Line);                   // so she knows what reached them
+            }
+        }
+        var notice = words is { Length: > 0 } ? new Notice(HerName(), words, Hers: true)
+                     : telling.Line.Length > 0 ? new Notice(telling.Heading, telling.Line)
+                     : null;
+        if (notice is null)
+        {
+            GD.Print($"Reaching: {telling.Title} not texted: only her mind says it, and it couldn't");
+            return;
+        }
+        GD.Print($"Reaching: {telling.Title} texted, {(notice.Hers ? "in her words" : "as a plain line")} (the player is {where.ToString().ToLowerInvariant()})");
+        await Send(notice);
+    }
+
+    /// <summary>
+    /// Keeps a text of hers in case the player had gone after all: what she just said with nobody answering, or her call
+    /// left unanswered. It goes once they turn out to be away (see <see cref="Track"/>), and is dropped if they use the PC first.
+    /// </summary>
+    private void InCase(string words)
+    {
+        if (!CanText())
+            return;
+        _inCase.Add((new Notice(HerName(), words, Hers: true), DateTimeOffset.Now));
+        GD.Print($"Reaching: a text kept in case they've gone; it goes once {AwayAfter.TotalMinutes:0} min pass with no input");
+    }
+
+    private async Task Send(Notice notice)
+    {
+        if (TextOut is { } send)
+            await send(notice);
     }
 
     // ---- Her focus and music tools ---------------------------------------------------------------------------------------
@@ -557,29 +753,6 @@ public partial class Stool : Node2D
             ? hour >= _settings.Now.QuietFrom || hour < _settings.Now.QuietUntil
             : hour >= _settings.Now.QuietFrom && hour < _settings.Now.QuietUntil;
 
-    private async Task AskHowItWent(Plan plan)
-    {
-        _announcing = true;
-        try
-        {
-            _lively(60);
-            Her!.Play(Moment.Greet);
-            var speech = _voice.Begin();
-            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now, _activities.Within(plan.Text)), "", Situation(), Her, speech, _voice.Language,
-                                 call: WordFirstFor(speech));
-            if (_chat.Replied is { } asked)
-                _listening.Said(answer: false, asked);
-        }
-        catch (Exception e)
-        {
-            GD.PrintErr($"Check-in: {e}");
-        }
-        finally
-        {
-            _announcing = false;
-        }
-    }
-
     /// <summary>The player cut her off: see <see cref="Chat.Interrupt"/>.</summary>
     internal Task Interrupt() => _chat.Interrupt(_voice, Her);
 
@@ -601,7 +774,8 @@ public partial class Stool : Node2D
     /// slip, a word with her in the last two minutes).
     /// </summary>
     /// <param name="withTicket">An unanswered call brings a ticket above every window (not for what may pass unnoticed, such as standing up).</param>
-    private Func<string, CancellationToken, Task<bool>>? WordFirstFor(Speech? speech, bool withTicket = true)
+    /// <param name="unanswered">Given the remark when her call goes unanswered: they may have gone (see <see cref="InCase"/>).</param>
+    private Func<string, CancellationToken, Task<bool>>? WordFirstFor(Speech? speech, bool withTicket = true, Action<string>? unanswered = null)
     {
         var straight = speech is null ? "her voice isn't speaking it"
             : _listening.Conversing ? "a conversation is on"
@@ -609,7 +783,7 @@ public partial class Stool : Node2D
             : DateTimeOffset.Now - _lastTalked < TimeSpan.FromMinutes(2) ? "they talked with her just now"
             : null;
         if (straight is null)
-            return (whole, cancel) => WaitForAnswer(whole, withTicket, cancel);
+            return (whole, cancel) => WaitForAnswer(whole, withTicket, unanswered, cancel);
         GD.Print($"Word first: none, straight on ({straight})");
         return null;
     }
@@ -618,10 +792,10 @@ public partial class Stool : Node2D
     /// She has said her call: her bubble keeps it, with "Yes?" and "Not now" to click, and she looks at the player and
     /// waits for their answer (aloud, or a click on those, on her or on her bubble). Unanswered for 20 seconds, she can't
     /// count it as heard (their headset on the desk, say): a ticket above every window shows the whole remark, to hear
-    /// (Listen) or take as read (OK), unless it may pass unnoticed. After five minutes the rest is only shown. True: she
-    /// goes on aloud.
+    /// (Listen) or take as read (OK), unless it may pass unnoticed; and they may have gone, which
+    /// <paramref name="unanswered"/> hears of. After five minutes the rest is only shown. True: she goes on aloud.
     /// </summary>
-    private async Task<bool> WaitForAnswer(string whole, bool withTicket, CancellationToken cancel)
+    private async Task<bool> WaitForAnswer(string whole, bool withTicket, Action<string>? unanswered, CancellationToken cancel)
     {
         var answer = _calling = new TaskCompletionSource<bool>();
         int? ticket = null;
@@ -637,6 +811,7 @@ public partial class Stool : Node2D
             if (await Task.WhenAny(answer.Task, Task.Delay(Unanswered, cancel)) != answer.Task)
             {
                 cancel.ThrowIfCancellationRequested();
+                unanswered?.Invoke(whole);
                 if (!withTicket)
                     GD.Print("Word first: no answer; it may pass unnoticed, so no ticket");
                 else if (Ticket is { } corner)
@@ -705,56 +880,6 @@ public partial class Stool : Node2D
     /// <summary>She is answering, speaking, listening, or hearing what was just said.</summary>
     private bool Busy => _chat.Answering || _voice.Speaking || _listening.Busy || _announcing;
 
-    private void PassOnReminders()
-    {
-        var now = DateTimeOffset.Now;
-        if (Busy)
-            _quietFrom = now.AddSeconds(1.5);               // a breath after she stops before she starts again
-        if (Busy || _reminding.Count == 0 || now < _quietFrom)
-            return;
-        var (due, at) = _reminding.Dequeue();
-        if (now - at > TimeSpan.FromMinutes(10))
-        {
-            GD.Print("Reminders: she was busy too long to say it; the ticket did");
-            return;
-        }
-        GD.Print($"Reminders: she passes {due.Count} on, {(now - at).TotalSeconds:0.0} s after it went off");
-        _ = PassOn(due);
-    }
-
-    private async Task PassOn(IReadOnlyList<Plan> due)
-    {
-        if (Her is null || !_settings.Now.SpeechBubbles)
-            return;
-        _announcing = true;
-        try
-        {
-            var now = DateTimeOffset.Now;
-            var lead = _settings.Now.ReminderLead;
-            _lively(60);
-            Her.Play(Moment.Greet);
-            if (_chat.Ready && _settings.Now.ReminderSpoken)
-                // in a call, only her bubble: her voice would be heard by everyone in it
-            {
-                var speech = Presence.InCall ? null : _voice.Begin();
-                // straight on, no word first: its ticket already shows it, with Snooze and OK (the user, 2026-10-10)
-                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), Situation(), Her, speech, _voice.Language);
-                if (_chat.Replied is { } said)
-                    _listening.Said(answer: false, said);
-            }
-            else
-                Say(Lines.Reminder(due, now));
-        }
-        catch (Exception e)
-        {
-            GD.PrintErr($"Reminders: {e}");                 // nobody awaits this task: say what went wrong here
-        }
-        finally
-        {
-            _announcing = false;
-        }
-    }
-
     /// <summary>A line in her speech bubble, said aloud too when her voice can, unless the user has asked for quiet.</summary>
     public void Say(string line)
     {
@@ -821,8 +946,7 @@ public partial class Stool : Node2D
 
     public override void _Process(double delta)
     {
-        PassOnReminders();
-        PassOnTold();
+        PassOn();
         ThinkOverMemos();
     }
 
@@ -1365,7 +1489,9 @@ public partial class Stool : Node2D
         GD.Print($"Activities: {name} logged on the screen: {said}");
         var line = said.Contains("judge_proof", StringComparison.Ordinal) ? $"{name}? Show me a photo of it!"
             : said.StartsWith("Counted", StringComparison.Ordinal) ? $"{name}: that counts. Nice!" : said;
-        _told.Enqueue(("DONE", $"The player logged \"{name}\" as done on the cabinet's screen. What came of it: {said}", line, DateTimeOffset.Now, Telling.Answer));
+        // her answer to what they just did: at once, here
+        Hand(new Telling("DONE", $"The player logged \"{name}\" as done on the cabinet's screen. What came of it: {said}", line, Matters.Must,
+                         Anywhere: false, DateTimeOffset.Now, TimeSpan.FromMinutes(3)));
         return said;
     }
 
@@ -1631,12 +1757,17 @@ public partial class Stool : Node2D
                 if (Enum.TryParse<Nudge>(rest, ignoreCase: true, out var word) || rest == "break")
                 {
                     word = rest == "break" ? Nudge.LongPlay : word;
-                    _told.Enqueue(("BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), DateTimeOffset.Now, Telling.Own));
+                    Hand(new Telling(rest == "break" ? "BREAK" : "BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), Matters.Should,
+                                     Anywhere: false, DateTimeOffset.Now, TimeSpan.FromMinutes(20)));
                 }
                 else if (Ledger?.Invoke() is { } ledger && Rules?.Invoke() is { } rules)
-                    _told.Enqueue(("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
-                                       : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
-                                   "", DateTimeOffset.Now, Telling.Own));
+                    Hand(new Telling("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
+                                         : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
+                                     "", rest == "ask" ? Matters.Should : Matters.Could, Anywhere: false, DateTimeOffset.Now, TimeSpan.FromHours(2)));
+                break;
+            case "whereabouts":                             // whereabouts:away (here, unsure, asleep) has the player there whatever the cabinet watches; whereabouts:off watches again
+                _pretend = Enum.TryParse<Whereabouts>(rest, ignoreCase: true, out var where) ? where : null;
+                GD.Print(_pretend is { } pretend ? $"Reaching: the player is said to be {pretend.ToString().ToLowerInvariant()}" : "Reaching: watching where the player is again");
                 break;
             case "proofroll":                               // proofroll:0 always wants proof, proofroll:1 never (instead of chance)
                 _activities.Roll = double.Parse(rest, System.Globalization.CultureInfo.InvariantCulture);
@@ -1698,7 +1829,8 @@ public partial class Stool : Node2D
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment
                 var clock = System.Diagnostics.Stopwatch.StartNew();
-                GD.Print($"Presence: do not disturb {Presence.DoNotDisturb}, in a call {Presence.InCall}, idle {UserActivity.IdleFor().TotalSeconds:0} s ({clock.ElapsedMilliseconds} ms)");
+                GD.Print($"Presence: do not disturb {Presence.DoNotDisturb}, in a call {Presence.InCall}, locked {Presence.Locked}, idle {Idle().TotalSeconds:0} s, " +
+                         $"{Where(DateTimeOffset.Now).ToString().ToLowerInvariant()} ({clock.ElapsedMilliseconds} ms)");
                 break;
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
