@@ -4,15 +4,19 @@ namespace InsertCoin.Mind;
 public readonly record struct Piece(string? Words, string? Direction = null, string? Payload = null);
 
 /// <summary>
-/// What she brings up herself (a reminder, a check-in, a word on rest) comes after a word first, as people do: she
-/// calls the player (their name, say) and goes on once they answer ("yes?"), so what she says reaches someone who is
-/// listening, not someone who has only just noticed she is talking. Her whole remark is written first; its first
-/// sentence is her call, and the rest waits for the answer (docs/specs/2026-10-09-a-word-first.md).
+/// What she brings up herself with nothing else to show it (a check-in, a word on rest, standing up) comes after a word
+/// first, as people do: she calls the player (their name, say) and goes on once they answer ("yes?"), so what she says
+/// reaches someone who is listening, not someone who has only just noticed she is talking. Her whole remark is written
+/// first; its first sentence is her call, and the rest waits for the answer (docs/specs/2026-10-09-a-word-first.md).
 /// </summary>
 public static class WordFirst
 {
-    /// <summary>What her mind is told with the remark, so that it opens with a call of its own.</summary>
-    public const string Ask = "Start with a short sentence that only gets their attention (their name, say): it is said first, and the rest once they answer.";
+    /// <summary>
+    /// What her mind is told with the remark, so that it opens with a call of its own and writes the rest with it: told
+    /// only that the rest came once they answered, a model wrote the call alone and stopped (2026-10-10).
+    /// </summary>
+    public const string Ask = "Write all of it in this reply, opening with a short sentence of its own that only gets their attention " +
+                              "(their name, say). The cabinet says that one first and holds back the rest until they answer; you won't be asked again.";
 
     /// <summary>What the player's answer to her call means.</summary>
     public enum Reply { GoOn, NotNow }

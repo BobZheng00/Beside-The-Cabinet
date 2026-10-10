@@ -462,6 +462,8 @@ public sealed class Chat : IDisposable
                 view.BeginReply();
                 began = true;
                 var (first, then) = call is null ? (held, new List<Piece>()) : WordFirst.Split(held);
+                if (call is not null && then.Count == 0)
+                    GD.Print("Word first: her remark is a single sentence; nothing to hold back");
                 Play(first);
                 if (then.Count > 0)
                 {

@@ -54,13 +54,21 @@ public static class Paper
         Button("OptionButton", Wash, new Color("E2DAF7"), new Color("D3C8F2"), Letters);
         theme.SetTypeVariation("Quiet", "Button");
         Button("Quiet", Wash, new Color("E2DAF7"), new Color("D3C8F2"), Letters);
-        void Button(string type, Color fill, Color hover, Color pressed, Color text)
+        // small ones, as the answers on her bubble
+        theme.SetTypeVariation("Small", "Button");
+        Button("Small", Accent, AccentLight, AccentDark, Colors.White, small: true);
+        theme.SetTypeVariation("QuietSmall", "Button");
+        Button("QuietSmall", Wash, new Color("E2DAF7"), new Color("D3C8F2"), Letters, small: true);
+        void Button(string type, Color fill, Color hover, Color pressed, Color text, bool small = false)
         {
-            theme.SetStylebox("normal", type, Box(fill, fill, 0, 10, 14, 6));
-            theme.SetStylebox("hover", type, Box(hover, hover, 0, 10, 14, 6));
-            theme.SetStylebox("pressed", type, Box(pressed, pressed, 0, 10, 14, 6));
-            theme.SetStylebox("disabled", type, Box(Wash, Wash, 0, 10, 14, 6));
+            var (x, y) = small ? (10, 2) : (14, 6);
+            theme.SetStylebox("normal", type, Box(fill, fill, 0, 10, x, y));
+            theme.SetStylebox("hover", type, Box(hover, hover, 0, 10, x, y));
+            theme.SetStylebox("pressed", type, Box(pressed, pressed, 0, 10, x, y));
+            theme.SetStylebox("disabled", type, Box(Wash, Wash, 0, 10, x, y));
             theme.SetStylebox("focus", type, new StyleBoxEmpty());
+            if (small)
+                theme.SetFontSize("font_size", type, 13);
             foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" })
                 theme.SetColor(state, type, text);
             theme.SetColor("font_disabled_color", type, Faint);

@@ -146,12 +146,13 @@ public class VoiceTests
     }
 
     [Fact]
-    public void With_a_voice_her_turn_ends_with_a_reminder_of_say_since_her_lines_in_the_history_have_none()
+    public void With_a_voice_her_turn_ends_with_a_reminder_of_her_language_and_of_say_since_her_lines_in_the_history_have_none()
     {
         var ja = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi", voiceLanguage: "ja")[^1].Text;
         var none = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi")[^1].Text;
 
-        Assert.EndsWith("<voice>\nYour voice speaks Japanese. Writing in another language, put a [say: ...] in front of every sentence, the last ones too.\n</voice>", ja);
+        Assert.EndsWith("<voice>\nYour voice speaks Japanese, and you write in the language the player writes in. When that isn't Japanese, " +
+                        "put a [say: ...] in front of every sentence, the last ones too.\n</voice>", ja);
         Assert.DoesNotContain("<voice>", none);
     }
 

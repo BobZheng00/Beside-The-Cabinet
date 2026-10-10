@@ -89,9 +89,12 @@ public static class Prompt
         // last of all, after what the player said: who she is, so a long conversation doesn't wear her character down
         // (character-card apps' post-history instructions; here in the turn, which is never cached anyway)
         var steady = persona.Steady ?? $"Reply as {persona.Name}, in character: {persona.Name}'s own voice, manner and way of speaking, as described at the start.";
-        // and how her voice works, as her earlier lines in the history show only what was shown, never a [say]
+        // and how her voice works, as her earlier lines in the history show only what was shown, never a [say]; and that
+        // she writes in the player's language, which a remark she starts herself has no message of theirs to show (a call
+        // of hers came out in Japanese, 2026-10-10)
+        var spoken = voiceLanguage is null ? "" : SpokenLanguage.Name(voiceLanguage);
         var voice = voiceLanguage is null ? ""
-            : $"\n<voice>\nYour voice speaks {SpokenLanguage.Name(voiceLanguage)}. Writing in another language, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
+            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player writes in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
         Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>{voice}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
@@ -129,7 +132,7 @@ public static class Prompt
         var letters = language switch
         {
             "ja" => " In Japanese, write names and other foreign words in katakana (サム, リートコード): your voice reads Latin letters as English. " +
-                    "Call the player by name with さん (サムさん), unless your character's description or the player says otherwise.",
+                    "Call the player by name with さん ([say: サムさん？] Sam?), unless your character's description or the player says otherwise.",
             "ko" => " In Korean, write names and other foreign words in Hangul (샘, 리트코드): your voice reads Latin letters as English.",
             _ => "",
         };

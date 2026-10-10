@@ -30,7 +30,7 @@ public partial class SpeechBubble : Node2D
     private double _onPage, _quiet, _thinking;
     private bool _streaming, _fading, _reply;               // _reply: showing a reply (Begin), not a line (Say)
     private bool _waiting;
-    private double _blink;
+    private HBoxContainer _answers = null!;                 // "Yes?" and "Not now", while she waits on her call
 
     /// <summary>How far her voice is through what it is saying (0 to 1), or null when she is not speaking.</summary>
     public Func<double?> Spoken { get; set; } = () => null;
@@ -39,8 +39,9 @@ public partial class SpeechBubble : Node2D
     public Func<bool> Subtitled { get; set; } = () => false;
 
     /// <summary>
-    /// She waits for the player to answer her call: the bubble keeps it, with a small blinking triangle at its foot that
-    /// says more is to come, as a visual novel's text box waits for a click.
+    /// She waits for the player to answer her call: the bubble keeps it, with two answers at its foot to click, "Yes?"
+    /// and "Not now", as saying them would. A small blinking triangle there (a visual novel's "more to come") was too
+    /// quiet: the user saw nothing saying it waited for them, nor that it could be clicked (2026-10-10).
     /// </summary>
     public bool Waiting
     {
@@ -50,17 +51,36 @@ public partial class SpeechBubble : Node2D
             if (_waiting == value)
                 return;
             _waiting = value;
-            _blink = 0;
             if (Visible && _text.Length > 0)
-                Place(Page(_page), single: _starts.Count == 1);     // room for the mark, or none
+                Place(Page(_page), single: _starts.Count == 1);     // room for the answers, or none
+            if (!value)
+                return;
+            _answers.Modulate = new Color(1, 1, 1, 0);
+            CreateTween().TweenProperty(_answers, "modulate:a", 1f, 0.2);
         }
     }
+
+    /// <summary>One of the answers on the bubble was clicked while she waits on her call: true for "Yes?", false for "Not now".</summary>
+    public Action<bool> Answered { get; set; } = _ => { };
 
     /// <summary>Whether a canvas point is on the bubble, while it shows.</summary>
     public bool Hits(Vector2 canvasPoint) => Visible && !_fading && new Rect2(Position + _box.Position, _box.Size).HasPoint(canvasPoint);
 
-    /// <summary>The middle of the bubble, on the canvas.</summary>
-    public Vector2 Centre => Position + _box.GetCenter();
+    /// <summary>Whether a canvas point is on one of the answers to her call.</summary>
+    public bool OnAnswer(Vector2 canvasPoint) =>
+        _waiting && Hits(canvasPoint) && _answers.GetChildren().OfType<Control>().Any(c => new Rect2(Position + _answers.Position + c.Position, c.Size).HasPoint(canvasPoint));
+
+    /// <summary>Dev: as if one of the answers on the bubble were clicked.</summary>
+    public void DevAnswer(bool yes) => Answer(yes);
+
+    private void Answer(bool yes)
+    {
+        if (_waiting)
+            Answered(yes);
+    }
+
+    /// <summary>The middle of the bubble's words, on the canvas.</summary>
+    public Vector2 Centre => Position + _label.Position + _label.Size / 2;
 
     public override void _Ready()
     {
@@ -72,7 +92,22 @@ public partial class SpeechBubble : Node2D
         AddChild(_label);
         _ruler = new Label { LabelSettings = _label.LabelSettings, AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false };
         AddChild(_ruler);
+        _answers = new HBoxContainer { Theme = Paper.WindowTheme(), Visible = false };
+        _answers.AddThemeConstantOverride("separation", 6);
+        _answers.AddChild(Choice("Yes?", "Small", yes: true));
+        _answers.AddChild(Choice("Not now", "QuietSmall", yes: false));
+        AddChild(_answers);
         Visible = false;
+
+        Button Choice(string text, string look, bool yes)
+        {
+            var button = new Button
+            {
+                Text = text, ThemeTypeVariation = look, FocusMode = Control.FocusModeEnum.None, MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            };
+            button.Pressed += () => Answer(yes);
+            return button;
+        }
     }
 
     /// <param name="tip">Canvas point the tail points at (just above her head).</param>
@@ -157,11 +192,6 @@ public partial class SpeechBubble : Node2D
     {
         if (!Visible || _fading)
             return;
-        if (_waiting)
-        {
-            _blink += delta;
-            QueueRedraw();                                  // the mark that more is to come blinks
-        }
         if (_streaming && _text.Length == 0)
         {
             _thinking += delta;
@@ -197,14 +227,7 @@ public partial class SpeechBubble : Node2D
         {
             var mark = $"{_page + 1}/{_starts.Count}{(_streaming ? "…" : "")}";
             var width = Face.GetStringSize(mark, HorizontalAlignment.Left, -1, PageFontSize).X;
-            DrawString(Face, new Vector2(_box.End.X - PadX - width - (_waiting ? 14 : 0), _box.End.Y - 6), mark, HorizontalAlignment.Left, -1, PageFontSize, Paper.Faint);
-        }
-        if (_waiting)
-        {
-            // more to come once the player answers: a small triangle at the foot, blinking
-            var at = new Vector2(_box.End.X - PadX - 5, _box.End.Y - 9);
-            var ink = Paper.Ink with { A = 0.3f + 0.7f * (0.5f + 0.5f * Mathf.Cos((float)_blink * 4)) };
-            DrawColoredPolygon([at + new Vector2(-5, -3), at + new Vector2(5, -3), at + new Vector2(0, 4)], ink);
+            DrawString(Face, new Vector2(_box.End.X - PadX - width, _box.End.Y - 6), mark, HorizontalAlignment.Left, -1, PageFontSize, Paper.Faint);
         }
     }
 
@@ -313,10 +336,14 @@ public partial class SpeechBubble : Node2D
             width = Mathf.Min(width + 40, WidestText);
             size = Measure(text, width);
         }
-        var box = size + new Vector2(2 * PadX, 2 * PadY + (single && !_waiting ? 0 : PageMark));
+        // under the words: the answers to her call while she waits on it, else the page count when there are pages
+        _answers.Visible = _waiting;
+        var answers = _waiting ? _answers.GetCombinedMinimumSize() : Vector2.Zero;
+        var box = size + new Vector2(2 * PadX, 2 * PadY + (_waiting ? answers.Y + 6 : single ? 0 : PageMark));
         if (!single)
             box.X = WidestText + 2 * PadX;                   // pages keep one width, so the bubble doesn't jump about
         box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."
+        box.X = Mathf.Max(box.X, answers.X + 2 * PadX);
         var left = Mathf.Clamp(_tip.X - box.X * 0.62f, 6, _canvas.X - box.X - 6);
         var top = Mathf.Max(_tip.Y - TailHeight - box.Y, 4);
         var rect = _box = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
@@ -325,6 +352,8 @@ public partial class SpeechBubble : Node2D
         _label.Text = text;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
         _label.Size = new Vector2(width, size.Y);
+        _answers.Position = rect.Position + new Vector2(PadX, rect.Size.Y - PadY - answers.Y);
+        _answers.Size = answers;
         // no room above her head for the tail (the box had to stop at the top of the canvas): a plain box, not a folded tail
         var tail = rect.End.Y <= -TailHeight / 2 ? Mathf.Clamp(-6, rect.Position.X + Corner + TailHalf, rect.End.X - Corner - TailHalf) : (float?)null;
         _shape = Outline(rect, tail);

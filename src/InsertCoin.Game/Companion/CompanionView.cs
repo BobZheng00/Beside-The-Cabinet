@@ -186,16 +186,28 @@ public partial class CompanionView : Node2D
         set => _bubble.Subtitled = value;
     }
 
-    /// <summary>She waits for the player to answer her call: her bubble keeps it, with a mark that more is to come.</summary>
+    /// <summary>She waits for the player to answer her call: her bubble keeps it, with "Yes?" and "Not now" to click.</summary>
     public bool Waiting
     {
         set => _bubble.Waiting = value;
     }
 
+    /// <summary>An answer on her bubble was clicked while she waits on her call: true for "Yes?", false for "Not now".</summary>
+    public Action<bool> Answered
+    {
+        set => _bubble.Answered = value;
+    }
+
+    /// <summary>Whether a canvas point is on one of the answers to her call, on her bubble.</summary>
+    public bool OnAnswer(Vector2 canvasPoint) => _active && _bubble.OnAnswer(canvasPoint);
+
+    /// <summary>Dev: as if an answer on her bubble were clicked.</summary>
+    public void DevAnswer(bool yes) => _bubble.DevAnswer(yes);
+
     /// <summary>Whether a canvas point is on her speech bubble.</summary>
     public bool BubbleHits(Vector2 canvasPoint) => _active && _bubble.Hits(canvasPoint);
 
-    /// <summary>Dev: the middle of her bubble, while it shows.</summary>
+    /// <summary>Dev: the middle of her bubble's words, while it shows.</summary>
     public Vector2? BubbleCentre => _active && _bubble.Visible ? _bubble.Centre : null;
 
     public void EndReply()
