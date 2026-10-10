@@ -344,9 +344,9 @@ public sealed class Chat : IDisposable
     /// words, shown and said as a reply is; when that fails, she says <paramref name="fallback"/> instead.
     /// </summary>
     /// <param name="call">
-    /// A word first (see <see cref="WordFirst"/>): her remark is written whole before any of it is shown or said, then
-    /// her call is, and this waits for the player's answer, given the whole remark (for a ticket): true, she goes on
-    /// aloud; false, the rest is only shown.
+    /// A word first (see <see cref="WordFirst"/>): her call is asked for on its own while her remark is written, whole,
+    /// before either is shown or said; then her call is, and this waits for the player's answer, given the remark (for
+    /// a ticket): true, she goes on aloud; false, the rest is only shown.
     /// </param>
     public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null,
                          IReadOnlyList<Attachment>? handed = null, Func<string, CancellationToken, Task<bool>>? call = null) =>
@@ -381,8 +381,8 @@ public sealed class Chat : IDisposable
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
-        // thought over unseen (see Consider), or written whole before her call (see WordFirst): her words and directions
-        // are held, and played after
+        // thought over unseen (see Consider), or written whole while her call is asked for (see WordFirst): her words and
+        // directions are held, and played after
         var held = voiceLater is null && call is null ? null : new List<Piece>();
         var began = false;
         try
@@ -394,11 +394,14 @@ public sealed class Chat : IDisposable
             }
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, IReadOnlyList<Attachment>?, Task<string>> reply =
-                fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Ask)
+                fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Called)
                             : conversation.Answer;
             Replied = null;
             var model = _provider?.Model ?? "";
             conversation.Unseeing = CantSee(model);
+            // her call, asked for on its own while the remark is written: one reply asked for both came back as the call alone
+            var calling = call is null ? null : conversation.Call(client, Tools, answering.Token);
+            _ = calling?.ContinueWith(t => t.Exception, TaskContinuationOptions.OnlyOnFaulted);    // one given up on may fail later: seen, not left unobserved
             var text = await reply(client, said, situation,
                                       words =>
                                       {
@@ -459,19 +462,23 @@ public sealed class Chat : IDisposable
 
                 if (call is null)
                     speech = _speech = voiceLater!();       // she has something to say about it: said now, as a reply is
+                var first = calling is null ? null : await CallFor(conversation, calling, answering.Token);
+                if (calling is not null && first is null)
+                    GD.Print("Word first: no call of hers to make yet; she goes straight on");
                 view.BeginReply();
                 began = true;
-                var (first, then) = call is null ? (held, new List<Piece>()) : WordFirst.Split(held);
-                if (call is not null && then.Count == 0)
-                    GD.Print("Word first: her remark is a single sentence; nothing to hold back");
-                Play(first);
-                if (then.Count > 0)
+                if (first is not null)
                 {
+                    var gap = Gap(WordFirst.Shown(first), WordFirst.Shown(held));
+                    conversation.CalledFirst(WordFirst.Shown(first) + gap);    // her line starts with her call
+                    Play(first);
                     answering.CancelAfter(Timeout.InfiniteTimeSpan);       // her call waits on the player, not on the provider
                     if (!await call!(WordFirst.Shown(held), answering.Token))
                         speech = null;                      // read on the ticket, or long unanswered: the rest is only shown
-                    Play(then);
+                    if (gap.Length > 0)
+                        held.Insert(0, new Piece(gap));
                 }
+                Play(held);
             }
             if (Here())
             {
@@ -536,6 +543,33 @@ public sealed class Chat : IDisposable
             _folding = false;
         }
     }
+
+    private static readonly TimeSpan CallGrace = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Her call for a word first: the one just asked for, when it has come by a few seconds after her remark; else her
+    /// last one (see <see cref="Conversation.LastCall"/>); else none, and she goes straight on.
+    /// </summary>
+    private static async Task<List<Piece>?> CallFor(Conversation conversation, Task<List<Piece>?> calling, CancellationToken cancel)
+    {
+        try
+        {
+            var came = await Task.WhenAny(calling, Task.Delay(CallGrace, cancel)) == calling;
+            cancel.ThrowIfCancellationRequested();
+            if (came && await calling is { } call)
+                return call;
+            GD.Print(came ? "Word first: her call came back empty; her last one instead" : "Word first: her call is slow; her last one instead");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            GD.Print($"Word first: asking for her call failed ({e.GetType().Name}: {e.Message.ReplaceLineEndings(" ")}); her last one instead");
+        }
+        return conversation.LastCall;
+    }
+
+    /// <summary>A space between her call and the rest, unless one is there or either side is Chinese or Japanese (which use none).</summary>
+    private static string Gap(string call, string rest) =>
+        call.Length == 0 || rest.Length == 0 || char.IsWhiteSpace(call[^1]) || char.IsWhiteSpace(rest[0]) || call[^1] >= '\u2E80' || rest[0] >= '\u2E80' ? "" : " ";
 
     /// <summary>
     /// The player cut her off (clicked her, talked over her, asked something new): her voice stops, a reply still

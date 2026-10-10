@@ -6,17 +6,18 @@ public readonly record struct Piece(string? Words, string? Direction = null, str
 /// <summary>
 /// What she brings up herself with nothing else to show it (a check-in, a word on rest, standing up) comes after a word
 /// first, as people do: she calls the player (their name, say) and goes on once they answer ("yes?"), so what she says
-/// reaches someone who is listening, not someone who has only just noticed she is talking. Her whole remark is written
-/// first; its first sentence is her call, and the rest waits for the answer (docs/specs/2026-10-09-a-word-first.md).
+/// reaches someone who is listening, not someone who has only just noticed she is talking. Her call is asked for on its
+/// own, alongside her remark, which is written as any other and kept whole until they answer: one reply asked to carry
+/// both came back as the call alone on the user's model (2026-10-10; docs/specs/2026-10-09-a-word-first.md).
 /// </summary>
 public static class WordFirst
 {
-    /// <summary>
-    /// What her mind is told with the remark, so that it opens with a call of its own and writes the rest with it: told
-    /// only that the rest came once they answered, a model wrote the call alone and stopped (2026-10-10).
-    /// </summary>
-    public const string Ask = "Write all of it in this reply, opening with a short sentence of its own that only gets their attention " +
-                              "(their name, say). The cabinet says that one first and holds back the rest until they answer; you won't be asked again.";
+    /// <summary>What her mind is asked for her call, on its own: only that, so that writing only that is right.</summary>
+    public const string Ask = "In a moment you will bring something up with the player on your own. First, only get their attention: " +
+                              "a few words of your own, in character (their name, say). Nothing else yet.";
+
+    /// <summary>What her mind is told with the remark itself, so that she doesn't call them a second time.</summary>
+    public const string Called = "You have just called them by name to get their attention, and they are listening: go straight to it.";
 
     /// <summary>What the player's answer to her call means.</summary>
     public enum Reply { GoOn, NotNow }
@@ -48,8 +49,9 @@ public static class WordFirst
     }
 
     /// <summary>
-    /// Her remark cut after its call: before its second [say] when it gives each sentence one, else after the first
-    /// sentence it shows. Then is empty when the remark is a single sentence.
+    /// What her mind wrote for her call, cut after its first sentence, as it may have written more than a call: before
+    /// its second [say] when it gives each sentence one, else after the first sentence it shows. Then is what was cut
+    /// away, empty when it was a single sentence.
     /// </summary>
     public static (List<Piece> Call, List<Piece> Then) Split(IReadOnlyList<Piece> pieces)
     {
@@ -85,4 +87,18 @@ public static class WordFirst
 
     /// <summary>The words the pieces show, together.</summary>
     public static string Shown(IEnumerable<Piece> pieces) => string.Concat(pieces.Select(p => p.Words)).Trim();
+
+    /// <summary>The pieces as her mind writes them, directions in brackets (how her last call is kept).</summary>
+    public static string Written(IEnumerable<Piece> pieces) =>
+        string.Concat(pieces.Select(p => p.Words ?? (p.Payload is null ? $"[{p.Direction}]" : $"[{p.Direction}: {p.Payload}]")));
+
+    /// <summary>What her mind wrote, as pieces: her words, and her directions where they fall.</summary>
+    public static List<Piece> Pieces(string written)
+    {
+        var pieces = new List<Piece>();
+        var stage = new StageDirections((name, payload) => pieces.Add(new Piece(null, name, payload)), words => pieces.Add(new Piece(words)));
+        if ((stage.Feed(written) + stage.Finish()) is { Length: > 0 } rest)
+            pieces.Add(new Piece(rest));
+        return pieces;
+    }
 }

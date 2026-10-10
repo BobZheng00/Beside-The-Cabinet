@@ -1,7 +1,7 @@
 # A word first
 
 *Decided with the user, 2026-10-09. Built the same day. Changed 2026-10-10 after their first try: reminders go straight
-on, and her bubble has Yes? and Not now to click.*
+on, her bubble has Yes? and Not now to click, and her call is asked for on its own.*
 
 ## Why
 
@@ -22,10 +22,13 @@ The flow broke because the meaning came before the player had looked, and the bu
 What she brings up herself with nothing else to show it (a check-in, the day's word on rest or bedtime, standing up, a
 focus turn) comes after a word first:
 
-1. Her whole remark is written before any of it is shown or said. Her mind is asked to open with a short sentence that
-   only gets the player's attention (their name, say), and to write all the rest with it: the cabinet holds the rest
-   back and won't ask again. Nobody waits for it, so the time it takes doesn't matter.
-2. She says that sentence, her call, and her bubble shows it with two answers at its foot to click, **Yes?** and
+1. Her remark is written as any other, whole, before any of it is shown or said; her mind is only told she has just
+   called them, so it doesn't call them twice. At the same time her call is asked for on its own: a few words of her
+   own, in character, that only get their attention (their name, say). Her mind sees the conversation for it, so the
+   call is in the player's language, but not the remark, so it can't give it away. If that request fails, or hasn't
+   come 5 seconds after the remark, her last call is used; with none yet, she goes straight on. Nobody waits for
+   either, so the time they take doesn't matter.
+2. She says her call, and her bubble shows it with two answers at its foot to click, **Yes?** and
    **Not now**, while she looks at the player and waits, as while her card asks.
 3. She waits for an answer:
    - **aloud:** if the player listens hands-free after her questions, her microphone opens after the call as it does
@@ -84,8 +87,8 @@ Not yet tried: the real microphone, and a real model writing its own call.
 The user, on their own model (a GPT model through their provider), with two reminders (still called first then):
 - each came back as only the call, "BobSmith！" and "ボブスミスさん！", with nothing after it, so nothing waited: her
   bubble showed only their name, the second in Japanese. Told the rest was said "once they answer", her mind took it
-  as being asked again later. It is now told to write all of it in this reply, the rest held back and never asked for
-  again, and the log says when a remark had nothing to hold back;
+  as being asked again later. That day it was first told to write all of it in one reply, then, by the user's design,
+  the call was asked for on its own (below);
 - the Japanese bubble: a remark she starts herself has no message of the player's to follow for its language, and a
   call that is only a name followed the さん guidance into Japanese. Her turn now ends with "you write in the language
   the player writes in", and the さん example shows the subtitle keeping the player's language (`[say: サムさん？] Sam?`);
@@ -98,6 +101,20 @@ Then hidden runs with Hana's voice and a mock model, standing up as the remark: 
 sec?" (68 characters kept unsaid), Yes? brought the rest, a reminder went straight on, and the requests carried the
 new wording. Not yet tried: the real mouse on Yes? and Not now, and the new wording on the user's model.
 
+## The call asked for on its own (2026-10-10, the user's design)
+
+Telling her mind to write all of it in one reply might hold on one model and fail on the next. Instead, no reply has
+to carry both: the remark is a turn as any other (the path that worked before a word first), and the call a short
+request of its own, sent at the same time. What a model does with either can't lose what she wanted to say: at worst
+a poor call, cut to its first sentence, or her last one, or none. The rest is ready as soon as they answer, the ticket
+still shows the whole remark, and it behaves the same with any provider or a local model. It costs one more short
+request each time she brings something up herself, a few a day.
+
+Tried in hidden runs with Hana's voice and a mock model answering the two requests apart: a fresh call ("Bob, got a
+sec?") and Not now, the rest kept unsaid; then the call request failing, her last call used, and Yes? bringing the
+remark alone; in a new profile with the call request failing, she went straight on. Her line is the call and the
+remark together. Not yet tried: the user's own model.
+
 ## Not built, and why
 
 - **Replaying her last line by a click on her bubble:** the user's call, 2026-10-09: "we can ask her to reexplain, but
@@ -107,8 +124,10 @@ new wording. Not yet tried: the real mouse on Yes? and Not now, and the new word
 
 ## Where it lives
 
-- `WordFirst` (Mind): what her mind is asked, how her remark is cut after its call (`Split`), what a spoken answer
-  means (`Of`).
-- `Chat.Announce(…, call)`: writes it whole, plays the call, waits, plays the rest.
+- `WordFirst` (Mind): what her mind is asked for her call (`Ask`) and told with the remark (`Called`), how a call is
+  cut to its first sentence (`Split`), what a spoken answer means (`Of`).
+- `Conversation.Call` (asked for on its own, kept as `LastCall`), `Conversation.CalledFirst` (her line starts with it).
+- `Chat.Announce(…, call)`: asks for both, plays the call (`CallFor`: the fresh one, her last one, or none), waits,
+  plays the remark.
 - `Stool.WaitForAnswer`, `Stool.Calling`, `GoOn`, `NotNow`; `Listening.Called`; the bubble's `Waiting` (with its answers,
   `Answered`, `OnAnswer`) and `Subtitled`; `AlertTicket.Take`.

@@ -82,10 +82,60 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
     /// <see cref="Agenda.Announcement"/>): answered as a message would be, but logged as the cabinet's line.
     /// </summary>
-    /// <param name="aside">How to put it this time (see <see cref="WordFirst.Ask"/>): sent with the note, not logged with it.</param>
+    /// <param name="aside">How to put it this time (see <see cref="WordFirst.Called"/>): sent with the note, not logged with it.</param>
     public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
                                  CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null) =>
         Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? [], aside);
+
+    /// <summary>
+    /// Her call before something she brings up herself (see <see cref="WordFirst"/>): a few words of her own that only
+    /// get the player's attention, asked for on their own, alongside the remark. Her mind sees the conversation, so the
+    /// call is in their language, but nothing of this turn, so it can't give the remark away. Nothing of it is logged
+    /// (see <see cref="CalledFirst"/>); it is kept as her last call (see <see cref="LastCall"/>).
+    /// </summary>
+    /// <returns>Her words, her voice's [say] and what her body does, cut to the first sentence; null when nothing came.</returns>
+    public async Task<List<Piece>?> Call(IChatClient client, Toolbox? tools, CancellationToken cancel = default)
+    {
+        var now = _clock.GetLocalNow();
+        var summary = store.SummaryOf(character);
+        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), summary,
+                                store.After(character, summary?.Through ?? 0), "", $"[cabinet] {WordFirst.Ask}", memories: null,
+                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null);
+        var written = new StringBuilder();
+        await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
+            written.Append(update.Text);
+        var (call, _) = WordFirst.Split([.. WordFirst.Pieces(written.ToString())
+            .Where(p => p.Words is not null || p.Direction == "say" || p.Direction is { } moment && Prompt.Moments.Contains(moment))]);
+        // no blanks at either end, so that what it shows is what is kept
+        var first = call.FindIndex(p => p.Words is not null);
+        if (first >= 0)
+            call[first] = new Piece(call[first].Words!.TrimStart());
+        var last = call.FindLastIndex(p => p.Words is not null);
+        if (last >= 0)
+            call[last] = new Piece(call[last].Words!.TrimEnd());
+        call.RemoveAll(p => p.Words is { Length: 0 });
+        if (!call.Any(p => p.Words is not null || p.Direction == "say"))
+            return null;
+        store.SetMark(CallMark, WordFirst.Written(call));
+        return call;
+    }
+
+    /// <summary>Her last call that came (see <see cref="Call"/>), for when asking for one fails: her own words, for her voice's language. Null before her first.</summary>
+    public List<Piece>? LastCall => store.Mark(CallMark) is { Length: > 0 } written ? WordFirst.Pieces(written) : null;
+
+    private string CallMark => $"call.{character}.{VoiceLanguage}";
+
+    /// <summary>
+    /// She called the player before her latest reply (see <see cref="Call"/>): her line starts with <paramref name="call"/>,
+    /// as it was shown, and a cut through the two counts from its start (see <see cref="CutOff"/>).
+    /// </summary>
+    public void CalledFirst(string call)
+    {
+        if (_lastReply is not { } reply || call.Length == 0)
+            return;
+        _lastReply = (reply.Line, call + reply.Streamed);
+        store.Rewrite(reply.Line, (call + reply.Streamed).Trim());
+    }
 
     private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
                                      Action<string, string?> direction, Toolbox? tools, CancellationToken cancel, IReadOnlyList<Attachment> handed,

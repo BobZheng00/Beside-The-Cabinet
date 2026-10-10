@@ -123,8 +123,9 @@ or asking something new. She then remembers only what you heard, ending where sh
 yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
 
 What she brings up herself with nothing else to show it (a check-in, a word on rest or bedtime, standing up, a focus
-turn) comes after a word first. Her mind writes the whole of it, then she says only its first sentence, a call
-("ボブさん？"), and her bubble keeps it with two answers to click, Yes? and Not now, while she looks at you and waits.
+turn) comes after a word first. Her mind writes the whole of it while her call is asked for on its own: a few words of
+hers that only get your attention ("ボブさん？"; her last one if that fails). She says the call, and her bubble keeps it
+with two answers to click, Yes? and Not now, while she looks at you and waits.
 Yes? (or something short, "yes?", 嗯？, said with the talk key or hands-free if you listen after her questions, or a
 click on her or her bubble): she goes on. Not now: she stops there and keeps the rest for later. Anything longer, or
 a message typed: she stops there and answers it. Unanswered for 20 seconds (your headset on the desk, say), a ticket
