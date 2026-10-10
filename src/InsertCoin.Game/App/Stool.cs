@@ -30,10 +30,8 @@ public partial class Stool : Node2D
     private Music _music = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
-    private ChatSettings? _chatSettings;
     private MemoryBook? _memoryBook;
     private ChatHistory? _history;
-    private VoiceSettings? _voiceSettings;
     private bool _gameRunning;
     private Listening _listening = null!;
     private bool _announcing;                               // passing on a reminder
@@ -42,8 +40,11 @@ public partial class Stool : Node2D
     private readonly Queue<(string Ticket, string Note, string Line, DateTimeOffset At, Telling How)> _told = new();     // focus sessions' turns, a long sitting, rest
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
-    /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
-    public event Action<(string Id, string Name)[], string>? CharactersAdded;
+    /// <summary>Settings should open at this page (a voice just added that still needs something).</summary>
+    public event Action<string>? OpenSettings;
+
+    /// <summary>What a settings page shows changed (a voice added or trained, a character): it is made again if open.</summary>
+    public event Action<string>? SettingsChanged;
 
     /// <summary>The player's memos: on the cabinet, in the archive, and in their own hand.</summary>
     public Memos Memos => _memos;
@@ -960,6 +961,7 @@ public partial class Stool : Node2D
         Her?.QueueFree();
         Her = null;
         ShowHer(_settings.Now.ShowCompanion);
+        SettingsChanged?.Invoke("voice");                   // a voice of their own
     }
 
     public (string Id, string Name)[] Characters() => [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name))];
@@ -1182,7 +1184,7 @@ public partial class Stool : Node2D
             return;
         }
         if (added.Count > 0)
-            CharactersAdded?.Invoke(Characters(), added[0]);
+            SettingsChanged?.Invoke("characters");          // one more to choose from
         _settings.Save(_settings.Now with { ShowCompanion = true });
         Seat(added.FirstOrDefault() ?? OnStool()!.Value.Id);        // seated again, so a new card takes effect
         _lively(6);
@@ -1227,10 +1229,11 @@ public partial class Stool : Node2D
     private void AddedVoice(VoiceProfile voice)
     {
         _voice.Seat(_voice.Folder);
+        SettingsChanged?.Invoke("voice");
         if (voice.Missing is not null || VoiceServer.Check(_settings.Now.VoiceEngine) is not null)
         {
-            _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE VOICE SETTINGS", 4.0);
-            OpenVoiceSettings();
+            _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE SETTINGS, HER VOICE", 4.0);
+            OpenSettings?.Invoke("voice");
             return;
         }
         _cabinet.Screen.Flash("VOICE", $"{voice.Name} - WARMING UP".ToUpperInvariant(), 4.0);
@@ -1366,45 +1369,164 @@ public partial class Stool : Node2D
         return said;
     }
 
-    /// <summary>Provider, server, key and model.</summary>
-    public void OpenChatSettings()
+    // ---- Her pages of the settings ---------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Her pages of the settings (see <see cref="SettingsWindow"/>): her mind, her voice, talking aloud, characters, her
+    /// abilities, privacy and add-ons, and what her requests used. Each change is saved and used at once.
+    /// </summary>
+    public IEnumerable<SettingsPage> SettingsPages() =>
+    [
+        new("mind", SettingsWindow.Her, "Her mind", MindPage),
+        new("voice", SettingsWindow.Her, "Her voice", VoicePage),
+        new("listening", SettingsWindow.Her, "Talking aloud", ListeningPage),
+        new("characters", SettingsWindow.Her, "Characters", CharactersPage),
+        new("abilities", SettingsWindow.Her, "Abilities", AbilitiesPage),
+        new("privacy", SettingsWindow.Her, "Privacy", PrivacyPage),
+        new("addons", SettingsWindow.Her, "Add-ons", AddOnsPage),
+        new("usage", SettingsWindow.Cabinet, "Usage", UsedPage),
+    ];
+
+    /// <summary>The name of whoever is on the stool, for her pages to say.</summary>
+    private string HerName() => OnStool()?.Name ?? "Your companion";
+
+    /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word.</summary>
+    private Control MindPage()
     {
-        if (IsInstanceValid(_chatSettings))
+        var page = new MindSettings();
+        page.Build(_chat, ChatProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow);
+        page.Saved += provider =>
         {
-            _chatSettings!.GrabFocus();
-            return;
-        }
-        if (OnStool() is not { } character)
-            return;
-        _chatSettings = new ChatSettings();
-        AddChild(_chatSettings);
-        _chatSettings.Build(_chat, ChatProvider(), character.Name, _settings.Now.MemorySearch, _settings.Now.TalkKey, _settings.Now.HandsFree, Listening.HasEars, Listening.HasTurns, _settings.Now.ChatWindow,
-                            _settings.Now.ChatPrices, _settings.Now.Currency, _settings.Now.Privacy, _settings.Now.AddOns);
-        _chatSettings.PricesSaved += (model, prices, currency) =>
+            _settings.Save(_settings.Now with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
+            _chat.Connect(provider);
+        };
+        page.SearchChosen += search =>
         {
+            _settings.Save(_settings.Now with { MemorySearch = search });
+            _chat.UseSearch(search);
+        };
+        page.WindowChosen += window =>
+        {
+            _settings.Save(_settings.Now with { ChatWindow = window });
+            _chat.UseWindow(window);
+        };
+        return page;
+    }
+
+    /// <summary>Whether she speaks aloud, the GPT-SoVITS that runs her voice, and the voice of whoever is on the stool.</summary>
+    private Control VoicePage()
+    {
+        var folder = OnStool() is { } character ? VoiceFolder(character.Id) : _voice.Folder;
+        var page = new VoiceSettings();
+        page.Build(_voice, _trainer, _settings.Now.VoiceEngine, HerName(), _settings);
+        page.Switched += SetVoice;
+        page.EngineChosen += engine =>
+        {
+            if (engine == _settings.Now.VoiceEngine)
+                return;
+            _settings.Save(_settings.Now with { VoiceEngine = engine });
+            _voice.UseEngine(engine);
+        };
+        page.VoiceChanged += () => _voice.Seat(folder);     // read again: its language, words, model or quality changed
+        page.AddVoice += PickVoice;
+        page.AddFolder += PickVoiceFolder;
+        page.Train += Train;
+        page.StopTraining += () => _trainer.Stop("You stopped the training.");
+        page.RemoveVoice += () =>
+        {
+            if (_trainer.Running && _trainer.Folder == folder)
+                _trainer.Stop("The voice was removed.");
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+            _voice.Seat(folder);
+            SettingsChanged?.Invoke("voice");
+        };
+        return page;
+    }
+
+    /// <summary>The talk key, and when she listens without it: both read as they are needed, so saving is enough.</summary>
+    private Control ListeningPage()
+    {
+        var page = new ListeningSettings();
+        page.Build(HerName(), _settings.Now.TalkKey, _settings.Now.HandsFree, Listening.HasEars, Listening.HasTurns);
+        page.KeyChosen += key => _settings.Save(_settings.Now with { TalkKey = key });
+        page.HandsFreeChosen += handsFree => _settings.Save(_settings.Now with { HandsFree = handsFree });
+        return page;
+    }
+
+    /// <summary>Who is on the stool, or nobody; her speech bubbles; adding a character.</summary>
+    private Control CharactersPage()
+    {
+        var page = new CharacterSettings();
+        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles);
+        page.ShownChosen += SetCompanion;
+        page.BubblesChosen += SetBubbles;
+        page.Seated += Seat;
+        page.Add += PickCharacter;
+        page.OpenFolder += OpenCharactersFolder;
+        return page;
+    }
+
+    /// <summary>What she can do beyond talking, and how freely.</summary>
+    private Control AbilitiesPage()
+    {
+        var page = new AbilitySettings();
+        page.BuildAbilities(_chat, HerName());
+        page.PermissionsChosen += ChoosePermissions;
+        page.AutoChosen += auto =>
+        {
+            _settings.Save(_settings.Now with { ToolsAuto = auto });
+            _chat.Tools.Auto = auto;
+        };
+        return page;
+    }
+
+    /// <summary>What she may look at of the player's, and what she is told in the background.</summary>
+    private Control PrivacyPage()
+    {
+        var page = new AbilitySettings();
+        page.BuildPrivacy(_chat, HerName(), ChatProvider(), _settings.Now.Privacy);
+        page.PermissionsChosen += ChoosePermissions;
+        page.PrivacyChosen += privacy => _settings.Save(_settings.Now with { Privacy = privacy });
+        return page;
+    }
+
+    private void ChoosePermissions(IReadOnlyDictionary<string, Permission> permissions)
+    {
+        _settings.Save(_settings.Now with { ToolPermissions = new(permissions) });
+        _chat.Tools.Choose(permissions);
+    }
+
+    /// <summary>Extras the player turns on: web search through their own SearXNG.</summary>
+    private Control AddOnsPage()
+    {
+        var page = new AddOnSettings();
+        page.Build(HerName(), ChatProvider(), _settings.Now.AddOns);
+        page.Chosen += addOns =>
+        {
+            _settings.Save(_settings.Now with { AddOns = addOns });
+            _chat.SearchThrough(addOns.Search);
+        };
+        return page;
+    }
+
+    /// <summary>What her requests used, and the prices the player entered for the model she runs on.</summary>
+    private Control UsedPage()
+    {
+        var page = Form.Page(new VBoxContainer(), "Usage");
+        var model = _settings.Now.ChatModel;
+        _ = new UsagePage(page, _chat.Store, model, _settings.Now.ChatPrices, _settings.Now.Currency, (prices, currency) =>
+        {
+            if (model is null)
+                return;                                     // prices are kept per model
             var all = new Dictionary<string, Prices>(_settings.Now.ChatPrices);
             if (prices is null)
                 all.Remove(model);
             else
                 all[model] = prices;
             _settings.Save(_settings.Now with { ChatPrices = all, Currency = currency });
-        };
-        _chatSettings.Saved += (provider, search, talkKey, handsFree, window, permissions, auto, privacy, addOns) =>
-        {
-            _settings.Save(_settings.Now with
-            {
-                ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model, MemorySearch = search,
-                TalkKey = talkKey, HandsFree = handsFree, ChatWindow = window, ToolPermissions = new(permissions), ToolsAuto = auto,
-                Privacy = privacy, AddOns = addOns,
-            });
-            _chat.SearchThrough(addOns.Search);
-            _chat.Tools.Choose(permissions);
-            _chat.Tools.Auto = auto;
-            _chat.UseWindow(window);
-            _chat.UseSearch(search);
-            _chat.Connect(provider);
-        };
-        _chatSettings.Open();
+        });
+        return page;
     }
 
     /// <summary>The conversation with whoever is on the stool, as stored.</summary>
@@ -1442,44 +1564,6 @@ public partial class Stool : Node2D
 
     // ---- Her voice ------------------------------------------------------------------------------------------------------
 
-    /// <summary>The GPT-SoVITS that runs her voice, and the voice of whoever is on the stool.</summary>
-    public void OpenVoiceSettings()
-    {
-        if (IsInstanceValid(_voiceSettings))
-        {
-            _voiceSettings!.GrabFocus();
-            return;
-        }
-        if (OnStool() is not { } character)
-            return;
-        _voiceSettings = new VoiceSettings();
-        AddChild(_voiceSettings);
-        _voiceSettings.Build(_voice, _trainer, _settings.Now.VoiceEngine, character.Name);
-        _voiceSettings.Saved += engine =>
-        {
-            var changed = engine != _settings.Now.VoiceEngine;
-            _settings.Save(_settings.Now with { VoiceEngine = engine });
-            if (changed)
-                _voice.UseEngine(engine);
-            _voice.Seat(VoiceFolder(character.Id));          // read again: its language, words, model or quality may have changed
-        };
-        _voiceSettings.AddVoice += PickVoice;
-        _voiceSettings.AddFolder += PickVoiceFolder;
-        _voiceSettings.Train += Train;
-        _voiceSettings.StopTraining += () => _trainer.Stop("You stopped the training.");
-        _voiceSettings.RemoveVoice += () =>
-        {
-            var folder = VoiceFolder(character.Id);
-            if (_trainer.Running && _trainer.Folder == folder)
-                _trainer.Stop("The voice was removed.");
-            if (Directory.Exists(folder))
-                Directory.Delete(folder, recursive: true);
-            _voice.Seat(folder);
-            OpenVoiceSettings();
-        };
-        _voiceSettings.Open();
-    }
-
     /// <summary>Trains the voice of whoever is on the stool a model of its own (her voice rests meanwhile), or says why not.</summary>
     private void Train()
     {
@@ -1500,7 +1584,7 @@ public partial class Stool : Node2D
         _voice.Training = false;
         if (trained is null)
         {
-            _cabinet.Screen.Flash("VOICE", "TRAINING STOPPED: SEE VOICE SETTINGS", 4.0);
+            _cabinet.Screen.Flash("VOICE", "TRAINING STOPPED: SEE SETTINGS, HER VOICE", 4.0);
             return;
         }
         _settings.Save(_settings.Now with { TrainingPace = _trainer.Pace });     // the next estimate is this PC's own
@@ -1509,12 +1593,7 @@ public partial class Stool : Node2D
         _voice.Seat(folder);
         _cabinet.Screen.Flash("VOICE", $"{trained.Name} TRAINED - HAVE A LISTEN".ToUpperInvariant(), 4.0);
         _lively(20);
-        if (IsInstanceValid(_voiceSettings))
-        {
-            _voiceSettings!.QueueFree();                    // open again, to show its trained model
-            _voiceSettings = null;
-            Callable.From(OpenVoiceSettings).CallDeferred();
-        }
+        SettingsChanged?.Invoke("voice");                   // its trained model to choose
         _ = _voice.Test();
     }
 
@@ -1563,12 +1642,6 @@ public partial class Stool : Node2D
                 _activities.Roll = double.Parse(rest, System.Globalization.CultureInfo.InvariantCulture);
                 break;
             case "phonesend": _ = DevPhone(rest); break;     // phonesend:path as if a phone sent that photo through the card's page
-            case "chatsettings": OpenChatSettings(); break;
-            case "usage": OpenChatSettings(); _chatSettings?.DevUsage(); break;     // the chat settings' Usage tab
-            case "listeningsettings": OpenChatSettings(); _chatSettings?.DevListening(); break;     // its Listening tab
-            case "abilities": OpenChatSettings(); _chatSettings?.DevAbilities(); break;     // its Abilities tab
-            case "privacy": OpenChatSettings(); _chatSettings?.DevPrivacy(); break;     // its Privacy tab
-            case "addons": OpenChatSettings(); _chatSettings?.DevAddOns(); break;     // its Add-ons tab
             case "fakewindows": OpenWindows.StandIn = text.Split('|'); break;    // fakewindows:title|title: the window titles she reads instead
             case "memo":                                    // memo:title:text: she prints a memo, as the tool has her do
                 var parts = text.Split(':', 2);
@@ -1631,7 +1704,6 @@ public partial class Stool : Node2D
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice
             case "thinkingsounds": GD.Print($"Voice: {_voice.DevSaveSounds(rest)} thinking sounds saved in {rest}"); break;    // thinkingsounds:folder: her thinking sounds as WAV files
-            case "voicesettings": OpenVoiceSettings(); break;
             case "voicetest": _ = _voice.Test(); break;      // her voice says its sample line (waiting for it to be ready)
             case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
                 if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(rest) || rest == "trained" && voice.Trained))

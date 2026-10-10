@@ -6,12 +6,13 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Where the user gives her a voice: the GPT-SoVITS that runs it, and the voice of whoever is on the stool (the
-/// language it speaks, its trained model or the base model it is cloned with, the clip it speaks with and the words in
-/// it, how carefully it is made), and training it a model of its own.
+/// Settings → Her voice: whether she speaks aloud, the GPT-SoVITS that runs her voice, and the voice of whoever is on
+/// the stool (the language it speaks, its trained model or the base model it is cloned with, the clip it speaks with and
+/// the words in it, how carefully it is made), and training it a model of its own. A change is written to the voice's
+/// folder at once; the words in a clip once the field is left.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public partial class VoiceSettings : Window
+public partial class VoiceSettings : VBoxContainer
 {
     private const string GetEngine = "https://github.com/RVC-Boss/GPT-SoVITS/releases";
     private static readonly (int Steps, string Label)[] Qualities =
@@ -48,11 +49,15 @@ public partial class VoiceSettings : Window
         "A folder (or a .zip of it) is a whole voice: dropped on the cabinet or added with Add a folder…, it replaces " +
         "her voice. Clips dropped or added with Add clips… join it.";
 
-    /// <summary>Saved: the GPT-SoVITS folder chosen (the voice's own changes are already written to its folder).</summary>
-    public event Action<string?>? Saved;
-    /// <summary>The user wants to add a voice (a file, or a folder), or take this one away; the window closes and is opened again after.</summary>
+    /// <summary>She speaks aloud, or not (the tray's Voice).</summary>
+    public event Action<bool>? Switched;
+    /// <summary>A GPT-SoVITS folder that works was chosen, or the field was emptied (null).</summary>
+    public event Action<string?>? EngineChosen;
+    /// <summary>The voice's choices were written to its folder: it is read again.</summary>
+    public event Action? VoiceChanged;
+    /// <summary>The user wants to add a voice (a file, or a folder), or take this one away; the page is made again after.</summary>
     public event Action? AddVoice, AddFolder, RemoveVoice;
-    /// <summary>The user wants this voice trained (its changes saved first), or the training stopped.</summary>
+    /// <summary>The user wants this voice trained (its changes written first), or the training stopped.</summary>
     public event Action? Train, StopTraining;
 
     private Voice _voice = null!;
@@ -72,73 +77,53 @@ public partial class VoiceSettings : Window
     private AudioStreamPlayer _preview = null!;
     private bool _removing;
 
-    public void Build(Voice voice, VoiceTrainer trainer, string? engineFolder, string characterName)
+    public void Build(Voice voice, VoiceTrainer trainer, string? engineFolder, string name, SettingsFile settings)
     {
         _voice = voice;
         _trainer = trainer;
         _profile = voice.Profile;
-        Title = $"{characterName}'s voice";
-        Visible = false;
-        Transient = true;
-        CloseRequested += QueueFree;
         _preview = new AudioStreamPlayer();
         AddChild(_preview);
 
-        var page = new PanelContainer();
-        page.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        AddChild(page);
-        var column = new VBoxContainer();
-        column.AddThemeConstantOverride("separation", 10);
-        page.AddChild(column);
+        Form.Page(this, "Her voice");
+        var on = Form.Tick(this, "She speaks aloud", settings.Now.Voice, ticked => Switched?.Invoke(ticked));
+        void Sync() => on.SetPressedNoSignal(settings.Now.Voice);          // the tray's Voice flipped meanwhile
+        settings.Changed += Sync;
+        TreeExiting += () => settings.Changed -= Sync;
+        Form.Hint(this, $"{name} speaks with GPT-SoVITS, running on this PC: with a model trained on her voice, or cloning it from clips " +
+                        "with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a game runs she rests her " +
+                        "voice, to leave the game the graphics card.");
+        Form.Button(this, "What goes in a voice folder?", ShowGuide).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
 
-        column.AddChild(new Label { Text = $"{characterName}'s voice", ThemeTypeVariation = "Heading" });
-        column.AddChild(Hint($"{characterName} speaks with GPT-SoVITS, running on this PC: with a model trained on her voice, or cloning " +
-                             "it from clips with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a " +
-                             "game runs she rests her voice, to leave the game the graphics card."));
-        var guide = new Button { Text = "What goes in a voice folder?", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
-        column.AddChild(guide);
-
-        var engine = new GridContainer { Columns = 2 };
-        engine.AddThemeConstantOverride("h_separation", 12);
-        engine.AddThemeConstantOverride("v_separation", 8);
-        column.AddChild(engine);
-        var folderRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var engine = Form.Grid(this);
+        var folderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         folderRow.AddThemeConstantOverride("separation", 8);
-        _engine = new LineEdit { Text = engineFolder ?? "", PlaceholderText = @"C:\GPT-SoVITS-v2pro-20250604", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var browse = new Button { Text = "Browse…", ThemeTypeVariation = "Quiet" };
+        _engine = new LineEdit { Text = engineFolder ?? "", PlaceholderText = @"C:\GPT-SoVITS-v2pro-20250604", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         folderRow.AddChild(_engine);
-        folderRow.AddChild(browse);
-        Row(engine, "GPT-SoVITS", folderRow);
-        _status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        Row(engine, "", _status);
-        var get = new Button { Text = "Get GPT-SoVITS…", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
-        Row(engine, "", get);
+        Form.Button(folderRow, "Browse…", Browse);
+        Form.Row(engine, "GPT-SoVITS", folderRow);
+        _status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        Form.Row(engine, "", _status);
+        var get = new Button { Text = "Get GPT-SoVITS…", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
+        get.Pressed += () => OS.ShellOpen(GetEngine);
+        Form.Row(engine, "", get);
 
-        column.AddChild(new HSeparator());
-        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
-        column.AddChild(scroll);
-        var details = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        details.AddThemeConstantOverride("separation", 10);
-        scroll.AddChild(details);
+        AddChild(new HSeparator());
         if (_profile is null)
-            details.AddChild(new Label { Text = "No voice yet.", ThemeTypeVariation = "Subheading" });
+            Form.Subheading(this, "No voice yet.");
         else
-            BuildVoice(details, _profile);
+            BuildVoice(_profile);
 
-        var actions = new HBoxContainer();
-        actions.AddThemeConstantOverride("separation", 10);
-        var addFile = new Button { Text = "Add clips…", ThemeTypeVariation = "Quiet", TooltipText = "Clips join this voice; a voice's .zip replaces it" };
-        var addFolder = new Button { Text = "Add a folder…", ThemeTypeVariation = "Quiet", TooltipText = "A voice's folder (clips with their words, maybe a model): it replaces this voice" };
-        actions.AddChild(addFile);
-        actions.AddChild(addFolder);
+        var actions = Form.Buttons(this);
+        var addFile = Form.Button(actions, "Add clips…", () => AddVoice?.Invoke());
+        addFile.TooltipText = "Clips join this voice; a voice's .zip replaces it";
+        var addFolder = Form.Button(actions, "Add a folder…", () => AddFolder?.Invoke());
+        addFolder.TooltipText = "A voice's folder (clips with their words, maybe a model): it replaces this voice";
         if (_profile is not null)
         {
-            var test = new Button { Text = "Test", ThemeTypeVariation = "Quiet" };
-            var remove = new Button { Text = "Remove voice", ThemeTypeVariation = "Quiet" };
-            actions.AddChild(test);
-            actions.AddChild(remove);
-            test.Pressed += () => _ = Test();
-            remove.Pressed += () =>
+            Form.Button(actions, "Test", () => _ = Test());
+            Button remove = null!;
+            remove = Form.Button(actions, "Remove voice", () =>
             {
                 if (!_removing)
                 {
@@ -147,69 +132,40 @@ public partial class VoiceSettings : Window
                     return;
                 }
                 RemoveVoice?.Invoke();
-                QueueFree();
-            };
+            });
         }
-        _result = new Label { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        actions.AddChild(_result);
-        column.AddChild(actions);
+        _result = Form.Result(this);                        // under the buttons: beside them, the row is wider than the page
 
-        var buttons = new HBoxContainer();
-        buttons.AddThemeConstantOverride("separation", 10);
-        var cancel = new Button { Text = "Cancel", ThemeTypeVariation = "Quiet" };
-        var save = new Button { Text = "Save" };
-        buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-        buttons.AddChild(cancel);
-        buttons.AddChild(save);
-        column.AddChild(buttons);
-
-        guide.Pressed += ShowGuide;
-        browse.Pressed += Browse;
-        get.Pressed += () => OS.ShellOpen(GetEngine);
-        addFile.Pressed += () =>
+        _engine.TextChanged += text =>
         {
-            AddVoice?.Invoke();
-            QueueFree();
+            ShowStatus();
+            var folder = text.Trim();
+            if (folder.Length == 0 || VoiceServer.Check(folder) is null)
+                EngineChosen?.Invoke(folder.Length > 0 ? folder : null);
         };
-        addFolder.Pressed += () =>
-        {
-            AddFolder?.Invoke();
-            QueueFree();
-        };
-        cancel.Pressed += QueueFree;
-        save.Pressed += () =>
-        {
-            Apply();
-            QueueFree();
-        };
-        _engine.TextChanged += _ => ShowStatus();
         voice.Changed += ShowStatus;
         trainer.Changed += ShowTraining;
         TreeExiting += () =>
         {
             voice.Changed -= ShowStatus;
             trainer.Changed -= ShowTraining;
+            KeepWords();                                    // words still being typed when the window closed
         };
         ShowStatus();
         ShowTraining();
     }
 
-    public void Open() => Paper.Open(this, new Vector2(600, _profile is null ? 520 : 820));
-
-    private void BuildVoice(VBoxContainer column, VoiceProfile profile)
+    private void BuildVoice(VoiceProfile profile)
     {
-        var grid = new GridContainer { Columns = 2 };
-        grid.AddThemeConstantOverride("h_separation", 12);
-        grid.AddThemeConstantOverride("v_separation", 8);
-        column.AddChild(grid);
+        var grid = Form.Grid(this);
         var seconds = profile.Clips.Sum(c => c.Seconds ?? 0);
-        Row(grid, "Voice", new Label
+        Form.Row(grid, "Voice", new Label
         {
             Text = $"{profile.Name} · {profile.Clips.Count} {(profile.Clips.Count == 1 ? "clip" : "clips")}" +
                    (seconds >= 60 ? $" ({seconds / 60:0.0} min)" : $" ({seconds:0} s)") + (profile.Trained ? " · trained model" : ""),
         });
 
-        _language = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _language = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         foreach (var code in SpokenLanguage.Offered.Append(profile.Language).Where(c => c.Length > 0).Distinct())
         {
             _language.AddItem(SpokenLanguage.Name(code));
@@ -221,10 +177,11 @@ public partial class VoiceSettings : Window
             _languages.Add("");
         }
         _language.Select(_languages.IndexOf(profile.Language));
-        Row(grid, "Speaks", _language);
+        _language.ItemSelected += _ => Apply();
+        Form.Row(grid, "Speaks", _language);
 
         // its trained model, or a clone: the player can swap between them
-        var model = _model = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true };   // a long label never widens the window
+        var model = _model = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true, FitToLongestItem = false };   // a long label never widens the page
         if (profile.Trained)
         {
             model.AddItem($"Its trained model ({profile.Version ?? "GPT-SoVITS"}): sounds most like her");
@@ -236,24 +193,29 @@ public partial class VoiceSettings : Window
             _models.Add(version);
         }
         model.Select(Math.Max(0, _models.IndexOf(profile.SpeaksTrained ? null : profile.Runs)));
-        Row(grid, "Model", model);
+        Form.Row(grid, "Model", model);
 
-        var quality = _quality = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var quality = _quality = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         foreach (var (_, label) in Qualities)
             quality.AddItem(label);
         var chosen = Array.FindIndex(Qualities, q => q.Steps == profile.Steps);
         quality.Select(chosen >= 0 ? chosen : 0);
-        var qualityLabel = Row(grid, "Quality", quality);
+        quality.ItemSelected += _ => Apply();
+        var qualityLabel = Form.Row(grid, "Quality", quality);
         void ShowQuality() => qualityLabel.Visible = quality.Visible = Runs() is "v3" or "v4";     // steps only matter to v3 and v4
-        model.ItemSelected += _ => ShowQuality();
+        model.ItemSelected += _ =>
+        {
+            ShowQuality();
+            Apply();
+        };
         ShowQuality();
 
         // the clip she speaks with: the first everyday one, which the player can change and listen to; or one just
         // added, still without its words
         var speaking = profile.Clips.FirstOrDefault() is { Text.Length: 0 } added ? added : profile.ClipFor(null) ?? profile.Clips.FirstOrDefault();
-        var clipRow = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var clipRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         clipRow.AddThemeConstantOverride("separation", 8);
-        var clip = _clip = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ClipText = true, Disabled = profile.Clips.Count == 0 };
+        var clip = _clip = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true, FitToLongestItem = false, Disabled = profile.Clips.Count == 0 };
         foreach (var c in profile.Clips)
         {
             _clipFiles.Add(c.File);
@@ -265,26 +227,32 @@ public partial class VoiceSettings : Window
         var play = new Button { Text = "▶", ThemeTypeVariation = "Quiet", TooltipText = "Listen to it", Disabled = speaking is null };
         clipRow.AddChild(clip);
         clipRow.AddChild(play);
-        Row(grid, "Clip", clipRow);
+        Form.Row(grid, "Clip", clipRow);
         _shown = speaking?.File;
         _words = new LineEdit
         {
-            Text = speaking?.Text ?? "", Editable = speaking is not null, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            Text = speaking?.Text ?? "", Editable = speaking is not null, SizeFlagsHorizontal = SizeFlags.ExpandFill,
             PlaceholderText = "exactly what is said in the clip",
         };
-        Row(grid, "Words in it", _words);
-        clip.ItemSelected += index =>
+        _words.TextChanged += words =>
         {
             if (_shown is not null)
-                _edited[_shown] = _words.Text;
+                _edited[_shown] = words;
+        };
+        _words.TextSubmitted += _ => KeepWords();
+        _words.FocusExited += KeepWords;
+        Form.Row(grid, "Words in it", _words);
+        clip.ItemSelected += index =>
+        {
             _shown = _clipFiles[(int)index];
             _words.Text = _edited.TryGetValue(_shown, out var words) ? words : _profile!.Clips.FirstOrDefault(c => c.File == _shown)?.Text ?? "";
             _preview.Stop();
+            Apply();                                        // she speaks with this one from now on
         };
         play.Pressed += () => Preview(_shown);
 
         // training a model of its own
-        var trainBox = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var trainBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         trainBox.AddThemeConstantOverride("separation", 6);
         var trainRow = new HBoxContainer();
         trainRow.AddThemeConstantOverride("separation", 8);
@@ -292,29 +260,29 @@ public partial class VoiceSettings : Window
         _stop = new Button { Text = "Stop training", ThemeTypeVariation = "Quiet" };
         trainRow.AddChild(_train);
         trainRow.AddChild(_stop);
-        _progress = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        _training = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, ThemeTypeVariation = "Hint" };
+        _progress = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _training = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill, ThemeTypeVariation = "Hint" };
         trainBox.AddChild(trainRow);
         trainBox.AddChild(_progress);
         trainBox.AddChild(_training);
-        Row(grid, "Train", trainBox);
+        Form.Row(grid, "Train", trainBox);
         _train.Pressed += () =>
         {
-            Apply();                                // train on what is on the page now
+            KeepWords();                                    // train on what is on the page now
             Train?.Invoke();
         };
         _stop.Pressed += () => StopTraining?.Invoke();
 
         if (profile.Missing is { } missing)
-            column.AddChild(Note($"It still needs {missing}.", Paper.Bad));
+            AddChild(Note($"It still needs {missing}.", Paper.Bad));
         if (speaking?.Seconds is < 3 or > 10)
-            column.AddChild(Note("The clip she speaks with should be 3 to 10 seconds; this one may not work.", Paper.Bad));
+            AddChild(Note("The clip she speaks with should be 3 to 10 seconds; this one may not work.", Paper.Bad));
         if (profile.About is { Length: > 0 } about)
         {
             var line = System.Text.RegularExpressions.Regex.Replace(about, @"\s+", " ");
-            column.AddChild(Hint("From its author: " + (line.Length > 160 ? line[..160] + "…" : line)));
+            Form.Hint(this, "From its author: " + (line.Length > 160 ? line[..160] + "…" : line));
         }
-        column.AddChild(Hint("Voices shared online are often made from a game's or a voice actor's lines: fine for yourself, not for sharing on."));
+        Form.Hint(this, "Voices shared online are often made from a game's or a voice actor's lines: fine for yourself, not for sharing on.");
     }
 
     /// <summary>The version the page's choice of model runs on.</summary>
@@ -322,39 +290,43 @@ public partial class VoiceSettings : Window
         : _model is null || _models[_model.Selected] is not { } clone ? (_profile with { CloneWith = null }).Runs
         : clone;
 
-    /// <summary>Writes the voice's changes to its folder and hands back the GPT-SoVITS folder chosen.</summary>
+    /// <summary>Words typed for a clip are written once the field is left (not at every letter: the voice is read again each time).</summary>
+    private void KeepWords()
+    {
+        if (_profile is not null && _edited.Count > 0 && _edited.Any(e => _profile.Clips.FirstOrDefault(c => c.File == e.Key)?.Text != e.Value.Trim()))
+            Apply();
+    }
+
+    /// <summary>Writes the voice's choices to its folder, and has it read again.</summary>
     private void Apply()
     {
-        if (_profile is { } profile)
+        if (_profile is not { } profile)
+            return;
+        var language = _language is null ? profile.Language : _languages[_language.Selected];
+        var clips = profile.Clips.Select(c => _edited.TryGetValue(c.File, out var words)
+            ? c with { Text = words.Trim(), Language = c.Language.Length > 0 ? c.Language : language }
+            : c).ToList();
+        if (clips.FindIndex(c => c.File == _shown) is > 0 and var chosen)
         {
-            if (_shown is not null)
-                _edited[_shown] = _words.Text;
-            var language = _language is null ? profile.Language : _languages[_language.Selected];
-            var clips = profile.Clips.Select(c => _edited.TryGetValue(c.File, out var words)
-                ? c with { Text = words.Trim(), Language = c.Language.Length > 0 ? c.Language : language }
-                : c).ToList();
-            if (clips.FindIndex(c => c.File == _shown) is > 0 and var chosen)
-            {
-                var speaking = clips[chosen];                  // the chosen one first: she speaks with it, and v2 models blend it in
-                clips.RemoveAt(chosen);
-                clips.Insert(0, speaking);
-            }
-            var steps = _quality is null ? profile.Steps : Qualities[_quality.Selected].Steps;
-            var cloneWith = _model is null ? profile.CloneWith : _models[_model.Selected];
-            (profile with { Language = language, Clips = clips, Steps = steps, CloneWith = cloneWith }).Save(_voice.Folder);
-            _profile = VoiceProfile.Load(_voice.Folder) ?? profile;
-            _edited.Clear();
+            var speaking = clips[chosen];                  // the chosen one first: she speaks with it, and v2 models blend it in
+            clips.RemoveAt(chosen);
+            clips.Insert(0, speaking);
         }
-        Saved?.Invoke(_engine.Text.Trim().Length > 0 ? _engine.Text.Trim() : null);
+        var steps = _quality is null ? profile.Steps : Qualities[_quality.Selected].Steps;
+        var cloneWith = _model is null ? profile.CloneWith : _models[_model.Selected];
+        (profile with { Language = language, Clips = clips, Steps = steps, CloneWith = cloneWith }).Save(_voice.Folder);
+        _profile = VoiceProfile.Load(_voice.Folder) ?? profile;
+        _edited.Clear();
+        VoiceChanged?.Invoke();
     }
 
     private async Task Test()
     {
-        Apply();                                    // test what is on the page now
-        Show(_result, "Getting her voice ready…", Paper.Faint);
+        KeepWords();                                        // test what is on the page now
+        Form.Say(_result, "Getting her voice ready…", Paper.Faint);
         var problem = await _voice.Test();
         if (IsInstanceValid(this))
-            Show(_result, problem ?? "Listen…", problem is null ? Paper.Good : Paper.Bad);
+            Form.Say(_result, problem ?? "Listen…", problem is null ? Paper.Good : Paper.Bad);
     }
 
     /// <summary>Plays a clip as it is, to choose the one she speaks with.</summary>
@@ -372,7 +344,7 @@ public partial class VoiceSettings : Window
         };
         if (stream is null)
         {
-            Show(_result, "This kind of clip can't be played here.", Paper.Bad);
+            Form.Say(_result, "This kind of clip can't be played here.", Paper.Bad);
             return;
         }
         _preview.Stream = stream;
@@ -402,7 +374,7 @@ public partial class VoiceSettings : Window
         dialog.DirSelected += folder =>
         {
             _engine.Text = folder;
-            ShowStatus();
+            _engine.EmitSignal(LineEdit.SignalName.TextChanged, folder);        // as if typed: used if it works
             dialog.QueueFree();
         };
         dialog.Canceled += dialog.QueueFree;
@@ -415,9 +387,9 @@ public partial class VoiceSettings : Window
         if (!IsInstanceValid(this))
             return;
         if (VoiceServer.Check(_engine.Text.Trim()) is { } problem)
-            Show(_status, problem, Paper.Bad);
+            Form.Say(_status, problem, Paper.Bad);
         else
-            Show(_status, _voice.Status, _voice.Now switch
+            Form.Say(_status, _voice.Status, _voice.Now switch
             {
                 Voice.Phase.Ready => Paper.Good,
                 Voice.Phase.Failed => Paper.Bad,
@@ -437,14 +409,14 @@ public partial class VoiceSettings : Window
         {
             _progress.Value = _trainer.Done;
             var left = _trainer.Left is { } time ? $", about {Minutes(time)} left" : "";
-            Show(_training, mine ? $"Now: {_trainer.Stage}{left}. Her voice rests until it is done; you can close this window." +
-                                   (_trainer.Crowded ? " Other apps are using much of the graphics card, so it will be slow: closing them helps." : "")
-                                 : "Training another voice: one at a time.", Paper.Faint);
+            Form.Say(_training, mine ? $"Now: {_trainer.Stage}{left}. Her voice rests until it is done; you can close this window." +
+                                       (_trainer.Crowded ? " Other apps are using much of the graphics card, so it will be slow: closing them helps." : "")
+                                     : "Training another voice: one at a time.", Paper.Faint);
             return;
         }
         if (mine && _trainer.Problem is { } stopped)
         {
-            Show(_training, stopped, Paper.Bad);
+            Form.Say(_training, stopped, Paper.Bad);
             return;
         }
         var clips = VoiceTraining.Clips(_profile).Count;
@@ -452,41 +424,24 @@ public partial class VoiceSettings : Window
         if (VoiceTraining.Needs(_profile) is { } needs)
         {
             _train.Disabled = true;
-            Show(_training, $"Training needs {needs}. Add a folder of her clips with their words (What goes in a voice folder?).", Paper.Faint);
+            Form.Say(_training, $"Training needs {needs}. Add a folder of her clips with their words (What goes in a voice folder?).", Paper.Faint);
             return;
         }
         _train.Disabled = false;
         var (estimate, measured) = _trainer.Estimate(_profile);
-        Show(_training, $"On {clips} clips, {seconds / 60:0.0} minutes of speech: about {Minutes(estimate)} " +
-                        (measured ? "on this PC. " : "with an 8 GB laptop graphics card (once it starts, it tells the time left on yours). ") +
-                        "It takes the whole graphics card, so her voice rests meanwhile, and a game starting stops it." +
-                        (_profile.Trained ? "" : " Then you can swap between the trained model and a clone under Model.") +
-                        (seconds < VoiceTraining.GoodSeconds ? " Five minutes of speech or more sounds better." : ""), Paper.Faint);
+        Form.Say(_training, $"On {clips} clips, {seconds / 60:0.0} minutes of speech: about {Minutes(estimate)} " +
+                            (measured ? "on this PC. " : "with an 8 GB laptop graphics card (once it starts, it tells the time left on yours). ") +
+                            "It takes the whole graphics card, so her voice rests meanwhile, and a game starting stops it." +
+                            (_profile.Trained ? "" : " Then you can swap between the trained model and a clone under Model.") +
+                            (seconds < VoiceTraining.GoodSeconds ? " Five minutes of speech or more sounds better." : ""), Paper.Faint);
     }
 
     private static string Minutes(TimeSpan time) => Math.Max(1, Math.Round(time.TotalMinutes)) is var m && m == 1 ? "a minute" : $"{m} minutes";
 
-    private static Label Row(GridContainer grid, string label, Control field)
-    {
-        var name = new Label { Text = label };
-        grid.AddChild(name);
-        grid.AddChild(field);
-        return name;
-    }
-
-    private static Label Hint(string text) =>
-        new() { Text = text, ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(420, 0) };
-
     private static Label Note(string text, Color colour)
     {
-        var label = Hint(text);
+        var label = Form.Hint(text);
         label.AddThemeColorOverride("font_color", colour);
         return label;
-    }
-
-    private static void Show(Label label, string text, Color colour)
-    {
-        label.Text = text;
-        label.AddThemeColorOverride("font_color", colour);
     }
 }

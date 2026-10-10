@@ -5,7 +5,7 @@ using Microsoft.Extensions.AI;
 
 namespace InsertCoin.Mind;
 
-/// <summary>How freely she may use a tool, as the player set it (Chat settings → Abilities), after Claude Code's permission rules.</summary>
+/// <summary>How freely she may use a tool, as the player set it (Settings → Abilities), after Claude Code's permission rules.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<Permission>))]
 public enum Permission
 {
@@ -38,7 +38,7 @@ public sealed record Asking(Tool Tool, string What, string Detail, string? Scope
 /// Something she can do: a function the model can call, built into the app or (later) from a connector the player
 /// connected (docs/specs/2026-10-05-tools-and-abilities.md).
 /// </summary>
-/// <param name="Title">What the player sees it called (Chat settings → Abilities).</param>
+/// <param name="Title">What the player sees it called (Settings → Abilities).</param>
 /// <param name="OutsideApp">It acts outside the app (opens a page, plays music): she asks first unless the player allowed it.</param>
 /// <param name="Ask">
 /// What the card says for a call's arguments; without it, the title and the arguments as given. Null for a call that
@@ -56,7 +56,7 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
     public Permission Standard => OutsideApp ? Permission.Ask : Permission.Allowed;
 
     /// <summary>
-    /// It looks at what is the player's own (their screen, their window titles): it is set on the Privacy tab, and Auto
+    /// It looks at what is the player's own (their screen, their window titles): it is set on Settings → Privacy, and Auto
     /// never skips asking for it.
     /// </summary>
     public bool Private { get; init; }
@@ -196,7 +196,7 @@ public sealed class Toolbox
         Using?.Invoke(tool);
     }
 
-    /// <summary>The player's choices replace the ones held (from settings, or the Abilities tab).</summary>
+    /// <summary>The player's choices replace the ones held (from settings, or Settings → Abilities).</summary>
     public void Choose(IReadOnlyDictionary<string, Permission> chosen)
     {
         _chosen.Clear();

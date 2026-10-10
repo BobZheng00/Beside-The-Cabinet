@@ -98,7 +98,7 @@ public partial class Voice : Node
     public string Status => Now switch
     {
         Phase.NotSetUp => "Not set up: choose where GPT-SoVITS is.",
-        Phase.Off => "Switched off (tray menu: Voice).",
+        Phase.Off => "Switched off: tick \"She speaks aloud\" above, or the tray's Voice.",
         Phase.Resting => "Resting while your game runs, to leave it the graphics card.",
         Phase.Training => "Resting while a voice is trained (it takes the whole graphics card).",
         Phase.NoVoice => _profile is null ? "No voice yet." : $"The voice still needs {_profile.Missing}.",

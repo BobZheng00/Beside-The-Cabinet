@@ -5,17 +5,18 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The chat settings' Usage tab: what her requests used, as the provider reported it (this month, and day by day for
-/// two weeks): input read, the share served from the provider's cache, what was written to the cache, and output.
-/// With the prices the player enters for a model (from their provider's price page: no table of prices is kept here,
-/// it would go out of date and cannot know a proxy's), the cost too, cache reads and writes at their own prices.
+/// Settings → Usage: what her requests used, as the provider reported it (this month, and day by day for two weeks):
+/// input read, the share served from the provider's cache, what was written to the cache, and output. With the prices
+/// the player enters for a model (from their provider's price page: no table of prices is kept here, it would go out of
+/// date and cannot know a proxy's), the cost too, cache reads and writes at their own prices.
 /// </summary>
 public sealed class UsagePage
 {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
     private readonly LineEdit _input, _cached, _written, _output, _currency;
 
-    public UsagePage(VBoxContainer page, MindStore store, string? model, IReadOnlyDictionary<string, Prices> prices, string currency)
+    /// <param name="changed">The prices as typed now (null: no input price) and their currency, kept for <paramref name="model"/>.</param>
+    public UsagePage(VBoxContainer page, MindStore store, string? model, IReadOnlyDictionary<string, Prices> prices, string currency, Action<Prices?, string> changed)
     {
         var today = DateOnly.FromDateTime(DateTime.Now);
         var month = new DateOnly(today.Year, today.Month, 1);
@@ -80,6 +81,8 @@ public sealed class UsagePage
         _currency = new LineEdit { Text = currency, CustomMinimumSize = new Vector2(60, 0), MaxLength = 4 };
         money.AddChild(_currency);
         page.AddChild(money);
+        foreach (var field in new[] { _input, _cached, _written, _output, _currency })
+            field.TextChanged += _ => changed(Prices, Currency);
     }
 
     /// <summary>The prices entered (missing ones count as the input price, cache reads as a tenth of it), or null when there is no input price.</summary>

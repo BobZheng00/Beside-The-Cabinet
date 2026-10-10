@@ -73,7 +73,7 @@ public sealed class Chat : IDisposable
     public MindStore Store { get; }
     public KeyStore Keys { get; }
 
-    /// <summary>What she can do with tools, and the player's permission for each (Chat settings → Abilities).</summary>
+    /// <summary>What she can do with tools, and the player's permission for each (Settings → Abilities).</summary>
     public Toolbox Tools { get; }
 
     /// <summary>Prints a memo (title, text, the character printing it) and says what she is told; unset, nothing prints.</summary>

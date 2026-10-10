@@ -15,10 +15,13 @@ balance: [docs/specs/2026-10-07-balance.md](docs/specs/2026-10-07-balance.md)
 | `run.cmd` | Same as the app, but run from source through the Godot editor binary (debug build, dev keys on). |
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 
-Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu
-(size, companion, speech bubbles, characters, mute, in-game tickets, energy saver, always on top, start with
-Windows, change player, balance, quit). At first run the cabinet asks for your initials, then your LeetCode name,
-which is optional: Enter with none goes on without it (tray → "Change player…" adds one later).
+Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu: the
+cabinet, Settings…, the memory book and chat history, a memo of your own, a LeetCode check, and the switches flipped
+often (Mute sounds, Voice, Conversation). Settings is one window with a page for each thing, listed down its left
+side (her mind, voice, talking aloud, characters, abilities, privacy, add-ons; reminders, check-ins, your phone,
+calendars, balance; the cabinet, usage), each saved as you change it; only her provider waits for its Save. At
+first run the cabinet asks for your initials, then your LeetCode name, which is optional: Enter with none goes on
+without it (Settings → Balance → Change… adds one later).
 
 **Balance.** What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), and focus sessions, which pay by the minute as each part ends, however short: 15
 minutes of play for every hour focused (half an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it
@@ -26,7 +29,7 @@ completes one). A day (04:00 to 04:00) can earn at most 1:30 from Monday to Thur
 weekend; past that, work still counts in the day's record but pays nothing (paying back time owed doesn't count
 towards it). Each night half of the unplayed time fades, so it can't be saved up for the weekend (time owed never
 fades). After the bedtime you set, until 04:00, play costs ×1.5 (on credit, ×2.25): the screen says LATE NIGHT and a
-ticket tells you when it starts. Tray → "Balance…" sets the caps and your bedtime; changes count from the next day.
+ticket tells you when it starts. Settings → Balance sets the caps and your bedtime; changes count from the next day.
 The screen's attract pages show today's earnings against the cap. A day with a solve, an activity or 25 minutes of
 focus is a good day; from the third good day in a row, the first thing each day earns brings a bonus star coin
 (STREAK xN BONUS). Every day is kept in a record (what was earned and
@@ -35,15 +38,15 @@ from what, focused, played, when you were first and last at the PC), the start o
 The companion on the stool follows the mouse pointer with her eyes and head, waves when clicked, and reacts to
 what the cabinet does: claps for a Hard solve, a small fist pump for the others, glances at the screen, worries
 about debt, dozes while the session is paused. In a conversation she looks away to think and back to answer, nods
-in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her and she waves, and the slip to type to her opens. The tray menu switches her
-off, silences her, picks another character or adds one; a model file dropped on the cabinet adds it too.
+in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her and she waves, and the slip to type to her opens. Settings → Characters leaves
+the stool empty, silences her bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
-She can also talk. In tray → "Chat settings…" pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
-local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key and name a model. Then clicking
+She can also talk. In Settings → Her mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
+Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key, name a model, Test and Save. Then clicking
 her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
 it out. She knows the cabinet's numbers and remembers:
 
-- the conversation itself, one continuous thread per character. The newest part (Chat settings → "Word for word":
+- the conversation itself, one continuous thread per character. The newest part (Settings → Her mind, "Word for word":
   32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
   providers serve it from their cache at a tenth of the price (Claude is asked to cache it); older talk is folded
   into a summary, normally while the conversation is quiet. Each turn tells her the time and how long since you
@@ -61,21 +64,22 @@ it out. She knows the cabinet's numbers and remembers:
   or monthly). What is coming up in the next week, and what has just passed (so she can ask how it went), is in
   every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next time.
   A reminder goes off on a ticket at the screen corner with Snooze and OK, and she tells you in her own words and
-  your language once she has finished what she is saying (never cutting herself or you off). Tray → "Reminders…"
-  sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the agenda, a chime
-  (even when muted), a Windows notification, and your phone or elsewhere through [ntfy](https://ntfy.sh), a Discord
-  webhook, a Telegram bot or any webhook (addresses and tokens stored encrypted, "Try it" to check). One that came
-  due while the cabinet was closed goes off when it next starts, saying so. Tray → "Calendars…" links your Google
+  your language once she has finished what she is saying (never cutting herself or you off). Settings →
+  Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the agenda, a
+  chime (even when muted) and a Windows notification ("Try it" sends one everywhere a reminder goes). Settings →
+  Your phone sends them on to your phone or elsewhere, through [ntfy](https://ntfy.sh), a Discord webhook, a Telegram
+  bot or any webhook (addresses and tokens stored encrypted, "Send a test" to check). One that came
+  due while the cabinet was closed goes off when it next starts, saying so. Settings → Calendars links your Google
   or Outlook calendar by its private address (read every 15 minutes, read-only, the address stored encrypted): its
   next two weeks join the agenda;
 - she asks how things went: after something you told her about is over, once you are back at the PC and free (not
   in a call, which she tells from another app using the microphone or camera, not in a full-screen game or
   presentation, not outside 08:00–22:00), once, and only if you have not talked since. Gentle (at most one every
-  three hours), Chatty or Off in tray → "Reminders…". Not for each calendar meeting, nor for plain reminders;
+  three hours), Chatty or Off in Settings → Check-ins. Not for each calendar meeting, nor for plain reminders;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
-  Chat settings → "Memory search" picks the multilingual model (about 100 languages, about 200 MB of memory while
+  Settings → Her mind, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
   chatting), the small one (Chinese and English, about 50 MB) or shared words only;
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
   longer; pinned and the most important ones never fade), and old moments are rolled up: days into weeks after
@@ -89,8 +93,8 @@ character…" gives whoever is on the stool its personality, example dialogue an
 up when its keywords are mentioned); she greets you as the card says.
 
 She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
-graphics card starts each sentence in about a second). Tray → "Voice settings…": point it at the GPT-SoVITS folder,
-then give her a voice: drop on the cabinet (or add in the window) a voice's folder or `.zip`, which replaces her
+graphics card starts each sentence in about a second). Settings → Her voice: point it at the GPT-SoVITS folder,
+then give her a voice: drop on the cabinet (or add on that page) a voice's folder or `.zip`, which replaces her
 voice, or clips, which join it. A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
 trained on them (a `.ckpt` and a `.pth`; v2 to v4 all work). The words come from a training list (any `.list`,
 one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab` beside a clip, or the clip's file name
@@ -117,7 +121,7 @@ like a subtitled anime (the model writes `[say: …]` before each sentence, told
 at the end of each turn; a Japanese voice gets names in katakana, since it reads Latin letters as English, and calls
 you by name with さん unless her character or you say otherwise). A sentence left without a `[say]` is silent, and
 the log counts them ("went unheard"). While a game runs she rests her voice:
-the server is stopped so the game has the graphics card, and started again after. Tray → "Voice" switches it off;
+the server is stopped so the game has the graphics card, and started again after. The tray's Voice (or "She speaks aloud" in Settings) switches it off;
 "Mute sounds" mutes her too. Clicking her stops her mid-sentence, and so does talking over her with the talk key
 or asking something new. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
 yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
@@ -151,7 +155,7 @@ reply, never on a quick one). When her card asks you something, you can answer i
 "no" (in Chinese, Japanese or Korean too) does what its buttons do; anything else is a new message. GPT-SoVITS's
 habit of starting a line with up to a second of silence is cut, so her first word comes sooner.
 
-She can also listen without the key, if you choose (Chat settings → Listening). With follow-up listening she listens a few
+She can also listen without the key, if you choose (Settings → Talking aloud). With follow-up listening she listens a few
 seconds after she speaks (3 to 20, after her answers, her own questions or anything she says, as ticked), and if you
 start talking she hears it as your answer. A conversation (the tray's Conversation switch, or a double tap of the talk
 key) has her listen after everything she says, until you've been quiet for 30 seconds. She notices you start and finish
@@ -159,7 +163,7 @@ by herself (Silero's voice detector and Pipecat's Smart Turn, on the processor).
 in full screen or quiet time, or while a game runs, unless you allow it, and never while she is speaking. The CRT shows
 MIC whenever the microphone is open.
 
-She can do things too, with tools (Chat settings → Abilities): open a web page in your browser or an app from your
+She can do things too, with tools (Settings → Abilities): open a web page in your browser or an app from your
 Start menu, read a page, search the web, look up a LeetCode problem, and the rest below. She
 says what she's about to do in her own words, and anything acting outside the app asks first: a card by her stool
 shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site or app) and No.
@@ -179,10 +183,10 @@ found by its number). She can read a web page you name, and search the web: with
 has one this app can use (Anthropic's), or through your own SearXNG (Add-ons). She opens apps from your Start menu after
 asking (games stay the cabinet's).
 
-**Privacy and add-ons.** Chat settings → Privacy gathers what she can see of yours: your window titles (allowed unless
+**Privacy and add-ons.** Settings → Privacy gathers what she can see of yours: your window titles (allowed unless
 you change it) and your screen (she asks first), which Auto never skips; and what she is told in the background, each
 with a tick: what's playing in your music app, and what the record of days shows. What she sees goes to your AI
-provider with the conversation; pages she reads are fetched by this PC. Chat settings → Add-ons holds extras that stay
+provider with the conversation; pages she reads are fetched by this PC. Settings → Add-ons holds extras that stay
 off until you turn them on. The first is web search through SearXNG, a free, open-source search engine you run
 yourself (with Docker: `docker run -d -p 8888:8080 searxng/searxng`, then add `json` under `search: formats:` in its
 settings.yml); its Test button says whether it answers, and what to change if not.
@@ -205,10 +209,10 @@ up and drink some water at the breaks. Ask her to start one ("let's focus for 50
 what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
 nothing open, play starts Spotify for you). Each focus part pays into the cabinet as it ends (see Balance). Save playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD):
 START plays one from its beginning (the app presses Spotify's own play button for it), and the starred one starts your
-focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (tray →
-Reminders… to change it).
+focus sessions; it pauses at breaks and carries on after. She can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the PC without a break, she suggests standing up (Settings →
+Check-ins to change it).
 
-**Rest and sleep.** With a bedtime (tray → Balance…, or tell her one: she sets it after you confirm on her card, from the
+**Rest and sleep.** With a bedtime (Settings → Balance, or tell her one: she sets it after you confirm on her card, from the
 next day), she gives you a word to wind down half an hour before it, says it's time to sleep at it, and once more half
 an hour after, then leaves it; in a game, tickets. After two hours in one game she suggests a break. Without a bedtime
 she asks for one, once, some evening (and once more a week on, with your usual time from the record of days). At most
@@ -236,7 +240,7 @@ does, after asking (a card by her stool). Pictures are made no larger than model
 upright, with the time they were taken); she keeps what she saw in words, not the picture. With a model that can't
 take pictures or PDFs she says so, and none is sent to it again.
 
-Chat settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
+Settings → Usage shows what her requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 
@@ -262,28 +266,32 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 bubble clicked), `nocall` (another app's microphone doesn't count as a call), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
-menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,
+menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `settings`
+(Settings; `settings:voice` at that page: `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,
+`reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
+flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
+from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingswidths` (logs any page wider
+than its room, which would run off the window's right edge),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
 agenda items, retired facts and a moment to try it on), `remind:some_text` (a reminder goes off now),
-`remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed), `remindersettings`,
-`remindertry` (its "Try it"), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
+`remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
+`remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
-`pastplan:minutes:some_text` (something on the agenda that ended that long ago), `usage` (the Usage tab),
-`calendar:URL` (links a calendar named Test), `calendars`, `forget:chat|all|me` (its three forget
-buttons), `upkeep` (digest the conversation now), `moment:note`, `voicesettings`, `voicetest` (her voice's
+`pastplan:minutes:some_text` (something on the agenda that ended that long ago),
+`calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
+buttons), `upkeep` (digest the conversation now), `moment:note`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language), `thinkingsounds:C:\path\folder` (her
 thinking sounds saved as WAV files) and
-`voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as saving the
-window does), `voicetrain` (train her voice, as the window's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
+`voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as choosing it
+in Settings does), `voicetrain` (train her voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording she hears as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: she
 listens and nods for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
 held on her, then let go), and `closeup:hands` (her camera narrowed onto her hands, to judge fingers; `closeup:off`).
 Hands-free, without ever opening the real microphone: `fakemic` (from then on she hears only recordings),
-`mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`) and
-`listeningsettings` (the Chat settings Listening tab). Her tools: `allow`, `always` and `deny` (answer the card she
-asks with, as its buttons do), `abilities`, `privacy` and `addons` (those Chat settings tabs), and
+`mictalk:C:\path\said.wav` (said into her open microphone), `converse` (`converse:on`, `converse:off`). Her tools:
+`allow`, `always` and `deny` (answer the card she asks with, as its buttons do), and
 `fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles she reads instead; a test run reads stand-ins anyway). With `--offscreen` a page she opens is
 only logged, never opened. Memos: `memo:title:text` (she types one and sends it, as the tool has her do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
@@ -312,8 +320,7 @@ shows) and `rest:ask` (asking for a bedtime).
 Activities: `done:the_gym` (as if DID IT were tapped on the DONE app), `proofroll:0` (proof always wanted; `proofroll:1`
 never) and `crt:done`; `allow` and `deny` answer her card as Yes, count it and Not yet.
 Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),
-`nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades), `balance`
-(tray → Balance…).
+`nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades).
 `--offscreen` opens the app's windows off
 every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything appearing on screen.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
@@ -434,7 +441,7 @@ when the character itself is moved or turned.
 
 ### Adding a character
 
-- **As a user, no tools needed:** tray menu → "Add a character…" and pick a `.vrm`, `.glb`, `.gltf` or a `.zip`
+- **As a user, no tools needed:** Settings → Characters → "Add a character…" and pick a `.vrm`, `.glb`, `.gltf` or a `.zip`
   holding one (Sketchfab's glTF downloads come zipped), or drop the file on the cabinet. It is copied into
   `characters` in the profile folder (`%APPDATA%\InsertCoin\characters`; a `.gltf` gets a folder of its own with
   the `.bin` and textures it refers to) and takes the stool at once. A file of the same name is replaced.

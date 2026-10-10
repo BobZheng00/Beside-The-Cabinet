@@ -51,10 +51,8 @@ public partial class Main : Node2D
     private object? _carrier;                               // what a pull on the cabinet is carrying: a memo, or the screen's system
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
-    private ReminderSettings? _reminderSettings;
-    private BalanceSettings? _balanceSettings;
     private Calendars _calendars = null!;
-    private CalendarSettings? _calendarSettings;
+    private SettingsWindow? _settingsWindow;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
@@ -196,41 +194,33 @@ public partial class Main : Node2D
 
         _tray = new TrayIcon();
         AddChild(_tray);
-        _tray.Build(_settings.AlwaysOnTop, Startup.IsEnabled(), _settings.Size, _settings.Muted, _settings.InGameTickets, _settings.ShowCompanion,
-                    _settings.SpeechBubbles, _settings.Voice, _stool.Characters(), _settings.Companion, _settings.EnergySaver);
-        _tray.EnergySaverChanged += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
-        _tray.MutedChanged += muted => { SaveSettings(_settings with { Muted = muted }); _audio.Muted = muted; _stool.Muted = muted; };
-        _tray.InGameTicketsChanged += on => SaveSettings(_settings with { InGameTickets = on });
-        _tray.CompanionChanged += _stool.SetCompanion;
-        _tray.SpeechChanged += _stool.SetBubbles;
+        _tray.Build(_settings.Muted, _settings.Voice);
+        _settingsFile.Changed += () => _tray.Sync(_settings.Muted, _settings.Voice);     // flipped in Settings too
+        _tray.MutedChanged += SetMuted;
         _tray.VoiceChanged += _stool.SetVoice;
         _tray.ConversationChanged += _stool.Converse;
         _stool.ConversingChanged += _tray.SetConversation;
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
-        _tray.ChatSettings += _stool.OpenChatSettings;
-        _tray.VoiceSettings += _stool.OpenVoiceSettings;
+        _tray.Settings += () => OpenSettings(null);
+        _stool.OpenSettings += OpenSettings;
+        _stool.SettingsChanged += page =>
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.RefreshPage(page);
+        };
         _tray.MemoryBook += _stool.OpenMemoryBook;
         _tray.WriteMemo += _stool.WriteMemo;
         _tray.ChatHistory += _stool.OpenChatHistory;
-        _tray.Reminders += OpenReminderSettings;
-        _tray.Balance += OpenBalanceSettings;
-        _tray.Calendars += OpenCalendarSettings;
-        _tray.AddCharacter += _stool.PickCharacter;
-        _tray.OpenCharacters += _stool.OpenCharactersFolder;
-        _tray.CharacterChanged += _stool.Seat;
-        _stool.CharactersAdded += _tray.SetCharacters;
-        _tray.SizeChanged += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
         _tray.CheckNow += () => _cabinet.PressCheck();
-        _tray.ChangePlayer += () => { _window.Rise(4, _settings.AlwaysOnTop); DisplayServer.WindowMoveToForeground(); _onboarding.Start(keepInitials: _settings.Initials); };
-        _tray.AlwaysOnTopChanged += on => { SaveSettings(_settings with { AlwaysOnTop = on }); _window.SetTopmost(on); };
-        _tray.StartWithWindowsChanged += Startup.Set;
         _tray.Quit += () => { Save(); GetTree().Quit(); };
 
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += (initials, username) =>
         {
             SaveSettings(_settings with { Initials = initials, Username = username, SetUp = true });
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.RefreshPage("balance");     // the LeetCode name shown there
             _cabinet.Screen.Flash($"HI {initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
             _audio.Play("hello");
@@ -532,6 +522,32 @@ public partial class Main : Node2D
             }
             return;
         }
+        if (action == "settings" || action.StartsWith("settings:"))
+        {
+            OpenSettings(action.Length > "settings:".Length ? action["settings:".Length..] : null);     // settings:page opens it at that page
+            return;
+        }
+        if (action.StartsWith("settingsdo:"))
+        {
+            // settingsdo:label presses the button or flips the tick with that text on the page showing; settingsdo:label:value
+            // sets the choice (by number) or the field after the label
+            var parts = action["settingsdo:".Length..].Replace('_', ' ').Split(':', 2);
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevDo(parts[0], parts.Length > 1 ? parts[1] : null);
+            return;
+        }
+        if (action.StartsWith("settingsscroll:"))         // settingsscroll:600 scrolls the page showing that far down
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevScroll(int.Parse(action["settingsscroll:".Length..]));
+            return;
+        }
+        if (action == "settingswidths")                     // logs any page made so far that is wider than its room
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevWidths();
+            return;
+        }
         if (action.StartsWith("type:"))
         {
             foreach (var c in action["type:".Length..])
@@ -597,14 +613,14 @@ public partial class Main : Node2D
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
-            case "remindersettings": OpenReminderSettings(); break;
-            case "calendars": OpenCalendarSettings(); break;
-            case "remindertry": if (IsInstanceValid(_reminderSettings)) _reminderSettings!.DevTry(); break;
+            case "remindertry":                             // the "Try it" on Settings → Reminders
+                if (IsInstanceValid(_settingsWindow) && _settingsWindow!.PageOf("reminders") is ReminderSettings reminders)
+                    reminders.DevTry();
+                break;
             case "easy": DevSolve(Difficulty.Easy); break;
             case "medium": DevSolve(Difficulty.Medium); break;
             case "hard": DevSolve(Difficulty.Hard); break;
             case "game": _devGame = !_devGame; Tick(); break;
-            case "balance": OpenBalanceSettings(); break;
             case "nextday":
                 // as if the night had passed: the next check turns the day (half of the unplayed time fades)
                 _state = _state with { Today = _state.Today! with { Day = _state.Today.Day.AddDays(-1) } };
@@ -646,17 +662,142 @@ public partial class Main : Node2D
                 GD.PrintErr($"Reminders: could not reach {name}: {error}");
     }
 
-    private void OpenCalendarSettings()
+    // ---- Settings ------------------------------------------------------------------------------------------------------
+
+    /// <summary>Opens Settings (tray → Settings…), at <paramref name="page"/> if one is given; open already, it comes forward, at that page.</summary>
+    private void OpenSettings(string? page)
     {
-        if (IsInstanceValid(_calendarSettings))
+        if (IsInstanceValid(_settingsWindow))
         {
-            _calendarSettings!.GrabFocus();
+            if (page is not null)
+                _settingsWindow!.ShowPage(page);
+            _settingsWindow!.GrabFocus();
             return;
         }
-        _calendarSettings = new CalendarSettings();
-        AddChild(_calendarSettings);
-        _calendarSettings.Build(_calendars);
-        _calendarSettings.Open();
+        _settingsWindow = new SettingsWindow();
+        AddChild(_settingsWindow);
+        _settingsWindow.Build([.. SettingsPages(), .. _stool.SettingsPages()], page);
+        _settingsWindow.Open();
+    }
+
+    /// <summary>The cabinet's pages of the settings: the player's day (reminders, check-ins, their phone, calendars, balance) and the cabinet itself.</summary>
+    private IEnumerable<SettingsPage> SettingsPages() =>
+    [
+        new("reminders", SettingsWindow.Day, "Reminders", RemindersPage),
+        new("checkins", SettingsWindow.Day, "Check-ins", CheckInsPage),
+        new("phone", SettingsWindow.Day, "Your phone", YourPhonePage),
+        new("calendars", SettingsWindow.Day, "Calendars", CalendarsPage),
+        new("balance", SettingsWindow.Day, "Balance", BalancePage),
+        new("cabinet", SettingsWindow.Cabinet, "Cabinet", CabinetPage),
+    ];
+
+    private Control RemindersPage()
+    {
+        var page = new ReminderSettings();
+        page.Build(ReminderChoices.Of(_settings));
+        page.Chosen += choices => SaveSettings(choices.Into(_settings));
+        page.TryIt = TryReminder;
+        return page;
+    }
+
+    private Control CheckInsPage()
+    {
+        var page = new CheckInSettings();
+        page.Build(CheckInChoices.Of(_settings));
+        page.Chosen += choices => SaveSettings(choices.Into(_settings));
+        return page;
+    }
+
+    /// <summary>"Try it": a reminder goes off now as one would, in the cabinet and wherever else it is set to go; what came of it.</summary>
+    private async Task<(string Said, bool Fine)> TryReminder()
+    {
+        const string text = "This is how a reminder reaches you.";
+        _reminders.Try(text, DateTimeOffset.Now, chime: _settings.ReminderSound);      // in the cabinet; sent on from here, to say how it went
+        var now = DateTimeOffset.Now;
+        var notice = Reminders.NoticeFor([new Plan(0, text, now, false, TimeSpan.Zero, null, now, null)], now);
+        var said = new List<string> { "On the ticket and in her bubble" };
+        var fine = true;
+        if (_settings.ReminderWindows)
+        {
+            var shown = WindowsNotice.Show(notice.Title, notice.Text);
+            said.Add(shown ? "a Windows notification" : "not in Windows (it refused)");
+            fine &= shown;
+        }
+        var where = _settings.ReminderElsewhere;
+        var secrets = ElsewhereSecrets.FromJson(_elsewhereKeys.Load());
+        foreach (var (name, error) in where.Any ? await Couriers.Send(Couriered, where, secrets, notice) : [])
+        {
+            said.Add(error is null ? name : $"not {name} ({error})");
+            fine &= error is null;
+        }
+        if (new[] { where.Ntfy, where.Discord, where.Telegram, where.Webhook }.Count(on => on) > Couriers.Parcels(where, secrets, notice).Count())
+        {
+            said.Add("not everywhere ticked on Your phone (fill in what each asks for)");
+            fine = false;
+        }
+        return (string.Join(", ", said) + ".", fine);
+    }
+
+    private Control YourPhonePage()
+    {
+        var page = new PhoneSettings();
+        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
+        page.Chosen += (where, secrets) =>
+        {
+            SaveSettings(_settings with { ReminderElsewhere = where });
+            _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
+        };
+        return page;
+    }
+
+    private Control CalendarsPage()
+    {
+        var page = new CalendarSettings();
+        page.Build(_calendars);
+        return page;
+    }
+
+    private Control BalancePage()
+    {
+        var page = new BalanceSettings();
+        var today = _state.Today is { } t
+            ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
+            : "";
+        page.Build(_settings, today);
+        page.Chosen += (weekday, friday, weekend, bedtime) =>
+        {
+            SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
+            UseRules();
+        };
+        page.ChangePlayer += () =>
+        {
+            // the cabinet's screen asks for the LeetCode name again; the initials stay
+            _window.Rise(4, _settings.AlwaysOnTop);
+            DisplayServer.WindowMoveToForeground();
+            _onboarding.Start(keepInitials: _settings.Initials);
+        };
+        return page;
+    }
+
+    private Control CabinetPage()
+    {
+        var page = new CabinetSettings();
+        page.Build(_settingsFile, Startup.IsEnabled());
+        page.Sized += size => { SaveSettings(_settings with { Size = size }); ApplySize(); };
+        page.OnTop += on => { SaveSettings(_settings with { AlwaysOnTop = on }); _window.SetTopmost(on); };
+        page.WithWindows += Startup.Set;
+        page.Muted += SetMuted;
+        page.Tickets += on => SaveSettings(_settings with { InGameTickets = on });
+        page.SaveEnergy += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
+        return page;
+    }
+
+    /// <summary>Mute sounds (the tray's switch, or Settings → Cabinet): the cabinet's sounds and her voice.</summary>
+    private void SetMuted(bool muted)
+    {
+        SaveSettings(_settings with { Muted = muted });
+        _audio.Muted = muted;
+        _stool.Muted = muted;
     }
 
     /// <summary>The rules the player set (caps, bedtime, focus's rate); a new day takes them up, today keeps the ones it began with.</summary>
@@ -674,46 +815,6 @@ public partial class Main : Node2D
     {
         _rules = RulesOf(_settings);
         _ledger = new Ledger(_devWarp ? _rules with { MaxTick = TimeSpan.FromMinutes(10) } : _rules);
-    }
-
-    private void OpenBalanceSettings()
-    {
-        if (IsInstanceValid(_balanceSettings))
-        {
-            _balanceSettings!.GrabFocus();
-            return;
-        }
-        _balanceSettings = new BalanceSettings();
-        AddChild(_balanceSettings);
-        var today = _state.Today is { } t
-            ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
-            : "";
-        _balanceSettings.Build(_settings, today);
-        _balanceSettings.Saved += (weekday, friday, weekend, bedtime) =>
-        {
-            SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
-            UseRules();
-        };
-        _balanceSettings.Open();
-    }
-
-    private void OpenReminderSettings()
-    {
-        if (IsInstanceValid(_reminderSettings))
-        {
-            _reminderSettings!.GrabFocus();
-            return;
-        }
-        _reminderSettings = new ReminderSettings();
-        AddChild(_reminderSettings);
-        _reminderSettings.Build(ReminderChoices.Of(_settings), ElsewhereSecrets.FromJson(_elsewhereKeys.Load()));
-        _reminderSettings.Tried += chime => _reminders.Try("This is how a reminder reaches you.", DateTimeOffset.Now, chime);
-        _reminderSettings.Saved += (choices, secrets) =>
-        {
-            SaveSettings(choices.Into(_settings));
-            _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
-        };
-        _reminderSettings.Open();
     }
 
     private void AddTimer(double seconds, Action action)

@@ -1,7 +1,7 @@
 namespace InsertCoin.Mind;
 
 /// <summary>
-/// When she listens without the talk key: the player's choices (Chat settings → Listening). All of it is off until
+/// When she listens without the talk key: the player's choices (Settings → Talking aloud). All of it is off until
 /// they turn it on, and never on in a call, in a full-screen app or while a game runs unless they allow it.
 /// </summary>
 /// <remarks>

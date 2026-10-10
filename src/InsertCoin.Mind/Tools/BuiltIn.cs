@@ -89,7 +89,7 @@ public static class BuiltIn
     /// <summary>
     /// Looks at the player's screen: a screenshot, shown to her right after this reply, of the window they were working
     /// in (at full detail, for code, an error, an exercise) or of their whole screen. It is how she helps with what they
-    /// see. A screenshot can show anything, so it is on the Privacy tab and asks first unless they allowed it; the card
+    /// see. A screenshot can show anything, so it is on Settings → Privacy and asks first unless they allowed it; the card
     /// names the window.
     /// </summary>
     /// <param name="take">Takes it, of the whole screen or not, to be shown to her next (the app's own way of doing it); returns what she is told.</param>
@@ -118,7 +118,7 @@ public static class BuiltIn
 
     /// <summary>
     /// Reads the titles of the player's open windows, to see what they are working on when they ask for help with it.
-    /// Titles are the player's own, so it is set on the Privacy tab; it only reads, so it needs no asking unless they want that.
+    /// Titles are the player's own, so it is set on Settings → Privacy; it only reads, so it needs no asking unless they want that.
     /// </summary>
     /// <param name="titles">The titles, the window in front first (with the app each belongs to).</param>
     public static Tool WindowTitles(Func<IReadOnlyList<string>> titles) => new(

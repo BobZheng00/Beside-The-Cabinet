@@ -105,21 +105,43 @@ public static class Paper
         theme.SetColor("font_unselected_color", "TabContainer", Letters);
         theme.SetColor("font_hovered_color", "TabContainer", Ink);
         theme.SetConstant("side_margin", "TabContainer", 0);
+
+        // the settings' list of pages: plain words, the one showing on a wash, under small group names
+        theme.SetTypeVariation("Side", "Button");
+        var hover = new Color("F4EFFC");
+        theme.SetStylebox("normal", "Side", Box(Colors.Transparent, Colors.Transparent, 0, 8, 12, 6));
+        theme.SetStylebox("hover", "Side", Box(hover, hover, 0, 8, 12, 6));
+        theme.SetStylebox("pressed", "Side", Box(Wash, Wash, 0, 8, 12, 6));
+        theme.SetStylebox("hover_pressed", "Side", Box(Wash, Wash, 0, 8, 12, 6));
+        theme.SetStylebox("focus", "Side", new StyleBoxEmpty());
+        theme.SetColor("font_color", "Side", Letters);
+        theme.SetColor("font_focus_color", "Side", Letters);
+        theme.SetColor("font_hover_color", "Side", Ink);
+        theme.SetColor("font_pressed_color", "Side", AccentDark);
+        theme.SetColor("font_hover_pressed_color", "Side", AccentDark);
+        theme.SetTypeVariation("Group", "Label");
+        theme.SetFont("font", "Group", Font(600));
+        theme.SetFontSize("font_size", "Group", 12);
+        theme.SetColor("font_color", "Group", Faint);
         return theme;
     }
 
     /// <summary>Dev (--offscreen): windows open off every monitor and leave focus alone, so tests never get in the way.</summary>
     public static bool OffScreen { get; set; }
 
-    /// <summary>A window in the cabinet's paper style, sized for the screen's DPI and opened in the middle of it.</summary>
+    /// <summary>
+    /// A window in the cabinet's paper style, sized for the screen's DPI (no bigger than the screen leaves room for: at
+    /// 150% a tall one would run under the taskbar) and opened in the middle of it.
+    /// </summary>
     public static void Open(Window window, Vector2 size)
     {
         var scale = DisplayServer.ScreenGetDpi(DisplayServer.WindowGetCurrentScreen()) / 96f;
+        var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
+        var wanted = (Vector2I)(size * scale);
         window.ContentScaleFactor = scale;
-        window.Size = (Vector2I)(size * scale);
+        window.Size = new Vector2I(Math.Min(wanted.X, screen.Size.X - 16), Math.Min(wanted.Y, screen.Size.Y - 48));     // the title bar is outside it
         window.MinSize = window.Size;
         window.Theme = WindowTheme();
-        var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
         window.Position = OffScreen ? new Vector2I(-6000, 100) : screen.Position + (screen.Size - window.Size) / 2;
         // shown, Windows makes a window the active one: off screen it would take the keys someone types elsewhere
         // (an Enter pressing its buttons), so it never takes focus there

@@ -4,19 +4,17 @@ namespace InsertCoin.Game.Desktop;
 
 public enum TrayMood { Fine, Low, Debt }
 
-/// <summary>System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu.</summary>
+/// <summary>
+/// System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu: the cabinet, Settings…, her
+/// books, a memo, a check of LeetCode, the switches flipped often (sounds, her voice, a conversation), and Quit.
+/// Everything else is in Settings (see <see cref="App.SettingsWindow"/>).
+/// </summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, CheckNow, ChangePlayer, Balance, ChatSettings, MemoryBook, WriteMemo, ChatHistory, Reminders, Calendars, VoiceSettings, AddCharacter, OpenCharacters, Quit;
-    public event Action<bool>? AlwaysOnTopChanged, StartWithWindowsChanged, MutedChanged, InGameTicketsChanged, CompanionChanged, SpeechChanged, VoiceChanged, EnergySaverChanged,
-        ConversationChanged;
-    public event Action<string>? SizeChanged, CharacterChanged;
+    public event Action? ShowCabinet, Settings, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
+    public event Action<bool>? MutedChanged, VoiceChanged, ConversationChanged;
 
-    private const int ShowId = 0, CheckId = 1, PlayerId = 2, TopId = 3, StartupId = 4, QuitId = 5, MuteId = 6, TicketsId = 7, CompanionId = 8,
-        AddId = 9, SizeId = 10, EnergyId = 13, SpeechId = 14, FolderId = 15, ChatId = 16, MemoryId = 17, VoiceId = 18,
-        VoiceSettingsId = 19, CharacterId = 20, HistoryId = 1000, RemindersId = 1001, CalendarsId = 1002, ConversationId = 1003, MemoId = 1004, BalanceId = 1005;   // characters take the ids from 20 up
-    private static readonly int[] Checks = [TopId, StartupId, MuteId, TicketsId, CompanionId, SpeechId, VoiceId, EnergyId, ConversationId];
-    private static readonly string[] Sizes = ["S", "M", "L"];
+    private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9;
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
         [TrayMood.Fine] = new Color("4dd9e8"), [TrayMood.Low] = new Color("ffb347"), [TrayMood.Debt] = new Color("ff4f9a"),
@@ -26,20 +24,26 @@ public partial class TrayIcon : Node
     private PopupMenu _menu = null!;
     private readonly Dictionary<TrayMood, Texture2D> _icons = [];
     private TrayMood? _mood;
-    private string[] _characters = [];
 
-    public void Build(bool alwaysOnTop, bool startWithWindows, string size, bool muted, bool inGameTickets, bool companion, bool speech, bool voice,
-                      (string Id, string Name)[] characters, string character, bool energySaver)
+    public void Build(bool muted, bool voice)
     {
         _menu = new PopupMenu();
         _menu.IdPressed += OnMenu;
         AddChild(_menu);
-        var checks = new Dictionary<int, bool>
-        {
-            [TopId] = alwaysOnTop, [StartupId] = startWithWindows, [MuteId] = muted, [TicketsId] = inGameTickets,
-            [CompanionId] = companion, [SpeechId] = speech, [VoiceId] = voice, [EnergyId] = energySaver, [ConversationId] = false,
-        };
-        Fill(checks, size, characters, character);
+        _menu.AddItem("Show cabinet", ShowId);
+        _menu.AddItem("Settings…", SettingsId);
+        _menu.AddSeparator();
+        _menu.AddItem("Memory book…", MemoryId);
+        _menu.AddItem("Chat history…", HistoryId);
+        _menu.AddItem("Write a memo…", MemoId);
+        _menu.AddItem("Check LeetCode now", CheckId);
+        _menu.AddSeparator();
+        _menu.AddCheckItem("Mute sounds", MuteId);
+        _menu.AddCheckItem("Voice", VoiceId);
+        _menu.AddCheckItem("Conversation (she keeps listening)", ConversationId);
+        _menu.AddSeparator();
+        _menu.AddItem("Quit", QuitId);
+        Sync(muted, voice);
 
         foreach (var (mood, tint) in Tint)
             _icons[mood] = CoinIcon(tint);
@@ -49,64 +53,14 @@ public partial class TrayIcon : Node
         Set(TrayMood.Fine, "INSERT COIN");
     }
 
-    /// <summary>Lists these characters (one just added, say) with <paramref name="character"/> picked, and the companion shown.</summary>
-    public void SetCharacters((string Id, string Name)[] characters, string character)
-    {
-        var checks = Checks.ToDictionary(id => id, id => _menu.IsItemChecked(_menu.GetItemIndex(id)));
-        checks[CompanionId] = true;
-        var size = Sizes.Where((_, i) => _menu.IsItemChecked(_menu.GetItemIndex(SizeId + i))).FirstOrDefault() ?? "M";
-        Fill(checks, size, characters, character);
-    }
-
     /// <summary>Dev: opens the menu at this screen point, as a right click on the icon would.</summary>
     public void DevShowMenu(Vector2I at) => _menu.Popup(new Rect2I(at, Vector2I.Zero));
 
-    private void Fill(IReadOnlyDictionary<int, bool> checks, string size, (string Id, string Name)[] characters, string character)
+    /// <summary>Shows the switches as they are now (changed in Settings, say).</summary>
+    public void Sync(bool muted, bool voice)
     {
-        _menu.Clear();
-        void Check(string label, int id)
-        {
-            _menu.AddCheckItem(label, id);
-            _menu.SetItemChecked(_menu.GetItemIndex(id), checks[id]);
-        }
-        void Radio(string label, int id, bool on)
-        {
-            _menu.AddRadioCheckItem(label, id);
-            _menu.SetItemChecked(_menu.GetItemIndex(id), on);
-        }
-
-        _menu.AddItem("Show cabinet", ShowId);
-        _menu.AddItem("Check LeetCode now", CheckId);
-        _menu.AddItem("Change player…", PlayerId);
-        _menu.AddItem("Balance…", BalanceId);
-        _menu.AddSeparator();
-        foreach (var (name, i) in new[] { "Small", "Medium", "Large" }.Select((n, i) => (n, i)))
-            Radio($"Size: {name}", SizeId + i, Sizes[i] == size);
-        _menu.AddSeparator();
-        Check("Companion", CompanionId);
-        Check("Speech bubbles", SpeechId);
-        Check("Voice", VoiceId);
-        Check("Conversation (she keeps listening)", ConversationId);
-        _menu.AddItem("Chat settings…", ChatId);
-        _menu.AddItem("Voice settings…", VoiceSettingsId);
-        _menu.AddItem("Memory book…", MemoryId);
-        _menu.AddItem("Write a memo…", MemoId);
-        _menu.AddItem("Chat history…", HistoryId);
-        _menu.AddItem("Reminders…", RemindersId);
-        _menu.AddItem("Calendars…", CalendarsId);
-        _characters = [.. characters.Select(c => c.Id)];
-        foreach (var ((id, name), i) in characters.Select((c, i) => (c, i)))
-            Radio($"Companion: {name}", CharacterId + i, id == character);
-        _menu.AddItem("Add a character…", AddId);
-        _menu.AddItem("Open characters folder", FolderId);
-        _menu.AddSeparator();
-        Check("Mute sounds", MuteId);
-        Check("In-game tickets", TicketsId);
-        Check("Energy saver", EnergyId);
-        Check("Always on top", TopId);
-        Check("Start with Windows", StartupId);
-        _menu.AddSeparator();
-        _menu.AddItem("Quit", QuitId);
+        _menu.SetItemChecked(_menu.GetItemIndex(MuteId), muted);
+        _menu.SetItemChecked(_menu.GetItemIndex(VoiceId), voice);
     }
 
     /// <summary>Shows whether a conversation is on (it ends by itself after a quiet while, or by the talk key).</summary>
@@ -128,38 +82,15 @@ public partial class TrayIcon : Node
         switch (id)
         {
             case ShowId: ShowCabinet?.Invoke(); break;
+            case SettingsId: Settings?.Invoke(); break;
+            case MemoryId: MemoryBook?.Invoke(); break;
+            case HistoryId: ChatHistory?.Invoke(); break;
+            case MemoId: WriteMemo?.Invoke(); break;
             case CheckId: CheckNow?.Invoke(); break;
-            case PlayerId: ChangePlayer?.Invoke(); break;
-            case BalanceId: Balance?.Invoke(); break;
-            case TopId: AlwaysOnTopChanged?.Invoke(Toggle(TopId)); break;
-            case StartupId: StartWithWindowsChanged?.Invoke(Toggle(StartupId)); break;
             case MuteId: MutedChanged?.Invoke(Toggle(MuteId)); break;
-            case TicketsId: InGameTicketsChanged?.Invoke(Toggle(TicketsId)); break;
-            case CompanionId: CompanionChanged?.Invoke(Toggle(CompanionId)); break;
-            case SpeechId: SpeechChanged?.Invoke(Toggle(SpeechId)); break;
             case VoiceId: VoiceChanged?.Invoke(Toggle(VoiceId)); break;
             case ConversationId: ConversationChanged?.Invoke(Toggle(ConversationId)); break;
-            case VoiceSettingsId: VoiceSettings?.Invoke(); break;
-            case ChatId: ChatSettings?.Invoke(); break;
-            case MemoryId: MemoryBook?.Invoke(); break;
-            case MemoId: WriteMemo?.Invoke(); break;
-            case HistoryId: ChatHistory?.Invoke(); break;
-            case RemindersId: Reminders?.Invoke(); break;
-            case CalendarsId: Calendars?.Invoke(); break;
-            case AddId: AddCharacter?.Invoke(); break;
-            case FolderId: OpenCharacters?.Invoke(); break;
-            case EnergyId: EnergySaverChanged?.Invoke(Toggle(EnergyId)); break;
             case QuitId: Quit?.Invoke(); break;
-            case >= CharacterId when id < CharacterId + _characters.Length:
-                for (var i = 0; i < _characters.Length; i++)
-                    _menu.SetItemChecked(_menu.GetItemIndex(CharacterId + i), CharacterId + i == id);
-                CharacterChanged?.Invoke(_characters[id - CharacterId]);
-                break;
-            case >= SizeId and < SizeId + 3:
-                for (var i = 0; i < 3; i++)
-                    _menu.SetItemChecked(_menu.GetItemIndex(SizeId + i), SizeId + i == id);
-                SizeChanged?.Invoke(Sizes[id - SizeId]);
-                break;
         }
     }
 

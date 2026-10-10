@@ -81,7 +81,7 @@ public partial class MemoryBook : Window
         var top = new HBoxContainer();
         top.AddChild(new Label
         {
-            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in her bubble (tray → Reminders… for more).",
+            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in her bubble (Settings → Reminders for more).",
             ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
         var add = new Button { Text = "+ Add", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, TooltipText = "Something on your agenda, or a reminder" };
@@ -326,7 +326,7 @@ public partial class MemoryBook : Window
             when.Editable = text.Editable = false;
             repeat.Disabled = true;
             delete.Visible = false;
-            text.TooltipText = $"From your calendar “{source}”: change it there (tray → Calendars…).";
+            text.TooltipText = $"From your calendar “{source}”: change it there (Settings → Calendars).";
             second.AddChild(new Label { Text = $"from {source}", ThemeTypeVariation = "Hint" });
         }
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)

@@ -41,8 +41,8 @@ public sealed record AppSettings
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
-    public Privacy Privacy { get; init; } = new();      // what she is told in the background (the Privacy tab; what she looks at is in ToolPermissions)
-    public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (the Add-ons tab)
+    public Privacy Privacy { get; init; } = new();      // what she is told in the background (Settings → Privacy; what she looks at is in ToolPermissions)
+    public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (Settings → Add-ons)
     public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
     public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
     public int BreakMinutes { get; init; } = 5;
@@ -70,14 +70,14 @@ public sealed record AppSettings
     public TimeSpan? ReminderLead => ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
 }
 
-/// <summary>What she is told in the background, as the player chose on the Privacy tab: all of it goes to their AI provider.</summary>
+/// <summary>What she is told in the background, as the player chose (Settings → Privacy): all of it goes to their AI provider.</summary>
 public sealed record Privacy
 {
     public bool Music { get; init; } = true;            // what is playing in their music app (track and artist)
     public bool Days { get; init; } = true;             // what the record of days shows: nights going on late, days without play
 }
 
-/// <summary>Optional extras, off until the player turns them on (the Add-ons tab).</summary>
+/// <summary>Optional extras, off until the player turns them on (Settings → Add-ons).</summary>
 public sealed record AddOns
 {
     public bool SearXng { get; init; }                  // she searches the web through the player's own SearXNG, in place of the provider's search
@@ -91,20 +91,28 @@ public sealed record AddOns
 /// <summary>A playlist saved in the screen's MUSIC app: its link (Spotify, YouTube Music…), and its name as Spotify shows it.</summary>
 public sealed record SavedPlaylist(string Link, string Name);
 
-/// <summary>How reminders reach the player (tray → Reminders…), as chosen together; addresses and tokens are kept apart, encrypted.</summary>
-public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes,
-                                     InsertCoin.Mind.Elsewhere Elsewhere, string CheckIns, int QuietFrom, int QuietUntil, int StandUpMinutes)
+/// <summary>
+/// How reminders reach the player in the cabinet (Settings → Reminders), as chosen together. Where else they go is
+/// apart (Settings → Your phone), its addresses and tokens encrypted.
+/// </summary>
+public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes)
 {
     public static ReminderChoices Of(AppSettings s) =>
-        new(s.ReminderSpoken, s.ReminderSound, s.ReminderChimeWhenMuted, s.ReminderWindows, s.ReminderTicketSeconds, s.ReminderSnoozeMinutes,
-            s.ReminderLeadMinutes, s.ReminderElsewhere, s.CheckIns, s.QuietFrom, s.QuietUntil, s.StandUpMinutes);
+        new(s.ReminderSpoken, s.ReminderSound, s.ReminderChimeWhenMuted, s.ReminderWindows, s.ReminderTicketSeconds, s.ReminderSnoozeMinutes, s.ReminderLeadMinutes);
 
     public AppSettings Into(AppSettings s) => s with
     {
         ReminderSpoken = Spoken, ReminderSound = Sound, ReminderChimeWhenMuted = ChimeWhenMuted, ReminderWindows = Windows,
-        ReminderTicketSeconds = TicketSeconds, ReminderSnoozeMinutes = SnoozeMinutes, ReminderLeadMinutes = LeadMinutes, ReminderElsewhere = Elsewhere,
-        CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil, StandUpMinutes = StandUpMinutes,
+        ReminderTicketSeconds = TicketSeconds, ReminderSnoozeMinutes = SnoozeMinutes, ReminderLeadMinutes = LeadMinutes,
     };
+}
+
+/// <summary>Her asking how things went, the hours she doesn't, and her suggesting standing up (Settings → Check-ins), as chosen together.</summary>
+public sealed record CheckInChoices(string CheckIns, int QuietFrom, int QuietUntil, int StandUpMinutes)
+{
+    public static CheckInChoices Of(AppSettings s) => new(s.CheckIns, s.QuietFrom, s.QuietUntil, s.StandUpMinutes);
+
+    public AppSettings Into(AppSettings s) => s with { CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil, StandUpMinutes = StandUpMinutes };
 }
 
 /// <summary>The settings as saved in settings.json, shared by the parts of the app that change them: each change is saved at once.</summary>
@@ -112,9 +120,13 @@ public sealed class SettingsFile(JsonFileStore<AppSettings> store)
 {
     public AppSettings Now { get; private set; } = store.Load() ?? new AppSettings();
 
+    /// <summary>A change was saved, by any part of the app: for what shows a setting in two places (the tray's Voice, and Settings).</summary>
+    public event Action? Changed;
+
     public void Save(AppSettings settings)
     {
         Now = settings;
         store.Save(settings);
+        Changed?.Invoke();
     }
 }
