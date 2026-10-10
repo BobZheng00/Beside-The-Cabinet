@@ -29,9 +29,38 @@ public partial class SpeechBubble : Node2D
     private int _page;
     private double _onPage, _quiet, _thinking;
     private bool _streaming, _fading, _reply;               // _reply: showing a reply (Begin), not a line (Say)
+    private bool _waiting;
+    private double _blink;
 
     /// <summary>How far her voice is through what it is saying (0 to 1), or null when she is not speaking.</summary>
     public Func<double?> Spoken { get; set; } = () => null;
+
+    /// <summary>Whether what it shows is a subtitle (her voice speaks another language): read to be understood, so each page waits for its reader.</summary>
+    public Func<bool> Subtitled { get; set; } = () => false;
+
+    /// <summary>
+    /// She waits for the player to answer her call: the bubble keeps it, with a small blinking triangle at its foot that
+    /// says more is to come, as a visual novel's text box waits for a click.
+    /// </summary>
+    public bool Waiting
+    {
+        get => _waiting;
+        set
+        {
+            if (_waiting == value)
+                return;
+            _waiting = value;
+            _blink = 0;
+            if (Visible && _text.Length > 0)
+                Place(Page(_page), single: _starts.Count == 1);     // room for the mark, or none
+        }
+    }
+
+    /// <summary>Whether a canvas point is on the bubble, while it shows.</summary>
+    public bool Hits(Vector2 canvasPoint) => Visible && !_fading && new Rect2(Position + _box.Position, _box.Size).HasPoint(canvasPoint);
+
+    /// <summary>The middle of the bubble, on the canvas.</summary>
+    public Vector2 Centre => Position + _box.GetCenter();
 
     public override void _Ready()
     {
@@ -128,6 +157,11 @@ public partial class SpeechBubble : Node2D
     {
         if (!Visible || _fading)
             return;
+        if (_waiting)
+        {
+            _blink += delta;
+            QueueRedraw();                                  // the mark that more is to come blinks
+        }
         if (_streaming && _text.Length == 0)
         {
             _thinking += delta;
@@ -138,15 +172,18 @@ public partial class SpeechBubble : Node2D
         var spoken = Spoken();
         _quiet = spoken is null ? _quiet + delta : 0;
         var last = _page == _starts.Count - 1;
+        // a subtitle is read to be understood: each page waits for its reader, the last one after her voice has finished
+        var subtitle = Subtitled();
+        var reading = ReadingTime(Page(_page), last);
         if (!last)
         {
-            // the next page once this one has been said, or (without her voice) read
+            // the next page once this one has been said (and, as a subtitle, read), or (without her voice) read
             var through = (double)_starts[_page + 1] / _text.Length;
-            if (_onPage >= LeastOnPage && (spoken is { } heard ? heard >= through - 0.02 : _onPage >= ReadingTime(Page(_page), last: false)))
+            if (_onPage >= LeastOnPage && (spoken is { } heard ? heard >= through - 0.02 && (!subtitle || _onPage >= reading) : _onPage >= reading))
                 ShowPage(_page + 1, typed: false);
             return;
         }
-        if (!_streaming && spoken is null && _quiet >= AfterSpeech && _onPage >= ReadingTime(Page(_page), last: true))
+        if (!_streaming && spoken is null && _quiet >= (subtitle ? Math.Max(AfterSpeech, reading) : AfterSpeech) && _onPage >= reading)
             Fade();
     }
 
@@ -160,7 +197,14 @@ public partial class SpeechBubble : Node2D
         {
             var mark = $"{_page + 1}/{_starts.Count}{(_streaming ? "…" : "")}";
             var width = Face.GetStringSize(mark, HorizontalAlignment.Left, -1, PageFontSize).X;
-            DrawString(Face, new Vector2(_box.End.X - PadX - width, _box.End.Y - 6), mark, HorizontalAlignment.Left, -1, PageFontSize, Paper.Faint);
+            DrawString(Face, new Vector2(_box.End.X - PadX - width - (_waiting ? 14 : 0), _box.End.Y - 6), mark, HorizontalAlignment.Left, -1, PageFontSize, Paper.Faint);
+        }
+        if (_waiting)
+        {
+            // more to come once the player answers: a small triangle at the foot, blinking
+            var at = new Vector2(_box.End.X - PadX - 5, _box.End.Y - 9);
+            var ink = Paper.Ink with { A = 0.3f + 0.7f * (0.5f + 0.5f * Mathf.Cos((float)_blink * 4)) };
+            DrawColoredPolygon([at + new Vector2(-5, -3), at + new Vector2(5, -3), at + new Vector2(0, 4)], ink);
         }
     }
 
@@ -168,6 +212,7 @@ public partial class SpeechBubble : Node2D
     {
         _streaming = streaming;
         _fading = false;
+        _waiting = false;
         _tip = tip;
         _canvas = canvas;
         _text = "";
@@ -179,7 +224,15 @@ public partial class SpeechBubble : Node2D
 
     private string Page(int page) => _text[_starts[page]..(page + 1 < _starts.Count ? _starts[page + 1] : _text.Length)].Trim();
 
-    private static double ReadingTime(string page, bool last) => last ? Math.Min(2.4 + page.Length * 0.055, 14) : 1.0 + page.Length * 0.05;
+    /// <summary>
+    /// How long a page takes to read: about 18 letters a second, a Chinese, Japanese or Korean character counting as
+    /// three (about six a second); the last page a little longer, to take it in.
+    /// </summary>
+    private static double ReadingTime(string page, bool last)
+    {
+        var length = page.Sum(c => c >= '⺀' ? 3 : 1);
+        return last ? Math.Min(2.4 + length * 0.055, 18) : 1.0 + length * 0.05;
+    }
 
     private void ShowPage(int page, bool typed)
     {
@@ -260,7 +313,7 @@ public partial class SpeechBubble : Node2D
             width = Mathf.Min(width + 40, WidestText);
             size = Measure(text, width);
         }
-        var box = size + new Vector2(2 * PadX, 2 * PadY + (single ? 0 : PageMark));
+        var box = size + new Vector2(2 * PadX, 2 * PadY + (single && !_waiting ? 0 : PageMark));
         if (!single)
             box.X = WidestText + 2 * PadX;                   // pages keep one width, so the bubble doesn't jump about
         box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."

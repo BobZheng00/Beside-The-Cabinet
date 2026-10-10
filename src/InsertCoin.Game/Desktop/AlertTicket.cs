@@ -22,11 +22,12 @@ public partial class AlertTicket : Node
     private Tween? _tween;
     private Vector2I _hidden;
     private readonly List<Button> _buttons = [];
+    private int _shown;                                     // the showing ticket's number (see Take)
 
-    /// <summary>Shows a ticket, replacing any still showing.</summary>
+    /// <summary>Shows a ticket, replacing any still showing; its number, to take it back by (see <see cref="Take"/>).</summary>
     /// <param name="seconds">How long it stays; 0 or less: until one of its <paramref name="buttons"/> is pressed.</param>
     /// <param name="buttons">Buttons along its foot; each closes the ticket after doing what it does.</param>
-    public void Show(string title, string detail, double seconds = 5, IReadOnlyList<(string Label, Action Pressed)>? buttons = null)
+    public int Show(string title, string detail, double seconds = 5, IReadOnlyList<(string Label, Action Pressed)>? buttons = null)
     {
         var reminder = buttons is { Count: > 0 };
         var size = reminder ? new Vector2I(360, 176) : Size;
@@ -107,6 +108,14 @@ public partial class AlertTicket : Node
             _tween.TweenInterval(seconds);
             SlideOut(_tween, window);
         }
+        return ++_shown;
+    }
+
+    /// <summary>Takes ticket <paramref name="number"/> back, if it is still the one showing (a newer one replaces it).</summary>
+    public void Take(int number)
+    {
+        if (number == _shown)
+            Close();
     }
 
     /// <summary>Dev: presses the showing ticket's button at <paramref name="index"/>.</summary>

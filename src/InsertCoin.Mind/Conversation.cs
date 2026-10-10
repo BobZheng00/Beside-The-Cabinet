@@ -76,18 +76,20 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <returns>Everything she said.</returns>
     public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
                                CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null) =>
-        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? []);
+        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? [], aside: null);
 
     /// <summary>
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
     /// <see cref="Agenda.Announcement"/>): answered as a message would be, but logged as the cabinet's line.
     /// </summary>
+    /// <param name="aside">How to put it this time (see <see cref="WordFirst.Ask"/>): sent with the note, not logged with it.</param>
     public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
-                                 CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null) =>
-        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? []);
+                                 CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null) =>
+        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? [], aside);
 
     private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
-                                     Action<string, string?> direction, Toolbox? tools, CancellationToken cancel, IReadOnlyList<Attachment> handed)
+                                     Action<string, string?> direction, Toolbox? tools, CancellationToken cancel, IReadOnlyList<Attachment> handed,
+                                     string? aside)
     {
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
@@ -110,7 +112,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // what is handed over goes with this turn only: pictures and PDFs as they are (when the model takes them), a text file's words
         List<ChatMessage> Messages(bool withTools, bool seeing)
         {
-            var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + Handing(handed, seeing);
+            var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
                                      summary, recent, situation, turn, [.. lore, .. memories],
                                      VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools);

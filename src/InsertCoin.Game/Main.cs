@@ -127,6 +127,7 @@ public partial class Main : Node2D
         // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
         _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();
         _stool.Notice += (title, line) => _ticket.Show(title, line, 10);
+        _stool.Ticket = _ticket;
         _window.Hover += p =>
         {
             var under = p is { } c && _crt.Covers(c) ? null : p;      // the lifted screen is over what is below it
@@ -185,7 +186,7 @@ public partial class Main : Node2D
                 return;                                     // a memo on the cabinet opens to read
             else if (_crt.Clicked(p))
                 return;                                     // the screen's small system
-            else if (_stool.Her?.Hits(p) == true)
+            else if (_stool.Her?.Hits(p) == true || _stool.OnBubble(p))
                 _stool.Clicked();
         };
         _cabinet.CheckPressed += OnCheck;
@@ -595,6 +596,7 @@ public partial class Main : Node2D
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
+            case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
             case "remindersettings": OpenReminderSettings(); break;
             case "calendars": OpenCalendarSettings(); break;
             case "remindertry": if (IsInstanceValid(_reminderSettings)) _reminderSettings!.DevTry(); break;

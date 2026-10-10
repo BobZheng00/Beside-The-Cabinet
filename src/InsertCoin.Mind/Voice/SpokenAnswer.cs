@@ -86,7 +86,7 @@ public static class SpokenAnswer
         Always.Contains(said) ? Answer.Always : Yes.Contains(said) ? Answer.Once : No.Contains(said) ? Answer.No : null;
 
     /// <summary>Lower case, without punctuation, one space between words.</summary>
-    private static string Plain(string heard)
+    internal static string Plain(string heard)
     {
         var kept = new string([.. heard.ToLowerInvariant().Select(c => char.IsPunctuation(c) || char.IsSymbol(c) ? (c == '\'' || c == '’' ? '\0' : ' ') : c).Where(c => c != '\0')]);
         return string.Join(' ', kept.Split(' ', StringSplitOptions.RemoveEmptyEntries));

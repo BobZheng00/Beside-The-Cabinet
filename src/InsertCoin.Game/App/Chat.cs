@@ -181,6 +181,9 @@ public sealed class Chat : IDisposable
     public string? Replied { get; private set; }
     public Conversation? Conversation => _conversation;
 
+    /// <summary>What her voice makes of her latest reply (whether it is subtitled, say); null once she was cut off.</summary>
+    public Speech? Speech => _speech;
+
     /// <summary>Uses this provider (with the stored key) from now on, or none.</summary>
     public void Connect(Provider? provider)
     {
@@ -340,9 +343,14 @@ public sealed class Chat : IDisposable
     /// Has her pass on what the cabinet asks (reminders going off, see <see cref="Agenda.Announcement"/>) in her own
     /// words, shown and said as a reply is; when that fails, she says <paramref name="fallback"/> instead.
     /// </summary>
+    /// <param name="call">
+    /// A word first (see <see cref="WordFirst"/>): her remark is written whole before any of it is shown or said, then
+    /// her call is, and this waits for the player's answer, given the whole remark (for a ticket): true, she goes on
+    /// aloud; false, the rest is only shown.
+    /// </param>
     public Task Announce(string note, string fallback, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null,
-                         IReadOnlyList<Attachment>? handed = null) =>
-        Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage, handed: handed);
+                         IReadOnlyList<Attachment>? handed = null, Func<string, CancellationToken, Task<bool>>? call = null) =>
+        Respond(note, fromCabinet: true, fallback, situation, view, speech, voiceLanguage, handed: handed, call: call);
 
     /// <summary>
     /// Has her think over what the cabinet tells her (a memo the player wrote, see <see cref="Memo.Written"/>) without
@@ -355,7 +363,8 @@ public sealed class Chat : IDisposable
         Respond(note, fromCabinet: true, fallback: "", situation, view, speech: null, voiceLanguage, voice);
 
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
-                               Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null)
+                               Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null,
+                               Func<string, CancellationToken, Task<bool>>? call = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
@@ -372,8 +381,9 @@ public sealed class Chat : IDisposable
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
-        // thought over unseen (see Consider): her words and directions are held, and played only if she says something
-        var held = voiceLater is null ? null : new List<(string? Words, string? Direction, string? Payload)>();
+        // thought over unseen (see Consider), or written whole before her call (see WordFirst): her words and directions
+        // are held, and played after
+        var held = voiceLater is null && call is null ? null : new List<Piece>();
         var began = false;
         try
         {
@@ -384,7 +394,8 @@ public sealed class Chat : IDisposable
             }
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, IReadOnlyList<Attachment>?, Task<string>> reply =
-                fromCabinet ? conversation.Announce : conversation.Answer;
+                fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Ask)
+                            : conversation.Answer;
             Replied = null;
             var model = _provider?.Model ?? "";
             conversation.Unseeing = CantSee(model);
@@ -395,7 +406,7 @@ public sealed class Chat : IDisposable
                                               return;
                                           if (held is not null)
                                           {
-                                              held.Add((words, null, null));
+                                              held.Add(new Piece(words));
                                               return;
                                           }
                                           shown ??= clock.ElapsedMilliseconds;
@@ -408,14 +419,16 @@ public sealed class Chat : IDisposable
                                               return;
                                           if (held is not null)
                                           {
-                                              held.Add((null, name, payload));
+                                              held.Add(new Piece(null, name, payload));
                                               return;
                                           }
                                           Act(view, name);
                                           speech?.Direction(name, payload);
                                       },
                                       answering.Token, Tools, handed);
-            GD.Print($"Chat: her bubble showed its first words {shown} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms");
+            GD.Print(shown is { } ms
+                ? $"Chat: her bubble showed its first words {ms} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms"
+                : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, held to be played after");
             if (handed is { Count: > 0 })
                 GD.Print($"Chat: handed {string.Join(", ", handed.Select(h => $"{h.Name} ({h.MediaType}, {h.Data.Length / 1024} KB)"))}");
             if (conversation.Unseeing && !CantSee(model))
@@ -427,22 +440,35 @@ public sealed class Chat : IDisposable
                 GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
             if (held is not null && Here() && text.Length > 0)
             {
-                // she has something to say about it: said now, as a reply is
-                speech = _speech = voiceLater!();
+                void Play(List<Piece> pieces)
+                {
+                    foreach (var (words, direction, payload) in pieces)
+                    {
+                        if (words is not null)
+                        {
+                            view.Continue(words);
+                            speech?.Text(words);
+                        }
+                        else
+                        {
+                            Act(view, direction!);
+                            speech?.Direction(direction!, payload);
+                        }
+                    }
+                }
+
+                if (call is null)
+                    speech = _speech = voiceLater!();       // she has something to say about it: said now, as a reply is
                 view.BeginReply();
                 began = true;
-                foreach (var (words, direction, payload) in held)
+                var (first, then) = call is null ? (held, new List<Piece>()) : WordFirst.Split(held);
+                Play(first);
+                if (then.Count > 0)
                 {
-                    if (words is not null)
-                    {
-                        view.Continue(words);
-                        speech?.Text(words);
-                    }
-                    else
-                    {
-                        Act(view, direction!);
-                        speech?.Direction(direction!, payload);
-                    }
+                    answering.CancelAfter(Timeout.InfiniteTimeSpan);       // her call waits on the player, not on the provider
+                    if (!await call!(WordFirst.Shown(held), answering.Token))
+                        speech = null;                      // read on the ticket, or long unanswered: the rest is only shown
+                    Play(then);
                 }
             }
             if (Here())
@@ -465,7 +491,14 @@ public sealed class Chat : IDisposable
             if (Here() && fallback is not null)
             {
                 if (fallback.Length > 0)
+                {
+                    if (!began)
+                    {
+                        view.BeginReply();                  // held for her call: nothing was shown yet
+                        began = true;
+                    }
                     view.Continue(fallback);                // a reminder still gets said, in the plain words; a check-in just lapses
+                }
             }
             else if (Here())
             {

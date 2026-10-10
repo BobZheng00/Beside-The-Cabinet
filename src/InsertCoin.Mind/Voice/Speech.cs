@@ -26,6 +26,9 @@ public sealed class Speech(string language, Action<string> speak)
     /// <summary>Nothing of the reply was given to the voice (no [say], and nothing written in its language).</summary>
     public bool Silent => _lines.Count == 0;
 
+    /// <summary>Her voice says [say] lines and the bubble is their subtitle: the player reads it to understand her.</summary>
+    public bool Subtitled => _subtitled;
+
     /// <summary>
     /// About how many sentences of the reply were shown with nothing for her voice to say: the model gave several
     /// sentences one [say], or none. Counted over the whole reply, since a translation keeps to its sentences.

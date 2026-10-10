@@ -32,7 +32,10 @@ public static class Presence
     }
 
     /// <summary>Another app is using the microphone or the camera right now: most likely a call or a meeting.</summary>
-    public static bool InCall => InUse("microphone") || InUse("webcam");
+    public static bool InCall => !IgnoreCalls && (InUse("microphone") || InUse("webcam"));
+
+    /// <summary>Dev: another app's microphone or camera doesn't count (a test run while the PC is in a call).</summary>
+    public static bool IgnoreCalls { get; set; }
 
     private static bool InUse(string device)
     {

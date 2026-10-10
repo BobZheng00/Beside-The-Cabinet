@@ -122,6 +122,17 @@ the server is stopped so the game has the graphics card, and started again after
 or asking something new. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
 yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
 
+What she brings up herself (a reminder, a check-in, a word on rest or bedtime, standing up, a focus turn) comes after
+a word first. Her mind writes the whole of it, then she says only its first sentence, a call ("ボブさん？"), and her
+bubble keeps it with a small blinking triangle until you answer. Something short ("yes?", 嗯？), said with the talk key
+or hands-free if you listen after her questions, or a click on her or her bubble: she goes on. "Not now": she stops
+there and keeps the rest for later. Anything longer, or a message typed: she stops there and answers it. Unanswered
+for 20 seconds (your headset on the desk, say), a ticket above every window shows the whole of it, with Listen and
+OK; after five minutes the rest is only shown. She goes straight on without her voice, in a conversation, while you
+are writing to her, or when you talked with her in the last two minutes. And when her voice speaks another language
+than her bubble, each page waits for you to read it (a Chinese or Japanese character counted as three letters), the
+last one after her voice has finished (`docs/specs/2026-10-09-a-word-first.md`).
+
 You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Chat
 settings says otherwise), say it, and let go: she leans in to listen, nodding in your pauses, and answers what she
 heard as if you had typed it. The microphone at the end of the slip writes what you say into the slip instead, to change before you send it.
@@ -241,7 +252,8 @@ Dev keys (debug builds, click the cabinet first): `F1/F2/F3` solve Easy/Medium/H
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
-`say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `saver`
+`say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `bubbleclick`
+(a click on her bubble while it waits on her call), `nocall` (another app's microphone doesn't count as a call), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `chatsettings`,

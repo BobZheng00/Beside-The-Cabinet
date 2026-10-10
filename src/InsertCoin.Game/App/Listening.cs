@@ -117,6 +117,12 @@ public partial class Listening : Node
     /// </summary>
     public void CardShown() => _after = HandsFree.Said.Question;
 
+    /// <summary>
+    /// She has called the player and waits for their answer (see <see cref="WordFirst"/>): once her call is said, she
+    /// listens for it as after a question of hers, if the player listens hands-free after questions.
+    /// </summary>
+    public void Called() => _after = HandsFree.Said.Question;
+
     /// <summary>Her card was answered, or went: a microphone opened for it closes, unless the player is talking.</summary>
     public void CardGone() => Drop();
 
@@ -169,7 +175,7 @@ public partial class Listening : Node
         _clock += delta;
         Held(delta);
         Key(delta);
-        if (_after is { } after && _talking == Talk.None && !_understanding && (!_stool.Replying || _stool.CardOpen && !_stool.Speaking))
+        if (_after is { } after && _talking == Talk.None && !_understanding && (!_stool.Replying || _stool.Waits && !_stool.Speaking))
         {
             _after = null;
             if (_settings.Now.HandsFree.After(after, Conversing) is { } seconds && MayListen(out _))
@@ -251,8 +257,8 @@ public partial class Listening : Node
             Close();                                        // the key or a hold takes over from hands-free
         _after = null;
         _hearing ??= Task.Run(LoadHearing);                 // loads while the player talks
-        if (_stool.CardOpen)
-            _stool.Hush();                                  // her card waits for an answer: she stops talking, the question stands
+        if (_stool.Waits)
+            _stool.Hush();                                  // her card or her call waits for an answer: she stops talking, the question stands
         else
             _ = _stool.Interrupt();                         // talking over her stops her
         _talking = how;
@@ -327,6 +333,20 @@ public partial class Listening : Node
                     }
                     await _stool.Interrupt();               // something else to say: the card goes unanswered, as with a new message
                 }
+                else if (_stool.Calling)
+                {
+                    switch (WordFirst.Of(words))
+                    {
+                        case WordFirst.Reply.GoOn:
+                            GD.Print("Ears: her call answered aloud: she goes on");
+                            _stool.GoOn();
+                            return;
+                        case WordFirst.Reply.NotNow:
+                            await _stool.NotNow();
+                            return;
+                    }
+                    await _stool.Interrupt();               // something else to say: she stops after her call, as when cut off
+                }
                 if (!_stool.Thinking)
                 {
                     _chatBox.ShowHeard(words);
@@ -371,10 +391,10 @@ public partial class Listening : Node
         if (_turn is not { } turn)
             return;
         // while waiting: she started speaking (a remark of the cabinet's), or a call, full screen or a game began (looked
-        // at once a second): not now
+        // at once a second): not now. Her card or her call, waiting quietly on this answer, isn't her speaking.
         if (!turn.Talking)
         {
-            var stop = _stool.Replying;
+            var stop = _stool.Replying && !(_stool.Waits && !_stool.Speaking);
             if ((_checked += GetProcessDeltaTime()) > 1)
             {
                 _checked = 0;

@@ -78,6 +78,9 @@ public partial class Stool : Node2D
     /// <summary>Something she would say, while the player can't be spoken to (a full-screen game, presenting): a ticket instead (title, line).</summary>
     public event Action<string, string>? Notice;
 
+    /// <summary>The ticket at the screen corner, for a call of hers left unanswered (see <see cref="WaitForAnswer"/>).</summary>
+    public AlertTicket? Ticket { get; set; }
+
     /// <summary>Her figure, while someone is on the stool.</summary>
     public CompanionView? Her { get; private set; }
 
@@ -445,7 +448,8 @@ public partial class Stool : Node2D
             if (_chat.Ready)
             {
                 // in a call, only her bubble: her voice would be heard by everyone in it
-                await _chat.Announce(note, line, Situation(), Her, Presence.InCall ? null : _voice.Begin(), _voice.Language);
+                var speech = Presence.InCall ? null : _voice.Begin();
+                await _chat.Announce(note, line, Situation(), Her, speech, _voice.Language, call: WordFirstFor(speech, ticketed: false));
                 if (_chat.Replied is { } said)
                     _listening.Said(answer: false, said);
             }
@@ -539,7 +543,9 @@ public partial class Stool : Node2D
         {
             _lively(60);
             Her!.Play(Moment.Greet);
-            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now, _activities.Within(plan.Text)), "", Situation(), Her, _voice.Begin(), _voice.Language);
+            var speech = _voice.Begin();
+            await _chat.Announce(Agenda.CheckIn(plan, DateTimeOffset.Now, _activities.Within(plan.Text)), "", Situation(), Her, speech, _voice.Language,
+                                 call: WordFirstFor(speech, ticketed: false));
             if (_chat.Replied is { } asked)
                 _listening.Said(answer: false, asked);
         }
@@ -555,6 +561,101 @@ public partial class Stool : Node2D
 
     /// <summary>The player cut her off: see <see cref="Chat.Interrupt"/>.</summary>
     internal Task Interrupt() => _chat.Interrupt(_voice, Her);
+
+    // ---- A word first (docs/specs/2026-10-09-a-word-first.md) -------------------------------------------------------
+
+    private static readonly TimeSpan Unanswered = TimeSpan.FromSeconds(20), GiveUp = TimeSpan.FromMinutes(5);
+    private TaskCompletionSource<bool>? _calling;
+    private DateTimeOffset _lastTalked = DateTimeOffset.MinValue;     // the player last said something to her, or answered her call
+
+    /// <summary>She has called the player and waits for their answer before going on (see <see cref="WordFirst"/>).</summary>
+    internal bool Calling => _calling is not null;
+
+    /// <summary>Her card or her call waits for the player's answer: her reply goes on once they give it.</summary>
+    internal bool Waits => CardOpen || Calling;
+
+    /// <summary>
+    /// How what she brings up herself waits for the player's answer to her call, or null when it goes straight on: when
+    /// her voice isn't speaking it, or when they are already talking with her (a conversation, something written on her
+    /// slip, a word with her in the last two minutes).
+    /// </summary>
+    /// <param name="ticketed">It has a ticket of its own (a reminder's), so an unanswered call gets none.</param>
+    private Func<string, CancellationToken, Task<bool>>? WordFirstFor(Speech? speech, bool ticketed)
+    {
+        var straight = speech is null ? "her voice isn't speaking it"
+            : _listening.Conversing ? "a conversation is on"
+            : _chatBox.IsOpen && !_chatBox.IsEmpty ? "they are writing to her"
+            : DateTimeOffset.Now - _lastTalked < TimeSpan.FromMinutes(2) ? "they talked with her just now"
+            : null;
+        if (straight is null)
+            return (whole, cancel) => WaitForAnswer(whole, ticketed, cancel);
+        GD.Print($"Word first: none, straight on ({straight})");
+        return null;
+    }
+
+    /// <summary>
+    /// She has said her call: her bubble keeps it, with a mark that more is to come, and she waits for the player's
+    /// answer (aloud, or a click on her or her bubble). Unanswered for 20 seconds, she can't count it as heard (their
+    /// headset on the desk, say): a ticket above every window shows the whole remark, to hear (Listen) or take as read
+    /// (OK). After five minutes the rest is only shown. True: she goes on aloud.
+    /// </summary>
+    private async Task<bool> WaitForAnswer(string whole, bool ticketed, CancellationToken cancel)
+    {
+        var answer = _calling = new TaskCompletionSource<bool>();
+        int? ticket = null;
+        if (Her is { } her)
+            her.Waiting = true;
+        _listening.Called();
+        GD.Print("Word first: she has called the player and waits for an answer");
+        try
+        {
+            if (await Task.WhenAny(answer.Task, Task.Delay(Unanswered, cancel)) != answer.Task)
+            {
+                cancel.ThrowIfCancellationRequested();
+                if (!ticketed && Ticket is { } corner)
+                {
+                    GD.Print("Word first: no answer; a ticket shows it");
+                    ticket = corner.Show((_chat.Conversation?.Persona.Name ?? "Her").ToUpperInvariant(), whole, seconds: 0,
+                                         buttons: [("Listen", () => answer.TrySetResult(true)), ("OK", () => answer.TrySetResult(false))]);
+                }
+                if (await Task.WhenAny(answer.Task, Task.Delay(GiveUp - Unanswered, cancel)) != answer.Task)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    GD.Print("Word first: still no answer; the rest is only shown");
+                    return false;
+                }
+            }
+            var aloud = await answer.Task;
+            GD.Print(aloud ? "Word first: answered; she goes on" : "Word first: read on the ticket; the rest is only shown");
+            return aloud;
+        }
+        finally
+        {
+            _calling = null;
+            if (Her is { } view)
+                view.Waiting = false;
+            if (ticket is { } shown)
+                Ticket?.Take(shown);
+        }
+    }
+
+    /// <summary>The player answered her call ("yes?", a click on her or her bubble): she goes on.</summary>
+    internal void GoOn()
+    {
+        _lastTalked = DateTimeOffset.Now;
+        _listening.Drop();
+        _calling?.TrySetResult(true);
+    }
+
+    /// <summary>"Not now": she stops after her call, keeping the rest to come back to (see <see cref="Chat.Interrupt"/>).</summary>
+    internal Task NotNow()
+    {
+        GD.Print("Word first: not now; she stops after her call");
+        return Interrupt();
+    }
+
+    /// <summary>A point on her bubble while it waits for the player's answer to her call: a click there answers it.</summary>
+    public bool OnBubble(Vector2 canvasPoint) => Calling && Her?.BubbleHits(canvasPoint) == true;
 
     /// <summary>Her card is asking: what the player says next may answer it (see <see cref="SpokenAnswer"/>).</summary>
     internal bool CardOpen => _permission.IsOpen;
@@ -605,8 +706,9 @@ public partial class Stool : Node2D
             if (_chat.Ready && _settings.Now.ReminderSpoken)
                 // in a call, only her bubble: her voice would be heard by everyone in it
             {
-                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), Situation(), Her,
-                                     Presence.InCall ? null : _voice.Begin(), _voice.Language);
+                var speech = Presence.InCall ? null : _voice.Begin();
+                await _chat.Announce(Agenda.Announcement(due, now, lead), Lines.Reminder(due, now), Situation(), Her, speech, _voice.Language,
+                                     call: WordFirstFor(speech, ticketed: true));        // a reminder has a ticket of its own already
                 if (_chat.Replied is { } said)
                     _listening.Said(answer: false, said);
             }
@@ -639,6 +741,11 @@ public partial class Stool : Node2D
     {
         if (_listening.HeldToTalk)
             return;                                         // that was a hold: she was being talked to
+        if (Calling)
+        {
+            GoOn();                                         // she waits on her call: a click on her (or her bubble) is the player's "yes?"
+            return;
+        }
         var replying = Replying;
         _listening.Drop();
         _ = Interrupt();
@@ -650,7 +757,7 @@ public partial class Stool : Node2D
 
     /// <summary>The window is solid here: her figure, or the slip.</summary>
     public bool Hits(Vector2 canvasPoint) =>
-        Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
+        Her?.Hits(canvasPoint) == true || OnBubble(canvasPoint) || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
 
     /// <summary>The slip keeps the mouse here, for typing.</summary>
     public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint);
@@ -783,6 +890,7 @@ public partial class Stool : Node2D
             {
                 her.Build(_cabinet.Skin, character);
                 her.Spoken = () => _voice.Progress;
+                her.Subtitled = () => _chat.Speech is { Subtitled: true };
                 _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.Username));
                 _voice.Seat(VoiceFolder(character.Id));
             }
@@ -1109,6 +1217,7 @@ public partial class Stool : Node2D
     {
         if (Her is null)
             return;
+        _lastTalked = DateTimeOffset.Now;
         var handed = _chatBox.TakeHanded();                 // what waits on the slip goes with it, typed or said
         _listening.Drop();
         await Interrupt();                                  // asking something new cuts off what she was still saying
@@ -1443,6 +1552,7 @@ public partial class Stool : Node2D
                 break;
             case "musicprobe": _music.DevProbe(); break;    // checks Windows' media controls answer (how many sessions, whose; no titles)
             case "standup": MaybeStandUp(force: true); break;   // she suggests standing up, as after a long sitting
+            case "nocall": Presence.IgnoreCalls = true; break;     // another app's microphone doesn't count (a test run while the PC is in a call)
             case "musicfake": _music.DevPlaying(rest is "" or "off" ? null : text.Split(':')[0], text.Split(':').ElementAtOrDefault(1) ?? ""); break;   // musicfake:Title:Artist pretends it plays; musicfake:off none
             case "musictool":                               // musictool:pause, musictool:start_playlist:Deep_Focus as her tool would
                 var said = text.Split(':', 2);

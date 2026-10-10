@@ -180,6 +180,24 @@ public partial class CompanionView : Node2D
         set => _bubble.Spoken = value;
     }
 
+    /// <summary>Whether her bubble is a subtitle (her voice speaks another language): each page waits for the player to read it.</summary>
+    public Func<bool> Subtitled
+    {
+        set => _bubble.Subtitled = value;
+    }
+
+    /// <summary>She waits for the player to answer her call: her bubble keeps it, with a mark that more is to come.</summary>
+    public bool Waiting
+    {
+        set => _bubble.Waiting = value;
+    }
+
+    /// <summary>Whether a canvas point is on her speech bubble.</summary>
+    public bool BubbleHits(Vector2 canvasPoint) => _active && _bubble.Hits(canvasPoint);
+
+    /// <summary>Dev: the middle of her bubble, while it shows.</summary>
+    public Vector2? BubbleCentre => _active && _bubble.Visible ? _bubble.Centre : null;
+
     public void EndReply()
     {
         Answering();
