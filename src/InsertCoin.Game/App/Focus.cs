@@ -21,8 +21,12 @@ public partial class Focus : Node
     /// <summary>Every second while a session runs, and whenever it changes: the screen follows.</summary>
     public event Action? Changed;
 
-    /// <summary>Something for her to say, in her own words (a note for her mind), and the line she says without one.</summary>
-    public event Action<string, string>? Told;
+    /// <summary>
+    /// Something for her to say, in her own words (a note for her mind), and the line she says without one; true when it
+    /// answers what the player just did on the screen (started or stopped a session, skipped a part), false for a turn of
+    /// the session's own.
+    /// </summary>
+    public event Action<string, string, bool>? Told;
 
     /// <summary>
     /// A focus part's time, as it runs out or is skipped or stopped, however short: it pays into the cabinet. Paused
@@ -81,7 +85,7 @@ public partial class Focus : Node
         GD.Print($"Focus: a session starts ({session.Plan}){(byPlayer ? "" : ", by her")}");
         Music(FocusPart.Focus, fromStart: true);
         if (byPlayer)
-            Told?.Invoke(session.NoteOnStart(), Lines.FocusStarted(session.Plan));
+            Told?.Invoke(session.NoteOnStart(), Lines.FocusStarted(session.Plan), true);
         Changed?.Invoke();
     }
 
@@ -95,7 +99,7 @@ public partial class Focus : Node
         if (WithMusic)
             _ = _music.Pause();
         if (byPlayer)
-            Told?.Invoke(session.NoteOnStop(DateTimeOffset.Now), Lines.FocusStopped(session.Done));
+            Told?.Invoke(session.NoteOnStop(DateTimeOffset.Now), Lines.FocusStopped(session.Done), true);
         Changed?.Invoke();
     }
 
@@ -125,7 +129,7 @@ public partial class Focus : Node
             return null;
         Pay(session, DateTimeOffset.Now);
         var turn = session.Skip(DateTimeOffset.Now);
-        Turned(session, turn, tell: byPlayer);
+        Turned(session, turn, tell: byPlayer, answer: true);
         return turn;
     }
 
@@ -139,17 +143,17 @@ public partial class Focus : Node
         if (!session.Paused && session.Left(now) <= TimeSpan.Zero)
             Pay(session, now);                              // it runs out now
         if (session.Tick(now) is { } turn)
-            Turned(session, turn, tell: true);
+            Turned(session, turn, tell: true, answer: false);
         else
             Changed?.Invoke();
     }
 
-    private void Turned(FocusSession session, FocusTurn turn, bool tell)
+    private void Turned(FocusSession session, FocusTurn turn, bool tell, bool answer)
     {
         GD.Print($"Focus: {turn.Ended} over, {turn.Began} begins (round {turn.Round})");
         Music(turn.Began);
         if (tell)
-            Told?.Invoke(session.NoteOn(turn), Lines.Focus(turn, session.Plan));
+            Told?.Invoke(session.NoteOn(turn), Lines.Focus(turn, session.Plan), answer);
         Changed?.Invoke();
     }
 

@@ -19,8 +19,8 @@ The flow broke because the meaning came before the player had looked, and the bu
 
 ## What she does
 
-What she brings up herself with nothing else to show it (a check-in, the day's word on rest or bedtime, standing up, a
-focus turn) comes after a word first:
+What she brings up herself with nothing else to show it (a check-in, the day's word on rest or bedtime, standing up)
+comes after a word first:
 
 1. Her remark is written as any other, whole, before any of it is shown or said; her mind is only told she has just
    called them, so it doesn't call them twice. At the same time her call is asked for on its own: a few words of her
@@ -39,12 +39,18 @@ focus turn) comes after a word first:
    - **a message typed** to her: she stops after her call and answers it.
 4. **No answer in 20 seconds** (the headset on the desk, the player deep in something): she can't count it as heard.
    A ticket slides in at the screen corner, above every window, showing her whole remark with **Listen** (she goes on,
-   aloud) and **OK** (it was read there: the rest is only shown in her bubble).
+   aloud) and **OK** (it was read there: the rest is only shown in her bubble). Not for standing up, which can pass
+   unnoticed (the user, 2026-10-10): its call just waits.
 5. **No answer in 5 minutes:** the rest is only shown, so what else she has to say isn't held up for long.
 
 A reminder going off goes straight on, without a call: its ticket already shows it, with Snooze and OK, so there is
 nothing to wait for (the user, 2026-10-10: "i do not really need to answer yes / not now (i can just click snooze or
 ok…)").
+
+A focus session's turn (a focus part or a break ending) goes straight on too, with a ticket of its own at the corner as
+it comes, with OK, staying as long as a reminder's (the user, 2026-10-10: "we would like to have some desktop
+notification on focus part ends"). And her answer to what the player has just done on the cabinet (START, STOP or SKIP
+on the FOCUS screen, DID IT on DONE) is said at once: they are plainly there. Until then those waited on a call too.
 
 When she stops after her call, her line keeps only what was heard, and the rest is remembered as unsaid, as when she is
 cut off: she can come back to it.
@@ -134,5 +140,6 @@ up…"), so it is now told to go straight to it without their name or a greeting
 - `Conversation.Call` (asked for on its own, kept as `LastCall`), `Conversation.CalledFirst` (her line starts with it).
 - `Chat.Announce(…, call)`: asks for both, plays the call (`CallFor`: the fresh one, her last one, or none), waits,
   plays the remark.
+- `Stool.Telling` (how each of her remarks comes: an answer, a turn, her own, a suggestion that may pass unnoticed).
 - `Stool.WaitForAnswer`, `Stool.Calling`, `GoOn`, `NotNow`; `Listening.Called`; the bubble's `Waiting` (with its answers,
   `Answered`, `OnAnswer`) and `Subtitled`; `AlertTicket.Take`.

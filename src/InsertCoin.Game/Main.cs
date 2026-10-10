@@ -503,7 +503,7 @@ public partial class Main : Node2D
             return;
         var action = key.Keycode switch
         {
-            Key.F1 => "easy", Key.F2 => "medium", Key.F3 => "hard", Key.F5 => "game", Key.F6 => "warp", Key.F7 => "afk", Key.F8 => "standup", Key.F9 => "wipe",
+            Key.F1 => "easy", Key.F2 => "medium", Key.F3 => "hard", Key.F4 => "rest:ask", Key.F5 => "game", Key.F6 => "warp", Key.F7 => "afk", Key.F8 => "standup", Key.F9 => "wipe",
             _ => null,
         };
         if (action is not null)

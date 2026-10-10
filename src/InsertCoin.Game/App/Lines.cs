@@ -36,14 +36,14 @@ public static class Lines
     }
 
     /// <summary>A focus session started on the cabinet.</summary>
-    public static string FocusStarted(InsertCoin.Mind.FocusPlan plan) => $"{plan.Focus} minutes of focus. You've got this!";
+    public static string FocusStarted(InsertCoin.Mind.FocusPlan plan) => $"{InsertCoin.Mind.Words.Count(plan.Focus, "minute")} of focus. You've got this!";
 
     /// <summary>A part of a focus session ended and the next began.</summary>
     public static string Focus(InsertCoin.Mind.FocusTurn turn, InsertCoin.Mind.FocusPlan plan) => turn.Began switch
     {
-        InsertCoin.Mind.FocusPart.Break => $"Break: {plan.Break} minutes. Stand up, stretch, have some water.",
-        InsertCoin.Mind.FocusPart.LongBreak => $"Long break: {plan.LongBreak} minutes. Well done! Step away for a bit.",
-        _ => $"Back to it: {plan.Focus} minutes.",
+        InsertCoin.Mind.FocusPart.Break => $"Break: {InsertCoin.Mind.Words.Count(plan.Break, "minute")}. Stand up, stretch, have some water.",
+        InsertCoin.Mind.FocusPart.LongBreak => $"Long break: {InsertCoin.Mind.Words.Count(plan.LongBreak, "minute")}. Well done! Step away for a bit.",
+        _ => $"Back to it: {InsertCoin.Mind.Words.Count(plan.Focus, "minute")}.",
     };
 
     /// <summary>The player ended a focus session.</summary>

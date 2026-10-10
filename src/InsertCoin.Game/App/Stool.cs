@@ -39,7 +39,7 @@ public partial class Stool : Node2D
     private bool _announcing;                               // passing on a reminder
     private readonly Queue<(IReadOnlyList<Plan> Due, DateTimeOffset At)> _reminding = new();
     private readonly Queue<(string Title, string Text)> _written = new();     // the player's own memos, for her to think over
-    private readonly Queue<(string Ticket, string Note, string Line, DateTimeOffset At)> _told = new();     // focus sessions' turns, a long sitting
+    private readonly Queue<(string Ticket, string Note, string Line, DateTimeOffset At, Telling How)> _told = new();     // focus sessions' turns, a long sitting, rest
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
     /// <summary>Characters were added: all there are now (for the tray's list), and the one seated.</summary>
@@ -182,7 +182,12 @@ public partial class Stool : Node2D
         _focus = new Focus();
         AddChild(_focus);
         _focus.Build(settings, _music);
-        _focus.Told += (note, line) => _told.Enqueue(("FOCUS", note, line, DateTimeOffset.Now));
+        _focus.Told += (note, line, answer) =>
+        {
+            if (!answer)                                    // a turn shows at the corner as it comes, as a reminder does (the user, 2026-10-10)
+                Ticket?.Show("FOCUS", line, _settings.Now.ReminderTicketSeconds, [("OK", () => { })]);
+            _told.Enqueue(("FOCUS", note, line, DateTimeOffset.Now, answer ? Telling.Answer : Telling.Turn));
+        };
         _chat.Focus = FocusAct;
         _chat.Music = MusicAct;
         _chat.Playlist = name => SavedPlaylist(name) is { } playlist ? $"{playlist.Name} ({Desktop.Music.Shown(playlist.Link)})" : $"No saved playlist called \"{name}\"";
@@ -324,7 +329,7 @@ public partial class Stool : Node2D
             return;
         _lastStandUp = now;
         GD.Print($"Stand up: {(int)(now - since).TotalMinutes} min at the PC");
-        _told.Enqueue(("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, now));
+        _told.Enqueue(("STAND UP", FocusSession.NoteOnSitting(now - since), Lines.StandUp, now, Telling.Suggestion));
     }
 
     // ---- Rest and sleep ---------------------------------------------------------------------------------------------
@@ -357,7 +362,7 @@ public partial class Stool : Node2D
         {
             _givenTonight.Add(nudge);
             GD.Print($"Rest: {nudge} ({Rest.Clock(bedtime)})");
-            _told.Enqueue(("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), now));
+            _told.Enqueue(("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), now, Telling.Own));
         }
         if (state.Session is { } session)
         {
@@ -370,7 +375,7 @@ public partial class Stool : Node2D
             {
                 _breakAtMs = session.PlayedMs;
                 GD.Print("Rest: a break after two hours of play");
-                _told.Enqueue(("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), now));
+                _told.Enqueue(("BREAK", Rest.Note(Nudge.LongPlay, TimeSpan.Zero, 1), Lines.Rest(Nudge.LongPlay), now, Telling.Own));
             }
         }
         if (!_chat.Ready || _gameRunning || Busy || !here || Presence.DoNotDisturb || Presence.InCall || Quiet(now.Hour) || !Settled(now))
@@ -385,7 +390,7 @@ public partial class Stool : Node2D
             return;
         _chat.Store.SetMark("rest.said", today);
         GD.Print("Rest: she has something to say about rest");
-        _told.Enqueue(("REST", note, "", now));             // only her mind says these
+        _told.Enqueue(("REST", note, "", now, Telling.Own));     // only her mind says these
     }
 
     /// <summary>
@@ -420,23 +425,37 @@ public partial class Stool : Node2D
         return $"Set: {Rest.Clock(bedtime)}, from tomorrow.";
     }
 
-    /// <summary>What a focus session or a long sitting has for her to say, once she is free (as reminders are); stale after three minutes.</summary>
+    /// <summary>What she has to tell the player (a focus session's turn, a long sitting, rest), once she is free (as reminders are); stale after three minutes.</summary>
     private void PassOnTold()
     {
         var now = DateTimeOffset.Now;
         if (_told.Count == 0 || Busy || _reminding.Count > 0 || now < _quietFrom || Her is null)
             return;
-        var (ticket, note, line, at) = _told.Dequeue();
+        var (ticket, note, line, at, how) = _told.Dequeue();
         if (now - at > TimeSpan.FromMinutes(3))
             return;
-        _ = Tell(ticket, note, line);
+        _ = Tell(ticket, note, line, how);
     }
 
-    private async Task Tell(string ticket, string note, string line)
+    /// <summary>How something she has to tell the player comes (see <see cref="Tell"/>).</summary>
+    private enum Telling
+    {
+        /// <summary>An answer to what the player just did on the cabinet (pressed START, logged an activity): said at once.</summary>
+        Answer,
+        /// <summary>A focus session's turn: its ticket shows at the screen corner as it comes, and she says it at once (the user, 2026-10-10).</summary>
+        Turn,
+        /// <summary>Her own idea (a word on rest or bedtime): a word first, and a ticket above every window if her call goes unanswered.</summary>
+        Own,
+        /// <summary>A suggestion of hers that may pass unnoticed (standing up): a word first, and no ticket (the user, 2026-10-10).</summary>
+        Suggestion,
+    }
+
+    private async Task Tell(string ticket, string note, string line, Telling how)
     {
         if (Presence.DoNotDisturb || _gameRunning)
         {
-            Notice?.Invoke(ticket, line);                   // they can't be spoken to now: only the ticket
+            if (how != Telling.Turn)                        // a turn has shown its own
+                Notice?.Invoke(ticket, line);               // they can't be spoken to now: only the ticket
             return;
         }
         if (!_settings.Now.SpeechBubbles || Her is null)
@@ -449,7 +468,8 @@ public partial class Stool : Node2D
             {
                 // in a call, only her bubble: her voice would be heard by everyone in it
                 var speech = Presence.InCall ? null : _voice.Begin();
-                await _chat.Announce(note, line, Situation(), Her, speech, _voice.Language, call: WordFirstFor(speech));
+                var call = how is Telling.Own or Telling.Suggestion ? WordFirstFor(speech, withTicket: how == Telling.Own) : null;
+                await _chat.Announce(note, line, Situation(), Her, speech, _voice.Language, call: call);
                 if (_chat.Replied is { } said)
                     _listening.Said(answer: false, said);
             }
@@ -579,7 +599,8 @@ public partial class Stool : Node2D
     /// her voice isn't speaking it, or when they are already talking with her (a conversation, something written on her
     /// slip, a word with her in the last two minutes).
     /// </summary>
-    private Func<string, CancellationToken, Task<bool>>? WordFirstFor(Speech? speech)
+    /// <param name="withTicket">An unanswered call brings a ticket above every window (not for what may pass unnoticed, such as standing up).</param>
+    private Func<string, CancellationToken, Task<bool>>? WordFirstFor(Speech? speech, bool withTicket = true)
     {
         var straight = speech is null ? "her voice isn't speaking it"
             : _listening.Conversing ? "a conversation is on"
@@ -587,7 +608,7 @@ public partial class Stool : Node2D
             : DateTimeOffset.Now - _lastTalked < TimeSpan.FromMinutes(2) ? "they talked with her just now"
             : null;
         if (straight is null)
-            return (whole, cancel) => WaitForAnswer(whole, cancel);
+            return (whole, cancel) => WaitForAnswer(whole, withTicket, cancel);
         GD.Print($"Word first: none, straight on ({straight})");
         return null;
     }
@@ -596,9 +617,10 @@ public partial class Stool : Node2D
     /// She has said her call: her bubble keeps it, with "Yes?" and "Not now" to click, and she looks at the player and
     /// waits for their answer (aloud, or a click on those, on her or on her bubble). Unanswered for 20 seconds, she can't
     /// count it as heard (their headset on the desk, say): a ticket above every window shows the whole remark, to hear
-    /// (Listen) or take as read (OK). After five minutes the rest is only shown. True: she goes on aloud.
+    /// (Listen) or take as read (OK), unless it may pass unnoticed. After five minutes the rest is only shown. True: she
+    /// goes on aloud.
     /// </summary>
-    private async Task<bool> WaitForAnswer(string whole, CancellationToken cancel)
+    private async Task<bool> WaitForAnswer(string whole, bool withTicket, CancellationToken cancel)
     {
         var answer = _calling = new TaskCompletionSource<bool>();
         int? ticket = null;
@@ -614,7 +636,9 @@ public partial class Stool : Node2D
             if (await Task.WhenAny(answer.Task, Task.Delay(Unanswered, cancel)) != answer.Task)
             {
                 cancel.ThrowIfCancellationRequested();
-                if (Ticket is { } corner)
+                if (!withTicket)
+                    GD.Print("Word first: no answer; it may pass unnoticed, so no ticket");
+                else if (Ticket is { } corner)
                 {
                     GD.Print("Word first: no answer; a ticket shows it");
                     ticket = corner.Show((_chat.Conversation?.Persona.Name ?? "Her").ToUpperInvariant(), whole, seconds: 0,
@@ -1338,7 +1362,7 @@ public partial class Stool : Node2D
         GD.Print($"Activities: {name} logged on the screen: {said}");
         var line = said.Contains("judge_proof", StringComparison.Ordinal) ? $"{name}? Show me a photo of it!"
             : said.StartsWith("Counted", StringComparison.Ordinal) ? $"{name}: that counts. Nice!" : said;
-        _told.Enqueue(("DONE", $"The player logged \"{name}\" as done on the cabinet's screen. What came of it: {said}", line, DateTimeOffset.Now));
+        _told.Enqueue(("DONE", $"The player logged \"{name}\" as done on the cabinet's screen. What came of it: {said}", line, DateTimeOffset.Now, Telling.Answer));
         return said;
     }
 
@@ -1528,12 +1552,12 @@ public partial class Stool : Node2D
                 if (Enum.TryParse<Nudge>(rest, ignoreCase: true, out var word) || rest == "break")
                 {
                     word = rest == "break" ? Nudge.LongPlay : word;
-                    _told.Enqueue(("BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), DateTimeOffset.Now));
+                    _told.Enqueue(("BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), DateTimeOffset.Now, Telling.Own));
                 }
                 else if (Ledger?.Invoke() is { } ledger && Rules?.Invoke() is { } rules)
                     _told.Enqueue(("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
                                        : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
-                                   "", DateTimeOffset.Now));
+                                   "", DateTimeOffset.Now, Telling.Own));
                 break;
             case "proofroll":                               // proofroll:0 always wants proof, proofroll:1 never (instead of chance)
                 _activities.Roll = double.Parse(rest, System.Globalization.CultureInfo.InvariantCulture);
