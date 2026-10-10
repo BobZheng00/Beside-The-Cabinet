@@ -26,6 +26,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `2026-10-05-tools-and-abilities.md` (draft): built-in tools versus connectors, the first abilities, the order.
   - `2026-10-09-a-word-first.md`: what she brings up herself starts with a call and waits for the player's answer; subtitles wait for the reader.
   - `2026-10-07-balance.md` (draft): earning from more than LeetCode (focus, the player's own activities with proof), a daily cap and a nightly fade, pictures and files, rest and sleep, the order from here.
+  - `2026-10-10-reaching-the-player.md`: a roommate who calls at the PC and texts when the player is away; texting with her on Telegram, both ways.
 - `docs/research`: research notes.
 
 ## Build and test
@@ -170,6 +171,14 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 - **Also decided:** the player sets neither what an activity is worth nor how much proof it needs; her manner always comes from her character card (the app decides what and when, the card how).
 - **Order (proposed):** 1. the spec; 2. the ledger (focus pays, the cap, the fade, the late-night price, the record of days); 3. pictures and files; 4. activities with proof; 5. rest and sleep; 6. help with learning, with web search, and opening apps. *All built by 2026-10-09.*
 - **Next step:** the user tries steps 2 to 6 for real (`docs/to-try.md`; the phone's QR code is untested with a real phone; their provider is an OpenAI-compatible server, so no web search without the SearXNG add-on). Then: what the balance order leaves (the streak counting more than LeetCode, clipboard reading, local MCP servers as add-ons), or character import.
+
+**Next: reaching the player** (the user's turn, 2026-10-10: her as a roommate in real life; spec `docs/specs/2026-10-10-reaching-the-player.md`, not built).
+- **Decided:**
+  - features only hand over something to tell, with how much it matters (must, should, could) and where it makes sense (anywhere, only at the PC); where the player is (here, unsure, away, asleep) is worked out in one place, and one table decides voice, a word first, or a text;
+  - one setting, how much she reaches out: only what you set, like a roommate (default), keeps in touch (texts of her own: some players want a companion app that reaches out);
+  - one conversation and memory, at the PC and by text; she answers where the player last spoke to her;
+  - Telegram first (paired by a `?start=` code, locked to that chat; not end-to-end encrypted, and the window says so). Discord's text isn't end-to-end encrypted either; Discord and a private route (Tailscale and the phone page) come later.
+- **Order:** 1. the spec (*2026-10-10*); 2. where the player is and the routing, today's features moved onto it, the one-way places in her words; 3. Telegram both ways; 4. how much she reaches out; 5. later: voice notes, Discord, the private route, a channel for mainland China.
 
 **Open questions for the user:**
 - ~~whether her idle leg swings should be smaller and rarer~~ keep them as they are (2026-10-09);
