@@ -59,9 +59,9 @@ Worked out by the app, from what it already watches:
 
 | Where | When |
 |---|---|
-| **Here** | input in the last 2 minutes (to tune), talking with her, a game running |
-| **Unsure** | no input for 2 to 10 minutes (to tune), or her call went unanswered |
-| **Away** | the screen locked, no input for 10 minutes or more, the player told her they're heading out, or their last message came by text |
+| **Here** | input in the last minute (the pause the app already counts), talking with her, a game running |
+| **Unsure** | no input for a minute or more, but not yet the away time, or her call went unanswered |
+| **Away** | no input for the away time (5 minutes by default, on a slider from 2 to 30: the user, 2026-10-10), the screen locked, the player told her they're heading out, or their last message came by text |
 | **Asleep** | the player said goodnight, or no input in the quiet hours |
 
 Her mind's part: she hears "I'm off to the gym" or "going to bed" and marks it (a tag in her reply, as her plans are).
@@ -74,19 +74,27 @@ The roommate, as one table:
 
 | | Here | Unsure | Away | Asleep |
 |---|---|---|---|---|
-| **Must** | says it at once, with its ticket (as now) | the same; a text if no input within 2 minutes | a text at once | a text (they set it for then) |
-| **Should** | a word first, a ticket if unanswered (as now) | a word first; a text if still no input 2 minutes after the ticket and it makes sense anywhere | a text if it makes sense anywhere; otherwise it waits for them, while fresh | it waits for the morning, while fresh |
+| **Must** | says it at once, with its ticket (as now) | the same; a text if the away time passes with no input | a text at once | a text (they set it for then) |
+| **Should** | a word first, a ticket if unanswered (as now) | a word first, a ticket if unanswered; a text if the away time passes with no input and it makes sense anywhere | a text if it makes sense anywhere; otherwise it waits for them, while fresh | it waits for the morning, while fresh |
 | **Could** | a word first, no ticket (as now) | a word first; otherwise it lapses | it lapses (a text when she keeps in touch) | it lapses |
 
 At the PC nothing changes. A reminder no longer goes to the phone while the player is there, unless they tick "also
 when I'm at the PC" (the old behaviour).
 
+A ticket on the PC and a text can both go (the user, 2026-10-10: "good enough"): the ticket waits on the desk, the text
+reaches the player wherever they are. Answering either settles the other: a click on the ticket, or any input before
+the text is due, and no text goes; a reply to the text takes the ticket back.
+
 What goes out is in her words: a remark already written for her bubble is sent as it is; when the player is away from
 the start, her turn is told it goes to their phone as a text. A must-reach one never waits on her mind: if her words
 haven't come in 30 seconds (to tune), the plain line goes, and hers don't follow.
 
-**No double texting:** while a text of hers is unanswered, she sends no other of her own; only must-reach ones still go.
-The quiet hours hold too, except for what the player set for then.
+**Messages left for someone who is out** (the user, 2026-10-10: "if there are relative important things (must and
+should by default i guess), i will just keep leaving msg to the person and the person will check and answer them all
+when they eventually see it. if she know's i'm here then i guess the old rule applies"): while the player is away,
+whatever the table sends goes as it comes, however many, and they answer it all when they look. Only her own (could)
+wait while a text of hers is unanswered. At the PC, one thing at a time, as now: her remarks wait behind an unanswered
+call, and a newer ticket replaces the one showing. The quiet hours hold too, except for what the player set for then.
 
 ## How much she reaches out
 
@@ -156,7 +164,7 @@ The reminders' one-way Telegram option becomes this one: a token and chat id alr
 
 ntfy, the Discord webhook and any webhook stay, for players who want notifications only: what she would text goes
 there in her words, with nothing to reply to. They move with Telegram into one window (tray → "Her phone…", name to
-settle), with how much she reaches out and "also when I'm at the PC". The Windows notification stays with the
+settle), with how much she reaches out, the away time and "also when I'm at the PC". The Windows notification stays with the
 reminders.
 
 ## Order
@@ -188,9 +196,8 @@ reminders.
 
 ## Open
 
-- The numbers marked to tune: 2 and 10 minutes for unsure and away, 2 minutes before a text, 30 seconds for her words,
-  the limits on texts of her own.
-- Whether both the ticket and a text, when she's unsure, is one too many.
+- The numbers marked to tune: 30 seconds for her words, the limits on texts of her own. Settled 2026-10-10: one away
+  time, 5 minutes by default, on a slider; it also decides when what she said at an unsure moment goes by text.
 - Whether the cabinet can set her bot's picture itself, sparing a step.
 
 ## References
