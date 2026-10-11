@@ -11,7 +11,7 @@ only with a re-run that shows it fixed, and say which.
 | M2 | Facts keep relative times, which go stale | fixed: such a fact says when it was said, in her list and in recall |
 | M3 | Upkeep costs about three times the conversation | phase 3 made it worse; back to the old memory's level with the profile change (116k against 112k) |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
-| M5 | Asked about something never said, she often makes up an answer | open |
+| M5 | Asked about something never said, she often makes up an answer | mostly LoCoMo's name swaps, declined as rarely with everything in view; mixing up her life and the player's is what her own story is for |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | fixed: asked for once more |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |

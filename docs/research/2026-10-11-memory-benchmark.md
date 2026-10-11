@@ -158,6 +158,40 @@ Against the old memory's runs: 84% against 75%, 83% against 69%. Upkeep 56 reque
 version 81 and 134k, the old memory 66 and 112k), taking the conversation in in 15 minutes instead of about 30.
 Facts: median 16 words, the longest 27, 3 over 25 (the last version: median 23, longest 68, 25 over).
 
+### The final build on more of the benchmarks (2026-10-11)
+
+The merged memory (phases 1 to 3, retrieval, the profile from facts, the three small fixes), at the 8k window:
+
+| | Old memory, 8k | Old memory, whole conversation in view (32k) | New memory, 8k |
+|---|---|---|---|
+| LoCoMo conversation 44 (122 questions) | 75% | 84% | **84%** (6 flipped each way against 32k) |
+| LongMemEval, 9 of the old sample's questions | 7 of 9 | | **9 of 9** |
+
+Conversation 44 (28 sittings, 675 turns): time questions 19 of 24 against 16 for both old runs; every question
+answered, 103 of 123 (84%), 87% on Mem0's grade. Upkeep 207k tokens against the old memory's 174k (+20%; on
+conversation 26 it was +4%). LongMemEval: upkeep read about 30% less a question (196k to 265k against 316k to 363k),
+each question's 115k tokens of history taken in, in about 12 minutes. Conversation 42: see CLAUDE.md, in flight.
+
+**Never-said questions** (LoCoMo's adversarial category) are declined about as rarely with the whole conversation in
+view (5 of 39 and 7 of 35) as by the memory (6 and 6): not a memory gap. They swap the two speakers' names, and she
+answers about the one it happened to, at times correcting the premise and still marked wrong. Mem0 left the category
+out "because ground truth answers were unavailable"; our totals leave it out too. What matters for the app is
+mixing up her life and the player's ("Eagles mesmerize you most", her own interest): her own story (phase 4) is for
+that. Genuinely never said, LongMemEval's unanswerable questions: 3 of 3.
+
+### Prompt caching, reviewed (2026-10-11)
+
+Her prompt runs from steadiest to least steady: her character, rules, the lists always in mind and the diary notes in
+view (changed by upkeep while the player is quiet, at a fold every few days, and at midnight by the day headings);
+then the conversation word for word (only grows until a fold); last the newest message with the turn's blocks (time,
+agenda, recall, her character's reminder). Her tools are the same list every request. That is the shape prefix
+caching wants. Measured: 35 to 37% of her reply input from cache in the player's daily use (10 and 11 Oct), 78 to 83%
+in the benchmarks' back-to-back questions; the difference is the cache's life, minutes after last use by default.
+The lever is a longer life: GPT-5.6 models take `prompt_cache_options.ttl` (up to 24 h), but on them cache writes are
+billed besides the cheaper reads; a `prompt_cache_key` per character is a routing hint. Not tried: the player saw no
+need for a probe yet (whether their provider passes either on). Anthropic's path already marks the prompt for caching.
+Upkeep is not cached and is small (about 4k tokens a day).
+
 ## Comparing with Mem0, Zep and Letta
 
 - **LoCoMo** is where they publish: all ten conversations, the 1,540 answerable questions, Mem0's generous grade,
