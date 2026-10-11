@@ -61,7 +61,9 @@ it out. She knows the cabinet's numbers and remembers:
   against the facts that relate to them. When you just tell her something worth keeping she says she'll remember it
   and jots it in a little notebook at once. A fact that changes keeps its history: the old one is retired as
   changed, and "where did I live before?" can still find it, marked until when;
-- two short notes she always has in mind, rewritten by upkeep once something important in them has changed: at most once a day, but at once when something in them is no longer true;
+- what she always has in mind about you and about the two of you: what you write on the memory book's Notes, word for
+  word, then her most important facts (pinned first, then by importance), listed afresh for every reply, so a change
+  is right in her very next one; for two weeks a fact that changed says what it was, and one that ended says so;
 - your agenda: plans, exams and appointments with their dates, which she writes down when you mention them (or
   upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum", "an hour before the interview",
   "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on weekdays, weekly
@@ -272,7 +274,7 @@ tokens read, the share served from the provider's cache, cache writes and output
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes she works from above
-it). Tray → "Memory book…" shows all of it, a tab each (notes, agenda, facts, moments: her log, forget): edit, pin
+it). Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: her log, memos, forget): edit, pin
 (always in mind, upkeep leaves it alone) or delete anything.
 "Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
 conversation and everything about the two of you; "Forget all about me" clears what every character knows about

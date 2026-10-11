@@ -16,8 +16,9 @@ only with a re-run that shows it fixed, and say which.
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
 | R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
-| M8 | Facts grow long as the weekly review merges related ones | open; a fix proposed with M9 |
-| M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | open; a design proposed, the player's call |
+| M8 | Facts grow long as the weekly review merges related ones | fixed on the branch `profile-from-facts`: asked for in 20 words; a merge over about 30 isn't taken |
+| M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | fixed on the branch `profile-from-facts`: listed from her facts for every reply |
+| M10 | A restart between noting and keeping lost what those notes told of | fixed on `main` (2cfd3b0) |
 
 ## M1. The summary is cut off at its newest end
 
@@ -158,8 +159,9 @@ only with a re-run that shows it fixed, and say which.
   six facts about the speaker's advocacy into one.
 - **Cause:** the review merges facts "that say the same thing", and the model reads that broadly: related facts
   become one. Facts kept from notes also tend to gather a few details each.
-- **Proposed:** one thing per fact, kept by code: a length limit, a fact over it sent back once to be split, and the
-  review merging only what says the same thing. With M9 (spec, "Proposed").
+- **Fix** (a39c3e9, branch `profile-from-facts`): facts are asked for in one sentence of at most 20 words, one thing
+  each; a review's merge that comes out over about 30 words (45 tokens) joined different things, and isn't taken.
+  Not built: sending a long kept fact back to be split; first to see whether the wording keeps them short.
 
 ## M9. Her profile is a copy of her facts the model rewrites, so it lags and can drift
 
@@ -169,5 +171,16 @@ only with a re-run that shows it fixed, and say which.
 - **Evidence:** the design (the player's question, 2026-10-11: no limit on how often gets both accuracy and cost
   right); in the benchmark, phase 3's "you and me" note had filled with dated events ("On 10 July 2023, the player
   attended an LGBTQ+ conference…").
-- **Proposed** (the player's call): code lists her most important facts for every reply instead of the model
-  rewriting a copy; the Notes boxes hold only what the player writes. Spec, "Proposed: her profile from her facts".
+- **Fix** (a39c3e9, branch `profile-from-facts`; the player's choice): code lists her most important facts for every
+  reply (`Prompt.Known`) instead of the model rewriting a copy, and the Notes are the player's own, never rewritten;
+  the notes the model wrote went into her log (version 14). Being measured.
+
+## M10. A restart between noting and keeping lost what those notes told of
+
+- **What the player would notice:** something said just before the app closed (a plan, a change) never became a fact
+  or reached the agenda, though it is in her log.
+- **Cause** (found 2026-10-11, reading the store's steps): the version step that retired moments (13) ran again at
+  every start, because the steps before it set the version back to 10 and 11 each time; run again, it marked every
+  note as kept, passing over those whose facts and plans were yet to be kept (the provider failed, or the app closed).
+- **Fix** (2cfd3b0, on `main`): steps that run once go by the version the store was at when opened, and the steps
+  that run every time no longer set it. A test opens the memory twice with such a note waiting.

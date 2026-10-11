@@ -86,7 +86,7 @@ provider cut at its length limit is asked again with twice the room, and a batch
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
    memories a reply used, to see and correct.
 
-**Proposed: her profile from her facts** (2026-10-11, the player's call; M8, M9). The two always-present notes are a
+**Her profile from her facts** (proposed and chosen 2026-10-11; M8, M9). The two always-present notes are a
 copy of her facts that the model rewrites, so they lag behind the facts and each rewrite can drop or bend something;
 no limit on how often gets both right. Instead code lists her most important facts for every reply, pinned first,
 then by importance, in the same room, a recent change shown as one for a couple of weeks ("lives in Toronto, since
@@ -94,3 +94,7 @@ then by importance, in the same room, a recent change shown as one for a couple 
 word for word, never rewritten; today's note text moves into her log. With it, one thing per fact, kept by code: a
 length limit, and the weekly review merging only what says the same thing. Later, a key for what has one value at
 a time (home, job, what she calls them), so a new one closes the old in code rather than by the model noticing.
+*Built 2026-10-11* on the branch `profile-from-facts` (a39c3e9: `Prompt.Known`, `Conversation.Known`; `MindStore`
+version 14 moves the old notes into her log, out of view and recalled; the Notes tab is the player's, her log's tab the
+Diary). Facts are asked for in at most 20 words and a merge over about 30 isn't taken; a long kept fact is not sent
+back to be split, to see first whether the wording keeps them short. The keys: not built.
