@@ -197,43 +197,23 @@ public static class Reaching
         return phone ? route : route with { Way = route.Way == Way.Text ? Way.Wait : route.Way, TextIfGone = false };
     }
 
-    /// <summary>A moment for a text of her own: at most so many a day, so far apart, and only once the player has been away this long (to tune).</summary>
-    public const int OwnTextsADay = 2;
-    public static readonly TimeSpan OwnTextsApart = TimeSpan.FromHours(3), AwayBeforeOwnText = TimeSpan.FromHours(1);
-
-    /// <summary>The moments she was given for texts of her own, as kept in her memory (see <see cref="Moments(string?)"/>).</summary>
-    public const string OwnTexts = "player.owntexts";
+    /// <summary>How long the player is away before a moment for a text of her own, and between such moments (to tune).</summary>
+    public static readonly TimeSpan OwnTextEvery = TimeSpan.FromHours(1);
 
     /// <summary>
-    /// Whether she may have a moment to text the player something of her own ("Keeps in touch"): away an hour or more,
-    /// not in the quiet hours, at most two a day and three hours apart, and not while her last is unanswered (nothing
-    /// heard from them since). Whether she writes anything then is her mind's; how clingy she sounds is her card's.
+    /// Whether she may have a moment to text the player something of her own ("Keeps in touch"): once they have been
+    /// away an hour, then an hour after each such moment, never in the quiet hours. Texts of hers still unanswered don't
+    /// hold her back: they read them all when they look (the user, 2026-10-10). Whether she writes anything is her
+    /// mind's; how clingy she sounds is her card's.
     /// </summary>
-    /// <param name="moments">The moments she had before (see <see cref="Moments(string?)"/>).</param>
-    /// <param name="heard">When the player last said or texted anything.</param>
-    public static bool MayTextOwn(Reach reach, Whereabouts where, TimeSpan awayFor, bool quiet, IReadOnlyList<DateTimeOffset> moments, DateTimeOffset? heard,
-                                  DateTimeOffset now)
-    {
-        if (reach != Reach.KeepsInTouch || where != Whereabouts.Away || awayFor < AwayBeforeOwnText || quiet)
-            return false;
-        if (moments.Count == 0)
-            return true;
-        var last = moments.Max();
-        return moments.Count(m => m.ToOffset(now.Offset).Date == now.Date) < OwnTextsADay && now - last >= OwnTextsApart && heard > last;
-    }
+    /// <param name="waited">How long since they went, or since her last such moment if that was later.</param>
+    public static bool MayTextOwn(Reach reach, Whereabouts where, TimeSpan waited, bool quiet) =>
+        reach == Reach.KeepsInTouch && where == Whereabouts.Away && waited >= OwnTextEvery && !quiet;
 
     /// <summary>What her mind is told at such a moment: whether to say anything is hers.</summary>
     public static string OwnText(TimeSpan away) =>
         $"The player has been away from the PC for {Words.Span((long)away.TotalMilliseconds)}. If there's something you'd like to tell them or " +
         "ask them, text them; if not, answer only [quiet].";
-
-    /// <summary>The moments as kept: the latest few, in order.</summary>
-    public static IReadOnlyList<DateTimeOffset> Moments(string? mark) =>
-        [.. (mark ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(m => DateTimeOffset.TryParse(m, Prompt.English, System.Globalization.DateTimeStyles.None, out var at) ? at : (DateTimeOffset?)null)
-                        .OfType<DateTimeOffset>()];
-
-    public static string Moments(IEnumerable<DateTimeOffset> moments) => string.Join(" ", moments.TakeLast(3).Select(m => m.ToString("O", Prompt.English)));
 
     /// <summary>
     /// At the PC, how it comes this moment. In full screen or a game they can't be spoken to: what can wait does, the

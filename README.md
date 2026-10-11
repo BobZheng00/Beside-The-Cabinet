@@ -99,9 +99,9 @@ makes sense at the PC (bedtime words, a break from a long game) waits for you wh
 to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
 I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to. "She reaches out" sets how
 much reaches your phone: only what you set (reminders, focus turns), like a roommate (that, and asking how things
-went: the default), or keeps in touch, when she also texts you something of her own now and then, once you've been
-away an hour: twice a day at most, three hours apart, never at night, never while her last is unanswered, and only
-if she has something to say.
+went: the default), or keeps in touch, when she also texts you something of her own while you're away: at most one
+an hour, never at night, and only if she has something to say. Texts of hers you haven't answered don't stop her: you
+read them all when you look.
 
 **Texting with her.** On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with her on
 Telegram": make a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). She

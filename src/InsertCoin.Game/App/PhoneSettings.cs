@@ -54,9 +54,8 @@ public partial class PhoneSettings : VBoxContainer
         Form.Choice(Form.Grid(this), "She reaches out", Reaches.Select(r => r.Label), Array.FindIndex(Reaches, r => r.Reach == reach),
                     index => ReachChosen?.Invoke(Reaches[index].Reach));
         Form.Hint(this, $"Only what you set: reminders and a focus session's turns. Like a roommate: those, and what of hers matters, such as " +
-                        $"asking how something went. Keeps in touch: also, now and then, a text of {name}'s own when you've been away an hour " +
-                        "or more: twice a day at most, three hours apart, never at night, never while her last one is unanswered. At the PC " +
-                        "she is the same whichever you choose.");
+                        $"asking how something went. Keeps in touch: also a text of {name}'s own now and then while you're away, at most one " +
+                        "an hour, never at night, and only when she has something to say. At the PC she is the same whichever you choose.");
         Form.Tick(this, "Also while I'm at the PC", alsoAtThePc, on => AtThePcChosen?.Invoke(on));
         Form.Hint(this, "Reminders reach your phone even when you're at the PC, as a plain line, as they used to.");
 

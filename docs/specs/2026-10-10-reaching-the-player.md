@@ -93,9 +93,11 @@ haven't come in 30 seconds (to tune), the plain line goes, and hers don't follow
 **Messages left for someone who is out** (the user, 2026-10-10: "if there are relative important things (must and
 should by default i guess), i will just keep leaving msg to the person and the person will check and answer them all
 when they eventually see it. if she know's i'm here then i guess the old rule applies"): while the player is away,
-whatever the table sends goes as it comes, however many, and they answer it all when they look. Only her own (could)
-wait while a text of hers is unanswered. At the PC, one thing at a time, as now: her remarks wait behind an unanswered
-call, and a newer ticket replaces the one showing. The quiet hours hold too, except for what the player set for then.
+whatever the table sends goes as it comes, however many, and they answer it all when they look. Her own texts too
+(the user, the same night: "if last msg is not answer, i may send more so the person can respond altogether when are
+available. deplaying the msg may cause loss of info"). At the PC, one thing at a time, as now: her remarks wait behind
+an unanswered call, and a newer ticket replaces the one showing. The quiet hours hold too, except for what the player
+set for then.
 
 ## How much she reaches out
 
@@ -104,8 +106,8 @@ One setting for all of it, changing only what reaches the phone (at the PC she i
 - **Only what you set:** must-reach only.
 - **Like a roommate** (the default, the user's choice, matching today's defaults): must and should.
 - **Keeps in touch:** could too, and texts of her own when the player has been away a while ("how's the day going?").
-  Here her mind does decide: the app opens a moment (at most two a day, three hours apart, after an hour away, never in
-  the quiet hours, never while a text of hers is unanswered; all to tune), and she writes something or stays quiet
+  Here her mind does decide: the app opens a moment (after an hour away, then hourly, never in the quiet hours; to
+  tune), and she writes something or stays quiet
   (`[quiet]`, as when she thinks over the player's memo). How clingy she sounds is her card's; how often is the
   player's setting.
 
@@ -253,11 +255,14 @@ Windows notification stays with the reminders.
   going to their phone (and keeps no text in case they've gone); keeping in touch, a could that makes sense anywhere
   is texted while they are away. At the PC nothing changes.
 - **Her own texts** (`Reaching.MayTextOwn`): `Stool.Track` opens a moment once the player has been away an hour
-  (since `Track` first saw them away), at most two a day, three hours apart, never in the quiet hours, never while
-  the last moment is unanswered (nothing from them since, `Conversation.LastHeard`). The moments are counted, not
-  the texts: a moment she let pass counts too, so she errs on the side of fewer. Her mind is told how long they've
-  been away (`Reaching.OwnText`) and writes a text or answers only `[quiet]`, and then nothing goes. The moments
-  are kept in her memory (`player.owntexts`), so a restart doesn't reset them.
+  (since `Track` first saw them away), then an hour after each moment, never in the quiet hours (which matters only
+  when they said they were going out: an idle PC in the quiet hours means asleep). A moment she lets pass counts too,
+  so a quiet hour costs one call to her mind. Her mind is told how long they've been away (`Reaching.OwnText`) and
+  writes a text or answers only `[quiet]`, and then nothing goes. Nothing is kept across a restart: the clock starts
+  again, so a restart never brings a text sooner.
+- **Changed the same night:** first built with two a day at most, three hours apart and none while one of hers was
+  unanswered. The user found that too tight: the hourly clock is limit enough, and texts left unanswered are read
+  together, as with anything else sent while they're out.
 - **Dev:** `whereabouts:away:90` (away for 90 minutes already).
 
 ## Not chosen, and why

@@ -456,6 +456,7 @@ public partial class Stool : Node2D
     private Whereabouts? _pretend;                          // dev: where the player is said to be, whatever the cabinet watches
     private DateTimeOffset _nextPass;                       // when what waits is looked at again: once a second, at once when something new comes
     private DateTimeOffset? _awaySince;                     // the player has been away since then
+    private DateTimeOffset _lastOwn;                        // her last moment to text something of her own (Keeps in touch)
 
     /// <summary>
     /// Something to tell the player, from any feature: told at the PC, texted, kept for when they are back, or let go,
@@ -512,12 +513,11 @@ public partial class Stool : Node2D
                      (watched.Locked ? ", the screen locked" : "") + (watched.Said is { } said ? $", they said {(said.Asleep ? "goodnight" : "they were off")}" : "") +
                      (_pretend is not null ? ", as a dev action has it" : "") + ")");
         }
-        // keeping in touch: now and then, a moment to text them something of her own; whether she writes anything is hers
-        if (_settings.Now.Reach == Reach.KeepsInTouch && _awaySince is { } since && _chat.Ready && Her is not null && CanText()
-            && Reaching.Moments(_chat.Store.Mark(Reaching.OwnTexts)) is var moments
-            && Reaching.MayTextOwn(_settings.Now.Reach, where, now - since, Quiet(now.Hour), moments, _chat.Conversation?.LastHeard, now))
+        // keeping in touch: an hour away, then hourly, a moment to text them something of her own; whether she writes anything is hers
+        if (_awaySince is { } since && Reaching.MayTextOwn(_settings.Now.Reach, where, now - (since > _lastOwn ? since : _lastOwn), Quiet(now.Hour))
+            && _chat.Ready && Her is not null && CanText())
         {
-            _chat.Store.SetMark(Reaching.OwnTexts, Reaching.Moments([.. moments, now]));
+            _lastOwn = now;
             Hand(new Telling("OWN TEXT", Reaching.OwnText(now - since), "", Matters.Could, Anywhere: true, now, TimeSpan.FromMinutes(1)));
         }
         foreach (var kept in _inCase.ToList())
