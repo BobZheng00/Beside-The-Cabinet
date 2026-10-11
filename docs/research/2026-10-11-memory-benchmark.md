@@ -119,13 +119,30 @@ answerable questions with evidence) and counts where the evidence ends up. Broug
 31% as it was; 35% with six passages in 2,000 tokens; 38% with ten found instead of four; **54% with whole passages
 instead of the best line and the next**; 56% with old talk ranked by relevance whatever its age (multi-hop 4% to 22%).
 Eight passages in 2,500 tokens gave 58%, not worth a thousand more tokens on every message. Built on the branch
-`retrieval`; a run with answers is to confirm it.
+`retrieval`, and confirmed with answers (below).
 
 ### What upkeep costs
 
 LoCoMo conversation 26 at the 8k window: the old memory 66 upkeep requests and about 115k tokens; phase 1 about the
 same; phase 3 92 requests and 179k (facts inflated to 116 from 55, and the always-present notes rewritten after every
-batch). The fix (always-present notes at most once a day, facts only what lasts) was being re-measured.
+batch). The fix (always-present notes at most once a day, facts only what lasts) brought it to 81 requests and 134k:
+two-thirds of the rise taken back, still about a fifth over the old memory.
+
+### Phase 3 and retrieval, answered (LoCoMo conversation 26, the 8k window)
+
+All 199 questions answered (dropped replies asked again); strict grade, answerable questions, question by question:
+
+| Against | Theirs | Phase 3 with the fixes and retrieval |
+|---|---|---|
+| the old memory's first run (152) | 75% | 84% (22 right only now, 9 only then) |
+| its second run (139) | 69% | 83% (26 against 6) |
+| the same, Mem0's grade | 78% | 87% |
+| phase 3 alone (152) | 78% | 84% (15 against 7) |
+
+Phase 3 alone: 119 of 152, time questions 31 of 37 (the old memory 21, phase 1 26). Retrieval added the multi-hop
+questions (15 to 21 of 32): of 108 questions whose evidence had left the window, search found it for 87% and it
+reached her turn for 82% (43% before). Answering reads about 7% more a question for the larger recall, 78% of it
+from the provider's cache. Never-said questions declined: 15% (M5).
 
 ## Comparing with Mem0, Zep and Letta
 

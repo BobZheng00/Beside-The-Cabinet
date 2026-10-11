@@ -9,13 +9,15 @@ only with a re-run that shows it fixed, and say which.
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | open |
-| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; fixed on the branch `retrieval` (3afb21d), being re-measured |
+| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; 3afb21d took back two-thirds of that (134k against 179k; the old memory 112k) |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
-| M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval` by the free score; a real run to confirm |
+| M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
 | R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
+| M8 | Facts grow long as the weekly review merges related ones | open; a fix proposed with M9 |
+| M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | open; a design proposed, the player's call |
 
 ## M1. The summary is cut off at its newest end
 
@@ -54,8 +56,11 @@ only with a re-run that shows it fixed, and say which.
 - **Fix** (3afb21d, branch `retrieval`): a batch only marks a note out of date; `Conversation.RefreshNotes` rewrites it
   once the talk is noted and quiet, at most once a day each, at once while the note is empty or when something important
   in it is no longer true (a fact changed or ended: a note saying what isn't so is the error that matters); upkeep's request says
-  facts are what lasts beyond the day (her notes keep the events). Being re-measured (`runs\p3fix-locomo`). LoCoMo's
+  facts are what lasts beyond the day (her notes keep the events). Re-measured (`runs\p3fix-locomo`). LoCoMo's
   sittings are days apart, so it shows the fewer facts more than the once a day; daily use gains more from that.
+- **Measured** (2026-10-11, the same conversation, with retrieval): 81 requests, 90k read and 44k written, 134k in
+  all: two-thirds of phase 3's rise taken back, still about a fifth over the old memory. Facts: 57 (18 current)
+  against 116 (42 current).
 
 ## M4. Search starts slowly and grows in memory with years of talk
 
@@ -105,7 +110,11 @@ only with a re-run that shows it fixed, and say which.
   the best line and the next: 54%** (the line that answers is often not the one that matched best). Together, with
   old talk ranked by relevance alone: **56%**; eight passages in 2,500 tokens gave 58%, not worth a thousand more
   tokens on every message. Multi-hop, which needs every piece: 4% to 22%.
-- **To do:** confirm with a real run that more of it reaching her means more right answers.
+- **Confirmed with answers** (2026-10-11, phase 3 with 3afb21d and retrieval, conversation 26 at the 8k window, all 199
+  answered): of 108 questions whose evidence had left the window, search found it for 87% and it reached her turn
+  for 82% (43% with phase 3 alone); 83% of them right. Overall 84% against 78% for phase 3 alone on the same 152
+  questions (15 right only now, 7 only then); multi-hop 15 to 21 of 32. Answering reads about 7% more a question
+  for the larger recall, 78% of it from the provider's cache.
 
 ## R1. The provider sometimes sends back an empty reply, and she says nothing
 
@@ -139,3 +148,26 @@ only with a re-run that shows it fixed, and say which.
   [Claude's max tokens and thinking budgets](https://fast.io/resources/claude-max-tokens.md),
   [LIFEBench, NeurIPS 2025](https://arxiv.org/abs/2505.16234)).
 - **Not yet:** a character card over 8,000 characters is still cut at that length, mid-word (the player's own text).
+
+## M8. Facts grow long as the weekly review merges related ones
+
+- **What the player would notice:** a fact in the memory book reads like a paragraph; when one part of it changes,
+  the whole fact is wrong until it is rewritten, and the rewrite can drop the rest.
+- **Evidence** (2026-10-11, LoCoMo conversation 26, phase 3 with the fixes): 57 facts, 39 of them replaced: 25 merged
+  by the weekly review, 11 changed, 3 retired as trivia. Facts average 170 characters, the longest 475; one merged
+  six facts about the speaker's advocacy into one.
+- **Cause:** the review merges facts "that say the same thing", and the model reads that broadly: related facts
+  become one. Facts kept from notes also tend to gather a few details each.
+- **Proposed:** one thing per fact, kept by code: a length limit, a fact over it sent back once to be split, and the
+  review merging only what says the same thing. With M9 (spec, "Proposed").
+
+## M9. Her profile is a copy of her facts the model rewrites, so it lags and can drift
+
+- **What the player would notice:** they tell her something has changed, and her always-present notes still say
+  the old thing until they are next rewritten (up to a day; a correction at the next quiet); and a rewrite can drop
+  or bend something that was right.
+- **Evidence:** the design (the player's question, 2026-10-11: no limit on how often gets both accuracy and cost
+  right); in the benchmark, phase 3's "you and me" note had filled with dated events ("On 10 July 2023, the player
+  attended an LGBTQ+ conference…").
+- **Proposed** (the player's call): code lists her most important facts for every reply instead of the model
+  rewriting a copy; the Notes boxes hold only what the player writes. Spec, "Proposed: her profile from her facts".

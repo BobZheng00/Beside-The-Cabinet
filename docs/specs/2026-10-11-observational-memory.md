@@ -80,7 +80,17 @@ provider cut at its length limit is asked again with twice the room, and a batch
    one rewrote the always-present notes. Since 3afb21d (branch `retrieval`) a batch only marks a note out of date and
    `Conversation.RefreshNotes` rewrites it once the talk is noted and quiet, at most once a day (at once when something
    in it is no longer true); upkeep's request says
-   facts are what lasts beyond the day. Being re-measured (M3).
+   facts are what lasts beyond the day. Measured with retrieval: 134k, two-thirds of the rise taken back (M3); and
+   84% right against 78% (M6).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
    memories a reply used, to see and correct.
+
+**Proposed: her profile from her facts** (2026-10-11, the player's call; M8, M9). The two always-present notes are a
+copy of her facts that the model rewrites, so they lag behind the facts and each rewrite can drop or bend something;
+no limit on how often gets both right. Instead code lists her most important facts for every reply, pinned first,
+then by importance, in the same room, a recent change shown as one for a couple of weeks ("lives in Toronto, since
+11 Oct; before, Montreal"): no model call, nothing to fall behind. The Notes boxes hold only what the player writes,
+word for word, never rewritten; today's note text moves into her log. With it, one thing per fact, kept by code: a
+length limit, and the weekly review merging only what says the same thing. Later, a key for what has one value at
+a time (home, job, what she calls them), so a new one closes the old in code rather than by the model noticing.
