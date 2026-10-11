@@ -28,13 +28,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public static int RolledUpWords(Span span) => span switch { Span.Week => 80, Span.Month => 100, _ => 150 };
     public const int DigestAtOnce = 3000;
     private const int KeepLines = 12, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
-    private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
+    // a ceiling, not a target: the prompt keeps her short, and a model that thinks first spends this on its thinking too
+    // (a GPT model thought 1,522 tokens for a short story, 2026-10-11), so 600 could leave nothing for her words
+    private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 2000 };
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
     private static readonly ChatOptions ObserveOptions = new() { MaxOutputTokens = 4000 };       // a batch's observations, and room to think first
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private (long From, int Times) _failed, _failedFold;            // a stretch upkeep or folding couldn't read, and how often
+    private int _digestAtOnce = DigestAtOnce, _reviewAtOnce = ReviewAtOnce;     // smaller after an answer too long to come back whole
 
     public string Character => character;
     public Persona Persona => persona;
@@ -53,6 +56,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// can't see what the player shows her. Set from what was learnt about the model, and by a reply that learns it.
     /// </summary>
     public bool Unseeing { get; set; }
+
+    /// <summary>Her latest reply reached the provider's length limit and was cut short (see <see cref="ReplyOptions"/>).</summary>
+    public bool CutShort { get; private set; }
 
     private History? _history;
 
@@ -239,6 +245,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
                         toolsDone = reply.Length;
                     }
+                if (update.FinishReason == ChatFinishReason.Length)
+                    CutShort = true;
                 if (update.Contents.Any(c => c is FunctionResultContent))
                 {
                     afterTool = true;                       // what she says next carries on after a pause
@@ -253,6 +261,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         _lastReply = null;
         tools?.Fresh();
+        CutShort = false;
         try
         {
             for (var withTools = offered is not null; ;)
@@ -515,20 +524,26 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             kept += Prompt.Tokens(lines[^++keep].Text) + 4;
         var fold = lines.Take(lines.Count - keep).ToList();
         var folded = false;
+        var atOnce = Log.ObserveAtOnce;
         while (fold.Count > 0)
         {
             var batch = new List<Line>();
             var used = 0;
             foreach (var line in fold)
             {
-                if (batch.Count > 0 && used + Prompt.Tokens(line.Text) > Log.ObserveAtOnce)
+                if (batch.Count > 0 && used + Prompt.Tokens(line.Text) > atOnce)
                     break;
                 batch.Add(line);
                 used += Prompt.Tokens(line.Text) + 4;
             }
             var latest = Log.Newest(store.Observations(character), Log.Continuity);
-            var response = await client.GetResponseAsync(Log.Observe(persona, latest, batch), ObserveOptions, cancel);
-            if (Log.Parse(response.Text, batch) is not { } observed)
+            var response = await Whole(client, Log.Observe(persona, latest, batch), ObserveOptions, cancel);
+            if (response is null && batch.Count > 1)
+            {
+                atOnce = Math.Max(1, used / 2);     // more to note than an answer holds: the same lines in smaller batches
+                continue;
+            }
+            if (response is null || Log.Parse(response.Text, batch) is not { } observed)
             {
                 _failedFold = _failedFold.From == batch[0].Id ? (batch[0].Id, _failedFold.Times + 1) : (batch[0].Id, 1);
                 if (_failedFold.Times < GiveUpAfter)
@@ -612,7 +627,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var used = 0;
         foreach (var line in pending)
         {
-            if (chunk.Count > 0 && used + Prompt.Tokens(line.Text) > DigestAtOnce)
+            if (chunk.Count > 0 && used + Prompt.Tokens(line.Text) > _digestAtOnce)
                 break;
             chunk.Add(line);
             used += Prompt.Tokens(line.Text) + 4;
@@ -626,7 +641,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var today = store.Episodes(character).Where(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date).ToList();
         // the player's own items: a calendar's are its to change (and a busy one would fill every request)
         var agenda = store.Agenda().Where(p => p.Source is null).ToList();
-        var response = await client.GetResponseAsync(Upkeep.Request(persona, known, chunk, today, agenda), DigestOptions, cancel);
+        if (await Whole(client, Upkeep.Request(persona, known, chunk, today, agenda), DigestOptions, cancel) is not { } response)
+        {
+            _digestAtOnce = Math.Max(300, used / 2);        // too much for one answer: a smaller stretch next time
+            return false;
+        }
+        _digestAtOnce = DigestAtOnce;
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {
             _failed = _failed.From == from ? (from, _failed.Times + 1) : (from, 1);
@@ -721,7 +741,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 .Where(g => g.Count() >= 2).OrderBy(g => g.Key).FirstOrDefault();
             if (group is null)
                 continue;
-            var response = await client.GetResponseAsync(Upkeep.Combine(persona, period(group.Key), into, group), FoldOptions, cancel);
+            if (await Whole(client, Upkeep.Combine(persona, period(group.Key), into, group), FoldOptions, cancel) is not { } response)
+                return false;
             var text = response.Text.Trim();
             if (text.Length == 0)
                 return false;
@@ -761,13 +782,18 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var facts = store.Facts(character);
         if (from == 0 && now - last < ReviewEvery && facts.Count - count < ReviewAfterNew)
             return false;
-        var batch = facts.Where(x => x.Id > from).Take(ReviewAtOnce).ToList();
+        var batch = facts.Where(x => x.Id > from).Take(_reviewAtOnce).ToList();
         if (batch.Count == 0)
         {
             store.SetMark(key, $"{now:O}|{facts.Count}|0");
             return false;
         }
-        var response = await client.GetResponseAsync(Upkeep.Review(persona, batch, now), DigestOptions, cancel);
+        if (await Whole(client, Upkeep.Review(persona, batch, now), DigestOptions, cancel) is not { } response)
+        {
+            _reviewAtOnce = Math.Max(10, batch.Count / 2);  // too much for one answer: a smaller batch next time
+            return false;
+        }
+        _reviewAtOnce = ReviewAtOnce;
         if (Upkeep.ParseReview(response.Text) is not { } verdict)
             return false;                                   // tried again next time, from the same place
 
@@ -809,6 +835,22 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
     }
 
+    /// <summary>
+    /// Asks, and asks once more with twice the room when the provider cut the answer off at its length limit (a model
+    /// that thinks first spends the room on its thinking too); null when even that came back cut, so a cut answer is
+    /// never kept. Some providers say so and some don't hold to the limit at all (the player's provider, 2026-10-11).
+    /// </summary>
+    private static async Task<ChatResponse?> Whole(IChatClient client, List<ChatMessage> request, ChatOptions options, CancellationToken cancel)
+    {
+        var response = await client.GetResponseAsync(request, options, cancel);
+        if (response.FinishReason != ChatFinishReason.Length)
+            return response;
+        var roomier = options.Clone();
+        roomier.MaxOutputTokens = (options.MaxOutputTokens ?? 2000) * 2;
+        response = await client.GetResponseAsync(request, roomier, cancel);
+        return response.FinishReason == ChatFinishReason.Length ? null : response;
+    }
+
     /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it.</summary>
     private async Task RewriteNote(IChatClient client, string scope, CancellationToken cancel)
     {
@@ -816,10 +858,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var facts = store.Facts(character).Where(f => f.Scope == scope && (f.Importance >= CoreFrom || f.Pinned))
             .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).Take(CoreFacts).ToList();
         var subject = scope == MindStore.Shared ? "the player" : $"the player and {persona.Name}";
-        var response = await client.GetResponseAsync(Upkeep.Rewrite(subject, store.Note(scope, name), facts), FoldOptions, cancel);
+        if (await Whole(client, Upkeep.Rewrite(subject, store.Note(scope, name), facts), FoldOptions, cancel) is not { } response)
+            return;                                         // the note stays as it was
         var note = response.Text.Trim();
+        // over its room (two notes in three were, 2026-10-11): sent back once to be shortened, then kept to whole sentences
+        if (note.Length > Prompt.NoteLimit && await Whole(client, Upkeep.Shorten(note, Prompt.NoteWords), FoldOptions, cancel) is { } shorter
+            && shorter.Text.Trim() is { Length: > 0 } shortened && shortened.Length < note.Length)
+            note = shortened;
         if (note.Length > 0)
-            store.SetNote(scope, name, note.Length > Prompt.NoteLimit ? note[..Prompt.NoteLimit] : note);
+            store.SetNote(scope, name, Prompt.Fit(note, Prompt.NoteLimit));
     }
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));

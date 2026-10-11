@@ -135,9 +135,16 @@ public static class Upkeep
     public static List<ChatMessage> Rewrite(string subject, string note, IEnumerable<Fact> facts) =>
     [
         new(ChatRole.System, $"""
-            You keep a short note that a companion always has in mind about {subject}. Rewrite the note using the facts below. Keep what the note says unless a fact contradicts it: the player may have written parts of it. Most important first, plain sentences, no lists, in the language most of the facts are in, at most {Prompt.NoteLimit - 100} characters. Output only the note.
+            You keep a short note that a companion always has in mind about {subject}. Rewrite the note using the facts below. Keep what the note says unless a fact contradicts it: the player may have written parts of it. Most important first, plain sentences, no lists, in the language most of the facts are in, at most {Prompt.NoteWords} words. Output only the note.
             """),
         new(ChatRole.User, $"The note now:\n{(note.Trim().Length > 0 ? note.Trim() : "(empty)")}\n\nFacts:\n{string.Join("\n", facts.Select(f => $"- {f.Text}"))}"),
+    ];
+
+    /// <summary>The request that shortens a note that came back over its room, keeping what matters most.</summary>
+    public static List<ChatMessage> Shorten(string note, int words) =>
+    [
+        new(ChatRole.System, $"Shorten this note to at most {words} words. Keep what matters most, with its names, dates and numbers; drop detail before anything important. Same language, plain sentences. Output only the note."),
+        new(ChatRole.User, note.Trim()),
     ];
 
     /// <summary>

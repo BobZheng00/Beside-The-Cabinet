@@ -13,6 +13,8 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public Exception? RefusesPictures { get; init; }
     /// <summary>Answers for non-streamed requests, one per request, before falling back to the pieces.</summary>
     public Queue<string> Answers { get; } = new();
+    /// <summary>How non-streamed answers end, one per request (cut off at the length limit, say), before they simply stop.</summary>
+    public Queue<ChatFinishReason> Finishes { get; } = new();
 
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -21,7 +23,10 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
         if (Fails is not null)
             throw Fails;
         var text = Answers.Count > 0 ? Answers.Dequeue() : string.Concat(pieces);
-        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text)));
+        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
+        {
+            FinishReason = Finishes.Count > 0 ? Finishes.Dequeue() : ChatFinishReason.Stop,
+        });
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,

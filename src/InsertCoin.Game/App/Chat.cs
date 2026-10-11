@@ -470,6 +470,8 @@ public sealed class Chat : IDisposable
                 GD.Print($"Chat: {model} can't take pictures or PDFs; none is sent to it from now on");
                 FoundCantSee?.Invoke(model);
             }
+            if (conversation.CutShort)
+                GD.Print("Chat: her reply reached the provider's length limit and was cut short");
             if (Tools.Refused && !refused)
                 GD.Print("Chat: the provider turned tools down; she answers without them until the provider changes");
             if (held is not null && Here() && text.Length > 0 && !texting)

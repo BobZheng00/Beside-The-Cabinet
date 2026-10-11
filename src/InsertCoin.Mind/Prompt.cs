@@ -14,8 +14,11 @@ namespace InsertCoin.Mind;
 /// </summary>
 public static class Prompt
 {
-    /// <summary>Characters allowed in each always-present note (Hermes keeps its user profile to 1,375).</summary>
-    public const int NoteLimit = 1400;
+    /// <summary>
+    /// Characters allowed in each always-present note (Hermes keeps its user profile to 1,375), and the words a note is
+    /// asked to keep to: models keep to words far better than to characters, and the words leave room below the limit.
+    /// </summary>
+    public const int NoteLimit = 1400, NoteWords = 180;
     /// <summary>The conversation word for word, in tokens, unless a setting says otherwise (see <see cref="Conversation.Window"/>).</summary>
     public const int DefaultWindow = 32_000, LocalWindow = 8_000;
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
@@ -161,6 +164,27 @@ public static class Prompt
                $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
                $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
                $"(\"[plan: ...] [say: ...] ...\"). When you write all of it in {name}, leave [say] out.{letters}";
+    }
+
+    /// <summary>
+    /// What the model wrote, made to fit <paramref name="limit"/> characters at the end of its last whole sentence that
+    /// fits, or of its last whole word (with "…") when not even one sentence does: a last resort for text over its room,
+    /// never a cut mid-word (the always-present notes were cut mid-word two times in three, measured 2026-10-11).
+    /// </summary>
+    public static string Fit(string text, int limit)
+    {
+        text = text.Trim();
+        if (text.Length <= limit)
+            return text;
+        for (var i = limit - 1; i > 0; i--)
+        {
+            var c = text[i];
+            // a sentence ends at a full stop, ! or ? followed by a space (not "3.5" or "e.g."), or at Chinese and Japanese ones
+            if (c is '。' or '！' or '？' || c is '.' or '!' or '?' && (i + 1 >= text.Length || char.IsWhiteSpace(text[i + 1])))
+                return text[..(i + 1)];
+        }
+        var space = text.LastIndexOf(' ', limit - 2);
+        return (space > 0 ? text[..space] : text[..(limit - 1)]).TrimEnd() + "…";
     }
 
     /// <summary>A rough token count: about four letters of English per token, one per character of Chinese or Japanese.</summary>

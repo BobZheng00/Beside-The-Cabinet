@@ -7,13 +7,15 @@ only with a re-run that shows it fixed, and say which.
 
 | # | Issue | Status |
 |---|---|---|
-| M1 | The summary is cut off at its newest end | open |
+| M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | open |
 | M3 | Upkeep costs about three times the conversation | open, a cost |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
 | M6 | What has left the window comes back only about half the time | open |
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
+| M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
+| R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
 
 ## M1. The summary is cut off at its newest end
 
@@ -91,3 +93,28 @@ only with a re-run that shows it fixed, and say which.
   "Service request failed" twice.
 - **To do:** in the app, ask once more when a reply ends with no words at all; the benchmark now counts it as a
   failure to ask again.
+
+## M7. Her always-present notes were cut mid-word at 1,400 characters
+
+- **Evidence:** 23 of the 35 notes in the benchmark memories (2026-10-11) were exactly 1,400 characters, ending
+  mid-word ("…especially flowers, painting"): asked for at most 1,300 characters, the model went over two times in three.
+- **Fix:** the note is asked for in words (180), which models keep to far better than characters; one that comes
+  back over its room is sent back once to be shortened; only then is it trimmed, at its last whole sentence
+  (`Prompt.Fit`), never mid-word. Memos she prints are fitted the same way.
+
+## R2. An answer cut at the provider's length limit could be kept cut, or lost
+
+- **Evidence:** every request has a ceiling on what comes back (`MaxOutputTokens`), and a model that thinks first spends
+  it on its thinking too: a GPT model thought 1,522 tokens for a short story. The player's provider ignores the ceiling
+  and says "stop" (2026-10-11), but Anthropic always holds to it, and OpenAI does directly: there a reply of hers had
+  600 tokens for thinking and words together, a cut note was kept cut, and a cut JSON answer failed three times and
+  its stretch of conversation was skipped.
+- **Fix:** a cut answer is recognised by how it ended (finish reason "length"), never kept, and asked again once
+  with twice the room (`Conversation.Whole`); a batch that still doesn't fit is halved (observing at once, a digest
+  or a review the next time). Her replies have 2,000 tokens of room, a ceiling and not a target, and the log says
+  when one was cut short. Research agrees: check how an answer ended rather than its text, count thinking inside the
+  limit, and don't trust length instructions; models miss them, more so for long targets
+  ([the finish reason your code never inspects](https://tianpan.co/blog/2026/06/01/the-finish-reason-your-code-never-inspects),
+  [Claude's max tokens and thinking budgets](https://fast.io/resources/claude-max-tokens.md),
+  [LIFEBench, NeurIPS 2025](https://arxiv.org/abs/2505.16234)).
+- **Not yet:** a character card over 8,000 characters is still cut at that length, mid-word (the player's own text).

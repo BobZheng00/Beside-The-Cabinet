@@ -417,7 +417,7 @@ public sealed class MindStore : IDisposable
         title = title.Trim();
         text = text.Trim();
         using var command = Command("INSERT INTO memos (title, text, by, at, place, colour, sticker) VALUES ($t, $x, $b, $a, $p, $c, $s) RETURNING id",
-            ("$t", title.Length > Memo.TitleLength ? title[..Memo.TitleLength] : title), ("$x", text.Length > Memo.TextLength ? text[..Memo.TextLength] : text),
+            ("$t", Prompt.Fit(title, Memo.TitleLength)), ("$x", Prompt.Fit(text, Memo.TextLength)),
             ("$b", (object?)by ?? DBNull.Value), ("$a", Stamp(at)), ("$p", place == MemoPlace.Pinned ? MemoPlace.Archived.ToString() : place.ToString()),
             ("$c", colour is not null && Memo.Colours.Contains(colour) ? colour : Memo.ColourFor(by)),
             ("$s", sticker is not null && Memo.Stickers.Contains(sticker) ? sticker : DBNull.Value));
@@ -486,7 +486,7 @@ public sealed class MindStore : IDisposable
         title = title.Trim();
         text = text.Trim();
         using var command = Command("UPDATE memos SET title = $t, text = $x WHERE id = $id",
-            ("$t", title.Length > Memo.TitleLength ? title[..Memo.TitleLength] : title), ("$x", text.Length > Memo.TextLength ? text[..Memo.TextLength] : text), ("$id", id));
+            ("$t", Prompt.Fit(title, Memo.TitleLength)), ("$x", Prompt.Fit(text, Memo.TextLength)), ("$id", id));
         command.ExecuteNonQuery();
     }
 
