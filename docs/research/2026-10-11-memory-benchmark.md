@@ -164,13 +164,19 @@ The merged memory (phases 1 to 3, retrieval, the profile from facts, the three s
 
 | | Old memory, 8k | Old memory, whole conversation in view (32k) | New memory, 8k |
 |---|---|---|---|
+| LoCoMo conversation 42 (199 questions) | 67% | 81% | **80%** (17 against 14 against 32k) |
 | LoCoMo conversation 44 (122 questions) | 75% | 84% | **84%** (6 flipped each way against 32k) |
 | LongMemEval, 9 of the old sample's questions | 7 of 9 | | **9 of 9** |
 
 Conversation 44 (28 sittings, 675 turns): time questions 19 of 24 against 16 for both old runs; every question
 answered, 103 of 123 (84%), 87% on Mem0's grade. Upkeep 207k tokens against the old memory's 174k (+20%; on
 conversation 26 it was +4%). LongMemEval: upkeep read about 30% less a question (196k to 265k against 316k to 363k),
-each question's 115k tokens of history taken in, in about 12 minutes. Conversation 42: see CLAUDE.md, in flight.
+each question's 115k tokens of history taken in, in about 12 minutes. Conversation 42 (29 sittings, 629 turns), every
+question answered: 80% (84% on Mem0's grade); multi-hop 11 to 21 of 37 and time 24 to 34 of 40 against the old
+memory at 8k, both a little above the whole conversation in view (19 and 32); upkeep 210k tokens against 184k (+14%).
+So on all three conversations run, the memory at an 8k window answers as well as the whole conversation in view, 9 to
+13 points above the old memory at 8k; upkeep costs 4 to 19% more than the old memory's on LoCoMo, 30% less on
+LongMemEval's longer histories.
 
 **Never-said questions** (LoCoMo's adversarial category) are declined about as rarely with the whole conversation in
 view (5 of 39 and 7 of 35) as by the memory (6 and 6): not a memory gap. They swap the two speakers' names, and she

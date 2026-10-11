@@ -9,7 +9,7 @@ only with a re-run that shows it fixed, and say which.
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | fixed: such a fact says when it was said, in her list and in recall |
-| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; back to the old memory's level with the profile change (116k against 112k) |
+| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; near the old memory's with the profile change: +4% to +19% on LoCoMo, -30% on LongMemEval |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | mostly LoCoMo's name swaps, declined as rarely with everything in view; mixing up her life and the player's is what her own story is for |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
