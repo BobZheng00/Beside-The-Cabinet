@@ -7,9 +7,10 @@ namespace InsertCoin.Mind;
 /// <summary>
 /// What is sent to the model, ordered from what never changes to what changes every turn, so that providers that
 /// cache a prompt's start reuse almost all of it (see docs/specs/2026-10-04-companion-memory-v2.md): rules and
-/// persona; the notes always in mind (rewritten only while the conversation is quiet); the summary of what came
-/// before the window (folded only while quiet); the window, word for word and only ever growing at its end; and
-/// this turn, never stored: the time now, the cabinet, what she recalls, and what the player said.
+/// persona; the notes always in mind (rewritten only while the conversation is quiet); her log of what she observed
+/// before the window (growing only at its end, while quiet; see <see cref="Log"/>); the window, word for word and only
+/// ever growing at its end; and this turn, never stored: the time now, the cabinet, what she recalls, and what the
+/// player said.
 /// </summary>
 public static class Prompt
 {
@@ -23,13 +24,14 @@ public static class Prompt
     internal static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly TimeSpan Gap = TimeSpan.FromMinutes(30);    // a pause long enough to say when talk resumed
 
+    /// <param name="log">Her log of what she observed before the window, oldest first: the newest that fit go in (see <see cref="Log.Budget"/>).</param>
     /// <param name="voiceLanguage">The language her voice speaks (see <see cref="SpokenLanguage"/>), or null when she has no voice.</param>
     /// <param name="window">Tokens of the conversation sent word for word at most (the newest).</param>
     /// <param name="now">The time now; without it the turn says nothing about time.</param>
     /// <param name="agenda">What is coming up and what has just passed (see <see cref="Agenda.Block"/>), or empty.</param>
     /// <param name="tools">Tools are offered with the request: she is told how to use them (see <see cref="Toolbox"/>).</param>
     /// <param name="keepsInTouch">The player chose "Keeps in touch": she is told she may plan when to reach them while they are out (see <see cref="Later"/>).</param>
-    public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
+    public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, IReadOnlyList<Observation>? log, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
                                           int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
                                           bool keepsInTouch = false)
@@ -61,8 +63,9 @@ public static class Prompt
             You and the player:
             {(us.Trim().Length > 0 ? us.Trim() : "You have only just met.")}
             """);
-        if (summary is not null)
-            system.Append("\n\nThe conversation so far, summarised:\n").Append(summary.Text.Trim());
+        if (log is { Count: > 0 })
+            system.Append("\n\nYour notes from your earlier conversations with the player, oldest first (\"!\" marks what matters most):\n")
+                  .Append(Log.Laid(Log.Newest(log, Log.Budget(window)), now));
 
         var turns = new List<(ChatRole Role, StringBuilder Text)>();
         void Put(ChatRole role, string text)
@@ -158,27 +161,6 @@ public static class Prompt
                $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
                $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
                $"(\"[plan: ...] [say: ...] ...\"). When you write all of it in {name}, leave [say] out.{letters}";
-    }
-
-    /// <summary>The request that folds older lines into the summary (auto-compaction).</summary>
-    public static List<ChatMessage> Fold(Persona persona, Summary? summary, IReadOnlyList<Line> lines)
-    {
-        var transcript = string.Join("\n", lines.Select(line =>
-            $"[{line.At.ToString("ddd d MMM HH:mm", English)}] " + line.Speaker switch
-            {
-                Speaker.User => "Player: ",
-                Speaker.Her => $"{persona.Name}: ",
-                _ => "Cabinet: ",
-            } + line.Text));
-        return
-        [
-            new(ChatRole.System, $"""
-                You keep the memory of an ongoing conversation between a player and {persona.Name}, a companion who sits beside the player's arcade cabinet. Merge the summary so far with the new part of the conversation into one updated summary.
-
-                Keep what will matter later: facts about the player, plans and dates, promises, feelings, running jokes, how the two get along, and game sessions or solves worth remembering, with when they happened. Drop small talk and repetition. Write in the third person ("The player...", "{persona.Name}..."), in the language the conversation is mostly in, in at most 400 words, oldest first. Output only the summary.
-                """),
-            new(ChatRole.User, $"Summary so far:\n{(summary?.Text.Trim() is { Length: > 0 } text ? text : "(none)")}\n\nNew part of the conversation:\n{transcript}"),
-        ];
     }
 
     /// <summary>A rough token count: about four letters of English per token, one per character of Chinese or Japanese.</summary>

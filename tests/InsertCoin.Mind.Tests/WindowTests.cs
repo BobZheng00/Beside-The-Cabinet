@@ -24,7 +24,7 @@ public class WindowTests
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
         var conversation = Talked(temp, clock, 30, window: 4000);          // about 3,200 tokens
-        var model = new FakeModel("They talked.");
+        var model = new FakeModel("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "They talked."}]}""");
 
         Assert.False(conversation.NeedsFolding);
         Assert.True(conversation.NeedsQuietFold);
@@ -35,7 +35,7 @@ public class WindowTests
 
         Assert.True(await conversation.Fold(model, quiet: true));
 
-        var left = temp.Store.After("shino", temp.Store.SummaryOf("shino")!.Through);
+        var left = temp.Store.After("shino", temp.Store.Folded("shino"));
         Assert.InRange(Prompt.Tokens(left), 1200, 2000);                   // the newest half of the window
         Assert.False(conversation.NeedsQuietFold);
     }

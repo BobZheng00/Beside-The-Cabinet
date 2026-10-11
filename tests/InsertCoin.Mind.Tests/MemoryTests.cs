@@ -63,7 +63,7 @@ public class MemoryTests
         temp.Store.Add("shino", Speaker.Cabinet, "The player solved \"Two Sum\" (Easy): +1 token.", clock.Now.AddMinutes(2));
         temp.Store.Add("shino", Speaker.User, "what a day", clock.Now.AddHours(5));
         var last = temp.Store.Add("shino", Speaker.Her, "Rest well.", clock.Now.AddHours(5).AddMinutes(1));
-        temp.Store.Fold("shino", "Long ago they talked about everyday things.", last, clock.Now.AddHours(6));
+        temp.Store.Observe("shino", [new Observation(0, clock.Now, Priority.Low, "Long ago they talked about everyday things.", 1, last)], last, clock.Now.AddHours(6));
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
         var model = new FakeModel("Oh, the dentist!");
 

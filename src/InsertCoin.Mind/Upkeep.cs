@@ -205,7 +205,7 @@ public static class Upkeep
         }
     }
 
-    private static string Transcript(Persona persona, IEnumerable<Line> lines) => string.Join("\n", lines.Select(line =>
+    internal static string Transcript(Persona persona, IEnumerable<Line> lines) => string.Join("\n", lines.Select(line =>
         $"[{line.At.ToString("ddd d MMM yyyy HH:mm", English)}] " + line.Speaker switch
         {
             Speaker.User => "Player: ",
@@ -213,6 +213,6 @@ public static class Upkeep
             _ => "Cabinet: ",
         } + line.Text));
 
-    private static string? Text(JsonElement element, string name) =>
+    internal static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 }

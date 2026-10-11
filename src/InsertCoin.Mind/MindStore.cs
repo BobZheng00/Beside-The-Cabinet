@@ -8,9 +8,6 @@ public enum Speaker { User, Her, Cabinet }
 /// <summary>One line of the conversation: something the user typed, something she said, or something the cabinet did.</summary>
 public sealed record Line(long Id, Speaker Speaker, string Text, DateTimeOffset At);
 
-/// <summary>What the conversation before <see cref="Through"/> (a line id) has been folded into.</summary>
-public sealed record Summary(string Text, long Through);
-
 /// <summary>
 /// Something she knows: about the player (<see cref="MindStore.Shared"/> scope, every character knows it) or about
 /// the two of them (a character's id). Importance 1–10; recalled is when it last came up in a conversation, recalls
@@ -50,8 +47,8 @@ public sealed record Episode(long Id, string Text, long First, long Last, DateTi
 
 /// <summary>
 /// Everything she remembers, in one SQLite file in the profile folder: each character's conversation (one continuous
-/// thread), the summary its older part has been folded into, the notes that are always in her context, the facts
-/// and episodes upkeep draws from the conversation, and how far upkeep has read.
+/// thread), the log of what she observed in its older part (see <see cref="Log"/>), the notes that are always in her
+/// context, the facts and episodes upkeep draws from the conversation, and how far upkeep has read.
 /// </summary>
 public sealed class MindStore : IDisposable
 {
@@ -138,11 +135,23 @@ public sealed class MindStore : IDisposable
             CREATE TABLE IF NOT EXISTS claims (day TEXT NOT NULL, activity TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (day, activity));
             PRAGMA user_version = 10;
             """);
+        // version 11: her memory of what has left the window is a dated log of observations (see Log), never rewritten;
+        // summaries keeps only how far the window has been folded, and a summary written before becomes the log's first
+        // observation (once: its text is cleared)
+        Run("""
+            CREATE TABLE IF NOT EXISTS observations (
+                id INTEGER PRIMARY KEY, character TEXT NOT NULL, at TEXT NOT NULL, priority INTEGER NOT NULL, text TEXT NOT NULL,
+                first INTEGER NOT NULL, last INTEGER NOT NULL);
+            CREATE INDEX IF NOT EXISTS observations_by_character ON observations (character, at);
+            INSERT INTO observations (character, at, priority, text, first, last) SELECT character, at, 0, text, 1, through FROM summaries WHERE text <> '';
+            UPDATE summaries SET text = '' WHERE text <> '';
+            PRAGMA user_version = 11;
+            """);
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
 
-    public const string FactKind = "fact", EpisodeKind = "episode", PassageKind = "passage";
+    public const string FactKind = "fact", EpisodeKind = "episode", PassageKind = "passage", ObservationKind = "observation";
 
     /// <summary>Counts clears and forgets, so what is cached from the store (see <see cref="History"/>) knows to read it again.</summary>
     public int Changes { get; private set; }
@@ -718,21 +727,43 @@ public sealed class MindStore : IDisposable
     private static string Stamp(DateTimeOffset at) => at.ToString("O", CultureInfo.InvariantCulture);
     private static DateTimeOffset Parse(string stamp) => DateTimeOffset.Parse(stamp, CultureInfo.InvariantCulture);
 
-    public Summary? SummaryOf(string character)
+    /// <summary>The last line that has left the window (0: none has): what came after it she reads word for word.</summary>
+    public long Folded(string character)
     {
-        using var command = Command("SELECT text, through FROM summaries WHERE character = $c", ("$c", character));
-        using var reader = command.ExecuteReader();
-        return reader.Read() ? new Summary(reader.GetString(0), reader.GetInt64(1)) : null;
+        using var command = Command("SELECT through FROM summaries WHERE character = $c", ("$c", character));
+        return command.ExecuteScalar() is long through ? through : 0;
     }
 
-    /// <summary>Replaces the summary: it now covers every line up to and including <paramref name="through"/>.</summary>
-    public void Fold(string character, string text, long through, DateTimeOffset at)
+    /// <summary>
+    /// Lines up to and including <paramref name="through"/> have left the window, and these are what she observed in
+    /// them: added to her log together, so neither happens without the other.
+    /// </summary>
+    public void Observe(string character, IReadOnlyList<Observation> observed, long through, DateTimeOffset at)
     {
-        using var command = Command("""
-            INSERT INTO summaries (character, text, through, at) VALUES ($c, $t, $i, $a)
-            ON CONFLICT (character) DO UPDATE SET text = excluded.text, through = excluded.through, at = excluded.at
-            """, ("$c", character), ("$t", text), ("$i", through), ("$a", at.ToString("O", CultureInfo.InvariantCulture)));
-        command.ExecuteNonQuery();
+        using var transaction = _db.BeginTransaction();
+        foreach (var o in observed)
+        {
+            using var add = Command("INSERT INTO observations (character, at, priority, text, first, last) VALUES ($c, $a, $p, $t, $f, $l)",
+                ("$c", character), ("$a", Stamp(o.At)), ("$p", (int)o.Priority), ("$t", o.Text.Trim()), ("$f", o.First), ("$l", o.Last));
+            add.ExecuteNonQuery();
+        }
+        using var fold = Command("""
+            INSERT INTO summaries (character, text, through, at) VALUES ($c, '', $i, $a)
+            ON CONFLICT (character) DO UPDATE SET through = excluded.through, at = excluded.at
+            """, ("$c", character), ("$i", through), ("$a", Stamp(at)));
+        fold.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    /// <summary>Her log, oldest first.</summary>
+    public IReadOnlyList<Observation> Observations(string character)
+    {
+        using var command = Command("SELECT id, at, priority, text, first, last FROM observations WHERE character = $c ORDER BY at, id", ("$c", character));
+        using var reader = command.ExecuteReader();
+        var log = new List<Observation>();
+        while (reader.Read())
+            log.Add(new Observation(reader.GetInt64(0), Parse(reader.GetString(1)), (Priority)reader.GetInt32(2), reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5)));
+        return log;
     }
 
     public string Note(string scope, string name)
@@ -758,19 +789,20 @@ public sealed class MindStore : IDisposable
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM notes WHERE scope = $c;
             DELETE FROM facts WHERE scope = $c; DELETE FROM episodes WHERE character = $c; DELETE FROM digested WHERE character = $c;
-            DELETE FROM passages WHERE character = $c;
+            DELETE FROM passages WHERE character = $c; DELETE FROM observations WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
         DropVectors(EpisodeKind);
         DropVectors(PassageKind);
+        DropVectors(ObservationKind);
         Changes++;
     }
 
     /// <summary>
-    /// Clears the conversation with this character (its lines, their summary, and upkeep's place in them) and keeps
-    /// everything she took from it: notes, facts and dated moments. The moments now count as from before the
-    /// conversation, so they can be recalled at once whatever ids the new lines get (ids are reused once a table is
+    /// Clears the conversation with this character (its lines, how far it was folded, and upkeep's place in them) and
+    /// keeps everything she took from it: notes, facts, dated moments and her log. The moments now count as from before
+    /// the conversation, so they can be recalled at once whatever ids the new lines get (ids are reused once a table is
     /// empty). Lines upkeep had not yet read are lost with the rest.
     /// </summary>
     public void ForgetConversation(string character)
@@ -778,7 +810,7 @@ public sealed class MindStore : IDisposable
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM digested WHERE character = $c;
             DELETE FROM passages WHERE character = $c;
-            UPDATE episodes SET first = 0, last = 0 WHERE character = $c;
+            UPDATE episodes SET first = 0, last = 0 WHERE character = $c; UPDATE observations SET first = 0, last = 0 WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(PassageKind);

@@ -1806,7 +1806,7 @@ public partial class Stool : Node2D
             return;
         _history = new ChatHistory();
         AddChild(_history);
-        _history.Build(_chat.Store, character.Id, character.Name);
+        _history.Build(_chat.Store, character.Id, character.Name, _chat.Window);
         _history.Open();
     }
 

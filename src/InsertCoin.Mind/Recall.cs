@@ -6,8 +6,9 @@ namespace InsertCoin.Mind;
 /// <summary>Something remembered for the moment, as it is put in front of her.</summary>
 public sealed record Memory(string Text, long? FactId = null);
 
-/// <summary>What the player said and what her facts and episodes mean, as vectors from one embedding model.</summary>
-public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]> Episodes);
+/// <summary>What the player said and what her facts, episodes and observations mean, as vectors from one embedding model.</summary>
+public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]> Episodes,
+                             IReadOnlyDictionary<long, float[]>? Observations = null);
 
 /// <summary>
 /// Picks what she remembers when the player says something: facts, episodes and old lines of the conversation,
@@ -29,8 +30,9 @@ public static class Recall
     ];
 
     /// <param name="excerpts">Lines from the conversation before the window that may relate (see <see cref="History.Search"/>).</param>
+    /// <param name="observations">Observations of hers older than what she sees of her log (see <see cref="Log.Newest"/>).</param>
     public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Episode> episodes, IReadOnlyList<Excerpt> excerpts,
-                                             string name, DateTimeOffset now, Meaning? meaning = null)
+                                             string name, DateTimeOffset now, Meaning? meaning = null, IReadOnlyList<Observation>? observations = null)
     {
         var query = Terms(said).ToHashSet();
         query.ExceptWith(Terms(name));                      // her own name says nothing about what to remember
@@ -45,6 +47,10 @@ public static class Recall
         foreach (var excerpt in excerpts)
             candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}"),
                             Terms(excerpt.Text).ToHashSet(), excerpt.Vector, Math.Exp(-(now - excerpt.At).TotalDays / 60), 3, true, false));
+        foreach (var o in observations ?? [])
+            candidates.Add((new Memory($"{o.At.ToString("ddd d MMM yyyy", English)} ({When.Ago(o.At, now)}): {o.Text}"), Terms(o.Text).ToHashSet(),
+                            meaning?.Observations?.GetValueOrDefault(o.Id), Math.Exp(-(now - o.At).TotalDays / 60),
+                            o.Priority switch { Priority.High => 8, Priority.Medium => 5, _ => 3 }, false, false));
         if (candidates.Count == 0)
             return [];
 

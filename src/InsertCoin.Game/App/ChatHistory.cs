@@ -7,8 +7,9 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// The conversation with whoever is on the stool, as it is stored: what the player said, what she said (her
-/// replies and her remarks), and what happened at the cabinet, by day, newest at the bottom. The part folded into a
-/// summary is still here in full; the summary she works from is shown above it. Read only.
+/// replies and her remarks), and what happened at the cabinet, by day, newest at the bottom. The part that has left
+/// her window is still here in full; the notes she works from instead (her log, see <see cref="Log"/>) are above it,
+/// the part she sees of them. Read only.
 /// </summary>
 public partial class ChatHistory : Window
 {
@@ -23,7 +24,8 @@ public partial class ChatHistory : Window
     private DateOnly? _topDay;
     private Label? _topHeading;                         // the heading of the oldest day shown
 
-    public void Build(MindStore store, string characterId, string characterName)
+    /// <param name="window">Her window now, in tokens: how much of her log she sees (see <see cref="Log.Budget"/>).</param>
+    public void Build(MindStore store, string characterId, string characterName, int window)
     {
         _store = store;
         _character = characterId;
@@ -41,12 +43,21 @@ public partial class ChatHistory : Window
         page.AddChild(column);
         column.AddChild(new Label { Text = $"Chat with {characterName}", ThemeTypeVariation = "Heading" });
 
-        if (store.SummaryOf(characterId) is { } summary)
+        var log = store.Observations(characterId);
+        if (log.Count > 0)
         {
-            column.AddChild(new Label { Text = "Earlier, in short (what she works from)", ThemeTypeVariation = "Subheading" });
-            var box = new PanelContainer();
-            box.AddChild(Text(summary.Text, Paper.Letters));
-            column.AddChild(box);
+            var seen = Log.Newest(log, Log.Budget(window));
+            column.AddChild(new Label
+            {
+                Text = seen.Count < log.Count ? $"Her notes from earlier: what she works from, the newest {seen.Count} of {log.Count}" : "Her notes from earlier (what she works from)",
+                ThemeTypeVariation = "Subheading",
+            });
+            // a few lines high: the conversation below is what the window is for
+            var notes = new ScrollContainer { CustomMinimumSize = new Vector2(0, 150), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+            var box = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            box.AddChild(Text(Log.Laid(seen, DateTimeOffset.Now), Paper.Letters));
+            notes.AddChild(box);
+            column.AddChild(notes);
         }
 
         _scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };

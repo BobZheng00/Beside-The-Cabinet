@@ -27,13 +27,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>How long a rolled-up moment may be: a week 80 words, a month 100, a year 150.</summary>
     public static int RolledUpWords(Span span) => span switch { Span.Week => 80, Span.Month => 100, _ => 150 };
     public const int DigestAtOnce = 3000;
-    private const int KeepLines = 12, SummaryLimit = 3200, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
+    private const int KeepLines = 12, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 600 };     // room for models that think first
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
+    private static readonly ChatOptions ObserveOptions = new() { MaxOutputTokens = 4000 };       // a batch's observations, and room to think first
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
-    private (long From, int Times) _failed;
+    private (long From, int Times) _failed, _failedFold;            // a stretch upkeep or folding couldn't read, and how often
 
     public string Character => character;
     public Persona Persona => persona;
@@ -104,9 +105,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public async Task<List<Piece>?> Call(IChatClient client, Toolbox? tools, CancellationToken cancel = default)
     {
         var now = _clock.GetLocalNow();
-        var summary = store.SummaryOf(character);
-        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), summary,
-                                store.After(character, summary?.Through ?? 0), "", $"[cabinet] {WordFirst.Ask}", memories: null,
+        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), store.Observations(character),
+                                store.After(character, store.Folded(character)), "", $"[cabinet] {WordFirst.Ask}", memories: null,
                                 voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch());
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
@@ -154,14 +154,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                                      string? aside, bool texting = false)
     {
         var now = _clock.GetLocalNow();
-        var summary = store.SummaryOf(character);
-        var folded = summary?.Through ?? 0;
-        // what she remembers: facts, episodes, and the conversation before the window, searched as a whole
+        var log = store.Observations(character);
+        var folded = store.Folded(character);
+        // what she remembers: facts, episodes, the observations older than what she sees of her log, and the conversation
+        // before the window, searched as a whole
         var meaning = await MeaningOf(said, cancel);
         History.CatchUp(folded);
         var excerpts = History.Search(said, folded, meaning?.Query, meaning?.Model);
         var memories = Recall.Find(said, store.Facts(character), store.Episodes(character).Where(e => e.Last <= folded).ToList(),
-                                   excerpts, persona.Name, now, meaning);
+                                   excerpts, persona.Name, now, meaning, log.Except(Log.Newest(log, Log.Budget(Window))).ToList());
         store.Recalled(memories.Where(m => m.FactId is not null).Select(m => m.FactId!.Value), now);
         var recent = store.After(character, folded);
         // a character card's lorebook: background whose keys came up just now (or in the last couple of lines)
@@ -176,7 +177,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
-                                     summary, recent, situation, turn, [.. lore, .. memories],
+                                     log, recent, situation, turn, [.. lore, .. memories],
                                      VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch());
             foreach (var thing in handed)
                 if (thing.Text)
@@ -494,15 +495,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public bool IsQuiet(TimeSpan quiet) => store.Through(character, long.MaxValue, 1) is not [var last] || _clock.GetLocalNow() - last.At >= quiet;
 
     /// <summary>
-    /// Folds the window's older part into the summary, keeping its newest half (and at least a dozen lines) word for
-    /// word. Returns false when there was nothing to fold or the model gave nothing back (the lines stay, and the next
-    /// attempt includes them).
+    /// Folds the window's older part out of it, keeping its newest half (and at least a dozen lines) word for word. The
+    /// lines leaving are observed into her log (see <see cref="Log"/>) a few thousand tokens at a time, each batch with
+    /// her latest observations for continuity, and each observed batch leaves at once, so a later failure keeps what was
+    /// done. Returns false when there was nothing to fold or nothing usable came back for the first batch (the lines
+    /// stay, and the next attempt includes them; a batch that fails three times leaves without observations, still
+    /// searchable word for word, so it can't hold up the rest).
     /// </summary>
     /// <param name="quiet">Folding while quiet: from three quarters full; otherwise only a full window is folded.</param>
     public async Task<bool> Fold(IChatClient client, bool quiet = false, CancellationToken cancel = default)
     {
-        var summary = store.SummaryOf(character);
-        var lines = store.After(character, summary?.Through ?? 0);
+        var lines = Unfolded();
         if (Prompt.Tokens(lines) <= (quiet ? Window * 3 / 4 : Window))
             return false;
 
@@ -511,18 +514,35 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         while (keep < lines.Count && (keep < KeepLines || kept + Prompt.Tokens(lines[^(keep + 1)].Text) + 4 <= Window / 2))
             kept += Prompt.Tokens(lines[^++keep].Text) + 4;
         var fold = lines.Take(lines.Count - keep).ToList();
-        if (fold.Count == 0)
-            return false;
-
-        var response = await client.GetResponseAsync(Prompt.Fold(persona, summary, fold), FoldOptions, cancel);
-        var folded = response.Text.Trim();
-        if (folded.Length == 0)
-            return false;
-        store.Fold(character, folded.Length > SummaryLimit ? folded[..SummaryLimit] : folded, fold[^1].Id, _clock.GetLocalNow());
-        return true;
+        var folded = false;
+        while (fold.Count > 0)
+        {
+            var batch = new List<Line>();
+            var used = 0;
+            foreach (var line in fold)
+            {
+                if (batch.Count > 0 && used + Prompt.Tokens(line.Text) > Log.ObserveAtOnce)
+                    break;
+                batch.Add(line);
+                used += Prompt.Tokens(line.Text) + 4;
+            }
+            var latest = Log.Newest(store.Observations(character), Log.Continuity);
+            var response = await client.GetResponseAsync(Log.Observe(persona, latest, batch), ObserveOptions, cancel);
+            if (Log.Parse(response.Text, batch) is not { } observed)
+            {
+                _failedFold = _failedFold.From == batch[0].Id ? (batch[0].Id, _failedFold.Times + 1) : (batch[0].Id, 1);
+                if (_failedFold.Times < GiveUpAfter)
+                    return folded;
+                observed = [];
+            }
+            store.Observe(character, observed, batch[^1].Id, _clock.GetLocalNow());
+            folded = true;
+            fold = [.. fold.Skip(batch.Count)];
+        }
+        return folded;
     }
 
-    /// <summary>What the player said and her stored facts and episodes as vectors, or null without a model (or if it fails).</summary>
+    /// <summary>What the player said and her stored facts, episodes and observations as vectors, or null without a model (or if it fails).</summary>
     private async Task<Meaning?> MeaningOf(string said, CancellationToken cancel)
     {
         if (Embedder is not { } embedder)
@@ -531,7 +551,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             var query = await Task.Run(() => embedder.Embed(said, query: true), cancel);
             return new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name),
-                               store.Vectors(MindStore.EpisodeKind, embedder.Model.Name));
+                               store.Vectors(MindStore.EpisodeKind, embedder.Model.Name), store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -540,19 +560,21 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>
-    /// Gives facts and episodes without a vector from the loaded model one, a batch at a time (the model runs off the
-    /// calling thread; the store is written on it). Returns how many were done.
+    /// Gives facts, episodes and observations without a vector from the loaded model one, a batch at a time (the model
+    /// runs off the calling thread; the store is written on it). Returns how many were done.
     /// </summary>
     public async Task<int> Index(int batch = 64, CancellationToken cancel = default)
     {
         if (Embedder is not { } embedder)
             return 0;
-        History.CatchUp(store.SummaryOf(character)?.Through ?? 0);       // passages for what has left the window
+        History.CatchUp(store.Folded(character));       // passages for what has left the window
         var model = embedder.Model.Name;
         var haveFacts = store.Vectors(MindStore.FactKind, model);
         var haveEpisodes = store.Vectors(MindStore.EpisodeKind, model);
+        var haveObservations = store.Vectors(MindStore.ObservationKind, model);
         var todo = store.Facts(character).Where(f => !haveFacts.ContainsKey(f.Id)).Select(f => (Kind: MindStore.FactKind, f.Id, f.Text))
             .Concat(store.Episodes(character).Where(e => !haveEpisodes.ContainsKey(e.Id)).Select(e => (Kind: MindStore.EpisodeKind, e.Id, e.Text)))
+            .Concat(store.Observations(character).Where(o => !haveObservations.ContainsKey(o.Id)).Select(o => (Kind: MindStore.ObservationKind, o.Id, o.Text)))
             .Concat(History.Unread(model).Select(p => (Kind: MindStore.PassageKind, p.Id, p.Text)))       // the old conversation, a batch at a time
             .Take(batch).ToList();
         if (todo.Count == 0)
@@ -800,5 +822,5 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             store.SetNote(scope, name, note.Length > Prompt.NoteLimit ? note[..Prompt.NoteLimit] : note);
     }
 
-    private IReadOnlyList<Line> Unfolded() => store.After(character, store.SummaryOf(character)?.Through ?? 0);
+    private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));
 }

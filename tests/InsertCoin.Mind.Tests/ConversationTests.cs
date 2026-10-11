@@ -69,7 +69,7 @@ public class ConversationTests
     }
 
     [Fact]
-    public async Task A_long_conversation_is_folded_into_a_summary_keeping_the_newest_lines()
+    public async Task A_long_conversation_is_folded_into_dated_notes_keeping_the_newest_lines()
     {
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
@@ -80,22 +80,23 @@ public class ConversationTests
             temp.Store.Add("shino", i % 2 == 0 ? Speaker.User : Speaker.Her, $"line {i} " + new string('x', 400), clock.Now);
         }
         Assert.True(conversation.NeedsFolding);
-        var model = new FakeModel("The player and Shino talked about x.");
+        var model = new FakeModel("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player and Shino talked about x."}]}""");
 
         Assert.True(await conversation.Fold(model));
 
-        var summary = temp.Store.SummaryOf("shino")!;
-        Assert.Equal("The player and Shino talked about x.", summary.Text);
-        var left = temp.Store.After("shino", summary.Through);
+        var observed = temp.Store.Observations("shino").Single();
+        Assert.Equal(("The player and Shino talked about x.", Priority.High, Friday, 1L), (observed.Text, observed.Priority, observed.At, observed.First));
+        Assert.Equal(temp.Store.Folded("shino"), observed.Last);
+        var left = temp.Store.After("shino", temp.Store.Folded("shino"));
         Assert.InRange(left.Count, 6, 20);
         Assert.StartsWith("line 59", left[^1].Text);
         Assert.False(conversation.NeedsFolding);
-        Assert.Contains("[Fri 2 Oct 19:30] Player: line 0", model.Requests.Single()[1].Text);
+        Assert.Contains("[Fri 2 Oct 2026 19:30] Player: line 0", model.Requests.Single()[1].Text);
 
-        // the next answer gets the summary instead of the folded lines
+        // the next answer gets her notes instead of the folded lines
         var next = new FakeModel("ok");
         await conversation.Answer(next, "hi", "", _ => { }, (_, _) => { });
-        Assert.Contains("The player and Shino talked about x.", next.Requests.Single()[0].Text);
+        Assert.Contains("Fri 2 Oct 2026 (today)\n- ! The player and Shino talked about x.", next.Requests.Single()[0].Text);
         Assert.DoesNotContain("line 0 ", string.Concat(next.Requests.Single().Select(m => m.Text)));
     }
 
@@ -137,13 +138,14 @@ public class ConversationTests
         var first = temp.Store.Add("shino", Speaker.User, "I have an interview on Friday", Friday);
         var last = temp.Store.Add("shino", Speaker.Her, "Good luck!", Friday);
         temp.Store.AddEpisode("shino", "Bob told her about his interview.", first, last, Friday);
-        temp.Store.Fold("shino", "They talked about the interview.", last, Friday);
+        temp.Store.Observe("shino", [new Observation(0, Friday, Priority.High, "They talked about the interview.", first, last)], last, Friday);
         temp.Store.SetDigested("shino", last);
 
         temp.Store.ForgetConversation("shino");
 
         Assert.Empty(temp.Store.After("shino", 0));
-        Assert.Null(temp.Store.SummaryOf("shino"));
+        Assert.Equal(0, temp.Store.Folded("shino"));
+        Assert.Equal((0L, 0L), temp.Store.Observations("shino").Select(o => (o.First, o.Last)).Single());     // her notes stay, from before
         Assert.Equal(0, temp.Store.Digested("shino"));
         Assert.Equal("Friends.", temp.Store.Note("shino", MindStore.Us));
         Assert.Single(temp.Store.Facts("shino"));
