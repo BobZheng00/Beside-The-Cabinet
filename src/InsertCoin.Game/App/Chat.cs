@@ -425,8 +425,8 @@ public sealed class Chat : IDisposable
             }
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, IReadOnlyList<Attachment>?, Task<string>> reply =
-                fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Called)
-                            : (c, words, s, t, d, k, tools, h) => conversation.Answer(c, words, s, t, d, k, tools, h, aside);
+                fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Called, texting)
+                            : (c, words, s, t, d, k, tools, h) => conversation.Answer(c, words, s, t, d, k, tools, h, aside, texting);
             Replied = null;
             var model = _provider?.Model ?? "";
             conversation.Unseeing = CantSee(model);

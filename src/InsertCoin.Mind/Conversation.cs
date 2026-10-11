@@ -77,10 +77,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// kept in the player's line in its place.
     /// </param>
     /// <param name="aside">How they are talking this time (texting, see <see cref="Reaching.Texted"/>): sent with what they said, not logged with it.</param>
+    /// <param name="texting">Her reply goes as a text, whole: what she said while her tools ran is left out (see <see cref="Reply"/>).</param>
     /// <returns>Everything she said.</returns>
     public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
-                               CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null) =>
-        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? [], aside);
+                               CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null,
+                               bool texting = false) =>
+        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? [], aside, texting);
 
     /// <summary>
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see
@@ -88,8 +90,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// </summary>
     /// <param name="aside">How to put it this time (see <see cref="WordFirst.Called"/>): sent with the note, not logged with it.</param>
     public Task<string> Announce(IChatClient client, string note, string situation, Action<string> text, Action<string, string?> direction,
-                                 CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null) =>
-        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? [], aside);
+                                 CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null,
+                                 bool texting = false) =>
+        Reply(client, note, fromCabinet: true, situation, text, direction, tools, cancel, handed ?? [], aside, texting);
 
     /// <summary>
     /// Her call before something she brings up herself (see <see cref="WordFirst"/>): a few words of her own that only
@@ -141,9 +144,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         store.Rewrite(reply.Line, (call + reply.Streamed).Trim());
     }
 
+    /// <remarks>
+    /// The short lines she says before a tool fill its wait at the PC. A text goes only once it is whole, so there they
+    /// read as a log of her tries ("That forecast page didn't load, so I'm trying…", 2026-10-11): a text keeps what she
+    /// wrote after her last tool, and so does her line, as that is what the player read.
+    /// </remarks>
     private async Task<string> Reply(IChatClient client, string said, bool fromCabinet, string situation, Action<string> text,
                                      Action<string, string?> direction, Toolbox? tools, CancellationToken cancel, IReadOnlyList<Attachment> handed,
-                                     string? aside)
+                                     string? aside, bool texting = false)
     {
         var now = _clock.GetLocalNow();
         var summary = store.SummaryOf(character);
@@ -209,6 +217,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back
+        var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {
@@ -225,9 +234,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         tools?.Hosted(BuiltIn.SearchName);
                     }
                     else if (content is WebSearchToolResultContent found)
+                    {
                         store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
+                        toolsDone = reply.Length;
+                    }
                 if (update.Contents.Any(c => c is FunctionResultContent))
+                {
                     afterTool = true;                       // what she says next carries on after a pause
+                    toolsDone = reply.Length;
+                }
                 else if (update.Text is { Length: > 0 } piece)
                 {
                     Show(stage.Feed(afterTool ? Spaced(reply, piece) : piece));
@@ -281,7 +296,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (handed.Count > 0)
                 store.Rewrite(line, Kept(said, handed, seen, seeing));
         }
-        return Keep(reply.ToString());
+        var whole = reply.ToString();
+        return Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole);
     }
 
     /// <summary>

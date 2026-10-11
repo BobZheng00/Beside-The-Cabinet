@@ -148,7 +148,8 @@ public static class BuiltIn
             async ([Description("The page's full address, starting with https://")] string url, CancellationToken cancel = default) =>
                 await read(Page(url) ?? throw new ArgumentException("only web pages (addresses starting with https:// or http://) can be read"), cancel),
             "read_page",
-            "Reads a web page's words: an article, documentation, a page from search results, a link the player gave you. A page that only fills " +
+            "Reads a web page's words: an article, documentation, a page from search results, a link the player gave you, or a page whose " +
+            "address you know for something current, such as a weather forecast. A page that only fills " +
             "in with scripts in a browser comes back empty (LeetCode's problems: use leetcode_problem)."),
         "Read web pages",
         OutsideApp: false)

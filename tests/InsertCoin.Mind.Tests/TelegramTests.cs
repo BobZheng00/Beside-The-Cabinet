@@ -139,6 +139,24 @@ public class TelegramTests
     }
 
     [Fact]
+    public async Task A_text_of_hers_keeps_what_she_wrote_after_her_tools_not_the_lines_that_filled_their_wait()
+    {
+        using var temp = new TempStore();
+        Toolbox Tools() => new([BuiltIn.ReadPage((_, _) => Task.FromResult("Light rain, ending around noon."))]);
+        FakeToolModel Model() => new(["I'll check the forecast.", FakeToolModel.Call("read_page", "url", "https://wttr.in/Springfield")],
+                                     ["That page was sparse, so one more look.", FakeToolModel.Call("read_page", "url", "https://wttr.in/Springfield?2")],
+                                     ["It should stop around noon."]);
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "x"), new FakeClock(Noon));
+
+        var texted = await conversation.Answer(Model(), "when will the rain stop?", "", _ => { }, (_, _) => { }, tools: Tools(), texting: true);
+        var said = await conversation.Answer(Model(), "and at the PC?", "", _ => { }, (_, _) => { }, tools: Tools());
+
+        Assert.Equal("It should stop around noon.", texted);
+        Assert.Contains("It should stop around noon.", temp.Store.After("shino", 0).Where(l => l.Speaker == Speaker.Her).Select(l => l.Text));
+        Assert.StartsWith("I'll check the forecast.", said);       // at the PC those lines filled the wait, and were heard
+    }
+
+    [Fact]
     public async Task While_she_texts_what_needs_the_player_at_the_pc_is_turned_down()
     {
         var opened = new List<Uri>();
