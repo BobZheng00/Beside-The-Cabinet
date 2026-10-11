@@ -152,6 +152,21 @@ public sealed class MindStore : IDisposable
                 INSERT OR REPLACE INTO marks (key, value) SELECT 'kept:' || character, max(id) FROM observations GROUP BY character;
                 PRAGMA user_version = 13;
                 """);
+        // version 14: what she always has in mind is listed from her facts for every reply (see Prompt.Known), so the two
+        // notes the model rewrote from them go into her log, out of view like condensed notes and still recalled, and the
+        // memory book's Notes are the player's own from now on
+        if (was < 14)
+            Run("""
+                INSERT INTO observations (character, at, priority, text, first, last, span, condensed)
+                    SELECT l.character, max(l.at), 1, 'Her note about the player, as it stood: ' || n.text, 0, 0, 0, 1
+                    FROM notes n, lines l WHERE n.scope = '*' AND n.name = 'about' AND n.text <> '' GROUP BY l.character;
+                INSERT INTO observations (character, at, priority, text, first, last, span, condensed)
+                    SELECT n.scope, (SELECT max(at) FROM lines WHERE character = n.scope), 1, 'Her note about the two of them, as it stood: ' || n.text, 0, 0, 0, 1
+                    FROM notes n WHERE n.name = 'us' AND n.text <> '' AND EXISTS (SELECT 1 FROM lines WHERE character = n.scope);
+                UPDATE notes SET text = '' WHERE (name = 'about' AND EXISTS (SELECT 1 FROM lines))
+                    OR (name = 'us' AND EXISTS (SELECT 1 FROM lines WHERE character = notes.scope));
+                PRAGMA user_version = 14;
+                """);
     }
 
     // ---- Vectors (what facts, notes and old lines mean, for search by meaning) -------------------------------------

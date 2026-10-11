@@ -152,7 +152,7 @@ public class MemoryTests
     }
 
     [Fact]
-    public async Task Upkeep_notes_the_talk_keeps_facts_from_the_notes_with_their_history_and_rewrites_the_notes_they_touch()
+    public async Task Upkeep_notes_the_talk_and_keeps_facts_from_the_notes_with_their_history_which_her_next_reply_has_in_mind()
     {
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
@@ -179,14 +179,9 @@ public class MemoryTests
               {"op": "add", "about": "us", "text": "The player calls Shino 'Coach'.", "importance": 6},
               {"op": "update", "id": 999, "text": "nonsense"}]}
             """);
-        model.Answers.Enqueue("Bob. Exam on Monday 12 October 2026.");          // about the player
-        model.Answers.Enqueue("Bob calls Shino 'Coach'.");                       // the two of them
 
         Assert.True(await conversation.Digest(model));
-        Assert.Equal("Bob, studying for exams.", store.Note(MindStore.Shared, MindStore.AboutUser));    // only marked out of date
-        Assert.True(await conversation.RefreshNotes(model));               // rewritten once the conversation is noted
-        Assert.True(await conversation.RefreshNotes(model));
-        Assert.False(await conversation.RefreshNotes(model));
+        Assert.Equal(2, model.Requests.Count);                             // noted, then kept: nothing is rewritten
 
         var facts = store.Facts("shino");
         Assert.Equal(["The player's name is Bob.", "The player's exam is on Monday 12 October 2026.", "The player calls Shino 'Coach'."],
@@ -196,9 +191,7 @@ public class MemoryTests
         Assert.Equal([("The player has an exam next week.", "changed to: The player's exam is on Monday 12 October 2026."), ("The player is learning Rust.", "no longer true")],
                      store.Retired("shino").Select(f => (f.Text, f.Why)));
         Assert.Contains("The player's exam moved to Monday 12 October", Assert.Single(store.Observations("shino")).Text);
-        Assert.Equal("Bob. Exam on Monday 12 October 2026.", store.Note(MindStore.Shared, MindStore.AboutUser));
-        Assert.Equal("Bob calls Shino 'Coach'.", store.Note("shino", MindStore.Us));
-        Assert.Contains("Bob, studying for exams.", model.Requests[2][1].Text);    // the rewrite starts from the note as it was
+        Assert.Equal("Bob, studying for exams.", store.Note(MindStore.Shared, MindStore.AboutUser));     // the player's own, untouched
         Assert.False(conversation.NeedsDigest(TimeSpan.Zero));
         Assert.Contains("[Fri 2 Oct 2026 19:30] Player: My exam got moved", model.Requests[0][1].Text);     // the lines, then the notes
         Assert.Contains($"#{exam} [player, 6] The player has an exam next week.", model.Requests[1][1].Text);
@@ -207,6 +200,12 @@ public class MemoryTests
         var later = new FakeModel("Not any more!");
         await conversation.Answer(later, "do I still do Rust?", "", _ => { }, (_, _) => { });
         Assert.Contains("Until 2 Oct 2026: The player is learning Rust.", later.Requests.Single()[^1].Text);
+        // what she always has in mind is listed from the facts for this very reply: the player's words, then what changed, as a change
+        var system = later.Requests.Single()[0].Text.ReplaceLineEndings("\n");
+        Assert.Contains("What you know about the player:\nIn the player's own words: Bob, studying for exams.\n- The player's name is Bob.\n" +
+                        "- The player's exam is on Monday 12 October 2026. (Since 2 Oct; before: The player has an exam next week.)", system);
+        Assert.Contains("You and the player:\n- The player calls Shino 'Coach'.", system);
+        Assert.DoesNotContain("No longer so", system);                         // Rust ended, but it wasn't important enough to say so
     }
 
     [Fact]

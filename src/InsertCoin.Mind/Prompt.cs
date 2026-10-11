@@ -14,11 +14,14 @@ namespace InsertCoin.Mind;
 /// </summary>
 public static class Prompt
 {
-    /// <summary>
-    /// Characters allowed in each always-present note (Hermes keeps its user profile to 1,375), and the words a note is
-    /// asked to keep to: models keep to words far better than to characters, and the words leave room below the limit.
-    /// </summary>
-    public const int NoteLimit = 1400, NoteWords = 180;
+    /// <summary>Characters allowed in each of the player's own notes (Hermes keeps its user profile to 1,375).</summary>
+    public const int NoteLimit = 1400;
+
+    /// <summary>The importance from which a fact is always in mind, and the room its list has, in characters.</summary>
+    public const int KnownFrom = 6, KnownLimit = 2000;
+
+    /// <summary>How long a fact that changed or ended shows as news.</summary>
+    public static readonly TimeSpan ChangeShown = TimeSpan.FromDays(14);
     /// <summary>The conversation word for word, in tokens, unless a setting says otherwise (see <see cref="Conversation.Window"/>).</summary>
     public const int DefaultWindow = 32_000, LocalWindow = 8_000;
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
@@ -188,6 +191,38 @@ public static class Prompt
     }
 
     /// <summary>A rough token count: about four letters of English per token, one per character of Chinese or Japanese.</summary>
+    /// <summary>
+    /// What she always has in mind about the player, or the two of them: the player's own words as they wrote them (the
+    /// memory book's Notes), then her most important facts, listed for every reply rather than rewritten into a note by
+    /// the model, so what changes is right in her next reply and nothing is lost to a rewrite (M9). Pinned facts first,
+    /// then by importance and the newest, while they fit; for a couple of weeks a fact that changed says what it was, and
+    /// an important one that ended says so, so she knows what is news.
+    /// </summary>
+    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now)
+    {
+        var lines = new List<string>();
+        if (own.Trim() is { Length: > 0 } words)
+            lines.Add($"In the player's own words: {words}");
+        var room = KnownLimit;
+        void Add(string line)
+        {
+            if (line.Length + 1 > room)
+                return;                                     // a shorter one further down may still fit
+            lines.Add(line);
+            room -= line.Length + 1;
+        }
+        var recent = retired.Where(f => f.Retired is { } at && now - at <= ChangeShown).ToList();
+        string Day(Fact f) => f.Retired!.Value.ToString("d MMM", English);
+        foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= KnownFrom)
+                                  .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
+            Add(recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
+                ? $"- {fact.Text} (Since {Day(before)}; before: {before.Text})"
+                : $"- {fact.Text}");
+        foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= KnownFrom))
+            Add($"- No longer so since {Day(ended)}: {ended.Text}");
+        return string.Join("\n", lines);
+    }
+
     public static int Tokens(string text)
     {
         var tokens = 0.0;

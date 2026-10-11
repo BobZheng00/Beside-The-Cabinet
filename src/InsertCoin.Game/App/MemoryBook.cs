@@ -73,9 +73,11 @@ public partial class MemoryBook : Window
         outer.AddChild(_tabs);
 
         var notes = Tab("Notes");
-        _about = Note(notes, "About you (every character knows this)", "Your name, what you're working towards, your exam dates…",
+        notes.AddChild(Hint("Yours to write: she keeps these in mind as you wrote them and never rewrites them. What she learns " +
+                            "herself is on Facts, and the most important of it is always in mind too."));
+        _about = Note(notes, "About you (every character knows this)", "What to call you, what you're working towards…",
                       store.Note(MindStore.Shared, MindStore.AboutUser));
-        _us = Note(notes, $"You and {characterName}", "How you two get along, what to call you, running jokes…", store.Note(characterId, MindStore.Us));
+        _us = Note(notes, $"You and {characterName}", "How you two get along, running jokes…", store.Note(characterId, MindStore.Us));
 
         var agenda = Tab("Agenda");
         var top = new HBoxContainer();
@@ -108,7 +110,7 @@ public partial class MemoryBook : Window
         _retiredToggle.Toggled += on => { retiredScroll.Visible = on; ShowRetired(); };
         ShowRetired();
 
-        var moments = Tab("Moments");
+        var moments = Tab("Diary");
         moments.AddChild(Hint("What she noted from your talks, day by day (\"!\" for what matters most). As they get older, a week of days is " +
                               "condensed into notes for the week, and weeks into months and years; the originals stay with her, out of sight."));
         _noteList = List(moments);
@@ -171,7 +173,7 @@ public partial class MemoryBook : Window
 
     public void Open() => Paper.Open(this, new Vector2(620, 680));
 
-    /// <summary>Shows a tab ("notes", "agenda", "facts", "moments", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
+    /// <summary>Shows a tab ("notes", "agenda", "facts", "diary", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
     public void ShowTab(string which)
     {
         if (which == "retired")
@@ -180,7 +182,7 @@ public partial class MemoryBook : Window
             _retiredToggle.ButtonPressed = true;
             return;
         }
-        var index = Array.IndexOf(["notes", "agenda", "facts", "moments", "memos", "forget"], which);
+        var index = Array.IndexOf(["notes", "agenda", "facts", "diary", "memos", "forget"], which);
         if (index >= 0)
             _tabs.CurrentTab = index;
     }

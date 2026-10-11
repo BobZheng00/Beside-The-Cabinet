@@ -37,6 +37,9 @@ public static class Upkeep
 {
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
+    /// <summary>How long a fact is asked to be, in words: one thing each, so a change replaces one thing (M8).</summary>
+    public const int FactWords = 20;
+
     /// <param name="known">The facts to reconcile against: those related to the notes (see <see cref="Recall.Related"/>).</param>
     /// <param name="notes">Her new notes on the conversation (see <see cref="Log"/>), about six times shorter than its lines, dates written out.</param>
     /// <param name="agenda">What is on the agenda now, so new plans are added once and changes reach the right item.</param>
@@ -63,7 +66,7 @@ public static class Upkeep
                   {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
                   {"op": "cancel", "id": 4}]}
 
-                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
+                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
 
                 Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn any relative date ("tomorrow", "next Friday") into a date from the day of the note. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded: with "before" ("10 min", "1 hour", "1 day") when they asked to be reminded that long ahead, else "when" is when the reminder goes off. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
                 """),
@@ -109,25 +112,6 @@ public static class Upkeep
             return null;
         }
     }
-
-    /// <summary>
-    /// The request that rewrites one of the notes she always has in mind from the facts behind it, keeping what the
-    /// note says unless a fact contradicts it (the player may have written parts of it).
-    /// </summary>
-    public static List<ChatMessage> Rewrite(string subject, string note, IEnumerable<Fact> facts) =>
-    [
-        new(ChatRole.System, $"""
-            You keep a short note that a companion always has in mind about {subject}. Rewrite the note using the facts below. Keep what the note says unless a fact contradicts it: the player may have written parts of it. Most important first, plain sentences, no lists, in the language most of the facts are in, at most {Prompt.NoteWords} words. Output only the note.
-            """),
-        new(ChatRole.User, $"The note now:\n{(note.Trim().Length > 0 ? note.Trim() : "(empty)")}\n\nFacts:\n{string.Join("\n", facts.Select(f => $"- {f.Text}"))}"),
-    ];
-
-    /// <summary>The request that shortens a note that came back over its room, keeping what matters most.</summary>
-    public static List<ChatMessage> Shorten(string note, int words) =>
-    [
-        new(ChatRole.System, $"Shorten this note to at most {words} words. Keep what matters most, with its names, dates and numbers; drop detail before anything important. Same language, plain sentences. Output only the note."),
-        new(ChatRole.User, note.Trim()),
-    ];
 
     /// <summary>
     /// The request that reviews a batch of her facts (sleep time, about weekly): merge what says the same thing, and

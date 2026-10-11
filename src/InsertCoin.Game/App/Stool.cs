@@ -1966,7 +1966,7 @@ public partial class Stool : Node2D
             case "allow": _permission.Choose(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.Choose(Answer.Always); break;
             case "deny": _permission.Choose(Answer.No); break;
-            case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, moments, forget; retired)
+            case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, diary, memos, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)
                     _memoryBook?.ShowTab(rest);

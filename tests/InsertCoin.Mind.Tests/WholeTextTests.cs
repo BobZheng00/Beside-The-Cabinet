@@ -63,25 +63,4 @@ public class WholeTextTests
         Assert.True(conversation.NeedsDigest(Conversation.Quiet));         // the rest, next time
     }
 
-    [Fact]
-    public async Task A_note_that_comes_back_over_its_room_is_sent_back_to_be_shortened_and_never_cut_mid_word()
-    {
-        using var temp = new TempStore();
-        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday.AddHours(2)));
-        temp.Store.Add("shino", Speaker.User, "I'm Sam, I live in Springfield and I love cats", Friday);
-        var model = new FakeModel();
-        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player is called Sam, lives in Springfield and loves cats."}]}""");
-        model.Answers.Enqueue("""{"facts": [{"op": "add", "about": "player", "text": "The player is called Sam and lives in Springfield.", "importance": 9}]}""");
-        model.Answers.Enqueue(string.Concat(Enumerable.Repeat("The player is called Sam and lives in Springfield. ", 40)));    // 1,960 characters
-        model.Answers.Enqueue(string.Concat(Enumerable.Repeat("Sam lives in Springfield and loves cats. ", 40)));             // still over: 1,520
-
-        Assert.True(await conversation.Digest(model));
-        Assert.True(await conversation.RefreshNotes(model));
-
-        var note = temp.Store.Note(MindStore.Shared, MindStore.AboutUser);
-        Assert.Contains("Shorten this note to at most 180 words", model.Requests[3][0].Text);
-        Assert.InRange(note.Length, 1300, Prompt.NoteLimit);
-        Assert.StartsWith("Sam lives in Springfield", note);
-        Assert.EndsWith("loves cats.", note);
-    }
 }

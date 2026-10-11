@@ -19,7 +19,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>Why a fact was retired when it stopped being true: it changed (followed by what it is now), or it ended. Recalled as what used to be.</summary>
     public const string Changed = "changed to:", Ended = "no longer true";
-    private const int KeepLines = 12, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
+    private const int KeepLines = 12, NoteImportance = 7, GiveUpAfter = 3, LoreBudget = 500;
+
+    /// <summary>A merged fact longer than this (about 30 words) joined different things into a paragraph, and isn't taken (M8).</summary>
+    private const int MergedTokens = 45;
     // a ceiling, not a target: the prompt keeps her short, and a model that thinks first spends this on its thinking too
     // (a GPT model thought 1,522 tokens for a short story, 2026-10-11), so 600 could leave nothing for her words
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 2000 };
@@ -104,7 +107,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     {
         var now = _clock.GetLocalNow();
         var folded = store.Folded(character);
-        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), Log.Left(store.Observations(character), folded),
+        var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
                                 voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch());
         var written = new StringBuilder();
@@ -175,7 +178,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         List<ChatMessage> Messages(bool withTools, bool seeing)
         {
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
-            var built = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
+            var built = Prompt.Build(persona, Known(MindStore.Shared), Known(character),
                                      log, recent, situation, turn, [.. lore, .. memories],
                                      VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch());
             foreach (var thing in handed)
@@ -643,8 +646,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// Upkeep, a few minutes into the quiet, in two narrow steps: notes the next stretch of the conversation not yet
     /// observed into her log (the notes come into view once their lines leave the window), then keeps what those notes
     /// tell of: facts, reconciled against the ones that relate (mem0's add, update, delete; a fact that changes keeps its
-    /// history), and the agenda's plans; the always-present notes are marked out of date when something important in them
-    /// changed (see <see cref="RefreshNotes"/>). Notes whose facts couldn't be kept are taken up again first. Returns false when there was nothing to read or the
+    /// history), and the agenda's plans, which reach her next reply as they are (see <see cref="Known"/>). Notes whose facts couldn't be kept are taken up again first. Returns false when there was nothing to read or the
     /// answer couldn't be used (tried again next time; a stretch that fails three times is passed over).
     /// </summary>
     public async Task<bool> Digest(IChatClient client, CancellationToken cancel = default)
@@ -702,8 +704,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
         var now = _clock.GetLocalNow();
         var byId = known.ToDictionary(f => f.Id);
-        var touched = new HashSet<string>();                // scopes whose important facts changed
-        var corrected = new HashSet<string>();              // ...or stopped being true
         foreach (var change in digestion.Changes)
         {
             switch (change.Op)
@@ -711,35 +711,25 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 // something she had retired has come up again: back to the foreground, not a second copy
                 case "add" when change.Text is { Length: > 2 } text2 && store.Retired(character).FirstOrDefault(f => Recall.Same(f.Text, text2)) is { } back:
                     store.Restore(back.Id, now);
-                    if (back.Importance >= CoreFrom)
-                        touched.Add(back.Scope);
                     break;
                 case "add" when change.Text is { Length: > 2 } text2 && !store.Facts(character).Any(f => Recall.Same(f.Text, text2)):
                     var scope = change.About == "us" ? character : MindStore.Shared;
-                    var importance = change.Importance ?? 5;
-                    store.AddFact(scope, text2, importance, now);
-                    if (importance >= CoreFrom)
-                        touched.Add(scope);
+                    store.AddFact(scope, text2, change.Importance ?? 5, now);
                     break;
                 // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
                 // new one learned now; the same thing in other words is just rewritten
                 case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2:
-                    var reworded = Recall.Same(old.Text, text2);
-                    if (reworded)
+                    if (Recall.Same(old.Text, text2))
                         store.UpdateFact(id, text2, change.Importance);
                     else
                     {
                         store.Retire(id, $"{Changed} {text2}", now);
                         store.AddFact(old.Scope, text2, change.Importance ?? old.Importance, now);
                     }
-                    if (Math.Max(old.Importance, change.Importance ?? 0) >= CoreFrom)
-                        (reworded ? touched : corrected).Add(old.Scope);
                     break;
                 // no longer true: retired, not deleted, so what used to be can still be recalled
                 case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned:
                     store.Retire(id, Ended, now);
-                    if (gone.Importance >= CoreFrom)
-                        corrected.Add(gone.Scope);
                     break;
             }
         }
@@ -766,8 +756,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        foreach (var scope in touched.Union(corrected))
-            Stale(scope, corrected.Contains(scope));
         return true;
     }
 
@@ -808,9 +796,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return false;                                   // tried again next time, from the same place
 
         var mine = batch.Where(x => !x.Pinned).ToDictionary(x => x.Id);
-        var touched = new HashSet<string>();
-        var corrected = new HashSet<string>();
-        foreach (var merge in verdict.Merges.Where(m => m.Ids.Distinct().Count() == m.Ids.Count && m.Ids.All(mine.ContainsKey) && m.Ids.Select(id => mine[id].Scope).Distinct().Count() == 1))
+        // a merge is of what says the same thing: one that comes out long joined different things into a paragraph (M8)
+        foreach (var merge in verdict.Merges.Where(m => m.Ids.Distinct().Count() == m.Ids.Count && m.Ids.All(mine.ContainsKey) && m.Ids.Select(id => mine[id].Scope).Distinct().Count() == 1
+                                                        && Prompt.Tokens(m.Text) <= MergedTokens))
         {
             var merged = merge.Ids.Select(id => mine[id]).ToList();
             var importance = merge.Importance ?? merged.Max(x => x.Importance);
@@ -823,65 +811,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 foreach (var old in merged)
                     store.Retire(old.Id, why, now);
             }
-            touched.UnionWith(merged.Where(x => Math.Max(x.Importance, importance) >= CoreFrom).Select(x => x.Scope));
             foreach (var id in merge.Ids)
                 mine.Remove(id);
         }
         foreach (var retirement in verdict.Retirements.Where(r => mine.ContainsKey(r.Id)))
         {
             store.Retire(retirement.Id, retirement.Why, now);
-            if (mine[retirement.Id].Importance >= CoreFrom)
-                corrected.Add(mine[retirement.Id].Scope);
         }
         var end = batch[^1].Id == facts[^1].Id;
         store.SetMark(key, end ? $"{now:O}|{store.Facts(character).Count}|0" : $"{(last == DateTimeOffset.MinValue ? now : last):O}|{count}|{batch[^1].Id}");
-        foreach (var scope in touched.Union(corrected))
-            Stale(scope, corrected.Contains(scope));
         return true;
-    }
-
-    /// <summary>How often an always-present note is rewritten at most, once something important in it has changed.</summary>
-    public static readonly TimeSpan NotesEvery = TimeSpan.FromDays(1);
-
-    private const string Corrected = "corrected";
-
-    /// <summary>
-    /// Something important about the player (<see cref="MindStore.Shared"/>) or the two of them changed: their note is out of
-    /// date (see <see cref="RefreshNotes"/>), and <paramref name="corrected"/> when something in it is no longer true.
-    /// </summary>
-    private void Stale(string scope, bool corrected)
-    {
-        if (store.Mark($"stale:{scope}") != Corrected)      // a correction waiting stays one
-            store.SetMark($"stale:{scope}", corrected ? Corrected : "1");
-    }
-
-    /// <summary>
-    /// Rewrites the always-present notes whose important facts changed: once the talk is quiet, after the conversation
-    /// has been noted (upkeep calls it only then), at most once a day each; at once while a note is still empty, and when
-    /// something important in it is no longer true, since a note saying what isn't so is the error that matters. A rewrite
-    /// reads up to 40 facts, and the notes head her prompt, so the next reply can't use the provider's cache: done after
-    /// every batch of notes, it made upkeep cost more than before (2026-10-11). What is new comes to her in the meantime
-    /// through the talk itself, her notes and recall. Returns true when a note was rewritten.
-    /// </summary>
-    public async Task<bool> RefreshNotes(IChatClient client, CancellationToken cancel = default)
-    {
-        if (!IsQuiet(Quiet))
-            return false;
-        var now = _clock.GetLocalNow();
-        foreach (var scope in new[] { MindStore.Shared, character })
-        {
-            if (store.Mark($"stale:{scope}") is not { Length: > 0 } stale)
-                continue;
-            var empty = store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us).Trim().Length == 0;
-            if (!empty && stale != Corrected && store.Mark($"rewritten:{scope}") is { } last && now - DateTimeOffset.Parse(last, System.Globalization.CultureInfo.InvariantCulture) < NotesEvery)
-                continue;
-            if (!await RewriteNote(client, scope, cancel))
-                return false;                               // tried again next time
-            store.SetMark($"stale:{scope}", "");
-            store.SetMark($"rewritten:{scope}", now.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
-            return true;
-        }
-        return false;
     }
 
     public static DateOnly MondayOf(DateTimeOffset at)
@@ -906,25 +845,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return response.FinishReason == ChatFinishReason.Length ? null : response;
     }
 
-    /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it; false when the answer couldn't be used.</summary>
-    private async Task<bool> RewriteNote(IChatClient client, string scope, CancellationToken cancel)
-    {
-        var name = scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us;
-        var facts = store.Facts(character).Where(f => f.Scope == scope && (f.Importance >= CoreFrom || f.Pinned))
-            .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).Take(CoreFacts).ToList();
-        var subject = scope == MindStore.Shared ? "the player" : $"the player and {persona.Name}";
-        if (await Whole(client, Upkeep.Rewrite(subject, store.Note(scope, name), facts), FoldOptions, cancel) is not { } response)
-            return false;                                   // the note stays as it was
-        var note = response.Text.Trim();
-        // over its room (two notes in three were, 2026-10-11): sent back once to be shortened, then kept to whole sentences
-        if (note.Length > Prompt.NoteLimit && await Whole(client, Upkeep.Shorten(note, Prompt.NoteWords), FoldOptions, cancel) is { } shorter
-            && shorter.Text.Trim() is { Length: > 0 } shortened && shortened.Length < note.Length)
-            note = shortened;
-        if (note.Length == 0)
-            return false;
-        store.SetNote(scope, name, Prompt.Fit(note, Prompt.NoteLimit));
-        return true;
-    }
+    /// <summary>What she always has in mind about the player (<see cref="MindStore.Shared"/>) or the two of them, for this reply (see <see cref="Prompt.Known"/>).</summary>
+    private string Known(string scope) =>
+        Prompt.Known(store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us),
+                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow());
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));
 }

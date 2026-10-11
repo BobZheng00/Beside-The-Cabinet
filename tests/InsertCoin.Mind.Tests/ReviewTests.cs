@@ -24,10 +24,8 @@ public class ReviewTests
             {"merge": [{"ids": [{{exam}}, {{again}}], "text": "The player's exam is on Monday 12 October 2026.", "importance": 8}],
              "retire": [{"id": {{film}}, "why": "the film date has passed"}, {"id": {{name}}, "why": "?"}, {"id": 999}]}
             """);
-        model.Answers.Enqueue("Bob. Exam on Monday 12 October 2026.");     // the note about the player, rewritten
 
         Assert.True(await conversation.Review(model));
-        Assert.True(await conversation.RefreshNotes(model));
 
         var asked = model.Requests[0];
         Assert.Contains("Today is Friday 2 October 2026", asked[0].Text);
@@ -40,7 +38,6 @@ public class ReviewTests
         const string into = "merged into \"The player's exam is on Monday 12 October 2026.\"";
         Assert.Equal([(exam, into), (again, into), (film, "the film date has passed")],
                      store.Retired("shino").Select(f => (f.Id, f.Why)));
-        Assert.Equal("Bob. Exam on Monday 12 October 2026.", store.Note(MindStore.Shared, MindStore.AboutUser));
         Assert.False(await conversation.Review(model));                                       // not due again for a week
 
         // it comes up again: back to the foreground, not a second copy
@@ -90,5 +87,24 @@ public class ReviewTests
 
         Assert.False(await conversation.Review(new FakeModel("I'd rather not.")));
         Assert.True(await conversation.Review(new FakeModel(Nothing)));
+    }
+
+    [Fact]
+    public async Task A_merge_that_joins_different_things_into_a_paragraph_is_not_taken()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var art = store.AddFact(MindStore.Shared, "The player paints.", 7, Friday.AddDays(-10));
+        var youth = store.AddFact(MindStore.Shared, "The player volunteers at a youth center.", 7, Friday.AddDays(-9));
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel($$"""
+            {"merge": [{"ids": [{{art}}, {{youth}}], "text": "The player paints to express feelings that are hard to put into words, explores who she is through abstract art, volunteers at a youth center, mentors a teenager and hopes to become a counselor.", "importance": 8}],
+             "retire": []}
+            """);
+
+        Assert.True(await conversation.Review(model));
+
+        Assert.Equal(["The player paints.", "The player volunteers at a youth center."], store.Facts("shino").Select(f => f.Text));
+        Assert.Empty(store.Retired("shino"));
     }
 }
