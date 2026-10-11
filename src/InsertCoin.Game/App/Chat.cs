@@ -651,11 +651,11 @@ public sealed class Chat : IDisposable
         _upkeeping = true;
         try
         {
-            // something new to read; else old moments to combine; else, when quiet and due, a review of her facts;
+            // something new to read; else her notes to condense, or old moments to combine; else, when quiet and due, a review of her facts;
             // and vectors for whatever has none yet
             if (digest)
                 await conversation.Digest(_client);
-            else if (!await conversation.Consolidate(_client) && conversation.IsQuiet(Conversation.Quiet))
+            else if (!await conversation.Condense(_client) && !await conversation.Consolidate(_client) && conversation.IsQuiet(Conversation.Quiet))
                 await conversation.Review(_client);
             await conversation.Index();
             // the window three quarters full and the talk quiet: fold it now, when a 5-minute cache has gone cold anyway

@@ -147,6 +147,12 @@ public sealed class MindStore : IDisposable
             UPDATE summaries SET text = '' WHERE text <> '';
             PRAGMA user_version = 11;
             """);
+        // version 12: notes can be condensed, a week of days into the week and so on (see Conversation.Condense): the span
+        // a note covers, and whether it was condensed into a longer one (kept out of view, still recalled)
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('observations') WHERE name = 'span'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE observations ADD COLUMN span INTEGER NOT NULL DEFAULT 0; ALTER TABLE observations ADD COLUMN condensed INTEGER NOT NULL DEFAULT 0; " +
+                    "PRAGMA user_version = 12;");
     }
 
     // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
@@ -741,12 +747,7 @@ public sealed class MindStore : IDisposable
     public void Observe(string character, IReadOnlyList<Observation> observed, long through, DateTimeOffset at)
     {
         using var transaction = _db.BeginTransaction();
-        foreach (var o in observed)
-        {
-            using var add = Command("INSERT INTO observations (character, at, priority, text, first, last) VALUES ($c, $a, $p, $t, $f, $l)",
-                ("$c", character), ("$a", Stamp(o.At)), ("$p", (int)o.Priority), ("$t", o.Text.Trim()), ("$f", o.First), ("$l", o.Last));
-            add.ExecuteNonQuery();
-        }
+        AddObservations(character, observed);
         using var fold = Command("""
             INSERT INTO summaries (character, text, through, at) VALUES ($c, '', $i, $a)
             ON CONFLICT (character) DO UPDATE SET through = excluded.through, at = excluded.at
@@ -755,14 +756,41 @@ public sealed class MindStore : IDisposable
         transaction.Commit();
     }
 
-    /// <summary>Her log, oldest first.</summary>
+    /// <summary>
+    /// Notes condensed into <paramref name="condensed"/>, together: the originals stay in her log, marked as condensed,
+    /// so they are out of view but still recalled.
+    /// </summary>
+    public void Condense(string character, IReadOnlyList<long> originals, IReadOnlyList<Observation> condensed)
+    {
+        using var transaction = _db.BeginTransaction();
+        AddObservations(character, condensed);
+        foreach (var id in originals)
+        {
+            using var mark = Command("UPDATE observations SET condensed = 1 WHERE id = $i", ("$i", id));
+            mark.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    private void AddObservations(string character, IReadOnlyList<Observation> observations)
+    {
+        foreach (var o in observations)
+        {
+            using var add = Command("INSERT INTO observations (character, at, priority, text, first, last, span) VALUES ($c, $a, $p, $t, $f, $l, $s)",
+                ("$c", character), ("$a", Stamp(o.At)), ("$p", (int)o.Priority), ("$t", o.Text.Trim()), ("$f", o.First), ("$l", o.Last), ("$s", (int)o.Span));
+            add.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Her log, oldest first, the notes that were condensed into others too.</summary>
     public IReadOnlyList<Observation> Observations(string character)
     {
-        using var command = Command("SELECT id, at, priority, text, first, last FROM observations WHERE character = $c ORDER BY at, id", ("$c", character));
+        using var command = Command("SELECT id, at, priority, text, first, last, span, condensed FROM observations WHERE character = $c ORDER BY at, id", ("$c", character));
         using var reader = command.ExecuteReader();
         var log = new List<Observation>();
         while (reader.Read())
-            log.Add(new Observation(reader.GetInt64(0), Parse(reader.GetString(1)), (Priority)reader.GetInt32(2), reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5)));
+            log.Add(new Observation(reader.GetInt64(0), Parse(reader.GetString(1)), (Priority)reader.GetInt32(2), reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5),
+                                    (Span)reader.GetInt32(6), reader.GetInt32(7) != 0));
         return log;
     }
 

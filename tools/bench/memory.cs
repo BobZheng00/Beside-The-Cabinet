@@ -211,7 +211,7 @@ static async Task Upkeep(Conversation conversation, IChatClient client)
             did = true;                                     // a stretch that fails three times is skipped by Digest itself
         }
         else
-            did = await conversation.Consolidate(client) || (conversation.IsQuiet(Conversation.Quiet) && await conversation.Review(client));
+            did = await conversation.Condense(client) || await conversation.Consolidate(client) || (conversation.IsQuiet(Conversation.Quiet) && await conversation.Review(client));
         while (await conversation.Index() > 0)
         {
         }

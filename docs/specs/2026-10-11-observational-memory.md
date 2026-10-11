@@ -19,6 +19,12 @@ Decided with the player on 2026-10-11, after measuring her memory on LongMemEval
   LongMemEval it scores 84% with GPT-4o and 95% with gpt-5-mini, where GPT-4o reading the whole history scores about
   60% ([Mastra](https://mastra.ai/research/observational-memory)).
 
+## Nothing cut off
+
+What the model writes is never kept cut (see docs/memory-issues.md M7 and R2): the log is sized by choosing whole notes,
+never by cutting text; lengths are asked in words, which models keep to better than characters; an answer the
+provider cut at its length limit is asked again with twice the room, and a batch that still doesn't fit is halved.
+
 ## The design
 
 - **The log.** Rows, not prose: each observation has the day it was said, a priority (high, medium, low), its text,
@@ -38,10 +44,17 @@ Decided with the player on 2026-10-11, after measuring her memory on LongMemEval
 ## Phases
 
 1. **The log in place of the summary** (observing, what she sees, older ones recalled, the chat history showing it).
-   Measured against the runs of 2026-10-11 on the old build: LoCoMo at the 8k window, question by question, and the
-   LongMemEval sample on knowledge that changed, time and combining sittings.
+   *Built 2026-10-11* on the branch `observational-memory` (`Log`, `Conversation.Fold`, `MindStore.Observe`; tests in
+   `LogTests`). Measured against the runs of 2026-10-11 on the old build: LoCoMo at the 8k window, question by
+   question, and the LongMemEval sample on knowledge that changed, time and combining sittings. Its first notes on the
+   player's model were dense and exact: names, dates written out in full, her own suggestions noted.
 2. **Condensing:** when the log outgrows what she sees, a second narrow request condenses its oldest part (days into
    weeks, weeks into months), keeping what is marked high nearly word for word; the originals stay, recallable.
+   *Built 2026-10-11* on the same branch (`Log.ToCondense`, `Log.Condense`, `Conversation.Condense`): only a finished
+   week, month or year is condensed, the oldest first, one step each time upkeep runs while the talk is quiet (so her
+   cached prompt doesn't change mid-conversation); about a third as long, the size asked in words; a lone note moves
+   up a level without asking; the view reads from the coarsest to the finest ("August 2026", "Week of 21 Sep 2026",
+   then days).
 3. **One digestion:** facts, plans and notes drawn from the observations instead of from the raw lines again, and the
    day's moments retired (the memory book shows the log). Facts get dates of validity: an update closes the old fact
    instead of deleting it.

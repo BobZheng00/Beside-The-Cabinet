@@ -109,6 +109,80 @@ public class LogTests
         Assert.Empty(Log.Parse("""{"observations": []}""", lines)!);
     }
 
+    // ---- Condensing ------------------------------------------------------------------------------------------------
+
+    /// <summary>A note a day from Monday 24 August to Thursday 1 October 2026, each about a hundred tokens: far over 1,500.</summary>
+    private static void Daily(MindStore store, string first = "The player practised graphs.")
+    {
+        for (var i = 0; i < 39; i++)
+            store.Observe("shino", [new Observation(0, Friday.AddDays(-39 + i).AddHours(-7), Priority.Medium, (i == 0 ? first : $"Day {i}: graphs.") + " " + new string('x', 380), 1, 1)],
+                          1, Friday.AddDays(-39 + i));
+    }
+
+    [Fact]
+    public async Task When_her_notes_outgrow_their_room_the_oldest_finished_week_is_condensed_and_its_notes_stay_recallable()
+    {
+        using var temp = new TempStore();
+        Daily(temp.Store, first: "The player adopted a kitten named Miso.");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday)) { Window = 4000 };     // 1,500 tokens of notes in view
+        var model = new FakeModel("""{"observations": [{"priority": "high", "text": "That week the player settled into a daily graph practice."}]}""");
+
+        Assert.True(await conversation.Condense(model));
+
+        Assert.Contains("Below are her notes from the week starting Monday 24 August 2026", model.Requests.Single()[0].Text);
+        Assert.StartsWith("Mon 24 Aug 2026\n- The player adopted a kitten named Miso.", model.Requests.Single()[1].Text);
+        var log = temp.Store.Observations("shino");
+        var week = log.Single(o => o.Span == Span.Week);
+        Assert.Equal((new DateTimeOffset(2026, 8, 24, 0, 0, 0, Friday.Offset), Priority.High, false), (week.At, week.Priority, week.Condensed));
+        Assert.Equal(7, log.Count(o => o.Condensed));
+        Assert.StartsWith("Week of 24 Aug 2026\n- ! That week the player settled into a daily graph practice.\nMon 31 Aug 2026",
+                          Log.Laid([.. log.Where(o => !o.Condensed)], null));
+
+        // the original is out of view, and still comes back when it comes up
+        var answer = new FakeModel("Miso!");
+        await conversation.Answer(answer, "what was my kitten called again?", "", _ => { }, (_, _) => { });
+        Assert.DoesNotContain("Miso", answer.Requests.Single()[0].Text);
+        Assert.Contains("The player adopted a kitten named Miso.", answer.Requests.Single()[^1].Text);
+    }
+
+    [Fact]
+    public async Task A_lone_note_moves_up_a_level_without_asking_and_a_week_still_going_on_is_left_as_it_is()
+    {
+        using var temp = new TempStore();
+        temp.Store.Observe("shino", [new Observation(0, Friday.AddDays(-40), Priority.Low, "The player mentioned rain.", 1, 1)], 1, Friday.AddDays(-40));
+        for (var i = 0; i < 30; i++)                                  // this week's notes alone are over the room
+            temp.Store.Observe("shino", [new Observation(0, Friday.AddHours(-i), Priority.Medium, $"Hour {i}. " + new string('x', 380), 1, 1)], 1, Friday);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday)) { Window = 4000 };
+        var model = new FakeModel("unused");
+
+        Assert.True(await conversation.Condense(model));               // Sun 23 Aug's week had one note: moved up as it was
+        Assert.Empty(model.Requests);
+        Assert.Equal(("The player mentioned rain.", Span.Week), temp.Store.Observations("shino").Where(o => !o.Condensed).Select(o => (o.Text, o.Span)).First());
+
+        Assert.True(await conversation.Condense(model));               // and its month, finished too
+        Assert.False(await conversation.Condense(model));              // then only the week still going on is left: nothing to do
+        Assert.Empty(model.Requests);
+    }
+
+    [Fact]
+    public void Weeks_go_into_their_month_once_no_finished_week_of_days_is_left_and_nothing_is_condensed_while_the_notes_fit()
+    {
+        var august = new DateTimeOffset(2026, 8, 1, 0, 0, 0, Friday.Offset);
+        List<Observation> log =
+        [
+            new(1, august.AddDays(2), Priority.High, "Week one. " + new string('x', 2000), 1, 1, Span.Week),
+            new(2, august.AddDays(9), Priority.Medium, "Week two. " + new string('x', 2000), 1, 1, Span.Week),
+            new(3, august.AddDays(5), Priority.Low, "Condensed already.", 1, 1, Span.Day, Condensed: true),
+            new(4, Friday, Priority.Medium, "Today. " + new string('x', 2000), 1, 1),
+        ];
+
+        var stretch = Log.ToCondense(log, 4000, Friday)!;
+
+        Assert.Equal((Span.Month, august, "August 2026"), (stretch.Span, stretch.At, stretch.Period));
+        Assert.Equal([1L, 2L], stretch.Notes.Select(n => n.Id));
+        Assert.Null(Log.ToCondense(log, 100_000, Friday));             // everything fits
+    }
+
     [Fact]
     public void A_summary_from_before_becomes_her_first_note_once()
     {

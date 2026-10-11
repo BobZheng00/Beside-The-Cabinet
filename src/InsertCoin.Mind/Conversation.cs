@@ -32,7 +32,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     // (a GPT model thought 1,522 tokens for a short story, 2026-10-11), so 600 could leave nothing for her words
     private static readonly ChatOptions ReplyOptions = new() { MaxOutputTokens = 2000 };
     private static readonly ChatOptions FoldOptions = new() { MaxOutputTokens = 1500 };
-    private static readonly ChatOptions ObserveOptions = new() { MaxOutputTokens = 4000 };       // a batch's observations, and room to think first
+    private static readonly ChatOptions ObserveOptions = new() { MaxOutputTokens = 4000 }, CondenseOptions = new() { MaxOutputTokens = 4000 };      // room to think first
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
@@ -555,6 +555,26 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             fold = [.. fold.Skip(batch.Count)];
         }
         return folded;
+    }
+
+    /// <summary>
+    /// When her notes no longer fit what she sees of them (see <see cref="Log.Budget"/>), condenses the oldest finished
+    /// stretch one step (see <see cref="Log.ToCondense"/>): a week of days into notes for the week, a month of weeks into
+    /// the month, a year of months into the year. The originals stay in her log, out of view, recalled when they come
+    /// up. Only while the talk is quiet, so her cached prompt doesn't change in the middle of a conversation; one step a
+    /// call, as upkeep runs. False when nothing needed condensing or the answer couldn't be used (tried again later).
+    /// </summary>
+    public async Task<bool> Condense(IChatClient client, CancellationToken cancel = default)
+    {
+        if (!IsQuiet(Quiet) || Log.ToCondense(store.Observations(character), Window, _clock.GetLocalNow()) is not { } stretch)
+            return false;
+        List<Observation>? condensed = stretch.Notes.Count == 1
+            ? [stretch.Notes[0] with { Id = 0, At = stretch.At, Span = stretch.Span }]           // a lone note just moves up a level
+            : await Whole(client, Log.Condense(persona, stretch), CondenseOptions, cancel) is { } response ? Log.Parse(response.Text, stretch) : null;
+        if (condensed is null)
+            return false;
+        store.Condense(character, [.. stretch.Notes.Select(n => n.Id)], condensed);
+        return true;
     }
 
     /// <summary>What the player said and her stored facts, episodes and observations as vectors, or null without a model (or if it fails).</summary>
