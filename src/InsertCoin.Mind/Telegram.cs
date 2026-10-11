@@ -153,6 +153,10 @@ public static class Pairing
 
     public static string Link(string bot, string code) => $"https://t.me/{bot}?start={code}";
 
+    /// <summary>The same in Telegram in a browser, for a PC without Telegram's app (t.me needs the app there to open).</summary>
+    public static string WebLink(string bot, string code) =>
+        "https://web.telegram.org/k/#?tgaddr=" + Uri.EscapeDataString($"tg://resolve?domain={bot}&start={code}");
+
     /// <summary>The player pressed Start through the link with this code, in a chat of their own, in time.</summary>
     public static bool Pairs(Update update, string code, DateTimeOffset issued, DateTimeOffset now) =>
         update.Private && update.Text?.Trim() == $"/start {code}" && now - issued <= Lasts;

@@ -47,13 +47,13 @@ public partial class Texting : Node
         _ = Listen(_bot, _stop.Token);
     }
 
-    /// <summary>A new pairing code for this bot (its username): the link to open or scan, good for ten minutes. A chat paired before is let go.</summary>
-    public string Pair(string token, string bot)
+    /// <summary>A new pairing code for this bot, for its links (see <see cref="Pairing"/>), good for ten minutes. A chat paired before is let go.</summary>
+    public string Pair(string token)
     {
         var code = DevCode ?? Pairing.NewCode();
         Use(token, null);
         _pairing = (code, DateTimeOffset.Now);
-        return Pairing.Link(bot, code);
+        return code;
     }
 
     /// <summary>A message to the player; if Telegram can't be reached, the log says so.</summary>

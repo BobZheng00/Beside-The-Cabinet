@@ -24,7 +24,7 @@ public partial class PhoneSettings : VBoxContainer
     /// <summary>"Forget it": the paired bot is let go.</summary>
     public event Action? TelegramForgotten;
 
-    private const string BotFather = "https://t.me/BotFather";
+    private const string BotFather = "https://web.telegram.org/k/#@BotFather";      // in a browser: t.me needs Telegram's app on this PC
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private Elsewhere _elsewhere = new();
@@ -98,7 +98,8 @@ public partial class PhoneSettings : VBoxContainer
 
         Form.Hint(steps, $"A bot of your own, for {name} alone: about two minutes, all but the last step in Telegram.");
         var first = Form.Buttons(steps);
-        first.AddChild(Form.Hint($"1. In Telegram, message @BotFather and send /newbot. Give it {name}'s name, then a username ending in \"bot\"."));
+        first.AddChild(Form.Hint($"1. Open BotFather (Telegram in your browser; log in there once with your phone) and send /newbot. Give " +
+                                 $"it {name}'s name, then a username ending in \"bot\"."));
         Form.Button(first, "Open BotFather", () => OS.ShellOpen(BotFather));
         Form.Hint(steps, "2. Paste the token BotFather gives you, and Check it.");
         var token = Form.Field(Form.Grid(steps), "Bot token", paired ? _secrets.TelegramToken : null, "123456:ABC…", secret: true);
@@ -107,15 +108,18 @@ public partial class PhoneSettings : VBoxContainer
         var scan = new VBoxContainer { Visible = false };
         scan.AddThemeConstantOverride("separation", 6);
         steps.AddChild(scan);
-        Form.Hint(scan, "3. Scan this with your phone, or open the link on it, and press Start. The code is good for ten minutes.");
+        Form.Hint(scan, "3. Scan this with your phone, or open it in this browser, and press Start. The code is good for ten minutes.");
         var code = new TextureRect
         {
             TextureFilter = TextureFilterEnum.Nearest, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspect, CustomMinimumSize = new Vector2(180, 180), SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
         };
         scan.AddChild(code);
+        var open = Form.Buttons(scan);
         var link = new LineEdit { Editable = false, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        scan.AddChild(link);
+        open.AddChild(link);
+        var web = "";
+        Form.Button(open, "Open it in this browser", () => OS.ShellOpen(web));
         Form.Say(Form.Result(scan), "Waiting for you to press Start…", Paper.Faint);
         Form.Button(check, "Check", async () =>
         {
@@ -150,7 +154,9 @@ public partial class PhoneSettings : VBoxContainer
             }
             if (!IsInstanceValid(this))
                 return;
-            var address = texting.Pair(given, username);
+            var pairing = texting.Pair(given);
+            var address = Pairing.Link(username, pairing);
+            web = Pairing.WebLink(username, pairing);
             Form.Say(found, $"Found @{username}.", Paper.Good);
             code.Texture = PhoneCard.Code(address);
             link.Text = address;

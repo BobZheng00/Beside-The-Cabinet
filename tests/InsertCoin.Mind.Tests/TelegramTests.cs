@@ -121,6 +121,8 @@ public class TelegramTests
         Assert.Matches("^[a-f0-9]{24}$", code);
         Assert.NotEqual(code, Pairing.NewCode());
         Assert.Equal($"https://t.me/hana_cabinet_bot?start={code}", Pairing.Link("hana_cabinet_bot", code));
+        Assert.Equal($"https://web.telegram.org/k/#?tgaddr=tg%3A%2F%2Fresolve%3Fdomain%3Dhana_cabinet_bot%26start%3D{code}",
+                     Pairing.WebLink("hana_cabinet_bot", code));
         Assert.True(Pairing.Pairs(start, code, Noon.AddMinutes(-3), Noon));
         Assert.False(Pairing.Pairs(start, code, Noon.AddMinutes(-11), Noon));                    // too late
         Assert.False(Pairing.Pairs(start with { Private = false }, code, Noon, Noon));            // a group
