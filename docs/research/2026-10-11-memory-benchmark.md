@@ -109,8 +109,12 @@ answers about the right event (issue M5); not a memory she made up.
 
 ### The old memory over more of LoCoMo
 
-At the 8k window over six conversations (833 answerable questions): 70% right on the strict grade, 77% on Mem0's.
-The 32k runs (the whole conversation word for word, our own baseline) and the last conversations were still running.
+At the 8k window over all ten conversations (1,482 answerable questions): 69% right on the strict grade, 76% on
+Mem0's. At 32k, the whole conversation word for word or nearly (42 to 50 run past it), nine conversations and 1,286
+questions: 82% and 86%. So the old memory lost about 13 points against having everything in view; on conversation
+26 the new memory closes that gap (84% at 8k, against 81% for everything in view on the same questions). Not yet
+run: the new memory on the other nine. LongMemEval's 44-question sample on the old memory was paused at 22 (20
+right), at the player's word: each question took about 14 minutes, its 115k tokens of history all taken in.
 
 ### Retrieval, measured without a model
 
