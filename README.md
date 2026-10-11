@@ -99,6 +99,14 @@ makes sense at the PC (bedtime words, a break from a long game) waits for you wh
 to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
 I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to.
 
+**Texting with her.** On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with her on
+Telegram": make a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). She
+answers by text, knowing you're out; her cards come as buttons, a memo as a message (it prints too), and photos and
+files you send reach her. What needs you at the PC (your screen, opening things) waits until you're back. What you
+texted while the cabinet was closed (Telegram keeps it a day) she reads when it next runs, and answers once. Only
+your chat is listened to. Her chat goes through Telegram's servers and isn't end-to-end encrypted. Each profile
+needs a bot of its own, the demo too.
+
 A SillyTavern-style character card (`.png` or `.json`, V1 to V3) dropped on the cabinet or picked with "Add a
 character…" gives whoever is on the stool its personality, example dialogue and lorebook (background that comes
 up when its keywords are mentioned); she greets you as the card says.
@@ -290,7 +298,8 @@ agenda items, retired facts and a moment to try it on), `remind:some_text` (a re
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
 `whereabouts:away` (the player is away whatever the cabinet watches; `here`, `unsure`, `asleep`; `whereabouts:off` watches
-again; a test run takes the player as here),
+again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in Telegram, such as
+`fake_telegram.py`), `paircode:CODE` (the next pairing code, for it to send back),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (digest the conversation now), `moment:note`, `voicetest` (her voice's

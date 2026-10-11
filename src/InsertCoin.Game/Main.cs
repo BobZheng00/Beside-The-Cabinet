@@ -53,6 +53,7 @@ public partial class Main : Node2D
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private Calendars _calendars = null!;
     private SettingsWindow? _settingsWindow;
+    private Texting _texting = null!;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
@@ -120,6 +121,21 @@ public partial class Main : Node2D
         _stool.Idle = Idle;
         _stool.TextOut = Text;
         _stool.CanText = () => _settings.ReminderElsewhere.Any;
+        // texting with her on Telegram: a bot already paired (or set up before pairing existed, with its chat) is listened to
+        _texting = new Texting();
+        AddChild(_texting);
+        _stool.Phone = _texting;
+        _texting.Texted += _stool.Texted;
+        _texting.Paired += (token, chat) =>
+        {
+            _elsewhereKeys.Save((ElsewhereSecrets.FromJson(_elsewhereKeys.Load()) with { TelegramToken = token, TelegramChat = chat }).ToJson());
+            SaveSettings(_settings with { ReminderElsewhere = _settings.ReminderElsewhere with { Telegram = true } });
+            _ = _stool.SayHello();
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.RefreshPage("phone");
+        };
+        if (_settings.ReminderElsewhere.Telegram && ElsewhereSecrets.FromJson(_elsewhereKeys.Load()) is { TelegramToken: { } bot, TelegramChat: { } chat })
+            _texting.Use(bot, chat);
         _crt = new CrtOs();
         AddChild(_crt);
         _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
@@ -577,6 +593,19 @@ public partial class Main : Node2D
             _ticket.DevPress(int.Parse(action["ticketpress:".Length..]));
             return;
         }
+        if (action.StartsWith("telegramat:"))
+        {
+            // telegramat:http://127.0.0.1:port talks to a stand-in Telegram, so that no real bot is needed; listening starts again there
+            Telegram.Server = action["telegramat:".Length..];
+            if (ElsewhereSecrets.FromJson(_elsewhereKeys.Load()) is { TelegramToken: { } bot, TelegramChat: var chat } && _settings.ReminderElsewhere.Telegram)
+                _texting.Use(bot, chat);
+            return;
+        }
+        if (action.StartsWith("paircode:"))                 // paircode:CODE: the next pairing code, for a stand-in Telegram to send back
+        {
+            Texting.DevCode = action["paircode:".Length..];
+            return;
+        }
         if (action.StartsWith("elsewhere:"))
         {
             // elsewhere:http://127.0.0.1:port points ntfy (topic "test") and the webhook (/hook) at a local test server
@@ -762,11 +791,22 @@ public partial class Main : Node2D
     private Control YourPhonePage()
     {
         var page = new PhoneSettings();
-        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), _settings.AwayMinutes, _settings.AlsoAtThePc);
+        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), _settings.AwayMinutes, _settings.AlsoAtThePc, _texting, _stool.HerName());
         page.Chosen += (where, secrets) =>
         {
-            SaveSettings(_settings with { ReminderElsewhere = where });
+            // the Telegram bot is the pairing's: kept as it is now, whatever the page held when it was made
+            var paired = ElsewhereSecrets.FromJson(_elsewhereKeys.Load());
+            SaveSettings(_settings with { ReminderElsewhere = where with { Telegram = _settings.ReminderElsewhere.Telegram } });
+            secrets = secrets with { TelegramToken = paired.TelegramToken, TelegramChat = paired.TelegramChat };
             _elsewhereKeys.Save(secrets == new ElsewhereSecrets() ? null : secrets.ToJson());
+        };
+        page.TelegramForgotten += () =>
+        {
+            var kept = ElsewhereSecrets.FromJson(_elsewhereKeys.Load()) with { TelegramToken = null, TelegramChat = null };
+            _elsewhereKeys.Save(kept == new ElsewhereSecrets() ? null : kept.ToJson());
+            SaveSettings(_settings with { ReminderElsewhere = _settings.ReminderElsewhere with { Telegram = false } });
+            _texting.Use(null, null);
+            _settingsWindow?.RefreshPage("phone");
         };
         page.AwayChosen += minutes => SaveSettings(_settings with { AwayMinutes = minutes });
         page.AtThePcChosen += on => SaveSettings(_settings with { AlsoAtThePc = on });

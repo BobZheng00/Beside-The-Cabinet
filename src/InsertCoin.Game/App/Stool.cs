@@ -38,6 +38,9 @@ public partial class Stool : Node2D
     private readonly Queue<(string Title, string Text)> _written = new();     // the player's own memos, for her to think over
     private readonly List<Telling> _toTell = [];            // what she has to tell the player: reminders, focus turns, check-ins, rest… (see Reaching)
     private readonly List<(Notice Text, DateTimeOffset Since)> _inCase = [];   // texts that go if the player turns out to have gone
+    private readonly Queue<(string Said, IReadOnlyList<Attachment> Handed)> _texts = new();   // what the player texted her, for her to answer
+    private bool _texting;                                  // she is writing to the player by text: her cards come as buttons
+    private bool _texted;                                   // the player's last words came by text
     private DateTimeOffset _quietFrom;                      // when she last stopped talking or listening
 
     /// <summary>Settings should open at this page (a voice just added that still needs something).</summary>
@@ -90,6 +93,9 @@ public partial class Stool : Node2D
 
     /// <summary>How long since the player's last input (keys, the mouse, a game pad); set by the cabinet's loop.</summary>
     public Func<TimeSpan> Idle { get; set; } = UserActivity.IdleFor;
+
+    /// <summary>Texting with the player on Telegram, both ways (see <see cref="Texting"/>); set by the cabinet's loop.</summary>
+    public Texting? Phone { get; set; }
 
     /// <summary>Her figure, while someone is on the stool.</summary>
     public CompanionView? Her { get; private set; }
@@ -633,7 +639,7 @@ public partial class Stool : Node2D
         string? words = null;
         if (_chat.Ready && Her is not null && !telling.Plain && telling.Note.Length > 0)
         {
-            _announcing = true;
+            _announcing = _texting = _chat.Tools.Away = true;
             try
             {
                 words = await _chat.Text($"{telling.Note}\n{Reaching.AsText}", Situation(), Her, _voice.Language,
@@ -645,7 +651,7 @@ public partial class Stool : Node2D
             }
             finally
             {
-                _announcing = false;
+                _announcing = _texting = _chat.Tools.Away = false;
             }
             if (words is null && telling.Line.Length > 0)
             {
@@ -681,6 +687,79 @@ public partial class Stool : Node2D
     {
         if (TextOut is { } send)
             await send(notice);
+    }
+
+    // ---- Texting with her (Telegram) ---------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The player texted her (see <see cref="Texting"/>): their last words came by text, so they are away until they use
+    /// the PC again, and she answers by text once she is free.
+    /// </summary>
+    public void Texted(string said, IReadOnlyList<Attachment> handed)
+    {
+        _chat.Store.SetMark(Reaching.Mark, Reaching.Marked(asleep: false, DateTimeOffset.Now));
+        _texts.Enqueue((said, handed));
+        GD.Print($"Texting: the player texted her{(handed.Count > 0 ? $", with {handed.Count} {(handed.Count == 1 ? "thing" : "things")}" : "")}");
+    }
+
+    private void AnswerTexts()
+    {
+        if (_texts.Count == 0 || Busy || Her is null)
+            return;
+        var (said, handed) = _texts.Dequeue();
+        _ = TextBack(said, handed);
+    }
+
+    /// <summary>Her answer to what they texted, by text; what needs them at the PC is out of her reach meanwhile, and her cards come as buttons.</summary>
+    private async Task TextBack(string said, IReadOnlyList<Attachment> handed)
+    {
+        if (Phone is not { } phone)
+            return;
+        if (!_chat.Ready)
+        {
+            await phone.Send("(She can't answer yet: connect her mind on the PC, in Settings → Her mind.)");
+            return;
+        }
+        _announcing = _texting = _chat.Tools.Away = true;
+        try
+        {
+            if (!_texted)
+                _chat.Conversation?.Witness(Reaching.TextingBegins);
+            _texted = true;
+            phone.Typing();
+            if (await _chat.TextBack(said, handed, Situation(), Her!, _voice.Language) is { } words)
+                await phone.Send(words);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Texting: {e}");                   // nobody awaits this task: say what went wrong here
+        }
+        finally
+        {
+            _announcing = _texting = _chat.Tools.Away = false;
+        }
+    }
+
+    /// <summary>Just paired: she says hello in the new chat, in her own words when her mind is connected.</summary>
+    public async Task SayHello()
+    {
+        if (Phone is not { } phone)
+            return;
+        string? words = null;
+        if (_chat.Ready && Her is not null && !Busy)
+        {
+            _announcing = _texting = true;
+            try
+            {
+                words = await _chat.Text("The player has just paired their phone with you on Telegram, so that you can text each other while they're " +
+                                         "away from the PC. Say hello there, in a short text.", Situation(), Her, _voice.Language, Reaching.HerWordsWithin);
+            }
+            finally
+            {
+                _announcing = _texting = false;
+            }
+        }
+        await phone.Send(words ?? $"Hi! It's {HerName()}. Text me here when you're away from the PC.");
     }
 
     // ---- Her focus and music tools ---------------------------------------------------------------------------------------
@@ -947,6 +1026,7 @@ public partial class Stool : Node2D
     public override void _Process(double delta)
     {
         PassOn();
+        AnswerTexts();
         ThinkOverMemos();
     }
 
@@ -1384,6 +1464,11 @@ public partial class Stool : Node2D
     {
         if (Her is null)
             return;
+        if (_texted)
+        {
+            _chat.Conversation?.Witness(Reaching.TextingEnds);     // so she knows which lines were texted
+            _texted = false;
+        }
         _lastTalked = DateTimeOffset.Now;
         var handed = _chatBox.TakeHanded();                 // what waits on the slip goes with it, typed or said
         _listening.Drop();
@@ -1440,17 +1525,26 @@ public partial class Stool : Node2D
     private string PrintMemo(string title, string text, string by)
     {
         _memos.Print(title, text, by, delay: Her?.SendMemo() ?? 0);
+        if (_texting)
+            _ = Phone?.Send($"{title}\n\n{text}");          // while texting, it comes to their phone too
         return "Printed: it's hanging from the cabinet's slot, for the player to read, pin on the cabinet's side or keep.";
     }
 
     /// <summary>
     /// She asks whether she may use a tool: the card by her stool, above the slip they type on, and her eyes on the
-    /// player while they decide.
+    /// player while they decide; while texting, the same buttons under a message.
     /// </summary>
     private async Task<Answer> AskPlayer(Asking asking, CancellationToken cancel)
     {
         if (Her is null)
             return Answer.None;
+        if (_texting && Phone is { Linked: true } phone)
+        {
+            var pressed = await phone.Ask($"{asking.What}\n{asking.Detail}",
+                                          [("Allow once", "once"), (asking.Scope is { } site ? $"Always for {site}" : "Always", "always"), ("No", "no")], cancel);
+            GD.Print($"Tools: she asked by text to use {asking.Tool.Name} on {asking.Detail}: {pressed ?? "no answer"}");
+            return pressed switch { "once" => Answer.Once, "always" => Answer.Always, "no" => Answer.No, _ => Answer.None };
+        }
         Her.Play(Moment.Listen);
         var asked = _permission.Ask(asking, new Vector2(14, CardBottom), cancel);
         _listening.CardShown();
@@ -1467,11 +1561,17 @@ public partial class Stool : Node2D
     /// <summary>She counts an activity: the player confirms it on her card ("I'm going to the gym" isn't "I went").</summary>
     private Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel) => ConfirmOnCard(what, detail, cancel);
 
-    /// <summary>The player confirms something she does for them on her card: yes, not yet, or null when they let it be.</summary>
+    /// <summary>The player confirms something she does for them on her card (by text, buttons): yes, not yet, or null when they let it be.</summary>
     private async Task<bool?> ConfirmOnCard(string what, string detail, CancellationToken cancel)
     {
         if (Her is null)
             return null;
+        if (_texting && Phone is { Linked: true } phone)
+        {
+            var pressed = await phone.Ask($"{what}\n{detail}", [("Yes", "yes"), ("Not yet", "no")], cancel);
+            GD.Print($"Card: \"{what}\" by text: {pressed ?? "no answer"}");
+            return pressed switch { "yes" => true, "no" => false, _ => null };
+        }
         Her.Play(Moment.Listen);
         var asked = _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
         _listening.CardShown();
@@ -1514,7 +1614,7 @@ public partial class Stool : Node2D
     ];
 
     /// <summary>The name of whoever is on the stool, for her pages to say.</summary>
-    private string HerName() => OnStool()?.Name ?? "Your companion";
+    internal string HerName() => OnStool()?.Name ?? "Your companion";
 
     /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word.</summary>
     private Control MindPage()

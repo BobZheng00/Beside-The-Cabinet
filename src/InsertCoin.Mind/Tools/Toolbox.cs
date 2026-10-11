@@ -67,6 +67,9 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
     /// </summary>
     public bool FromWeb { get; init; }
 
+    /// <summary>It needs the player at the PC (their screen, their windows, opening something on it): not while they text her from away.</summary>
+    public bool AtThePc { get; init; }
+
     /// <summary>
     /// Run by the provider itself (its own web search): offered in place of <see cref="Function"/>, which then only names
     /// and describes it. The provider runs it in the middle of a reply, so it is never asked about.
@@ -128,6 +131,12 @@ public sealed class Toolbox
     /// She still says what she is doing, every use is still in the conversation, and tools switched off stay off.
     /// </summary>
     public bool Auto { get; set; }
+
+    /// <summary>
+    /// She is texting the player, who is away from the PC: what needs them at it (see <see cref="Tool.AtThePc"/>) is
+    /// turned down when called. It stays offered, so that the list the provider caches never changes.
+    /// </summary>
+    public bool Away { get; set; }
 
     /// <summary>
     /// The provider turned tools down (a local model without them): none are offered, and she answers as before, with
@@ -234,6 +243,9 @@ public sealed class Toolbox
         var given = Describe(arguments);
         if (!_tools.TryGetValue(function.Name, out var tool))
             return ($"There is no tool called {function.Name}.", $"You tried to use {function.Name}, which you don't have.");
+        if (Away && tool.AtThePc)
+            return ("The player is away from the PC, texting you: this needs them at it, so it wasn't done.",
+                    $"You tried to use {tool.Name} ({given}) while the player was texting you from away; it needs them at the PC.");
         var asking = tool.Ask is null ? (tool.Title, given, null) : tool.Ask(arguments);
         var (what, detail, scope) = asking ?? ("", "", null);
         var permission = PermissionOf(tool, scope);

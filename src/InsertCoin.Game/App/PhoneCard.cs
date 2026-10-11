@@ -91,7 +91,7 @@ public partial class PhoneCard : Window
     }
 
     /// <summary>The address as a QR code, black on white with its quiet zone, a few pixels to a module (drawn sharp).</summary>
-    private static ImageTexture Code(string address)
+    internal static ImageTexture Code(string address)
     {
         var modules = QrCode.Encode(address);
         var size = modules.GetLength(0);

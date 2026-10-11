@@ -1,7 +1,7 @@
 # Reaching the player
 
-*Decided with the user, 2026-10-10. Step 2 built the same day (see "Built" below); Telegram both ways and how much she
-reaches out are not built yet. Numbers marked (to tune) are first guesses, to be set on real use.*
+*Decided with the user, 2026-10-10. Steps 2 and 3 built the same day (see "Built" below); how much she reaches out is
+not built yet. Numbers marked (to tune) are first guesses, to be set on real use.*
 
 ## Why
 
@@ -175,6 +175,7 @@ Windows notification stays with the reminders.
    and should reach the one-way places in her words; reminders stop going out while the player is at the PC.
    *Built 2026-10-10* (below).
 3. Telegram, both ways: pairing, texting, photos and files, buttons for her cards, messages that waited.
+   *Built 2026-10-10* (below).
 4. How much she reaches out, with "keeps in touch".
 5. Later: voice notes; Discord; the private route; a channel for players in mainland China, where Telegram and
    Discord are blocked.
@@ -218,6 +219,32 @@ Windows notification stays with the reminders.
   (reminders to the phone as a plain line at the PC too, as before).
 - **Tests and dev.** A test run takes the player as here (it never goes by whoever sits at this PC);
   `whereabouts:away` (here, unsure, asleep) says where they are, `whereabouts:off` watches again.
+
+## Built (step 3, 2026-10-10)
+
+- **The client** (`Telegram`, in the Mind library, with tests): getMe, getUpdates with a long wait, sendMessage with
+  buttons (a long text in parts, the buttons under the last), typing, answering a press (its buttons go), fetching a
+  photo or a file, naming the bot. `Pairing`: a 24-character code, used once, good for ten minutes, only from a private
+  chat.
+- **Listening** (`Texting`, in the game): one long wait at a time, while a bot is set up. Only the paired chat is
+  listened to; anyone else is ignored and logged as such. What came at once, or while the cabinet was closed, is one
+  message to her (`Telegram.Together`), in the order sent, each that waited with how long ago it was sent. A 409
+  (another copy reading the same bot) is logged as "each profile needs a bot of its own"; a token Telegram doesn't
+  know stops it.
+- **Her side** (`Stool.Texted`): their last words came by text, so they are away until they use the PC again
+  (the `[out]` mark); she answers by text once free (`Chat.TextBack`, told `Reaching.Texted`), with "typing…" while
+  she writes. The conversation keeps where texting began and ended. Her cards (a permission, an activity to
+  confirm, a bedtime) come as buttons; a memo comes as a message and prints too; what needs the PC (`Tool.AtThePc`:
+  the screen, window titles, opening a link or an app) is turned down when called (`Toolbox.Away`), the tool list
+  staying the same so the provider's cache holds.
+- **Her texts while away** (step 2) go to the paired chat as messages from her, without her name in front.
+- **Settings → Your phone:** "Text with her on Telegram": paired, with Pair again and Forget it; or the steps (Open
+  BotFather, paste the token and Check it: the bot is found and given her name and a description; then a QR code and
+  its link, live until Start is pressed), and where her chat goes. The one-way Telegram fields are gone: a token and
+  chat id already kept count as paired.
+- **Tests and dev:** `telegramat:http://127.0.0.1:port` (a stand-in Telegram), `paircode:CODE` (the next code), and
+  `<tools>\agent-trial\tools\fake_telegram.py`, which plays the player's side from a script.
+- **Not yet:** voice notes; "Pair again" lets the old chat go until the cabinet restarts if pairing isn't finished.
 
 ## Not chosen, and why
 

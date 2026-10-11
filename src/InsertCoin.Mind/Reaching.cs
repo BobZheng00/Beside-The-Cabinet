@@ -129,6 +129,16 @@ public static class Reaching
     public const string AsText = "The player is away from the PC, so this goes to their phone as a text message: write it as one.";
 
     /// <summary>
+    /// What her mind is told with what the player texted her: she answers where they spoke to her. What needs them at the
+    /// PC, she is told if she tries it (see <see cref="Toolbox.Away"/>).
+    /// </summary>
+    public const string Texted = "They texted you this from their phone, away from the PC: answer with a text.";
+
+    /// <summary>What the conversation keeps where texting begins and ends, so she knows later which lines were texted.</summary>
+    public const string TextingBegins = "From here the player is texting from their phone, away from the PC.",
+                        TextingEnds = "The player is back at the PC.";
+
+    /// <summary>
     /// Where the player is. What they said comes first, until they are back at the PC; then a locked screen means away
     /// (a game left running behind it too); then a game or her company means here; then the away time with no input
     /// means away (asleep in the quiet hours, as a locked screen is); then a minute with no input means unsure.

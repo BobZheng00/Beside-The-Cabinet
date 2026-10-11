@@ -84,7 +84,7 @@ memo…, Check LeetCode now, the switches flipped often (Mute sounds, Voice, Con
    stay short).
 2. Where the player is and the routing (reaching the player, step 2); its settings go on Your phone (*built
    2026-10-10*: the away time on a slider, and "Also while I'm at the PC").
-3. Telegram both ways, with the first guide.
+3. Telegram both ways, with the first guide (*built 2026-10-10*: the steps on Your phone).
 4. Getting started, with guides for her mind and the rest.
 
 ## Not chosen, and why

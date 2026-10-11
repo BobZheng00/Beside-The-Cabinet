@@ -73,10 +73,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// What the player hands her with it (see <see cref="Attachment"/>): she starts her reply with a [saw] line for each,
     /// kept in the player's line in its place.
     /// </param>
+    /// <param name="aside">How they are talking this time (texting, see <see cref="Reaching.Texted"/>): sent with what they said, not logged with it.</param>
     /// <returns>Everything she said.</returns>
     public Task<string> Answer(IChatClient client, string said, string situation, Action<string> text, Action<string, string?> direction,
-                               CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null) =>
-        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? [], aside: null);
+                               CancellationToken cancel = default, Toolbox? tools = null, IReadOnlyList<Attachment>? handed = null, string? aside = null) =>
+        Reply(client, said, fromCabinet: false, situation, text, direction, tools, cancel, handed ?? [], aside);
 
     /// <summary>
     /// Something the cabinet asks her to tell the player in her own words (a reminder going off, see

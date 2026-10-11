@@ -376,9 +376,21 @@ public sealed class Chat : IDisposable
         return Replied;
     }
 
+    /// <summary>
+    /// Has her answer what the player texted her from their phone (see <see cref="Reaching.Texted"/>): as she answers at
+    /// the PC, and kept in the conversation, but nothing is shown or said here. Her words as shown, or null when none came.
+    /// </summary>
+    public async Task<string?> TextBack(string said, IReadOnlyList<Attachment> handed, string situation, CompanionView view, string? voiceLanguage)
+    {
+        if (!Ready || Answering)
+            return null;
+        await Respond(said, fromCabinet: false, fallback: null, situation, view, speech: null, voiceLanguage, handed: handed, texting: true, aside: Reaching.Texted);
+        return Replied;
+    }
+
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
                                Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null,
-                               Func<string, CancellationToken, Task<bool>>? call = null, bool texting = false, TimeSpan? within = null)
+                               Func<string, CancellationToken, Task<bool>>? call = null, bool texting = false, TimeSpan? within = null, string? aside = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
@@ -411,7 +423,7 @@ public sealed class Chat : IDisposable
             // her tools go with every reply, check-ins and reminders too: one list, so the cached start of the prompt holds
             Func<IChatClient, string, string, Action<string>, Action<string, string?>, CancellationToken, Toolbox?, IReadOnlyList<Attachment>?, Task<string>> reply =
                 fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Called)
-                            : conversation.Answer;
+                            : (c, words, s, t, d, k, tools, h) => conversation.Answer(c, words, s, t, d, k, tools, h, aside);
             Replied = null;
             var model = _provider?.Model ?? "";
             conversation.Unseeing = CantSee(model);

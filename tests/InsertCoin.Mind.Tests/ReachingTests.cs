@@ -134,7 +134,7 @@ public class ReachingTests
         Assert.Contains("\"tags\":[\"speech_balloon\"]", hers["ntfy"].BodyJson);
         Assert.Contains("\"title\":\"Hana\"", hers["ntfy"].BodyJson);
         Assert.Contains("\"content\":\"**Hana**: How did the dentist go?\"", hers["Discord"].BodyJson);
-        Assert.Contains("\"text\":\"Hana: How did the dentist go?\"", hers["Telegram"].BodyJson);
+        Assert.Contains("\"text\":\"How did the dentist go?\"", hers["Telegram"].BodyJson);      // her own bot: no name in front
         Assert.Contains("\"tags\":[\"alarm_clock\"]", plain["ntfy"].BodyJson);
         Assert.Contains("⏰", System.Text.RegularExpressions.Regex.Unescape(plain["Telegram"].BodyJson));
     }

@@ -82,8 +82,9 @@ public static class Couriers
             yield return new Parcel("Discord", discord.Trim(),
                                     new { content = $"{mark}**{notice.Title}**: {notice.Text}", allowed_mentions = new { parse = Array.Empty<string>() } });
         if (where.Telegram && secrets.TelegramToken is { Length: > 0 } bot && secrets.TelegramChat is { Length: > 0 } chat)
-            yield return new Parcel("Telegram", $"https://api.telegram.org/bot{bot.Trim()}/sendMessage",
-                                    new { chat_id = chat.Trim(), text = $"{mark}{notice.Title}: {notice.Text}" });
+            // her own bot: a text of hers needs no name in front
+            yield return new Parcel("Telegram", $"{Telegram.Server}/bot{bot.Trim()}/sendMessage",
+                                    new { chat_id = chat.Trim(), text = notice.Hers ? notice.Text : $"{mark}{notice.Title}: {notice.Text}" });
         if (where.Webhook && secrets.WebhookUrl is { Length: > 0 } hook)
             yield return new Parcel("webhook", hook.Trim(), new { app = "INSERT COIN", title = notice.Title, message = notice.Text });
     }

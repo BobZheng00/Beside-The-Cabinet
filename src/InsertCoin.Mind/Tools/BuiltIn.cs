@@ -25,7 +25,10 @@ public static class BuiltIn
         OutsideApp: true,
         arguments => Page(Text(arguments, "url")) is { } page
             ? ("Open this page in your browser?", Shown(page), Site(page))
-            : ("Open this?", Text(arguments, "url") ?? "", null));
+            : ("Open this?", Text(arguments, "url") ?? "", null))
+    {
+        AtThePc = true,
+    };
 
     /// <summary>
     /// Prints a memo from the cabinet (see <see cref="Memo"/>): long text for the player to read at their own pace and
@@ -111,6 +114,7 @@ public static class BuiltIn
             : ("Look at this window?", $"A screenshot of {title}, for her to see", "screen"))
     {
         Private = true,
+        AtThePc = true,
     };
 
     /// <summary>Whether she asked for the whole screen rather than the window they were working in.</summary>
@@ -134,6 +138,7 @@ public static class BuiltIn
         OutsideApp: false)
     {
         Private = true,
+        AtThePc = true,
     };
 
     /// <summary>Reads one web page's words (see <see cref="Pages"/>). It only reads, so she needs no permission.</summary>
@@ -211,7 +216,10 @@ public static class BuiltIn
             "The player is asked first."),
         "Open an app",
         OutsideApp: true,
-        arguments => Apps.Find(apps(), Text(arguments, "app") ?? "").Found is { } found ? Asked("Open this app?", found.Name, found.Name) : null);
+        arguments => Apps.Find(apps(), Text(arguments, "app") ?? "").Found is { } found ? Asked("Open this app?", found.Name, found.Name) : null)
+    {
+        AtThePc = true,
+    };
 
     /// <summary>
     /// Counts something good the player did towards their play time (see <see cref="Activities"/>): she names it and,
