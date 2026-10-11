@@ -57,8 +57,8 @@ var window = int.Parse(options.GetValueOrDefault("window", Prompt.DefaultWindow.
 var parallel = int.Parse(options.GetValueOrDefault("parallel", "2"));
 var budget = long.Parse(options.GetValueOrDefault("budget", "3000000"));
 var profile = options.GetValueOrDefault("from", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "InsertCoin-demo"));
-if (mode is not ("memory" or "window" or "oracle" or "audit"))
-    throw new ArgumentException($"--mode {mode}: memory, window, oracle or audit");
+if (mode is not ("memory" or "window" or "oracle" or "audit" or "reach"))
+    throw new ArgumentException($"--mode {mode}: memory, window, oracle, audit or reach");
 
 // her mind: the profile's provider, with more patience than the app's (a 120k-token request takes a while)
 var settings = JsonDocument.Parse(File.ReadAllText(Path.Combine(profile, "settings.json"))).RootElement;
@@ -74,11 +74,16 @@ IChatClient client = new Patient(provider.Protocol == Protocol.OpenAi
 
 // recall by meaning, as the app does with its default model
 var models = Path.Combine(Here(), "../../src/InsertCoin.Game/models", EmbeddingModel.Multilingual.Name);
-using var embedder = mode is "memory" or "audit"
+using var embedder = mode is "memory" or "audit" or "reach"
     ? new LocalEmbedder(EmbeddingModel.Multilingual, Path.Combine(models, "model.onnx"), File.OpenRead(Path.Combine(models, EmbeddingModel.Multilingual.TokenizerFile)))
     : null;
 
 Directory.CreateDirectory(Path.Combine(output, "stores"));
+if (options.GetValueOrDefault("set") == "locomo" && mode == "reach")
+{
+    Reach();
+    return;
+}
 if (options.GetValueOrDefault("set") == "locomo")
 {
     await LoCoMo();
@@ -585,6 +590,98 @@ async Task StaysInCharacter()
         Console.WriteLine($"{d.Key,8} {d.Count(),8} {d.Average(r => r.Voice),6:0.0} {d.Average(r => r.Consistent),11:0.0} {d.Average(r => r.Herself),8:0.0} " +
                           $"{d.Average(r => r.Words),6:0} {d.Count(r => r.Lists),6}");
 }
+
+// --set locomo --mode reach: no model at all. For each question of each conversation already taken in at the window,
+// her real search and recall are run as her reply would run them, and where the evidence ends up is counted: still
+// word for word in the window, in a note she sees (one from those lines with at least half the answer's words), or
+// brought back by recall (a line of it among the excerpts she is given, or such a note out of view). The same answer every time, in minutes: what retrieval changes
+// are tried on before a run that costs anything.
+void Reach()
+{
+    var size = options.ContainsKey("window") ? window : Prompt.LocalWindow;
+    string[] kinds = ["", "multi-hop", "temporal", "open-domain", "single-hop"];
+    var tally = new Dictionary<string, int[]>();         // kind -> questions, in window, in view, recalled, reached
+    var conversations = 0;
+    foreach (var sample in JsonDocument.Parse(File.ReadAllText(data)).RootElement.EnumerateArray())
+    {
+        var name = sample.GetProperty("sample_id").GetString()!;
+        // the memories taken in by earlier runs: in --out, or in each of --stores a,b,c (the first that has this conversation)
+        var path = (options.TryGetValue("stores", out var folders) ? folders.Split(',') : [output])
+            .Select(f => Path.Combine(f, "stores", $"{name}-locomo-{size}.db")).FirstOrDefault(File.Exists);
+        if (path is null)
+            continue;
+        var conversation = sample.GetProperty("conversation");
+        var her = conversation.GetProperty("speaker_b").GetString()!;
+        var character = her.ToLowerInvariant();
+        var sittings = conversation.EnumerateObject().Where(p => Regex.IsMatch(p.Name, @"^session_\d+$"))
+            .Select(p => (At: SessionTime(conversation.GetProperty($"{p.Name}_date_time").GetString()!), Turns: p.Value.EnumerateArray().ToList()))
+            .OrderBy(s => s.At).ToList();
+        var lineOf = new Dictionary<string, (long Id, string Text)>();
+        var next = 1L;
+        foreach (var turn in sittings.SelectMany(s => s.Turns))
+            lineOf[turn.GetProperty("dia_id").GetString()!] = (next++, Said(turn));
+        var then = sittings[^1].At.AddDays(1);
+        // her search writes passages as it catches up: on a copy, so the kept memory stays as the run left it
+        var copy = Path.Combine(output, "copies", $"reach-{Guid.NewGuid():N}.db");
+        Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+        File.Copy(path, copy);
+        foreach (var side in new[] { "-wal", "-shm" })       // a run still writing it keeps its newest pages there
+            if (File.Exists(path + side))
+                File.Copy(path + side, copy + side);
+        using (var store = new MindStore(copy))
+        {
+            if (store.Mark("bench.ingested") is null)
+                continue;
+            conversations++;
+            var memory = new Conversation(store, character, Persona.Plain(her), new Clock(then)) { Embedder = embedder, Window = size };
+            var through = store.Folded(character);
+            var log = Log.Left(store.Observations(character), through);
+            var view = Log.Newest(log, Log.Budget(size));
+            var hidden = log.Except(view).ToList();
+            var formerly = store.Retired(character).Where(f => f.Why is { } why && (why.StartsWith(Conversation.Changed) || why == Conversation.Ended)).ToList();
+            memory.History.CatchUp(through);
+            foreach (var q in sample.GetProperty("qa").EnumerateArray())
+            {
+                var category = q.GetProperty("category").GetInt32();
+                var evidence = q.TryGetProperty("evidence", out var e) ? e.EnumerateArray().Select(x => x.GetString()!).Where(lineOf.ContainsKey).Select(x => lineOf[x]).ToList() : [];
+                if (category == 5 || evidence.Count == 0)
+                    continue;
+                var question = q.GetProperty("question").GetString()!;
+                var query = embedder!.Embed(question, query: true);
+                var excerpts = memory.History.Search(question, through, query, embedder.Model);
+                var meaning = new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name), store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
+                var recalled = Recall.Find(question, store.Facts(character), excerpts, her, then, meaning, hidden, formerly);
+                // a note holds the evidence when it is from those lines and has at least half the answer's words in it: what
+                // she would need, not just a note of the same day (an old summary, one note over everything, counts only if it says so)
+                var answer = q.TryGetProperty("answer", out var given) ? Recall.Terms(given.ToString()).ToHashSet() : [];
+                bool Covered(IEnumerable<Observation> notes, long id) =>
+                    notes.Any(n => n.First <= id && id <= n.Last && (answer.Count == 0 || Recall.Terms(n.Text).ToHashSet().Count(answer.Contains) * 2 >= answer.Count));
+                var folded = evidence.Where(x => x.Id <= through).ToList();
+                var inWindow = folded.Count == 0;
+                var inView = !inWindow && folded.All(x => Covered(view, x.Id));
+                var recalledIt = !inWindow && folded.All(x => recalled.Any(m => m.Text.Contains(x.Text[..Math.Min(50, x.Text.Length)], StringComparison.Ordinal))
+                                                              || Covered(hidden.Where(n => recalled.Any(m => m.Text.EndsWith(n.Text, StringComparison.Ordinal))), x.Id));
+                foreach (var key in new[] { kinds[category], "all" })
+                {
+                    var t = tally.TryGetValue(key, out var have) ? have : tally[key] = new int[5];
+                    t[0]++;
+                    t[1] += inWindow ? 1 : 0;
+                    t[2] += inView ? 1 : 0;
+                    t[3] += recalledIt ? 1 : 0;
+                    t[4] += inWindow || inView || recalledIt ? 1 : 0;
+                }
+            }
+        }
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        try { File.Delete(copy); } catch (IOException) { }
+    }
+    Console.WriteLine($"LoCoMo, a {size}-token window, {conversations} conversations: where the evidence of each answerable question ends up (no model asked)");
+    Console.WriteLine($"{"kind",-12} {"questions",9} {"window",7} {"in view",8} {"recalled",9} {"reached",8}");
+    foreach (var (key, t) in tally.OrderBy(k => k.Key == "all" ? 1 : 0).ThenBy(k => k.Key))
+        Console.WriteLine($"{key,-12} {t[0],9} {Percent(t[1], t[0]),7} {Percent(t[2], t[0]),8} {Percent(t[3], t[0]),9} {Percent(t[4], t[0]),8}");
+}
+
+static string Percent(int part, int whole) => whole == 0 ? "-" : $"{100 * part / whole}%";
 
 // a turn as it goes into her memory: what was said, and what a shared photo showed (LoCoMo's caption of it)
 static string Said(JsonElement turn) =>

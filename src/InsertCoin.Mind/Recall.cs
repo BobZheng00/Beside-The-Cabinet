@@ -18,8 +18,11 @@ public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDicti
 /// </summary>
 public static class Recall
 {
-    public const int Budget = 450;              // tokens of memories per turn at most
-    private const int MaxOldLines = 2;
+    // tokens of memories per turn at most, and passages of old conversation among them: measured on LoCoMo (2026-10-11),
+    // the evidence reached her for 31% of questions at 450 and 2 (with a line and the next), 56% at 2,000 and 6 (whole
+    // passages, 10 found); 2,500 and 8 gave 58%, not worth another thousand tokens on every message
+    public const int Budget = 2000;
+    private const int MaxOldLines = 6;
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly HashSet<string> Common =
     [
@@ -46,7 +49,7 @@ public static class Recall
                             meaning?.Facts.GetValueOrDefault(fact.Id), Math.Exp(-(now - (fact.Retired ?? now)).TotalDays / 60), fact.Importance / 2, false, false));
         foreach (var excerpt in excerpts)
             candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}"),
-                            Terms(excerpt.Text).ToHashSet(), excerpt.Vector, Math.Exp(-(now - excerpt.At).TotalDays / 60), 3, true, false));
+                            Terms(excerpt.Text).ToHashSet(), excerpt.Vector, 1.0, 3, true, false));        // old talk comes back by relevance, whatever its age
         foreach (var o in observations ?? [])
             candidates.Add((new Memory($"{o.At.ToString("ddd d MMM yyyy", English)} ({When.Ago(o.At, now)}): {o.Text}"), Terms(o.Text).ToHashSet(),
                             meaning?.Observations?.GetValueOrDefault(o.Id), Math.Exp(-(now - o.At).TotalDays / 60),

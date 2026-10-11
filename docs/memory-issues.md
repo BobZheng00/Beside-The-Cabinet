@@ -12,7 +12,7 @@ only with a re-run that shows it fixed, and say which.
 | M3 | Upkeep costs about three times the conversation | open, a cost |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
-| M6 | What has left the window comes back only about half the time | open |
+| M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval` by the free score; a real run to confirm |
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
 | R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
@@ -90,8 +90,13 @@ only with a re-run that shows it fixed, and say which.
 - **Cause, to check:** an excerpt is the best-matching line and the one after, so a passage can be found while the
   line that answers isn't shown; recall keeps two old lines at most within 450 tokens of memories; questions like
   "When did Caroline…" lean on names, which shared-word scoring takes out for her own.
-- **To do:** compare against the 32k run of the same conversation (everything word for word), then try more excerpts
-  or longer ones.
+- **Measured without a model** (2026-10-11, `--mode reach`: her real search and recall on the nine conversations
+  taken in, 1,376 answerable questions): the evidence reached her prompt for 31%. No age penalty for old talk: 31%.
+  Six passages in 2,000 tokens instead of two in 450: 35%. Ten found instead of four: 38%. **Whole passages instead of
+  the best line and the next: 54%** (the line that answers is often not the one that matched best). Together, with
+  old talk ranked by relevance alone: **56%**; eight passages in 2,500 tokens gave 58%, not worth a thousand more
+  tokens on every message. Multi-hop, which needs every piece: 4% to 22%.
+- **To do:** confirm with a real run that more of it reaching her means more right answers.
 
 ## R1. The provider sometimes sends back an empty reply, and she says nothing
 

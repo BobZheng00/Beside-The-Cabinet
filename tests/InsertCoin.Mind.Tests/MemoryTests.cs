@@ -81,6 +81,24 @@ public class MemoryTests
         Assert.Empty(conversation.History.Search("dentist", long.MaxValue));   // cleared with the conversation
     }
 
+    [Fact]
+    public void An_old_passage_comes_back_whole_so_the_line_that_answers_is_there_even_when_another_matched_best()
+    {
+        using var temp = new TempStore();
+        var then = Friday.AddDays(-30);
+        temp.Store.Add("shino", Speaker.User, "my sister's birthday is coming up", then);
+        temp.Store.Add("shino", Speaker.Her, "Oh, what are you getting her?", then.AddMinutes(1));
+        temp.Store.Add("shino", Speaker.User, "not sure yet, she likes pottery", then.AddMinutes(2));
+        var last = temp.Store.Add("shino", Speaker.Her, "A pottery class voucher, then!", then.AddMinutes(3));
+        var history = new History(temp.Store, "shino", "Shino");
+        history.CatchUp(last);
+
+        var found = history.Search("what did we say about my sister's birthday?", last).Single();
+
+        Assert.Equal("Player: my sister's birthday is coming up\nShino: Oh, what are you getting her?\nPlayer: not sure yet, she likes pottery\n" +
+                     "Shino: A pottery class voucher, then!", found.Text);
+    }
+
     // ---- Notes taken during a reply --------------------------------------------------------------------------------
 
     [Fact]

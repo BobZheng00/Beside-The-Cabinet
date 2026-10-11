@@ -95,10 +95,9 @@ public sealed class History(MindStore store, string character, string name)
 
     /// <summary>
     /// The passages before <paramref name="through"/> that best match <paramref name="said"/>, by shared words or by
-    /// meaning (with <paramref name="query"/> from <paramref name="model"/>), as excerpts: the line that matches best
-    /// and the one after it.
+    /// meaning (with <paramref name="query"/> from <paramref name="model"/>), as excerpts: each passage whole (see <see cref="Excerpt"/>).
     /// </summary>
-    public IReadOnlyList<Excerpt> Search(string said, long through, float[]? query = null, EmbeddingModel? model = null, int count = 4)
+    public IReadOnlyList<Excerpt> Search(string said, long through, float[]? query = null, EmbeddingModel? model = null, int count = 10)
     {
         var candidates = Passages.Where(p => p.Last <= through).ToList();
         if (candidates.Count == 0)
@@ -121,18 +120,30 @@ public sealed class History(MindStore store, string character, string name)
             .Where(s => s.Score > 0)
             .OrderByDescending(s => s.Score)
             .Take(count)
-            .Select(s => Excerpt(s.Passage, words))
+            .Select(s => Excerpt(s.Passage))
             .ToList();
     }
 
-    private Excerpt Excerpt(Passage passage, HashSet<string> words)
+    /// <summary>
+    /// What she is given of a passage that matched: the passage itself, whole lines up to about 1,200 characters. The line
+    /// that answers is often not the one that matched best (measured on LoCoMo, 2026-10-11: the evidence reached her for
+    /// 31% of questions given the best line and the next, 54% given whole passages).
+    /// </summary>
+    private Excerpt Excerpt(Passage passage)
     {
         var lines = store.Between(character, passage.First, passage.Last).Where(l => l.Speaker != Speaker.Cabinet).ToList();
         if (lines.Count == 0)
             return new Excerpt(passage.Text.Length > 400 ? passage.Text[..400] + "…" : passage.Text, passage.At, _vectors.GetValueOrDefault(passage.Id));
-        var best = lines.Select((l, i) => (Index: i, Overlap: Recall.Terms(l.Text).Count(words.Contains))).MaxBy(x => x.Overlap).Index;
-        var text = string.Join("\n", lines.Skip(best).Take(2).Select(Said));
-        return new Excerpt(text.Length > 400 ? text[..400] + "…" : text, lines[best].At, _vectors.GetValueOrDefault(passage.Id));
+        var kept = new List<Line>();
+        var length = 0;
+        foreach (var line in lines)
+        {
+            if (kept.Count > 0 && length + Said(line).Length > 1200)
+                break;
+            kept.Add(line);
+            length += Said(line).Length + 1;
+        }
+        return new Excerpt(string.Join("\n", kept.Select(Said)), kept[0].At, _vectors.GetValueOrDefault(passage.Id));
     }
 
     private string Said(Line line) => $"{(line.Speaker == Speaker.User ? "Player" : name)}: {line.Text}";
