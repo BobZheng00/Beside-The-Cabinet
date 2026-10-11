@@ -2016,7 +2016,7 @@ public partial class Stool : Node2D
         _chat.Store.AddFact(MindStore.Shared, "Bob likes Hades.", 5, now);
         _chat.Store.AddFact(character.Id, "Bob promised her a Hard problem this week.", 6, now);
         var line = _chat.Store.Add(character.Id, Speaker.User, "I have an interview on Friday.", now);
-        _chat.Store.AddEpisode(character.Id, "Bob told her about his interview on Friday.", line, line, now);
+        _chat.Store.Observe(character.Id, [new Observation(0, now, Priority.High, "Bob told her about his interview on Friday.", line, line)], line);
         // the agenda: a plan, a reminder, and something just past
         _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, TimeSpan.FromHours(1), now, character.Id);
         _chat.Store.AddPlan("Take vitamins", now.Date.AddDays(1).AddHours(8), allDay: false, TimeSpan.Zero, now, character.Id, Repeat.Daily);

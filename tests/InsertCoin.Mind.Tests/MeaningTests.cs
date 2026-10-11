@@ -23,8 +23,8 @@ public class MeaningTests
         var meaning = new Meaning(V(1, 0.1f, 0), EmbeddingModel.Small,
                                   new Dictionary<long, float[]> { [1] = V(0.9f, 0.2f, 0.1f), [2] = V(0.1f, 0.2f, 1) }, new Dictionary<long, float[]>());
 
-        Assert.Empty(Recall.Find("I'm so nervous about tomorrow", facts, [], [], "Shino", Friday));
-        Assert.Equal([1L], Recall.Find("I'm so nervous about tomorrow", facts, [], [], "Shino", Friday, meaning).Select(m => m.FactId!.Value));
+        Assert.Empty(Recall.Find("I'm so nervous about tomorrow", facts, [], "Shino", Friday));
+        Assert.Equal([1L], Recall.Find("I'm so nervous about tomorrow", facts, [], "Shino", Friday, meaning).Select(m => m.FactId!.Value));
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class MeaningTests
         Assert.False(F(4, "The player's exam is on Friday.", importance: 7, learned: old, recalls: 3).Faded(Friday));
 
         var facts = new[] { F(1, "The player had toast for breakfast.", importance: 2, learned: old) };
-        Assert.Empty(Recall.Find("toast for breakfast again", facts, [], [], "Shino", Friday));
+        Assert.Empty(Recall.Find("toast for breakfast again", facts, [], "Shino", Friday));
     }
 
     [Fact]
@@ -80,31 +80,6 @@ public class MeaningTests
         }
         SqliteConnection.ClearAllPools();
         Directory.Delete(folder, recursive: true);
-    }
-
-    [Fact]
-    public async Task Old_moments_are_combined_a_week_at_a_time()
-    {
-        using var temp = new TempStore();
-        var store = temp.Store;
-        var monday = new DateTimeOffset(2026, 9, 7, 20, 0, 0, TimeSpan.FromHours(8));
-        var a = store.AddEpisode("shino", "They talked about exams.", 1, 4, monday);
-        var b = store.AddEpisode("shino", "Bob solved two Hards and they celebrated.", 5, 9, monday.AddDays(2));
-        var lonely = store.AddEpisode("shino", "A quiet chat.", 10, 12, monday.AddDays(7));        // the only one that week
-        var recent = store.AddEpisode("shino", "Planning the interview.", 13, 20, Friday.AddDays(-2));
-        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
-        var model = new FakeModel("A week of exam talk and two Hard solves, celebrated together.");
-
-        Assert.True(await conversation.Consolidate(model));
-        Assert.False(await conversation.Consolidate(model));                // nothing left with two or more in a week
-
-        var episodes = store.Episodes("shino");
-        var week = Assert.Single(episodes, e => e.Week);
-        Assert.Equal(("A week of exam talk and two Hard solves, celebrated together.", 1L, 9L, monday), (week.Text, week.First, week.Last, week.At));
-        Assert.Equal([lonely, recent], episodes.Where(e => !e.Week).Select(e => e.Id));
-        Assert.DoesNotContain(episodes, e => e.Id == a || e.Id == b);
-        Assert.Contains("week starting Monday 7 September 2026", model.Requests[0][0].Text);
-        Assert.Contains(Recall.Find("exam week", [], episodes, [], "Shino", Friday), m => m.Text.StartsWith("Week of 7 Sep (3 weeks ago): "));
     }
 
     [Fact]

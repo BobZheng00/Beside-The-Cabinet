@@ -72,6 +72,9 @@ provider cut at its length limit is asked again with twice the room, and a batch
      week, month, year), so nothing is lost, and the memory book's Moments shows her notes.
    - *Cost:* one model pass over the raw talk instead of two (digest and fold), the facts read from notes: expected
      well under half of today's upkeep (M3).
+   *Built 2026-10-11* on the branch (`Conversation.Digest`: `Observe` then `Keep`; `Conversation.Fold` without a model
+   when the lines were noted; `Log.Left`; `Recall.Find`'s `formerly`; `MindStore` version 13 for the moments; the memory
+   book's Moments shows her notes, deletable). The player chose both visible changes (2026-10-11).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
    memories a reply used, to see and correct.

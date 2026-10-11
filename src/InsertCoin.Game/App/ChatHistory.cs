@@ -43,7 +43,7 @@ public partial class ChatHistory : Window
         page.AddChild(column);
         column.AddChild(new Label { Text = $"Chat with {characterName}", ThemeTypeVariation = "Heading" });
 
-        var log = store.Observations(characterId);
+        var log = Log.Left(store.Observations(characterId), store.Folded(characterId));
         if (log.Count > 0)
         {
             var seen = Log.Newest(log, Log.Budget(window));

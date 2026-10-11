@@ -44,7 +44,8 @@ public class ReviewTests
 
         // it comes up again: back to the foreground, not a second copy
         store.Add("shino", Speaker.User, "remember that film I never saw?", Friday.AddHours(1));
-        model.Answers.Enqueue("""{"episode": null, "facts": [{"op": "add", "about": "player", "text": "The player wants to see a film on Saturday 5 September 2026.", "importance": 4}]}""");
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player asked about the film they never saw."}]}""");
+        model.Answers.Enqueue("""{"facts": [{"op": "add", "about": "player", "text": "The player wants to see a film on Saturday 5 September 2026.", "importance": 4}]}""");
         Assert.True(await conversation.Digest(model));
         Assert.Contains(store.Facts("shino"), f => f.Id == film);
         Assert.DoesNotContain(store.Retired("shino"), f => f.Id == film);

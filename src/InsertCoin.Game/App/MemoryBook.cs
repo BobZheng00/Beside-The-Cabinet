@@ -32,9 +32,9 @@ public partial class MemoryBook : Window
     private TextEdit _about = null!, _us = null!;
     private TabContainer _tabs = null!;
     private readonly List<(Fact Fact, LineEdit Text, CheckBox Pin, Control Row)> _facts = [];
-    private readonly HashSet<long> _deletedFacts = [], _deletedEpisodes = [], _deletedPlans = [];
+    private readonly HashSet<long> _deletedFacts = [], _deletedNotes = [], _deletedPlans = [];
     private readonly List<PlanRow> _plans = [];
-    private VBoxContainer _planList = null!, _factList = null!, _episodeList = null!, _retiredList = null!, _memoList = null!;
+    private VBoxContainer _planList = null!, _factList = null!, _noteList = null!, _retiredList = null!, _memoList = null!;
     private Memos _memos = null!;
     private Button _retiredToggle = null!;
     private Label? _noFacts;
@@ -109,9 +109,10 @@ public partial class MemoryBook : Window
         ShowRetired();
 
         var moments = Tab("Moments");
-        moments.AddChild(Hint("What happened when: up to three a day, rolled up into weeks, months and years as they get older."));
-        _episodeList = List(moments);
-        ShowEpisodes();
+        moments.AddChild(Hint("What she noted from your talks, day by day (\"!\" for what matters most). As they get older, a week of days is " +
+                              "condensed into notes for the week, and weeks into months and years; the originals stay with her, out of sight."));
+        _noteList = List(moments);
+        ShowNotes();
 
         // the player's memos: theirs, not her memory, so they change at once and forgetting leaves them be
         var memoTab = Tab("Memos");
@@ -351,16 +352,16 @@ public partial class MemoryBook : Window
             text.GrabFocus();
     }
 
-    private void AddEpisodeRow(Episode episode)
+    private void AddNoteRow(Observation note)
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-        row.AddChild(new Label { Text = episode.Label, ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart });
-        row.AddChild(new Label { Text = episode.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        row.AddChild(new Label { Text = Log.Heading(note.Span, note.At), ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart });
+        row.AddChild(new Label { Text = (note.Priority == Priority.High ? "! " : "") + note.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
-        delete.Pressed += () => { _deletedEpisodes.Add(episode.Id); row.QueueFree(); };
+        delete.Pressed += () => { _deletedNotes.Add(note.Id); row.QueueFree(); };
         row.AddChild(delete);
-        _episodeList.AddChild(row);
+        _noteList.AddChild(row);
     }
 
     /// <summary>After a forget: what is gone leaves the page; unsaved changes to the rest stay.</summary>
@@ -375,7 +376,7 @@ public partial class MemoryBook : Window
             _deletedFacts.Remove(gone.Fact.Id);
         }
         ShowNoFacts();
-        ShowEpisodes();
+        ShowNotes();
         ShowRetired();
     }
 
@@ -425,15 +426,15 @@ public partial class MemoryBook : Window
         }
     }
 
-    private void ShowEpisodes()
+    private void ShowNotes()
     {
-        foreach (var child in _episodeList.GetChildren())
+        foreach (var child in _noteList.GetChildren())
             child.QueueFree();
-        var episodes = _store.Episodes(_character).Where(e => !_deletedEpisodes.Contains(e.Id)).Reverse().ToList();
-        if (episodes.Count == 0)
-            _episodeList.AddChild(Hint("Nothing yet."));
-        foreach (var episode in episodes)
-            AddEpisodeRow(episode);
+        var notes = _store.Observations(_character).Where(o => !o.Condensed && !_deletedNotes.Contains(o.Id)).Reverse().ToList();
+        if (notes.Count == 0)
+            _noteList.AddChild(Hint("Nothing yet."));
+        foreach (var note in notes)
+            AddNoteRow(note);
     }
 
     private void Save()
@@ -453,8 +454,8 @@ public partial class MemoryBook : Window
         }
         foreach (var id in _deletedFacts)
             _store.DeleteFact(id);
-        foreach (var id in _deletedEpisodes)
-            _store.DeleteEpisode(id);
+        foreach (var id in _deletedNotes)
+            _store.DeleteObservation(id);
         var now = DateTimeOffset.Now;
         foreach (var row in _plans)
         {

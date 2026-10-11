@@ -8,6 +8,13 @@ public class LogTests
     private static readonly DateTimeOffset Friday = new(2026, 10, 2, 19, 30, 0, TimeSpan.FromHours(8));
     private static readonly Persona Shino = new("Shino", "Shino is cheerful.");
 
+    /// <summary>A note as upkeep keeps them, on lines that have since left the window, so it is in view.</summary>
+    private static void Noted(MindStore store, Observation note, long through, DateTimeOffset at)
+    {
+        store.Observe("shino", [note], through);
+        store.Fold("shino", through, at);
+    }
+
     [Fact]
     public void Her_notes_are_laid_out_by_day_with_how_long_ago_and_a_mark_on_what_matters_most()
     {
@@ -31,11 +38,9 @@ public class LogTests
     {
         using var temp = new TempStore();
         var line = temp.Store.Add("shino", Speaker.User, "earlier", Friday.AddDays(-60));
-        temp.Store.Observe("shino", [new Observation(0, Friday.AddDays(-60), Priority.High, "The player's dentist appointment is on Monday 10 August at 15:00.", line, line)],
-                           line, Friday.AddDays(-60));
+        Noted(temp.Store, new Observation(0, Friday.AddDays(-60), Priority.High, "The player's dentist appointment is on Monday 10 August at 15:00.", line, line), line, Friday.AddDays(-60));
         for (var i = 0; i < 40; i++)
-            temp.Store.Observe("shino", [new Observation(0, Friday.AddDays(-50 + i), Priority.Medium, $"Day {i}: the player practised graphs {new string('x', 300)}.", line, line)],
-                               line, Friday.AddDays(-50 + i));
+            Noted(temp.Store, new Observation(0, Friday.AddDays(-50 + i), Priority.Medium, $"Day {i}: the player practised graphs {new string('x', 300)}.", line, line), line, Friday.AddDays(-50 + i));
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday)) { Window = 8000 };     // 3,000 tokens of notes in view
         var model = new FakeModel("Yes, the dentist!");
 
@@ -115,8 +120,7 @@ public class LogTests
     private static void Daily(MindStore store, string first = "The player practised graphs.")
     {
         for (var i = 0; i < 39; i++)
-            store.Observe("shino", [new Observation(0, Friday.AddDays(-39 + i).AddHours(-7), Priority.Medium, (i == 0 ? first : $"Day {i}: graphs.") + " " + new string('x', 380), 1, 1)],
-                          1, Friday.AddDays(-39 + i));
+            Noted(store, new Observation(0, Friday.AddDays(-39 + i).AddHours(-7), Priority.Medium, (i == 0 ? first : $"Day {i}: graphs.") + " " + new string('x', 380), 1, 1), 1, Friday.AddDays(-39 + i));
     }
 
     [Fact]
@@ -149,9 +153,9 @@ public class LogTests
     public async Task A_lone_note_moves_up_a_level_without_asking_and_a_week_still_going_on_is_left_as_it_is()
     {
         using var temp = new TempStore();
-        temp.Store.Observe("shino", [new Observation(0, Friday.AddDays(-40), Priority.Low, "The player mentioned rain.", 1, 1)], 1, Friday.AddDays(-40));
+        Noted(temp.Store, new Observation(0, Friday.AddDays(-40), Priority.Low, "The player mentioned rain.", 1, 1), 1, Friday.AddDays(-40));
         for (var i = 0; i < 30; i++)                                  // this week's notes alone are over the room
-            temp.Store.Observe("shino", [new Observation(0, Friday.AddHours(-i), Priority.Medium, $"Hour {i}. " + new string('x', 380), 1, 1)], 1, Friday);
+            Noted(temp.Store, new Observation(0, Friday.AddHours(-i), Priority.Medium, $"Hour {i}. " + new string('x', 380), 1, 1), 1, Friday);
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday)) { Window = 4000 };
         var model = new FakeModel("unused");
 
@@ -181,6 +185,62 @@ public class LogTests
         Assert.Equal((Span.Month, august, "August 2026"), (stretch.Span, stretch.At, stretch.Period));
         Assert.Equal([1L, 2L], stretch.Notes.Select(n => n.Id));
         Assert.Null(Log.ToCondense(log, 100_000, Friday));             // everything fits
+    }
+
+    [Fact]
+    public async Task Notes_made_while_their_lines_are_still_in_the_window_wait_and_folding_them_then_asks_nothing()
+    {
+        using var temp = new TempStore();
+        var clock = new FakeClock(Friday);
+        var conversation = new Conversation(temp.Store, "shino", Shino, clock) { Window = 4000 };
+        for (var i = 0; i < 60; i++)
+            temp.Store.Add("shino", i % 2 == 0 ? Speaker.User : Speaker.Her, $"line {i} " + new string('x', 400), Friday.AddMinutes(i));
+        clock.Now = Friday.AddMinutes(71);
+        var model = new FakeModel();
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "They talked about x for an hour."}]}""");
+        model.Answers.Enqueue("""{"facts": []}""");
+
+        Assert.True(await conversation.Digest(model));                     // noted a few minutes into the quiet
+        var before = new FakeModel("ok");
+        await conversation.Answer(before, "hi", "", _ => { }, (_, _) => { });
+        Assert.DoesNotContain("They talked about x", before.Requests.Single()[0].Text);   // the lines are still there word for word
+
+        var folding = new FakeModel("unused");
+        Assert.True(await conversation.Fold(folding));
+        Assert.Empty(folding.Requests);                                     // noted already: folding only moves them out of view
+        var after = new FakeModel("ok");
+        await conversation.Answer(after, "hi again", "", _ => { }, (_, _) => { });
+        Assert.Contains("- ! They talked about x for an hour.", after.Requests.Single()[0].Text);
+        Assert.DoesNotContain("line 0 ", string.Concat(after.Requests.Single().Select(m => m.Text)));
+    }
+
+    [Fact]
+    public void Moments_from_before_become_notes_of_their_span_once_and_their_facts_are_not_kept_again()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "insert-coin-mind-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "memory.db");
+        using (var old = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            old.Open();
+            using var command = old.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE episodes (id INTEGER PRIMARY KEY, character TEXT NOT NULL, text TEXT NOT NULL, first INTEGER NOT NULL, last INTEGER NOT NULL, at TEXT NOT NULL, week INTEGER NOT NULL DEFAULT 0);
+                INSERT INTO episodes (character, text, first, last, at, week) VALUES ('shino', 'A week of exam talk.', 1, 9, '2026-09-07T00:00:00.0000000+08:00', 1);
+                INSERT INTO episodes (character, text, first, last, at, week) VALUES ('shino', 'Bob beat Hades.', 10, 12, '2026-10-01T20:00:00.0000000+08:00', 0);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        using (var store = new MindStore(path))
+        {
+            Assert.Equal([("A week of exam talk.", Span.Week), ("Bob beat Hades.", Span.Day)], store.Observations("shino").Select(o => (o.Text, o.Span)));
+            Assert.False(new Conversation(store, "shino", Shino, new FakeClock(Friday)).NeedsDigest(TimeSpan.Zero));     // their facts were kept when they were moments
+        }
+        using (var again = new MindStore(path))
+            Assert.Equal(2, again.Observations("shino").Count);
+        SqliteConnection.ClearAllPools();
+        try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
     }
 
     [Fact]

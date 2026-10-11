@@ -103,8 +103,9 @@ public class AgendaTests
         store.Add("shino", Speaker.User, "the exam moved to the 12th, Mia cancelled her party, and I have a dentist appointment Tuesday at 3. remind me Tuesday", Friday);
         var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
         var model = new FakeModel();
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The calculus exam moved to Monday 12 October; Mia cancelled her party; the player has a dentist appointment on Tuesday 6 October at 15:00 and asked to be reminded that day."}]}""");
         model.Answers.Enqueue($$"""
-            {"episode": null, "facts": [], "plans": [
+            {"facts": [], "plans": [
               {"op": "update", "id": {{exam}}, "when": "2026-10-12"},
               {"op": "cancel", "id": {{party}}},
               {"op": "add", "when": "2026-10-06 15:00", "text": "Dentist appointment"},
@@ -115,8 +116,8 @@ public class AgendaTests
 
         Assert.True(await conversation.Digest(model));
 
-        Assert.Contains($"The agenda:\n#{party} 2026-10-03 19:00 Mia's party\n#{exam} 2026-10-09 Calculus exam\n", model.Requests.Single()[1].Text);
-        Assert.Contains("They go in \"plans\", not in facts.", model.Requests.Single()[0].Text);
+        Assert.Contains($"The agenda:\n#{party} 2026-10-03 19:00 Mia's party\n#{exam} 2026-10-09 Calculus exam\n", model.Requests[1][1].Text);
+        Assert.Contains("They go in \"plans\", not in facts.", model.Requests[1][0].Text);
         Assert.Equal([("Dentist at 15:00 today", "Tue 6 Oct", true), ("Dentist appointment", "Tue 6 Oct 15:00", false), ("Calculus exam", "Mon 12 Oct", false)],
                      store.Agenda().Select(p => (p.Text, p.Label, p.Remind)));
     }
@@ -130,10 +131,11 @@ public class AgendaTests
         store.Add("shino", Speaker.User, "the team sync is off this week, I think", Friday);
         var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
         var model = new FakeModel();
-        model.Answers.Enqueue($$"""{"episode": null, "facts": [], "plans": [{"op": "cancel", "id": {{sync}}}, {"op": "update", "id": {{sync}}, "when": "2026-10-09 10:00"}]}""");
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "The player thinks the team sync is off this week."}]}""");
+        model.Answers.Enqueue($$"""{"facts": [], "plans": [{"op": "cancel", "id": {{sync}}}, {"op": "update", "id": {{sync}}, "when": "2026-10-09 10:00"}]}""");
 
         Assert.True(await conversation.Digest(model));
-        Assert.Contains("The agenda:\n(empty)", model.Requests.Single()[1].Text);          // upkeep never sees them: a busy calendar would fill every request
+        Assert.Contains("The agenda:\n(empty)", model.Requests[1][1].Text);          // upkeep never sees them: a busy calendar would fill every request
         Assert.Equal(Friday.AddDays(3), store.Agenda().Single().At);
 
         // asked for a reminder and a repeat on it in conversation: the reminder is added, whether it repeats stays the calendar's

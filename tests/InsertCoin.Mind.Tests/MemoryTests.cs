@@ -15,7 +15,7 @@ public class MemoryTests
     {
         var facts = new[] { F(1, "The player has a calculus exam on Friday 9 October."), F(2, "The player likes Hades."), F(3, "The player's cat is called Mochi.") };
 
-        var found = Recall.Find("I'm so nervous about my exams", facts, [], [], "Shino", Friday);
+        var found = Recall.Find("I'm so nervous about my exams", facts, [], "Shino", Friday);
 
         Assert.Equal([1L], found.Select(m => m.FactId!.Value));
     }
@@ -25,7 +25,7 @@ public class MemoryTests
     {
         var facts = new[] { F(1, "玩家下周五有数学考试。"), F(2, "玩家喜欢玩《哈迪斯》。") };
 
-        var found = Recall.Find("考试好难啊", facts, [], [], "Shino", Friday);
+        var found = Recall.Find("考试好难啊", facts, [], "Shino", Friday);
 
         Assert.Equal([1L], found.Select(m => m.FactId!.Value));
     }
@@ -35,20 +35,22 @@ public class MemoryTests
     {
         var facts = new[] { F(1, "The player's name is Bob.", 10, pinned: true), F(2, "The player likes Hades.") };
 
-        var found = Recall.Find("what should I eat tonight", facts, [], [], "Shino", Friday);
+        var found = Recall.Find("what should I eat tonight", facts, [], "Shino", Friday);
 
         Assert.Equal([1L], found.Select(m => m.FactId!.Value));
     }
 
     [Fact]
-    public void Recall_quotes_old_talk_and_episodes_with_their_dates()
+    public void Recall_quotes_old_talk_notes_out_of_view_and_what_used_to_be_true_with_their_dates()
     {
-        var episodes = new[] { new Episode(1, "Bob planned a graph problem marathon.", 1, 5, Friday.AddDays(-7)) };
+        var notes = new[] { new Observation(1, Friday.AddDays(-7), Priority.Medium, "Bob planned a graph problem marathon.", 1, 5) };
         var excerpts = new[] { new Excerpt("Player: graph problems scare me\nShino: We'll start small.", Friday.AddDays(-7), null) };
+        var formerly = new[] { new Fact(9, MindStore.Shared, "The player hates graph problems.", 6, Friday.AddDays(-30), null, false, Retired: Friday.AddDays(-3)) };
 
-        var found = Recall.Find("more graph problems today?", [], episodes, excerpts, "Shino", Friday);
+        var found = Recall.Find("more graph problems today?", [], excerpts, "Shino", Friday, observations: notes, formerly: formerly);
 
-        Assert.Contains(found, m => m.Text == "Fri 25 Sep (7 days ago): Bob planned a graph problem marathon.");
+        Assert.Contains(found, m => m.Text == "Fri 25 Sep 2026 (7 days ago): Bob planned a graph problem marathon.");
+        Assert.Contains(found, m => m.Text == "Until 29 Sep 2026: The player hates graph problems.");
         Assert.Contains(found, m => m.Text == "Said on Fri 25 Sep (7 days ago): Player: graph problems scare me Shino: We'll start small.");
     }
 
@@ -63,7 +65,8 @@ public class MemoryTests
         temp.Store.Add("shino", Speaker.Cabinet, "The player solved \"Two Sum\" (Easy): +1 token.", clock.Now.AddMinutes(2));
         temp.Store.Add("shino", Speaker.User, "what a day", clock.Now.AddHours(5));
         var last = temp.Store.Add("shino", Speaker.Her, "Rest well.", clock.Now.AddHours(5).AddMinutes(1));
-        temp.Store.Observe("shino", [new Observation(0, clock.Now, Priority.Low, "Long ago they talked about everyday things.", 1, last)], last, clock.Now.AddHours(6));
+        temp.Store.Observe("shino", [new Observation(0, clock.Now, Priority.Low, "Long ago they talked about everyday things.", 1, last)], last);
+        temp.Store.Fold("shino", last, clock.Now.AddHours(6));
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
         var model = new FakeModel("Oh, the dentist!");
 
@@ -121,18 +124,17 @@ public class MemoryTests
     {
         var digestion = Upkeep.Parse("""
             ```json
-            {"episode": "They talked about exams.", "facts": [{"op": "add", "about": "player", "text": "Bob has exams.", "importance": 8}, {"op": "delete", "id": 3}, 7]}
+            {"facts": [{"op": "add", "about": "player", "text": "Bob has exams.", "importance": 8}, {"op": "delete", "id": 3}, 7]}
             ```
             """);
 
         Assert.NotNull(digestion);
-        Assert.Equal("They talked about exams.", digestion.Episode);
         Assert.Equal([new FactChange("add", null, "player", "Bob has exams.", 8), new FactChange("delete", 3, null, null, null)], digestion.Changes);
         Assert.Null(Upkeep.Parse("Sorry, I can't do that."));
     }
 
     [Fact]
-    public async Task Upkeep_files_an_episode_reconciles_facts_and_rewrites_the_notes_they_touch()
+    public async Task Upkeep_notes_the_talk_keeps_facts_from_the_notes_with_their_history_and_rewrites_the_notes_they_touch()
     {
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
@@ -150,8 +152,9 @@ public class MemoryTests
         Assert.True(conversation.NeedsDigest(Conversation.Quiet));
 
         var model = new FakeModel();
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player's exam moved to Monday 12 October; they dropped Rust and want to call Shino 'Coach'."}]}""");
         model.Answers.Enqueue($$"""
-            {"episode": "Fri 2 Oct: the exam moved to Monday 12 October; Bob dropped Rust.", "facts": [
+            {"facts": [
               {"op": "update", "id": {{exam}}, "text": "The player's exam is on Monday 12 October 2026.", "importance": 8},
               {"op": "delete", "id": {{stale}}},
               {"op": "delete", "id": {{pinned}}},
@@ -164,16 +167,24 @@ public class MemoryTests
         Assert.True(await conversation.Digest(model));
 
         var facts = store.Facts("shino");
-        Assert.Equal(["The player's exam is on Monday 12 October 2026.", "The player's name is Bob.", "The player calls Shino 'Coach'."],
+        Assert.Equal(["The player's name is Bob.", "The player's exam is on Monday 12 October 2026.", "The player calls Shino 'Coach'."],
                      facts.Select(f => f.Text));
         Assert.Equal("shino", facts.Single(f => f.Text.Contains("Coach")).Scope);
-        Assert.Equal("Fri 2 Oct: the exam moved to Monday 12 October; Bob dropped Rust.", Assert.Single(store.Episodes("shino")).Text);
+        // what changed and what ended are retired, not lost: she can still recall what used to be
+        Assert.Equal([("The player has an exam next week.", "changed to: The player's exam is on Monday 12 October 2026."), ("The player is learning Rust.", "no longer true")],
+                     store.Retired("shino").Select(f => (f.Text, f.Why)));
+        Assert.Contains("The player's exam moved to Monday 12 October", Assert.Single(store.Observations("shino")).Text);
         Assert.Equal("Bob. Exam on Monday 12 October 2026.", store.Note(MindStore.Shared, MindStore.AboutUser));
         Assert.Equal("Bob calls Shino 'Coach'.", store.Note("shino", MindStore.Us));
-        Assert.Contains("Bob, studying for exams.", model.Requests[1][1].Text);    // the rewrite starts from the note as it was
+        Assert.Contains("Bob, studying for exams.", model.Requests[2][1].Text);    // the rewrite starts from the note as it was
         Assert.False(conversation.NeedsDigest(TimeSpan.Zero));
-        Assert.Contains($"#{exam} [player, 6] The player has an exam next week.", model.Requests[0][1].Text);
-        Assert.Contains("[Fri 2 Oct 2026 19:30] Player: My exam got moved", model.Requests[0][1].Text);
+        Assert.Contains("[Fri 2 Oct 2026 19:30] Player: My exam got moved", model.Requests[0][1].Text);     // the lines, then the notes
+        Assert.Contains($"#{exam} [player, 6] The player has an exam next week.", model.Requests[1][1].Text);
+        Assert.Contains("Her new notes:\nFri 2 Oct 2026\n- ! The player's exam moved to Monday 12 October", model.Requests[1][1].Text);
+
+        var later = new FakeModel("Not any more!");
+        await conversation.Answer(later, "do I still do Rust?", "", _ => { }, (_, _) => { });
+        Assert.Contains("Until 2 Oct 2026: The player is learning Rust.", later.Requests.Single()[^1].Text);
     }
 
     [Fact]
@@ -187,9 +198,9 @@ public class MemoryTests
         Assert.False(await conversation.Digest(model));
         Assert.False(await conversation.Digest(model));
         Assert.True(conversation.NeedsDigest(Conversation.Quiet));
-        Assert.False(await conversation.Digest(model));
+        Assert.True(await conversation.Digest(model));                      // passed over, without notes: still searchable word for word
 
-        Assert.False(conversation.NeedsDigest(Conversation.Quiet));         // given up on that stretch
+        Assert.False(conversation.NeedsDigest(Conversation.Quiet));
         Assert.Empty(temp.Store.Facts("shino"));
     }
 

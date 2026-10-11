@@ -6,12 +6,12 @@ namespace InsertCoin.Mind;
 /// <summary>Something remembered for the moment, as it is put in front of her.</summary>
 public sealed record Memory(string Text, long? FactId = null);
 
-/// <summary>What the player said and what her facts, episodes and observations mean, as vectors from one embedding model.</summary>
-public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]> Episodes,
-                             IReadOnlyDictionary<long, float[]>? Observations = null);
+/// <summary>What the player said and what her facts and notes mean, as vectors from one embedding model.</summary>
+public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]>? Observations = null);
 
 /// <summary>
-/// Picks what she remembers when the player says something: facts, episodes and old lines of the conversation,
+/// Picks what she remembers when the player says something: facts (and what used to be true), her notes out of view and
+/// old lines of the conversation,
 /// ranked by relevance + retention + importance (Generative Agents, with MemoryBank's forgetting curve in place of
 /// plain recency). Relevance is the stronger of shared words (Chinese and Japanese, which have no spaces, as
 /// overlapping pairs of characters) and, when a local model is loaded, closeness in meaning. Faded facts are left out.
@@ -30,9 +30,10 @@ public static class Recall
     ];
 
     /// <param name="excerpts">Lines from the conversation before the window that may relate (see <see cref="History.Search"/>).</param>
-    /// <param name="observations">Observations of hers older than what she sees of her log (see <see cref="Log.Newest"/>).</param>
-    public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Episode> episodes, IReadOnlyList<Excerpt> excerpts,
-                                             string name, DateTimeOffset now, Meaning? meaning = null, IReadOnlyList<Observation>? observations = null)
+    /// <param name="observations">Notes of hers out of view: older than what she sees of her log, or condensed (see <see cref="Log.Newest"/>).</param>
+    /// <param name="formerly">Facts that are no longer true (changed, or ended), shown with when they stopped being: what used to be.</param>
+    public static IReadOnlyList<Memory> Find(string said, IReadOnlyList<Fact> facts, IReadOnlyList<Excerpt> excerpts, string name, DateTimeOffset now,
+                                             Meaning? meaning = null, IReadOnlyList<Observation>? observations = null, IReadOnlyList<Fact>? formerly = null)
     {
         var query = Terms(said).ToHashSet();
         query.ExceptWith(Terms(name));                      // her own name says nothing about what to remember
@@ -40,10 +41,9 @@ public static class Recall
         foreach (var fact in facts.Where(f => !f.Faded(now)))
             candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
                             fact.Retention(now), fact.Importance, false, fact.Pinned));
-        foreach (var episode in episodes)
-            candidates.Add((new Memory($"{episode.Label} ({When.Ago(episode.At, now)}): {episode.Text}"),
-                            Terms(episode.Text).ToHashSet(),
-                            meaning?.Episodes.GetValueOrDefault(episode.Id), Math.Exp(-(now - episode.At).TotalDays / 60), 5, false, false));
+        foreach (var fact in formerly ?? [])
+            candidates.Add((new Memory($"Until {fact.Retired?.ToString("d MMM yyyy", English)}: {fact.Text}"), Terms(fact.Text).ToHashSet(),
+                            meaning?.Facts.GetValueOrDefault(fact.Id), Math.Exp(-(now - (fact.Retired ?? now)).TotalDays / 60), fact.Importance / 2, false, false));
         foreach (var excerpt in excerpts)
             candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}"),
                             Terms(excerpt.Text).ToHashSet(), excerpt.Vector, Math.Exp(-(now - excerpt.At).TotalDays / 60), 3, true, false));

@@ -44,23 +44,23 @@ public class WholeTextTests
     }
 
     [Fact]
-    public async Task A_digest_that_comes_back_cut_off_is_not_kept_and_the_next_one_reads_less()
+    public async Task Facts_kept_from_notes_that_come_back_cut_off_are_not_kept_and_the_next_try_reads_fewer_notes()
     {
         using var temp = new TempStore();
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday.AddHours(2)));
-        for (var i = 0; i < 100; i++)
-            temp.Store.Add("shino", i % 2 == 0 ? Speaker.User : Speaker.Her, $"line {i} " + new string('x', 400), Friday.AddMinutes(i));
-        var model = new FakeModel("""{"episode": null, "facts": []}""");
+        for (var i = 0; i < 100; i++)             // notes upkeep hasn't kept facts from yet, far more than one request reads
+            temp.Store.Observe("shino", [new Observation(0, Friday.AddMinutes(i), Priority.Medium, $"note {i} " + new string('x', 400), 1, 1)], 1);
+        var model = new FakeModel("""{"facts": []}""");
         model.Finishes.Enqueue(ChatFinishReason.Length);
         model.Finishes.Enqueue(ChatFinishReason.Length);
 
+        Assert.True(conversation.NeedsDigest(Conversation.Quiet));
         Assert.False(await conversation.Digest(model));
-        Assert.Equal(0, temp.Store.Digested("shino"));
         Assert.True(await conversation.Digest(model));
 
-        int Lines(int request) => model.Requests[request][1].Text.Split('\n').Count(l => l.Contains("line "));
-        Assert.InRange(Lines(2), 1, Lines(0) / 2 + 1);
-        Assert.Equal(Lines(2), temp.Store.Digested("shino"));
+        int Notes(int request) => model.Requests[request][1].Text.Split('\n').Count(l => l.Contains("note "));
+        Assert.InRange(Notes(2), 1, Notes(0) / 2 + 1);
+        Assert.True(conversation.NeedsDigest(Conversation.Quiet));         // the rest, next time
     }
 
     [Fact]
@@ -70,14 +70,15 @@ public class WholeTextTests
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday.AddHours(2)));
         temp.Store.Add("shino", Speaker.User, "I'm Sam, I live in Springfield and I love cats", Friday);
         var model = new FakeModel();
-        model.Answers.Enqueue("""{"episode": null, "facts": [{"op": "add", "about": "player", "text": "The player is called Sam and lives in Springfield.", "importance": 9}]}""");
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player is called Sam, lives in Springfield and loves cats."}]}""");
+        model.Answers.Enqueue("""{"facts": [{"op": "add", "about": "player", "text": "The player is called Sam and lives in Springfield.", "importance": 9}]}""");
         model.Answers.Enqueue(string.Concat(Enumerable.Repeat("The player is called Sam and lives in Springfield. ", 40)));    // 1,960 characters
         model.Answers.Enqueue(string.Concat(Enumerable.Repeat("Sam lives in Springfield and loves cats. ", 40)));             // still over: 1,520
 
         Assert.True(await conversation.Digest(model));
 
         var note = temp.Store.Note(MindStore.Shared, MindStore.AboutUser);
-        Assert.Contains("Shorten this note to at most 180 words", model.Requests[2][0].Text);
+        Assert.Contains("Shorten this note to at most 180 words", model.Requests[3][0].Text);
         Assert.InRange(note.Length, 1300, Prompt.NoteLimit);
         Assert.StartsWith("Sam lives in Springfield", note);
         Assert.EndsWith("loves cats.", note);

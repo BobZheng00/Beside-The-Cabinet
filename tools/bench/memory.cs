@@ -196,7 +196,7 @@ async Task<Result> Ask(Item item)
     return new Result(item.QuestionId, Kind(item), mode, window, item.Question, Answer(item), hypothesis,
                       verdict.Text.Contains("yes", StringComparison.OrdinalIgnoreCase),
                       Sum("", r => r.Input), Sum("", r => r.Cached), Sum("", r => r.Output), Sum("upkeep", r => r.Input), Sum("replies", r => r.Input),
-                      store.Facts(Character).Count, store.Episodes(Character).Count, (long)watch.Elapsed.TotalSeconds, null);
+                      store.Facts(Character).Count, store.Observations(Character).Count, (long)watch.Elapsed.TotalSeconds, null);
 }
 
 // as Chat.Upkeep runs each minute while the talk is quiet, over and over until there is nothing left to do
@@ -211,7 +211,7 @@ static async Task Upkeep(Conversation conversation, IChatClient client)
             did = true;                                     // a stretch that fails three times is skipped by Digest itself
         }
         else
-            did = await conversation.Condense(client) || await conversation.Consolidate(client) || (conversation.IsQuiet(Conversation.Quiet) && await conversation.Review(client));
+            did = await conversation.Condense(client) || (conversation.IsQuiet(Conversation.Quiet) && await conversation.Review(client));
         while (await conversation.Index() > 0)
         {
         }
@@ -270,10 +270,10 @@ async Task<Audit> Inspect(Item item, Result result)
     var kept = new System.Text.StringBuilder();
     kept.AppendLine($"Note about the player:\n{store.Note(MindStore.Shared, MindStore.AboutUser)}\n");
     kept.AppendLine($"Note about the two of them:\n{store.Note(Character, MindStore.Us)}\n");
-    var log = store.Observations(Character);
+    var log = Log.Left(store.Observations(Character), through);
     kept.AppendLine($"Her notes on the conversation before the window, the part she sees:\n{(log.Count > 0 ? Log.Laid(Log.Newest(log, Log.Budget(window)), null) : "(none)")}\n");
     kept.AppendLine("Facts:\n" + string.Join("\n", store.Facts(Character).Select(f => $"- {f.Text} (learned {f.Learned:yyyy-MM-dd})")) + "\n");
-    kept.AppendLine("Moments:\n" + string.Join("\n", store.Episodes(Character).Select(e => $"- {e.Label}: {e.Text}")) + "\n");
+    kept.AppendLine("Her other notes, out of view:\n" + Log.Laid([.. store.Observations(Character).Except(Log.Newest(log, Log.Budget(window)))], null) + "\n");
     kept.AppendLine("Agenda:\n" + string.Join("\n", store.Agenda().Select(p => $"- {p.At:yyyy-MM-dd HH:mm} {p.Text}")));
     var told = string.Join("\n", key.Select(t => $"{(t.Role == "user" ? "Player" : "Mira")}: {(t.Content.Length > 700 ? t.Content[..700] + "…" : t.Content)}"));
     var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, $$"""
@@ -376,7 +376,7 @@ async Task LoCoMo()
                 fresh.SetMark("bench.ingested", $"{DateTimeOffset.Now:O}");
                 var spent = fresh.Usage(DateOnly.MinValue).Sum(r => r.Input + r.Output);
                 Console.WriteLine($"{name}: {player} and {her}, {sittings.Count} sittings, {lineOf.Count} turns in, {fresh.Facts(character).Count} facts, " +
-                                  $"{fresh.Episodes(character).Count} moments, {fresh.Observations(character).Count} notes; {spent / 1000}k tokens, {watch.Elapsed.TotalSeconds:0}s");
+                                  $"{fresh.Observations(character).Count} notes; {spent / 1000}k tokens, {watch.Elapsed.TotalSeconds:0}s");
             }
         }
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
@@ -400,15 +400,14 @@ async Task LoCoMo()
                 var memory = new Conversation(store, character, Persona.Plain(her), clock) { Embedder = embedder, Window = size };
                 // what her answer is about to search, done here first to see whether it brings the evidence back
                 var through = store.Folded(character);
-                var log = store.Observations(character);
+                var log = Log.Left(store.Observations(character), through);
                 var where = evidence.Count == 0 ? "none" : evidence.All(x => x.Id <= through) ? "folded" : evidence.All(x => x.Id > through) ? "window" : "both";
                 var query = embedder!.Embed(question, query: true);
                 memory.History.CatchUp(through);
                 var excerpts = memory.History.Search(question, through, query, embedder.Model);
-                var meaning = new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name), store.Vectors(MindStore.EpisodeKind, embedder.Model.Name),
-                                          store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
-                var recalled = Recall.Find(question, store.Facts(character), store.Episodes(character).Where(x => x.Last <= through).ToList(), excerpts, her, then, meaning,
-                                           log.Except(Log.Newest(log, Log.Budget(size))).ToList());
+                var meaning = new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name), store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
+                var recalled = Recall.Find(question, store.Facts(character), excerpts, her, then, meaning, [.. log.Except(Log.Newest(log, Log.Budget(size)))],
+                                           [.. store.Retired(character).Where(f => f.Why is { } why && (why.StartsWith(Conversation.Changed) || why == Conversation.Ended))]);
                 var snippets = evidence.Where(x => x.Id <= through).Select(x => x.Text[..Math.Min(50, x.Text.Length)]).ToList();
                 var inSearch = excerpts.Any(x => snippets.Any(s => x.Text.Contains(s, StringComparison.Ordinal)));
                 var inRecall = recalled.Any(m => snippets.Any(s => m.Text.Contains(s, StringComparison.Ordinal)));

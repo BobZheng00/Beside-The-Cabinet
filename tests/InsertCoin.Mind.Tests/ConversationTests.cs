@@ -137,20 +137,19 @@ public class ConversationTests
         temp.Store.AddFact("shino", "Bob has an interview on Friday.", 4, Friday);
         var first = temp.Store.Add("shino", Speaker.User, "I have an interview on Friday", Friday);
         var last = temp.Store.Add("shino", Speaker.Her, "Good luck!", Friday);
-        temp.Store.AddEpisode("shino", "Bob told her about his interview.", first, last, Friday);
-        temp.Store.Observe("shino", [new Observation(0, Friday, Priority.High, "They talked about the interview.", first, last)], last, Friday);
-        temp.Store.SetDigested("shino", last);
+        temp.Store.Observe("shino", [new Observation(0, Friday, Priority.High, "They talked about the interview.", first, last)], last);
+        temp.Store.Fold("shino", last, Friday);
 
         temp.Store.ForgetConversation("shino");
 
         Assert.Empty(temp.Store.After("shino", 0));
         Assert.Equal(0, temp.Store.Folded("shino"));
-        Assert.Equal((0L, 0L), temp.Store.Observations("shino").Select(o => (o.First, o.Last)).Single());     // her notes stay, from before
+        // her notes stay, from before the conversation now: in view even though nothing has been folded yet
+        Assert.Equal((0L, 0L), temp.Store.Observations("shino").Select(o => (o.First, o.Last)).Single());
+        Assert.Single(Log.Left(temp.Store.Observations("shino"), temp.Store.Folded("shino")));
         Assert.Equal(0, temp.Store.Digested("shino"));
         Assert.Equal("Friends.", temp.Store.Note("shino", MindStore.Us));
         Assert.Single(temp.Store.Facts("shino"));
-        // the moment is from before the conversation now: recallable even though nothing has been folded yet
-        Assert.Equal((0, 0), temp.Store.Episodes("shino").Select(e => (e.First, e.Last)).Single());
 
         var again = temp.Store.Add("shino", Speaker.User, "hello again", Friday);
         Assert.Equal(["hello again"], temp.Store.After("shino", 0).Select(l => l.Text));

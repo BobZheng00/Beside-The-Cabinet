@@ -11,22 +11,14 @@ namespace InsertCoin.Mind;
 /// </summary>
 public sealed class Conversation(MindStore store, string character, Persona persona, TimeProvider? clock = null)
 {
-    /// <summary>How long a conversation stays quiet before upkeep reads it, and how much it reads at once (tokens).</summary>
+    /// <summary>How long a conversation stays quiet before upkeep reads it, and how much of her notes it keeps facts from at once (tokens).</summary>
     public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(10);
-    /// <summary>
-    /// How old moments get before they are rolled up, the oldest first: days into weeks after two weeks, days and weeks
-    /// into months after three months, and anything shorter into years after two years. With at most one moment a day,
-    /// that keeps her moments to a couple of dozen recent ones plus one per older month and year.
-    /// </summary>
-    public static readonly TimeSpan WeeksAfter = TimeSpan.FromDays(14), MonthsAfter = TimeSpan.FromDays(90), YearsAfter = TimeSpan.FromDays(730);
-    /// <summary>Facts upkeep reconciles a stretch of conversation against at most (the related ones, see <see cref="Recall.Related"/>).</summary>
+    /// <summary>Facts upkeep reconciles her new notes against at most (the related ones, see <see cref="Recall.Related"/>).</summary>
     public const int DigestFacts = 60;
-    /// <summary>Moments a day may have (one per distinct thing that happened), and how long each may be.</summary>
-    public const int DayMoments = 3, MomentWords = 60;
-
-    /// <summary>How long a rolled-up moment may be: a week 80 words, a month 100, a year 150.</summary>
-    public static int RolledUpWords(Span span) => span switch { Span.Week => 80, Span.Month => 100, _ => 150 };
     public const int DigestAtOnce = 3000;
+
+    /// <summary>Why a fact was retired when it stopped being true: it changed (followed by what it is now), or it ended. Recalled as what used to be.</summary>
+    public const string Changed = "changed to:", Ended = "no longer true";
     private const int KeepLines = 12, NoteImportance = 7, CoreFrom = 6, CoreFacts = 40, GiveUpAfter = 3, LoreBudget = 500;
     // a ceiling, not a target: the prompt keeps her short, and a model that thinks first spends this on its thinking too
     // (a GPT model thought 1,522 tokens for a short story, 2026-10-11), so 600 could leave nothing for her words
@@ -36,7 +28,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     private static readonly ChatOptions DigestOptions = new() { MaxOutputTokens = 2000 };
 
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
-    private (long From, int Times) _failed, _failedFold;            // a stretch upkeep or folding couldn't read, and how often
+    private (long From, int Times) _failed, _failedKeep;            // a stretch of lines, or of notes, upkeep couldn't read, and how often
     private int _digestAtOnce = DigestAtOnce, _reviewAtOnce = ReviewAtOnce;     // smaller after an answer too long to come back whole
 
     public string Character => character;
@@ -111,8 +103,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public async Task<List<Piece>?> Call(IChatClient client, Toolbox? tools, CancellationToken cancel = default)
     {
         var now = _clock.GetLocalNow();
-        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), store.Observations(character),
-                                store.After(character, store.Folded(character)), "", $"[cabinet] {WordFirst.Ask}", memories: null,
+        var folded = store.Folded(character);
+        var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), Log.Left(store.Observations(character), folded),
+                                store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
                                 voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch());
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
@@ -160,15 +153,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                                      string? aside, bool texting = false)
     {
         var now = _clock.GetLocalNow();
-        var log = store.Observations(character);
         var folded = store.Folded(character);
-        // what she remembers: facts, episodes, the observations older than what she sees of her log, and the conversation
-        // before the window, searched as a whole
+        var log = Log.Left(store.Observations(character), folded);
+        // what she remembers: facts and what used to be true, her notes out of view, and the conversation before the
+        // window, searched as a whole
         var meaning = await MeaningOf(said, cancel);
         History.CatchUp(folded);
         var excerpts = History.Search(said, folded, meaning?.Query, meaning?.Model);
-        var memories = Recall.Find(said, store.Facts(character), store.Episodes(character).Where(e => e.Last <= folded).ToList(),
-                                   excerpts, persona.Name, now, meaning, log.Except(Log.Newest(log, Log.Budget(Window))).ToList());
+        var memories = Recall.Find(said, store.Facts(character), excerpts, persona.Name, now, meaning, [.. log.Except(Log.Newest(log, Log.Budget(Window)))],
+                                   [.. store.Retired(character).Where(f => f.Why is { } why && (why.StartsWith(Changed) || why == Ended))]);
         store.Recalled(memories.Where(m => m.FactId is not null).Select(m => m.FactId!.Value), now);
         var recent = store.After(character, folded);
         // a character card's lorebook: background whose keys came up just now (or in the last couple of lines)
@@ -504,12 +497,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public bool IsQuiet(TimeSpan quiet) => store.Through(character, long.MaxValue, 1) is not [var last] || _clock.GetLocalNow() - last.At >= quiet;
 
     /// <summary>
-    /// Folds the window's older part out of it, keeping its newest half (and at least a dozen lines) word for word. The
-    /// lines leaving are observed into her log (see <see cref="Log"/>) a few thousand tokens at a time, each batch with
-    /// her latest observations for continuity, and each observed batch leaves at once, so a later failure keeps what was
-    /// done. Returns false when there was nothing to fold or nothing usable came back for the first batch (the lines
-    /// stay, and the next attempt includes them; a batch that fails three times leaves without observations, still
-    /// searchable word for word, so it can't hold up the rest).
+    /// Folds the window's older part out of it, keeping its newest half (and at least a dozen lines) word for word: her
+    /// notes on the lines leaving are what she sees of them from now on (see <see cref="Log"/>). Upkeep has usually
+    /// noted them while the talk was quiet; lines it hasn't (the window filled in the middle of a conversation) are
+    /// observed first. Returns false when there was nothing to fold or those lines couldn't be noted yet (they stay, and
+    /// the next attempt includes them).
     /// </summary>
     /// <param name="quiet">Folding while quiet: from three quarters full; otherwise only a full window is folded.</param>
     public async Task<bool> Fold(IChatClient client, bool quiet = false, CancellationToken cancel = default)
@@ -522,14 +514,32 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var kept = 0;
         while (keep < lines.Count && (keep < KeepLines || kept + Prompt.Tokens(lines[^(keep + 1)].Text) + 4 <= Window / 2))
             kept += Prompt.Tokens(lines[^++keep].Text) + 4;
-        var fold = lines.Take(lines.Count - keep).ToList();
-        var folded = false;
-        var atOnce = Log.ObserveAtOnce;
-        while (fold.Count > 0)
+        if (keep == lines.Count)
+            return false;
+        var through = lines[lines.Count - keep - 1].Id;
+        while (store.Digested(character) < through)
+            if (await Observe(client, through, cancel) is null)
+                return false;
+        store.Fold(character, through, _clock.GetLocalNow());
+        return true;
+    }
+
+    /// <summary>
+    /// Notes the next batch of lines not yet observed, up to <paramref name="through"/>, into her log: a few thousand tokens
+    /// at a time, with her latest notes for continuity. Returns the new notes; null when nothing usable came back (the
+    /// lines wait for the next try; a batch that fails three times is passed over without notes, still searchable word
+    /// for word, so it can't hold up the rest).
+    /// </summary>
+    private async Task<IReadOnlyList<Observation>?> Observe(IChatClient client, long through, CancellationToken cancel)
+    {
+        var pending = store.After(character, store.Digested(character)).Where(l => l.Id <= through).ToList();
+        if (pending.Count == 0)
+            return [];
+        for (var atOnce = Log.ObserveAtOnce; ;)
         {
             var batch = new List<Line>();
             var used = 0;
-            foreach (var line in fold)
+            foreach (var line in pending)
             {
                 if (batch.Count > 0 && used + Prompt.Tokens(line.Text) > atOnce)
                     break;
@@ -545,16 +555,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
             if (response is null || Log.Parse(response.Text, batch) is not { } observed)
             {
-                _failedFold = _failedFold.From == batch[0].Id ? (batch[0].Id, _failedFold.Times + 1) : (batch[0].Id, 1);
-                if (_failedFold.Times < GiveUpAfter)
-                    return folded;
+                _failed = _failed.From == batch[0].Id ? (batch[0].Id, _failed.Times + 1) : (batch[0].Id, 1);
+                if (_failed.Times < GiveUpAfter)
+                    return null;
                 observed = [];
             }
-            store.Observe(character, observed, batch[^1].Id, _clock.GetLocalNow());
-            folded = true;
-            fold = [.. fold.Skip(batch.Count)];
+            store.Observe(character, observed, batch[^1].Id);
+            return observed;
         }
-        return folded;
     }
 
     /// <summary>
@@ -566,7 +574,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// </summary>
     public async Task<bool> Condense(IChatClient client, CancellationToken cancel = default)
     {
-        if (!IsQuiet(Quiet) || Log.ToCondense(store.Observations(character), Window, _clock.GetLocalNow()) is not { } stretch)
+        if (!IsQuiet(Quiet) || Log.ToCondense(Log.Left(store.Observations(character), store.Folded(character)), Window, _clock.GetLocalNow()) is not { } stretch)
             return false;
         List<Observation>? condensed = stretch.Notes.Count == 1
             ? [stretch.Notes[0] with { Id = 0, At = stretch.At, Span = stretch.Span }]           // a lone note just moves up a level
@@ -577,7 +585,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return true;
     }
 
-    /// <summary>What the player said and her stored facts, episodes and observations as vectors, or null without a model (or if it fails).</summary>
+    /// <summary>What the player said and her stored facts and notes as vectors, or null without a model (or if it fails).</summary>
     private async Task<Meaning?> MeaningOf(string said, CancellationToken cancel)
     {
         if (Embedder is not { } embedder)
@@ -585,8 +593,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         try
         {
             var query = await Task.Run(() => embedder.Embed(said, query: true), cancel);
-            return new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name),
-                               store.Vectors(MindStore.EpisodeKind, embedder.Model.Name), store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
+            return new Meaning(query, embedder.Model, store.Vectors(MindStore.FactKind, embedder.Model.Name), store.Vectors(MindStore.ObservationKind, embedder.Model.Name));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -595,8 +602,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>
-    /// Gives facts, episodes and observations without a vector from the loaded model one, a batch at a time (the model
-    /// runs off the calling thread; the store is written on it). Returns how many were done.
+    /// Gives facts, notes and old passages without a vector from the loaded model one, a batch at a time (the model runs
+    /// off the calling thread; the store is written on it). Returns how many were done.
     /// </summary>
     public async Task<int> Index(int batch = 64, CancellationToken cancel = default)
     {
@@ -605,10 +612,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         History.CatchUp(store.Folded(character));       // passages for what has left the window
         var model = embedder.Model.Name;
         var haveFacts = store.Vectors(MindStore.FactKind, model);
-        var haveEpisodes = store.Vectors(MindStore.EpisodeKind, model);
         var haveObservations = store.Vectors(MindStore.ObservationKind, model);
         var todo = store.Facts(character).Where(f => !haveFacts.ContainsKey(f.Id)).Select(f => (Kind: MindStore.FactKind, f.Id, f.Text))
-            .Concat(store.Episodes(character).Where(e => !haveEpisodes.ContainsKey(e.Id)).Select(e => (Kind: MindStore.EpisodeKind, e.Id, e.Text)))
             .Concat(store.Observations(character).Where(o => !haveObservations.ContainsKey(o.Id)).Select(o => (Kind: MindStore.ObservationKind, o.Id, o.Text)))
             .Concat(History.Unread(model).Select(p => (Kind: MindStore.PassageKind, p.Id, p.Text)))       // the old conversation, a batch at a time
             .Take(batch).ToList();
@@ -624,54 +629,74 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return todo.Count;
     }
 
-    /// <summary>The player has said something upkeep has not read yet, and the conversation has been quiet for <paramref name="quiet"/>.</summary>
+    /// <summary>
+    /// The player has said something upkeep has not noted yet and the conversation has been quiet for
+    /// <paramref name="quiet"/>, or she has notes whose facts aren't kept yet.
+    /// </summary>
     public bool NeedsDigest(TimeSpan quiet)
     {
         var lines = store.After(character, store.Digested(character));
-        return lines.Any(l => l.Speaker == Speaker.User) && _clock.GetLocalNow() - lines[^1].At >= quiet;
+        return lines.Any(l => l.Speaker == Speaker.User) && _clock.GetLocalNow() - lines[^1].At >= quiet || Unkept().Count > 0;
     }
 
     /// <summary>
-    /// Upkeep: reads the next stretch of conversation not yet digested, files a dated episode, adds, updates and
-    /// deletes facts, and rewrites the always-present notes when something important about them changed. Returns
-    /// false when there was nothing to read or the answer could not be used (it is tried again next time, and a
-    /// stretch that fails three times is skipped so it cannot block everything after it).
+    /// Upkeep, a few minutes into the quiet, in two narrow steps: notes the next stretch of the conversation not yet
+    /// observed into her log (the notes come into view once their lines leave the window), then keeps what those notes
+    /// tell of: facts, reconciled against the ones that relate (mem0's add, update, delete; a fact that changes keeps its
+    /// history), and the agenda's plans; the always-present notes are rewritten when something important in them changed.
+    /// Notes whose facts couldn't be kept are taken up again first. Returns false when there was nothing to read or the
+    /// answer couldn't be used (tried again next time; a stretch that fails three times is passed over).
     /// </summary>
     public async Task<bool> Digest(IChatClient client, CancellationToken cancel = default)
     {
-        var from = store.Digested(character);
-        var pending = store.After(character, from);
-        if (pending.Count == 0)
-            return false;
-        var chunk = new List<Line>();
-        var used = 0;
-        foreach (var line in pending)
+        if (Unkept().Count == 0)
         {
-            if (chunk.Count > 0 && used + Prompt.Tokens(line.Text) > _digestAtOnce)
-                break;
-            chunk.Add(line);
-            used += Prompt.Tokens(line.Text) + 4;
+            if (store.After(character, store.Digested(character)).Count == 0 || await Observe(client, long.MaxValue, cancel) is not { } observed)
+                return false;
+            if (observed.Count == 0)
+                return true;                                // read, and nothing worth noting: nothing to keep
         }
+        return await Keep(client, cancel);
+    }
 
-        // what she knows that relates to this stretch, not everything: the request stays the same size however much she knows
+    private string KeptMark => $"kept:{character}";
+
+    /// <summary>Her day notes whose facts and plans upkeep hasn't kept yet, oldest first.</summary>
+    private IReadOnlyList<Observation> Unkept()
+    {
+        var kept = long.TryParse(store.Mark(KeptMark), out var id) ? id : 0;
+        return [.. store.Observations(character).Where(o => o.Id > kept && o.Span == Span.Day && !o.Condensed).OrderBy(o => o.Id)];
+    }
+
+    /// <summary>Keeps the facts and plans her unkept notes tell of (see <see cref="Digest"/>), a few thousand tokens of notes at a time.</summary>
+    private async Task<bool> Keep(IChatClient client, CancellationToken cancel)
+    {
+        var notes = new List<Observation>();
+        var used = 0;
+        foreach (var note in Unkept())
+        {
+            if (notes.Count > 0 && used + Prompt.Tokens(note.Text) > _digestAtOnce)
+                break;
+            notes.Add(note);
+            used += Prompt.Tokens(note.Text) + 3;
+        }
+        // what she knows that relates to these notes, not everything: the request stays the same size however much she knows
         var all = store.Facts(character);
-        var transcript = string.Join('\n', chunk.Select(l => l.Text));
-        var known = all.Count <= DigestFacts ? all : Recall.Related(transcript, all, DigestFacts, await MeaningOf(transcript[..Math.Min(transcript.Length, 2000)], cancel));
-        // a few moments a day at most: a later stretch rewrites the moment it carries on, or adds one if it is something else
-        var today = store.Episodes(character).Where(e => e.Span == Span.Day && e.At.Date == chunk[0].At.Date).ToList();
+        var text = string.Join('\n', notes.Select(n => n.Text));
+        var known = all.Count <= DigestFacts ? all : Recall.Related(text, all, DigestFacts, await MeaningOf(text[..Math.Min(text.Length, 2000)], cancel));
         // the player's own items: a calendar's are its to change (and a busy one would fill every request)
         var agenda = store.Agenda().Where(p => p.Source is null).ToList();
-        if (await Whole(client, Upkeep.Request(persona, known, chunk, today, agenda), DigestOptions, cancel) is not { } response)
+        if (await Whole(client, Upkeep.Request(persona, known, notes, agenda), DigestOptions, cancel) is not { } response)
         {
-            _digestAtOnce = Math.Max(300, used / 2);        // too much for one answer: a smaller stretch next time
+            _digestAtOnce = Math.Max(300, used / 2);        // too much for one answer: fewer notes next time
             return false;
         }
         _digestAtOnce = DigestAtOnce;
         if (Upkeep.Parse(response.Text) is not { } digestion)
         {
-            _failed = _failed.From == from ? (from, _failed.Times + 1) : (from, 1);
-            if (_failed.Times >= GiveUpAfter)
-                store.SetDigested(character, chunk[^1].Id);
+            _failedKeep = _failedKeep.From == notes[0].Id ? (notes[0].Id, _failedKeep.Times + 1) : (notes[0].Id, 1);
+            if (_failedKeep.Times >= GiveUpAfter)
+                store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));     // passed over: the notes stay in her log
             return false;
         }
 
@@ -683,40 +708,49 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             switch (change.Op)
             {
                 // something she had retired has come up again: back to the foreground, not a second copy
-                case "add" when change.Text is { Length: > 2 } text && store.Retired(character).FirstOrDefault(f => Recall.Same(f.Text, text)) is { } back:
+                case "add" when change.Text is { Length: > 2 } text2 && store.Retired(character).FirstOrDefault(f => Recall.Same(f.Text, text2)) is { } back:
                     store.Restore(back.Id, now);
                     if (back.Importance >= CoreFrom)
                         touched.Add(back.Scope);
                     break;
-                case "add" when change.Text is { Length: > 2 } text && !store.Facts(character).Any(f => Recall.Same(f.Text, text)):
+                case "add" when change.Text is { Length: > 2 } text2 && !store.Facts(character).Any(f => Recall.Same(f.Text, text2)):
                     var scope = change.About == "us" ? character : MindStore.Shared;
                     var importance = change.Importance ?? 5;
-                    store.AddFact(scope, text, importance, now);
+                    store.AddFact(scope, text2, importance, now);
                     if (importance >= CoreFrom)
                         touched.Add(scope);
                     break;
-                case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text:
-                    store.UpdateFact(id, text, change.Importance);
+                // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
+                // new one learned now; the same thing in other words is just rewritten
+                case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2:
+                    if (Recall.Same(old.Text, text2))
+                        store.UpdateFact(id, text2, change.Importance);
+                    else
+                    {
+                        store.Retire(id, $"{Changed} {text2}", now);
+                        store.AddFact(old.Scope, text2, change.Importance ?? old.Importance, now);
+                    }
                     if (Math.Max(old.Importance, change.Importance ?? 0) >= CoreFrom)
                         touched.Add(old.Scope);
                     break;
+                // no longer true: retired, not deleted, so what used to be can still be recalled
                 case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned:
-                    store.DeleteFact(id);
+                    store.Retire(id, Ended, now);
                     if (gone.Importance >= CoreFrom)
                         touched.Add(gone.Scope);
                     break;
             }
         }
-        // things ahead with a date: on the agenda (relative dates were made absolute from the lines' timestamps)
+        // things ahead with a date: on the agenda (her notes write dates out in full)
         var plans = agenda.ToDictionary(p => p.Id);
         foreach (var change in digestion.Plans)
         {
             var when = change.When is { } w ? Agenda.ParseWhen(w, now, _clock.LocalTimeZone) : null;
             switch (change.Op)
             {
-                case "add" when when is { } at && change.Text is { Length: > 1 } text:
+                case "add" when when is { } at && change.Text is { Length: > 1 } text2:
                     var (before, repeat) = Agenda.ParseOptions(change.Options);
-                    AddPlan(new PlanSpec(at.At, at.AllDay, text, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
+                    AddPlan(new PlanSpec(at.At, at.AllDay, text2, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
                     break;
                 case "update" when change.Id is { } id && plans.TryGetValue(id, out var plan):
                     var moved = when ?? (plan.At, plan.AllDay);
@@ -729,57 +763,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     break;
             }
         }
-        if (digestion.Episode is { Length: > 0 } episode)
-        {
-            var continued = digestion.Continues is { } id ? today.FirstOrDefault(e => e.Id == id) : null;
-            if (continued is null && today.Count >= DayMoments)
-                continued = today[^1];                      // the day is full: the latest takes it in
-            if (continued is not null)
-                store.UpdateEpisode(continued.Id, episode, chunk[^1].Id);
-            else
-                store.AddEpisode(character, episode, chunk[0].Id, chunk[^1].Id, chunk[0].At);      // dated when it happened
-        }
-        store.SetDigested(character, chunk[^1].Id);
+        store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         foreach (var scope in touched)
             await RewriteNote(client, scope, cancel);
         return true;
     }
-
-    /// <summary>
-    /// Rolls old moments up (see <see cref="WeeksAfter"/>): days into weeks, then days and weeks into months, then
-    /// anything shorter into years, one group per call, the oldest first. A group needs at least two moments; a lone
-    /// one waits for the next, longer roll-up. Returns false when there was nothing to combine.
-    /// </summary>
-    public async Task<bool> Consolidate(IChatClient client, CancellationToken cancel = default)
-    {
-        var now = _clock.GetLocalNow();
-        var episodes = store.Episodes(character);
-        foreach (var (into, after, key, period) in RollUps)
-        {
-            var group = episodes.Where(e => e.Span < into && now - e.At > after).GroupBy(e => key(e.At))
-                .Where(g => g.Count() >= 2).OrderBy(g => g.Key).FirstOrDefault();
-            if (group is null)
-                continue;
-            if (await Whole(client, Upkeep.Combine(persona, period(group.Key), into, group), FoldOptions, cancel) is not { } response)
-                return false;
-            var text = response.Text.Trim();
-            if (text.Length == 0)
-                return false;
-            store.AddEpisode(character, text, group.Min(e => e.First), group.Max(e => e.Last), group.Min(e => e.At), into);
-            foreach (var moment in group)
-                store.DeleteEpisode(moment.Id);
-            return true;
-        }
-        return false;
-    }
-
-    private static readonly (Span Into, TimeSpan After, Func<DateTimeOffset, DateOnly> Key, Func<DateOnly, string> Period)[] RollUps =
-    [
-        (Span.Week, WeeksAfter, MondayOf, monday => "the week starting " + monday.ToString("dddd d MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)),
-        (Span.Month, MonthsAfter, at => new DateOnly(at.Year, at.Month, 1), first => first.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)),
-        (Span.Year, YearsAfter, at => new DateOnly(at.Year, 1, 1), first => first.Year.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-    ];
 
     /// <summary>How often her facts are reviewed (sooner when many new ones have come), and how many are read at once.</summary>
     public static readonly TimeSpan ReviewEvery = TimeSpan.FromDays(7);

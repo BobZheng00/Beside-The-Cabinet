@@ -48,15 +48,19 @@ it out. She knows the cabinet's numbers and remembers:
 
 - the conversation itself, one continuous thread per character. The newest part (Settings → Her mind, "Word for word":
   32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
-  providers serve it from their cache at a tenth of the price (Claude is asked to cache it); older talk is folded
-  into a summary, normally while the conversation is quiet. Each turn tells her the time and how long since you
-  last talked;
-- facts about you (shared by every character) and about the two of you, plus dated moments. When you just tell her
-  something worth keeping she says she'll remember it and jots it in a little notebook; everything else is picked
-  up quietly by upkeep, which reads the conversation once it has been quiet for ten minutes (two while a game
-  runs), checking it against the facts that relate to it. A moment is one to three sentences (at most 60 words);
-  a day gets up to three, one per thing that happened (a later talk on the same thing rewrites its moment), and
-  small talk none;
+  providers serve it from their cache at a tenth of the price (Claude is asked to cache it). Each turn tells her
+  the time and how long since you last talked;
+- her notes on your talks, a log by day (docs/specs/2026-10-11-observational-memory.md): once the conversation has
+  been quiet for ten minutes (two while a game runs), upkeep notes what was said, one short note per thing worth
+  keeping (what you did, plan, like or worry about, names, numbers and dates written out, what she promised), and
+  small talk none. When older talk leaves the word-for-word part, her notes on it take its place at the start of her
+  prompt: the newest that fit three eighths of the window (12k tokens at 32k), "!" before what matters most. As they
+  age, a finished week of notes is condensed into notes for the week, weeks into months and months into years, so
+  they never outgrow their room; the originals stay, recalled when they come up;
+- facts about you (shared by every character) and about the two of you, kept from her notes by upkeep, checked
+  against the facts that relate to them. When you just tell her something worth keeping she says she'll remember it
+  and jots it in a little notebook at once. A fact that changes keeps its history: the old one is retired as
+  changed, and "where did I live before?" can still find it, marked until when;
 - two short notes she always has in mind, rewritten by upkeep when something important changes;
 - your agenda: plans, exams and appointments with their dates, which she writes down when you mention them (or
   upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum", "an hour before the interview",
@@ -82,8 +86,7 @@ it out. She knows the cabinet's numbers and remembers:
   Settings → Her mind, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
   chatting), the small one (Chinese and English, about 50 MB) or shared words only;
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
-  longer; pinned and the most important ones never fade), and old moments are rolled up: days into weeks after
-  two weeks, into months after three months, into years after two years, so they stop piling up. About weekly,
+  longer; pinned and the most important ones never fade). About weekly,
   while quiet, she reviews her facts: what says the same thing is merged, and what is out of date (a plan already
   past, something since changed, trivia that never came up again) is retired. Retired is not deleted: the memory
   book lists it under "Retired by her review", to bring back, and it comes back by itself if it comes up again.
@@ -268,8 +271,8 @@ Settings → Usage shows what her requests used, as your provider reports it, th
 tokens read, the share served from the provider's cache, cache writes and output, her replies apart from her
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 
-Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the summary she works from
-above it). Tray → "Memory book…" shows all of it, a tab each (notes, agenda, facts, moments, forget): edit, pin
+Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes she works from above
+it). Tray → "Memory book…" shows all of it, a tab each (notes, agenda, facts, moments: her log, forget): edit, pin
 (always in mind, upkeep leaves it alone) or delete anything.
 "Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
 conversation and everything about the two of you; "Forget all about me" clears what every character knows about
@@ -299,7 +302,7 @@ hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
-agenda items, retired facts and a moment to try it on), `remind:some_text` (a reminder goes off now),
+agenda items, retired facts and a note to try it on), `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
@@ -308,7 +311,7 @@ again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` 
 `fake_telegram.py`), `paircode:CODE` (the next pairing code, for it to send back),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
-buttons), `upkeep` (digest the conversation now), `moment:note`, `voicetest` (her voice's
+buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (her voice's
 sample line), `voice:some_text` (a bubble she also says aloud, if it is in her voice's language), `thinkingsounds:C:\path\folder` (her
 thinking sounds saved as WAV files) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as choosing it

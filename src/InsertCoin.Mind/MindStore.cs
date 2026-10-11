@@ -27,28 +27,13 @@ public sealed record Fact(long Id, string Scope, string Text, int Importance, Da
     public bool Faded(DateTimeOffset now) => Retention(now) < 0.1;
 }
 
-/// <summary>A dated summary of one stretch of conversation, lines <see cref="First"/> to <see cref="Last"/>; a week's worth when <see cref="Week"/>.</summary>
-/// <summary>The stretch of time a moment covers: a day's talk, or older moments rolled up (see <see cref="Conversation.Consolidate"/>).</summary>
+/// <summary>The stretch of time a note of hers covers: a day's talk, or older notes condensed (see <see cref="Conversation.Condense"/>).</summary>
 public enum Span { Day, Week, Month, Year }
-
-public sealed record Episode(long Id, string Text, long First, long Last, DateTimeOffset At, Span Span = Span.Day)
-{
-    public bool Week => Span == Span.Week;
-
-    /// <summary>When it was, as the memory book and recall show it: "Fri 25 Sep", "Week of 7 Sep", "September 2026", "2026".</summary>
-    public string Label => Span switch
-    {
-        Span.Week => "Week of " + At.ToString("d MMM", CultureInfo.InvariantCulture),
-        Span.Month => At.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
-        Span.Year => At.ToString("yyyy", CultureInfo.InvariantCulture),
-        _ => At.ToString("ddd d MMM", CultureInfo.InvariantCulture),
-    };
-}
 
 /// <summary>
 /// Everything she remembers, in one SQLite file in the profile folder: each character's conversation (one continuous
 /// thread), the log of what she observed in its older part (see <see cref="Log"/>), the notes that are always in her
-/// context, the facts and episodes upkeep draws from the conversation, and how far upkeep has read.
+/// context, the facts upkeep keeps from her notes, and how far upkeep has read.
 /// </summary>
 public sealed class MindStore : IDisposable
 {
@@ -153,11 +138,23 @@ public sealed class MindStore : IDisposable
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE observations ADD COLUMN span INTEGER NOT NULL DEFAULT 0; ALTER TABLE observations ADD COLUMN condensed INTEGER NOT NULL DEFAULT 0; " +
                     "PRAGMA user_version = 12;");
+        // version 13: the day's moments retire into her log, a note each of its span (they were a second summary of the
+        // same talk); her facts were drawn from all of it already, so facts are kept from the notes after these
+        using (var version = Command("PRAGMA user_version"))
+            if ((long)version.ExecuteScalar()! < 13)
+                Run("""
+                    INSERT INTO observations (character, at, priority, text, first, last, span, condensed)
+                        SELECT character, at, 1, text, first, last, week, 0 FROM episodes ORDER BY at, id;
+                    DELETE FROM episodes;
+                    DELETE FROM vectors WHERE kind = 'episode';
+                    INSERT OR REPLACE INTO marks (key, value) SELECT 'kept:' || character, max(id) FROM observations GROUP BY character;
+                    PRAGMA user_version = 13;
+                    """);
     }
 
-    // ---- Vectors (what facts and episodes mean, for search by meaning) --------------------------------------------
+    // ---- Vectors (what facts, notes and old lines mean, for search by meaning) -------------------------------------
 
-    public const string FactKind = "fact", EpisodeKind = "episode", PassageKind = "passage", ObservationKind = "observation";
+    public const string FactKind = "fact", PassageKind = "passage", ObservationKind = "observation";
 
     /// <summary>Counts clears and forgets, so what is cached from the store (see <see cref="History"/>) knows to read it again.</summary>
     public int Changes { get; private set; }
@@ -171,7 +168,7 @@ public sealed class MindStore : IDisposable
         command.ExecuteNonQuery();
     }
 
-    /// <summary>The vectors a model has made for facts or episodes, by id.</summary>
+    /// <summary>The vectors a model has made for facts, notes or passages, by id.</summary>
     public Dictionary<long, float[]> Vectors(string kind, string model)
     {
         using var command = Command("SELECT id, vector FROM vectors WHERE kind = $k AND model = $m", ("$k", kind), ("$m", model));
@@ -187,7 +184,7 @@ public sealed class MindStore : IDisposable
         return vectors;
     }
 
-    /// <summary>Drops vectors whose fact or episode is gone or has changed (it gets a new one at the next indexing).</summary>
+    /// <summary>Drops vectors whose fact, note or passage is gone or has changed (it gets a new one at the next indexing).</summary>
     private void DropVectors(string kind, long? id = null)
     {
         using var command = id is { } one
@@ -196,7 +193,7 @@ public sealed class MindStore : IDisposable
             {
                 FactKind => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM facts)",
                 PassageKind => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM passages)",
-                _ => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM episodes)",
+                _ => "DELETE FROM vectors WHERE kind = $k AND id NOT IN (SELECT id FROM observations)",
             }, ("$k", kind));
         command.ExecuteNonQuery();
     }
@@ -286,40 +283,6 @@ public sealed class MindStore : IDisposable
             using var command = Command("UPDATE facts SET recalled = $a, recalls = recalls + 1 WHERE id = $id", ("$id", id), ("$a", Stamp(at)));
             command.ExecuteNonQuery();
         }
-    }
-
-    // ---- Episodes and upkeep ---------------------------------------------------------------------------------------
-
-    public long AddEpisode(string character, string text, long first, long last, DateTimeOffset at, Span span = Span.Day)
-    {
-        using var command = Command("INSERT INTO episodes (character, text, first, last, at, week) VALUES ($c, $t, $f, $l, $a, $w) RETURNING id",
-            ("$c", character), ("$t", text.Trim()), ("$f", first), ("$l", last), ("$a", Stamp(at)), ("$w", (int)span));
-        return (long)command.ExecuteScalar()!;
-    }
-
-    /// <summary>A moment rewritten to take in more of its day (its vector goes: it no longer means the same).</summary>
-    public void UpdateEpisode(long id, string text, long last)
-    {
-        using var command = Command("UPDATE episodes SET text = $t, last = $l WHERE id = $id", ("$t", text.Trim()), ("$l", last), ("$id", id));
-        command.ExecuteNonQuery();
-        DropVectors(EpisodeKind, id);
-    }
-
-    public IReadOnlyList<Episode> Episodes(string character)
-    {
-        using var command = Command("SELECT id, text, first, last, at, week FROM episodes WHERE character = $c ORDER BY at, id", ("$c", character));
-        using var reader = command.ExecuteReader();
-        var episodes = new List<Episode>();
-        while (reader.Read())
-            episodes.Add(new Episode(reader.GetInt64(0), reader.GetString(1), reader.GetInt64(2), reader.GetInt64(3), Parse(reader.GetString(4)), (Span)reader.GetInt32(5)));
-        return episodes;
-    }
-
-    public void DeleteEpisode(long id)
-    {
-        using var command = Command("DELETE FROM episodes WHERE id = $id", ("$id", id));
-        command.ExecuteNonQuery();
-        DropVectors(EpisodeKind, id);
     }
 
     // ---- The agenda ------------------------------------------------------------------------------------------------
@@ -741,19 +704,33 @@ public sealed class MindStore : IDisposable
     }
 
     /// <summary>
-    /// Lines up to and including <paramref name="through"/> have left the window, and these are what she observed in
-    /// them: added to her log together, so neither happens without the other.
+    /// Lines up to and including <paramref name="through"/> have been observed, and these are her notes on them: added
+    /// to her log together, so neither happens without the other. The lines stay in the window until it is folded.
     /// </summary>
-    public void Observe(string character, IReadOnlyList<Observation> observed, long through, DateTimeOffset at)
+    public void Observe(string character, IReadOnlyList<Observation> observed, long through)
     {
         using var transaction = _db.BeginTransaction();
         AddObservations(character, observed);
+        SetDigested(character, through);
+        transaction.Commit();
+    }
+
+    /// <summary>Lines up to and including <paramref name="through"/> leave the window: her notes on them are what she sees of them now.</summary>
+    public void Fold(string character, long through, DateTimeOffset at)
+    {
         using var fold = Command("""
             INSERT INTO summaries (character, text, through, at) VALUES ($c, '', $i, $a)
             ON CONFLICT (character) DO UPDATE SET through = excluded.through, at = excluded.at
             """, ("$c", character), ("$i", through), ("$a", Stamp(at)));
         fold.ExecuteNonQuery();
-        transaction.Commit();
+    }
+
+    /// <summary>A note the player had her forget.</summary>
+    public void DeleteObservation(long id)
+    {
+        using var command = Command("DELETE FROM observations WHERE id = $id", ("$id", id));
+        command.ExecuteNonQuery();
+        DropVectors(ObservationKind, id);
     }
 
     /// <summary>
@@ -816,12 +793,11 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM notes WHERE scope = $c;
-            DELETE FROM facts WHERE scope = $c; DELETE FROM episodes WHERE character = $c; DELETE FROM digested WHERE character = $c;
+            DELETE FROM facts WHERE scope = $c; DELETE FROM digested WHERE character = $c; DELETE FROM marks WHERE key = 'kept:' || $c;
             DELETE FROM passages WHERE character = $c; DELETE FROM observations WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
-        DropVectors(EpisodeKind);
         DropVectors(PassageKind);
         DropVectors(ObservationKind);
         Changes++;
@@ -829,16 +805,16 @@ public sealed class MindStore : IDisposable
 
     /// <summary>
     /// Clears the conversation with this character (its lines, how far it was folded, and upkeep's place in them) and
-    /// keeps everything she took from it: notes, facts, dated moments and her log. The moments now count as from before
-    /// the conversation, so they can be recalled at once whatever ids the new lines get (ids are reused once a table is
-    /// empty). Lines upkeep had not yet read are lost with the rest.
+    /// keeps everything she took from it: the always-present notes, her facts and her log. Her notes now count as from
+    /// before the conversation, so they are in view at once whatever ids the new lines get (ids are reused once a table
+    /// is empty). Lines upkeep had not yet read are lost with the rest.
     /// </summary>
     public void ForgetConversation(string character)
     {
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM digested WHERE character = $c;
             DELETE FROM passages WHERE character = $c;
-            UPDATE episodes SET first = 0, last = 0 WHERE character = $c; UPDATE observations SET first = 0, last = 0 WHERE character = $c;
+            UPDATE observations SET first = 0, last = 0 WHERE character = $c;
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(PassageKind);

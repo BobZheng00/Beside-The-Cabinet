@@ -34,6 +34,13 @@ public static class Log
     /// <summary>What of the log she sees: three eighths of her window (12k tokens at 32k), her newest observations.</summary>
     public static int Budget(int window) => window * 3 / 8;
 
+    /// <summary>
+    /// Her notes on what has left the window (line <paramref name="folded"/> and before): those she sees in place of the
+    /// lines. Upkeep notes lines while they are still in the window, word for word, so those notes wait; a note that
+    /// straddles the edge shows as soon as its first line leaves, so nothing falls between the two.
+    /// </summary>
+    public static IReadOnlyList<Observation> Left(IReadOnlyList<Observation> log, long folded) => [.. log.Where(o => o.First <= folded)];
+
     /// <summary>The newest notes in view that fit in <paramref name="tokens"/>, oldest first (condensed ones are out of view).</summary>
     public static IReadOnlyList<Observation> Newest(IReadOnlyList<Observation> log, int tokens)
     {
@@ -77,7 +84,8 @@ public static class Log
 
     private static (Span, DateTime) Group(Observation o) => (o.Span, o.At.Date);
 
-    private static string Heading(Span span, DateTimeOffset at) => span switch
+    /// <summary>When a note is from, as its heading says: "Fri 2 Oct 2026", "Week of 21 Sep 2026", "September 2026", "2026".</summary>
+    public static string Heading(Span span, DateTimeOffset at) => span switch
     {
         Span.Week => "Week of " + at.ToString("d MMM yyyy", English),
         Span.Month => at.ToString("MMMM yyyy", English),
