@@ -288,7 +288,8 @@ worth watching still get a few seconds at full pace).
 
 Dev keys (debug builds, click the cabinet first): `F1/F2/F3` solve Easy/Medium/Hard · `F4` she asks for your bedtime
 now (a word first; unanswered, its ticket) · `F5` fake game on/off · `F6` clock ×60 · `F7` AFK on/off · `F8` she
-suggests standing up now (a word first, no ticket) · `F9` wipe state · `Esc` quit.
+suggests standing up now (a word first, no ticket) · `F9` wipe state · `F10` her upkeep now (notes, facts, plans and
+threads from the talk so far, without waiting for ten quiet minutes) · `Esc` quit.
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
