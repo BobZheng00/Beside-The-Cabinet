@@ -37,6 +37,7 @@ public sealed class Reminders(MindStore store, AlertTicket ticket, AudioBank aud
                 store.Reminded(plan.Id, now);
             else
                 store.Advance(plan.Id, Agenda.NextAfter(plan, now, Lead, TimeZoneInfo.Local));
+        store.ClosePast(now, TimeZoneInfo.Local);          // a reminder to do something is done once it has gone off
         GD.Print($"Reminders: {due.Count} going off");
         GoOff(due, now, settings().ReminderSound, elsewhere: true);
     }

@@ -81,6 +81,21 @@ public class AgendaTests
     }
 
     [Fact]
+    public void A_reminder_to_do_something_leaves_the_agenda_once_it_has_gone_off_while_a_plan_stays_to_ask_about()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var teeth = store.AddPlan("Brush your teeth", Friday.AddMinutes(5), allDay: false, before: TimeSpan.Zero, Friday, "shino");
+        var interview = store.AddPlan("Job interview", Friday.AddMinutes(5), allDay: false, before: TimeSpan.FromMinutes(30), Friday, "shino");
+        store.Reminded(teeth, Friday.AddMinutes(5));
+        store.Reminded(interview, Friday.AddMinutes(5));
+
+        store.ClosePast(Friday.AddMinutes(6));
+
+        Assert.Equal(["Job interview"], store.Agenda().Select(p => p.Text));     // she asks how that went; brushing needs no asking
+    }
+
+    [Fact]
     public void A_reminder_moved_to_a_new_time_goes_off_again()
     {
         using var temp = new TempStore();

@@ -495,7 +495,8 @@ public sealed class MindStore : IDisposable
     /// <summary>
     /// A repeating item without a reminder of its own moves on once it is over (one with a reminder moves on when the
     /// reminder goes off). A one-off item over for longer than <see cref="Mind.Agenda.Behind"/> leaves the agenda,
-    /// unless a reminder the player asked for has yet to be mentioned; a year on it is deleted.
+    /// unless a reminder the player asked for has yet to be mentioned; a reminder to do something at its own time leaves
+    /// as soon as it has gone off, since there is nothing to ask about after it; a year on it is deleted.
     /// </summary>
     /// <param name="zone">The player's time zone, so a repeat keeps its time of day when the clocks change.</param>
     public int ClosePast(DateTimeOffset now, TimeZoneInfo? zone = null)
@@ -504,8 +505,9 @@ public sealed class MindStore : IDisposable
         foreach (var plan in plans.Where(p => p.Repeat != Repeat.Once && p.Before is null && p.End <= now))
             Advance(plan.Id, Mind.Agenda.NextAfter(plan, now, zone: zone));
         var closed = 0;
-        foreach (var plan in plans.Where(p => p.Repeat == Repeat.Once && p.End <= now - Mind.Agenda.Behind
-                                              && (p.Reminded is not null || p.RemindAt() is not { } at || p.Added > at)))
+        foreach (var plan in plans.Where(p => p.Repeat == Repeat.Once
+                                              && (p.Before == TimeSpan.Zero && p.Reminded is not null
+                                                  || p.End <= now - Mind.Agenda.Behind && (p.Reminded is not null || p.RemindAt() is not { } at || p.Added > at))))
         {
             using var command = Command("UPDATE agenda SET closed = $n WHERE id = $id", ("$n", Stamp(now)), ("$id", plan.Id));
             closed += command.ExecuteNonQuery();
