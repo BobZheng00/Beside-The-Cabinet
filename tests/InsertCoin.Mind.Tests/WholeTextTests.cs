@@ -76,6 +76,7 @@ public class WholeTextTests
         model.Answers.Enqueue(string.Concat(Enumerable.Repeat("Sam lives in Springfield and loves cats. ", 40)));             // still over: 1,520
 
         Assert.True(await conversation.Digest(model));
+        Assert.True(await conversation.RefreshNotes(model));
 
         var note = temp.Store.Note(MindStore.Shared, MindStore.AboutUser);
         Assert.Contains("Shorten this note to at most 180 words", model.Requests[3][0].Text);

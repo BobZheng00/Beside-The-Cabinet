@@ -183,6 +183,10 @@ public class MemoryTests
         model.Answers.Enqueue("Bob calls Shino 'Coach'.");                       // the two of them
 
         Assert.True(await conversation.Digest(model));
+        Assert.Equal("Bob, studying for exams.", store.Note(MindStore.Shared, MindStore.AboutUser));    // only marked out of date
+        Assert.True(await conversation.RefreshNotes(model));               // rewritten once the conversation is noted
+        Assert.True(await conversation.RefreshNotes(model));
+        Assert.False(await conversation.RefreshNotes(model));
 
         var facts = store.Facts("shino");
         Assert.Equal(["The player's name is Bob.", "The player's exam is on Monday 12 October 2026.", "The player calls Shino 'Coach'."],

@@ -643,8 +643,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// Upkeep, a few minutes into the quiet, in two narrow steps: notes the next stretch of the conversation not yet
     /// observed into her log (the notes come into view once their lines leave the window), then keeps what those notes
     /// tell of: facts, reconciled against the ones that relate (mem0's add, update, delete; a fact that changes keeps its
-    /// history), and the agenda's plans; the always-present notes are rewritten when something important in them changed.
-    /// Notes whose facts couldn't be kept are taken up again first. Returns false when there was nothing to read or the
+    /// history), and the agenda's plans; the always-present notes are marked out of date when something important in them
+    /// changed (see <see cref="RefreshNotes"/>). Notes whose facts couldn't be kept are taken up again first. Returns false when there was nothing to read or the
     /// answer couldn't be used (tried again next time; a stretch that fails three times is passed over).
     /// </summary>
     public async Task<bool> Digest(IChatClient client, CancellationToken cancel = default)
@@ -764,9 +764,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
         foreach (var scope in touched)
-            await RewriteNote(client, scope, cancel);
+            Stale(scope);
         return true;
     }
 
@@ -834,8 +833,41 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var end = batch[^1].Id == facts[^1].Id;
         store.SetMark(key, end ? $"{now:O}|{store.Facts(character).Count}|0" : $"{(last == DateTimeOffset.MinValue ? now : last):O}|{count}|{batch[^1].Id}");
         foreach (var scope in touched)
-            await RewriteNote(client, scope, cancel);
+            Stale(scope);
         return true;
+    }
+
+    /// <summary>How often an always-present note is rewritten at most, once something important in it has changed.</summary>
+    public static readonly TimeSpan NotesEvery = TimeSpan.FromDays(1);
+
+    /// <summary>Something important about the player (<see cref="MindStore.Shared"/>) or the two of them changed: their note is out of date (see <see cref="RefreshNotes"/>).</summary>
+    private void Stale(string scope) => store.SetMark($"stale:{scope}", "1");
+
+    /// <summary>
+    /// Rewrites the always-present notes whose important facts changed: once the talk is quiet, after the conversation
+    /// has been noted (upkeep calls it only then), at most once a day each, and at once while a note is still empty. A
+    /// rewrite reads up to 40 facts: done after every batch of notes, it was most of upkeep's cost (2026-10-11), and what
+    /// changes in between comes to her through recall anyway. Returns true when a note was rewritten.
+    /// </summary>
+    public async Task<bool> RefreshNotes(IChatClient client, CancellationToken cancel = default)
+    {
+        if (!IsQuiet(Quiet))
+            return false;
+        var now = _clock.GetLocalNow();
+        foreach (var scope in new[] { MindStore.Shared, character })
+        {
+            if (store.Mark($"stale:{scope}") is not { Length: > 0 })
+                continue;
+            var empty = store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us).Trim().Length == 0;
+            if (!empty && store.Mark($"rewritten:{scope}") is { } last && now - DateTimeOffset.Parse(last, System.Globalization.CultureInfo.InvariantCulture) < NotesEvery)
+                continue;
+            if (!await RewriteNote(client, scope, cancel))
+                return false;                               // tried again next time
+            store.SetMark($"stale:{scope}", "");
+            store.SetMark($"rewritten:{scope}", now.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            return true;
+        }
+        return false;
     }
 
     public static DateOnly MondayOf(DateTimeOffset at)
@@ -860,22 +892,24 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return response.FinishReason == ChatFinishReason.Length ? null : response;
     }
 
-    /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it.</summary>
-    private async Task RewriteNote(IChatClient client, string scope, CancellationToken cancel)
+    /// <summary>Rewrites "about the player" (shared) or "you and me" from the important facts behind it; false when the answer couldn't be used.</summary>
+    private async Task<bool> RewriteNote(IChatClient client, string scope, CancellationToken cancel)
     {
         var name = scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us;
         var facts = store.Facts(character).Where(f => f.Scope == scope && (f.Importance >= CoreFrom || f.Pinned))
             .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned).Take(CoreFacts).ToList();
         var subject = scope == MindStore.Shared ? "the player" : $"the player and {persona.Name}";
         if (await Whole(client, Upkeep.Rewrite(subject, store.Note(scope, name), facts), FoldOptions, cancel) is not { } response)
-            return;                                         // the note stays as it was
+            return false;                                   // the note stays as it was
         var note = response.Text.Trim();
         // over its room (two notes in three were, 2026-10-11): sent back once to be shortened, then kept to whole sentences
         if (note.Length > Prompt.NoteLimit && await Whole(client, Upkeep.Shorten(note, Prompt.NoteWords), FoldOptions, cancel) is { } shorter
             && shorter.Text.Trim() is { Length: > 0 } shortened && shortened.Length < note.Length)
             note = shortened;
-        if (note.Length > 0)
-            store.SetNote(scope, name, Prompt.Fit(note, Prompt.NoteLimit));
+        if (note.Length == 0)
+            return false;
+        store.SetNote(scope, name, Prompt.Fit(note, Prompt.NoteLimit));
+        return true;
     }
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));

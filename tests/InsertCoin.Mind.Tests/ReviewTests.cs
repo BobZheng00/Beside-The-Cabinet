@@ -27,6 +27,7 @@ public class ReviewTests
         model.Answers.Enqueue("Bob. Exam on Monday 12 October 2026.");     // the note about the player, rewritten
 
         Assert.True(await conversation.Review(model));
+        Assert.True(await conversation.RefreshNotes(model));
 
         var asked = model.Requests[0];
         Assert.Contains("Today is Friday 2 October 2026", asked[0].Text);
