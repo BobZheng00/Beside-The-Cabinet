@@ -109,8 +109,9 @@ internal sealed class TempStore : IDisposable
 {
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "insert-coin-mind-tests", Guid.NewGuid().ToString("N"));
     public MindStore Store { get; }
+    public string Location => Path.Combine(_folder, "memory.db");
 
-    public TempStore() => Store = new MindStore(Path.Combine(_folder, "memory.db"));
+    public TempStore() => Store = new MindStore(Location);
 
     public void Dispose()
     {

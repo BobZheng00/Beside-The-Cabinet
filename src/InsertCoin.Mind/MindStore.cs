@@ -48,6 +48,9 @@ public sealed class MindStore : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         _db = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
         _db.Open();
+        long was;                                           // the version this store was at: steps that run once go by it
+        using (var version = Command("PRAGMA user_version"))
+            was = (long)version.ExecuteScalar()!;
         Run("""
             PRAGMA journal_mode = WAL;
             CREATE TABLE IF NOT EXISTS lines (
@@ -118,7 +121,6 @@ public sealed class MindStore : IDisposable
             CREATE TABLE IF NOT EXISTS activities (name TEXT PRIMARY KEY, size TEXT NOT NULL, provable INTEGER NOT NULL, added TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS proofs (id INTEGER PRIMARY KEY, at TEXT NOT NULL, activity TEXT NOT NULL, verdict TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS claims (day TEXT NOT NULL, activity TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (day, activity));
-            PRAGMA user_version = 10;
             """);
         // version 11: her memory of what has left the window is a dated log of observations (see Log), never rewritten;
         // summaries keeps only how far the window has been folded, and a summary written before becomes the log's first
@@ -130,7 +132,6 @@ public sealed class MindStore : IDisposable
             CREATE INDEX IF NOT EXISTS observations_by_character ON observations (character, at);
             INSERT INTO observations (character, at, priority, text, first, last) SELECT character, at, 0, text, 1, through FROM summaries WHERE text <> '';
             UPDATE summaries SET text = '' WHERE text <> '';
-            PRAGMA user_version = 11;
             """);
         // version 12: notes can be condensed, a week of days into the week and so on (see Conversation.Condense): the span
         // a note covers, and whether it was condensed into a longer one (kept out of view, still recalled)
@@ -139,17 +140,18 @@ public sealed class MindStore : IDisposable
                 Run("ALTER TABLE observations ADD COLUMN span INTEGER NOT NULL DEFAULT 0; ALTER TABLE observations ADD COLUMN condensed INTEGER NOT NULL DEFAULT 0; " +
                     "PRAGMA user_version = 12;");
         // version 13: the day's moments retire into her log, a note each of its span (they were a second summary of the
-        // same talk); her facts were drawn from all of it already, so facts are kept from the notes after these
-        using (var version = Command("PRAGMA user_version"))
-            if ((long)version.ExecuteScalar()! < 13)
-                Run("""
-                    INSERT INTO observations (character, at, priority, text, first, last, span, condensed)
-                        SELECT character, at, 1, text, first, last, week, 0 FROM episodes ORDER BY at, id;
-                    DELETE FROM episodes;
-                    DELETE FROM vectors WHERE kind = 'episode';
-                    INSERT OR REPLACE INTO marks (key, value) SELECT 'kept:' || character, max(id) FROM observations GROUP BY character;
-                    PRAGMA user_version = 13;
-                    """);
+        // same talk); her facts were drawn from all of it already, so facts are kept from the notes after these. Once only:
+        // run again (the steps above used to set the version back each time), it passed over notes whose facts were yet
+        // to be kept, so a restart between noting and keeping lost what they told of
+        if (was < 13)
+            Run("""
+                INSERT INTO observations (character, at, priority, text, first, last, span, condensed)
+                    SELECT character, at, 1, text, first, last, week, 0 FROM episodes ORDER BY at, id;
+                DELETE FROM episodes;
+                DELETE FROM vectors WHERE kind = 'episode';
+                INSERT OR REPLACE INTO marks (key, value) SELECT 'kept:' || character, max(id) FROM observations GROUP BY character;
+                PRAGMA user_version = 13;
+                """);
     }
 
     // ---- Vectors (what facts, notes and old lines mean, for search by meaning) -------------------------------------

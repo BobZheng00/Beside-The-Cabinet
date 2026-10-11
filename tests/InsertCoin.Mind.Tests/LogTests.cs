@@ -215,6 +215,25 @@ public class LogTests
     }
 
     [Fact]
+    public void Opening_her_memory_again_leaves_the_notes_whose_facts_are_yet_to_be_kept_to_be_kept()
+    {
+        using var temp = new TempStore();
+        var line = temp.Store.Add("shino", Speaker.User, "I'm moving to Toronto in November", Friday);
+        temp.Store.Observe("shino", [new Observation(0, Friday, Priority.High, "The player is moving to Toronto in November.", line, line)], line);
+        Assert.Null(temp.Store.Mark("kept:shino"));                        // noted; its facts not kept yet (the provider failed, say)
+
+        for (var i = 0; i < 2; i++)
+            using (new MindStore(temp.Location)) { }                        // the app is started again, twice
+
+        Assert.Null(temp.Store.Mark("kept:shino"));                        // still to be kept
+        using var version = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={temp.Location};Pooling=False");
+        version.Open();
+        using var ask = version.CreateCommand();
+        ask.CommandText = "PRAGMA user_version";
+        Assert.Equal(13L, (long)ask.ExecuteScalar()!);
+    }
+
+    [Fact]
     public void Moments_from_before_become_notes_of_their_span_once_and_their_facts_are_not_kept_again()
     {
         var folder = Path.Combine(Path.GetTempPath(), "insert-coin-mind-tests", Guid.NewGuid().ToString("N"));
