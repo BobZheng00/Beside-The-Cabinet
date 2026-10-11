@@ -154,7 +154,7 @@ public class VoiceTests
         var none = Prompt.Build(new Persona("Hana", "x"), "", "", null, [], "", "hi")[^1].Text;
 
         Assert.EndsWith("<voice>\nYour voice speaks Japanese, and you write in the language the player last wrote in. When that isn't Japanese, " +
-                        "put a [say: ...] in front of every sentence, the last ones too.\n</voice>", ja);
+                        "put a [say: ...] in front of every sentence, the last ones too, with the whole sentence in Japanese: only what is in it is heard.\n</voice>", ja);
         Assert.DoesNotContain("<voice>", none);
     }
 

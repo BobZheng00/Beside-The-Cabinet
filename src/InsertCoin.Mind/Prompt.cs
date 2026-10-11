@@ -95,10 +95,11 @@ public static class Prompt
         var steady = persona.Steady ?? $"Reply as {persona.Name}, in character: {persona.Name}'s own voice, manner and way of speaking, as described at the start.";
         // and how her voice works, as her earlier lines in the history show only what was shown, never a [say]; and that
         // she writes in the player's language, which a remark she starts herself has no message of theirs to show (a call
-        // of hers came out in Japanese, 2026-10-10)
+        // of hers came out in Japanese, 2026-10-10); and that a [say] holds all of its sentence (one said only "了解、ボブスミスさん。"
+        // of "Got it, BobSmith—I'll remind you at around 11:40…", 2026-10-11; 22 more tries of that request were all whole, so a rare slip)
         var spoken = voiceLanguage is null ? "" : SpokenLanguage.Name(voiceLanguage);
         var voice = voiceLanguage is null ? ""
-            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player last wrote in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too.\n</voice>";
+            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player last wrote in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too, with the whole sentence in {spoken}: only what is in it is heard.\n</voice>";
         Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>{voice}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
@@ -153,7 +154,7 @@ public static class Prompt
             _ => "",
         };
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
-               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard, so a sentence without one is silent; " +
+               $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard, so a sentence without one, or what of it a [say] leaves out, is silent; " +
                $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
                $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
                $"(\"[plan: ...] [say: ...] ...\"). When you write all of it in {name}, leave [say] out.{letters}";
