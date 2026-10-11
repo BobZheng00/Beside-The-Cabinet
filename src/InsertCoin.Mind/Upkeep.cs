@@ -4,7 +4,7 @@ using Microsoft.Extensions.AI;
 
 namespace InsertCoin.Mind;
 
-/// <summary>One change upkeep asks for: add a fact (about the player or about "us"), update one, or delete one.</summary>
+/// <summary>One change upkeep asks for: add a fact (about the player, about "us", or about her), update one, or delete one.</summary>
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
 /// <summary>One change to the agenda upkeep asks for: add an item, update one, or cancel one.</summary>
@@ -40,6 +40,9 @@ public static class Upkeep
     /// <summary>How long a fact is asked to be, in words: one thing each, so a change replaces one thing (M8).</summary>
     public const int FactWords = 20;
 
+    /// <summary>Whom a fact is about, as upkeep's requests name it: "player", "us" or "her".</summary>
+    private static string About(Fact f) => f.Scope == MindStore.Shared ? "player" : MindStore.IsHerself(f.Scope) ? "her" : "us";
+
     /// <param name="known">The facts to reconcile against: those related to the notes (see <see cref="Recall.Related"/>).</param>
     /// <param name="notes">Her new notes on the conversation (see <see cref="Log"/>), about six times shorter than its lines, dates written out.</param>
     /// <param name="agenda">What is on the agenda now, so new plans are added once and changes reach the right item.</param>
@@ -47,7 +50,7 @@ public static class Upkeep
     {
         var facts = known.Count == 0
             ? "(none yet)"
-            : string.Join("\n", known.Select(f => $"#{f.Id} [{(f.Scope == MindStore.Shared ? "player" : "us")}, {f.Importance}] {f.Text}"));
+            : string.Join("\n", known.Select(f => $"#{f.Id} [{About(f)}, {f.Importance}] {f.Text}"));
         var plans = agenda is not { Count: > 0 }
             ? "(empty)"
             : string.Join("\n", agenda.Select(p => $"#{p.Id} {p.At.ToString(p.AllDay ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", English)}{(p.Remind ? " [reminder]" : "")} {p.Text}"));
@@ -66,7 +69,7 @@ public static class Upkeep
                   {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
                   {"op": "cancel", "id": 4}]}
 
-                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
+                Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk; "her" for what {{persona.Name}} has told the player about herself: her past, likes, opinions and habits. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
 
                 Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn any relative date ("tomorrow", "next Friday") into a date from the day of the note. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded: with "before" ("10 min", "1 hour", "1 day") when they asked to be reminded that long ahead, else "when" is when the reminder goes off. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
                 """),
@@ -127,7 +130,7 @@ public static class Upkeep
             Merge facts that say the same thing or read better as one; a merge of a single fact rewrites it (a plan whose date has passed but which still matters, say, put in the past tense). Retire what she no longer needs in mind: plans and dates that have passed and no longer matter, facts another fact contradicts or replaces, and trivia that has not come up for months. Keep anything still true that could matter. Retiring is not deleting: the player can bring a fact back. Facts marked pinned stay as they are. When nothing needs doing, answer {"merge": [], "retire": []}.
             """),
         new(ChatRole.User, string.Join("\n", facts.Select(f =>
-            $"#{f.Id} [{(f.Scope == MindStore.Shared ? "player" : "us")}, {f.Importance}{(f.Pinned ? ", pinned" : "")}] {f.Text} " +
+            $"#{f.Id} [{About(f)}, {f.Importance}{(f.Pinned ? ", pinned" : "")}] {f.Text} " +
             $"(learned {f.Learned.ToString("d MMM yyyy", English)}; last came up {(f.Recalled is { } at ? When.Ago(at, now) : "never")})"))),
     ];
 

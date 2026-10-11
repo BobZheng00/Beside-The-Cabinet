@@ -206,7 +206,7 @@ public partial class MemoryBook : Window
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-        var whose = new Label { Text = fact.Scope == MindStore.Shared ? "you" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) };
+        var whose = new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "her" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) };
         var text = new LineEdit { Text = fact.Text, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = $"Learned {Day(fact.Learned)}, importance {fact.Importance}/10" };
         var pin = new CheckBox { Text = "pin", ButtonPressed = fact.Pinned, TooltipText = "Always in mind, and upkeep leaves it alone" };
         if (fact.Faded(DateTimeOffset.Now))
@@ -238,7 +238,7 @@ public partial class MemoryBook : Window
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
-            row.AddChild(new Label { Text = fact.Scope == MindStore.Shared ? "you" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) });
+            row.AddChild(new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "her" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) });
             var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Modulate = new Color(1, 1, 1, 0.6f) };
             text.AddChild(new Label { Text = fact.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
             text.AddChild(new Label { Text = $"{Day(fact.Retired!.Value)}: {fact.Why}", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });

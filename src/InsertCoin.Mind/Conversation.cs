@@ -109,7 +109,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var folded = store.Folded(character);
         var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
-                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst);
+                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)));
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
             written.Append(update.Text);
@@ -180,7 +180,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, Known(MindStore.Shared), Known(character),
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst);
+                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)));
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -723,7 +723,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     store.Restore(back.Id, now);
                     break;
                 case "add" when change.Text is { Length: > 2 } text2 && !store.Facts(character).Any(f => Recall.Same(f.Text, text2)):
-                    var scope = change.About == "us" ? character : MindStore.Shared;
+                    var scope = change.About switch { "us" => character, "her" => MindStore.Herself(character), _ => MindStore.Shared };
                     store.AddFact(scope, text2, change.Importance ?? 5, now);
                     break;
                 // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
@@ -877,9 +877,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>What she always has in mind about the player (<see cref="MindStore.Shared"/>) or the two of them, for this reply (see <see cref="Prompt.Known"/>).</summary>
+    /// Her own story (<see cref="MindStore.Herself"/>) has no note of the player's, and every fact of it is listed while they fit,
+    /// small ones too: it is what keeps her the same person.
     private string Known(string scope) =>
-        Prompt.Known(store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us),
-                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow());
+        Prompt.Known(MindStore.IsHerself(scope) ? "" : store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us),
+                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow(),
+                     MindStore.IsHerself(scope) ? 1 : Prompt.KnownFrom);
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));
 }

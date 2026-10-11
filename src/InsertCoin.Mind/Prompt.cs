@@ -51,7 +51,7 @@ public static class Prompt
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, IReadOnlyList<Observation>? log, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
                                           int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
-                                          bool keepsInTouch = false, IReadOnlyList<string>? asking = null)
+                                          bool keepsInTouch = false, IReadOnlyList<string>? asking = null, string herself = "")
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -80,6 +80,8 @@ public static class Prompt
             You and the player:
             {(us.Trim().Length > 0 ? us.Trim() : "You have only just met.")}
             """);
+        if (herself.Trim().Length > 0)
+            system.Append("\n\nWhat you have told the player about yourself:\n").Append(herself.Trim());
         if (log is { Count: > 0 })
             system.Append("\n\nYour notes from your earlier conversations with the player, oldest first (\"!\" marks what matters most):\n")
                   .Append(Log.Laid(Log.Newest(log, Log.Budget(window)), now));
@@ -210,7 +212,8 @@ public static class Prompt
     /// then by importance and the newest, while they fit; for a couple of weeks a fact that changed says what it was, and
     /// an important one that ended says so, so she knows what is news.
     /// </summary>
-    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now)
+    /// <param name="from">The importance from which a fact is listed (her own story lists them all).</param>
+    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now, int from = KnownFrom)
     {
         var lines = new List<string>();
         if (own.Trim() is { Length: > 0 } words)
@@ -225,12 +228,12 @@ public static class Prompt
         }
         var recent = retired.Where(f => f.Retired is { } at && now - at <= ChangeShown).ToList();
         string Day(Fact f) => f.Retired!.Value.ToString("d MMM", English);
-        foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= KnownFrom)
+        foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= from)
                                   .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
             Add(recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
                 ? $"- {Dated(fact)} (Since {Day(before)}; before: {before.Text})"
                 : $"- {Dated(fact)}");
-        foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= KnownFrom))
+        foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= from))
             Add($"- No longer so since {Day(ended)}: {ended.Text}");
         return string.Join("\n", lines);
     }

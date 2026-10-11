@@ -24,6 +24,34 @@ public class KnownTests
     }
 
     [Fact]
+    public async Task What_she_tells_the_player_about_herself_is_kept_as_hers_in_mind_from_then_on_and_forgotten_with_her()
+    {
+        using var temp = new TempStore();
+        var clock = new FakeClock(Friday);
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "Shino is cheerful."), clock);
+        temp.Store.Add("shino", Speaker.User, "do you like the rain?", Friday);
+        temp.Store.Add("shino", Speaker.Her, "I love rainy days. I used to play the violin when it rained.", Friday);
+        clock.Now = Friday.AddMinutes(11);
+        var model = new FakeModel("Of course I remember!");
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Shino said she loves rainy days and used to play the violin."}]}""");
+        model.Answers.Enqueue("""
+            {"facts": [{"op": "add", "about": "her", "text": "Shino loves rainy days.", "importance": 4},
+                       {"op": "add", "about": "her", "text": "Shino used to play the violin.", "importance": 5}]}
+            """);
+
+        Assert.True(await conversation.Digest(model));
+        Assert.All(temp.Store.Facts("shino"), f => Assert.Equal(MindStore.Herself("shino"), f.Scope));
+
+        await conversation.Answer(model, "do you remember what you told me?", "", _ => { }, (_, _) => { });
+        var system = model.Requests[^1][0].Text.ReplaceLineEndings("\n");
+        Assert.Contains("What you have told the player about yourself:\n- Shino used to play the violin.\n- Shino loves rainy days.", system);
+        Assert.Contains("What you know about the player:\nNothing yet.", system);      // hers, not taken for the player's
+
+        temp.Store.Forget("shino");
+        Assert.Empty(temp.Store.Facts("shino"));
+    }
+
+    [Fact]
     public void A_fact_that_tells_a_time_from_when_it_was_said_says_when_that_was()
     {
         Fact[] facts = [F(1, "The player began learning guitar about five years ago.", 7, daysAgo: 30), F(2, "The player drinks green tea.", 7)];

@@ -39,6 +39,10 @@ public sealed class MindStore : IDisposable
 {
     /// <summary>Notes about the user, shared by every character.</summary>
     public const string Shared = "*";
+
+    /// <summary>The scope of what a character has told the player about herself (her own story), beside "us".</summary>
+    public static string Herself(string character) => $"{character}/her";
+    public static bool IsHerself(string scope) => scope.EndsWith("/her", StringComparison.Ordinal);
     public const string AboutUser = "about", Us = "us";
 
     private readonly SqliteConnection _db;
@@ -259,7 +263,8 @@ public sealed class MindStore : IDisposable
     private List<Fact> ReadFacts(string character, bool retired)
     {
         using var command = Command($"SELECT id, scope, text, importance, learned, recalled, pinned, recalls, retired, retired_why FROM facts " +
-                                    $"WHERE scope IN ($s, $c) AND retired IS {(retired ? "NOT " : "")}NULL ORDER BY id", ("$s", Shared), ("$c", character));
+                                    $"WHERE scope IN ($s, $c, $h) AND retired IS {(retired ? "NOT " : "")}NULL ORDER BY id", ("$s", Shared), ("$c", character),
+                                    ("$h", Herself(character)));
         using var reader = command.ExecuteReader();
         var facts = new List<Fact>();
         while (reader.Read())
@@ -826,9 +831,9 @@ public sealed class MindStore : IDisposable
     {
         using var command = Command("""
             DELETE FROM lines WHERE character = $c; DELETE FROM summaries WHERE character = $c; DELETE FROM notes WHERE scope = $c;
-            DELETE FROM facts WHERE scope = $c; DELETE FROM digested WHERE character = $c; DELETE FROM marks WHERE key = 'kept:' || $c;
+            DELETE FROM facts WHERE scope IN ($c, $h); DELETE FROM digested WHERE character = $c; DELETE FROM marks WHERE key = 'kept:' || $c;
             DELETE FROM passages WHERE character = $c; DELETE FROM observations WHERE character = $c;
-            """, ("$c", character));
+            """, ("$c", character), ("$h", Herself(character)));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
         DropVectors(PassageKind);
