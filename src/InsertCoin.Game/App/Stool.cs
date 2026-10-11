@@ -308,7 +308,8 @@ public partial class Stool : Node2D
 
     /// <summary>
     /// Every fifteen seconds: when something the player told her about has been over for a while (see
-    /// <see cref="Agenda.ToAskAbout"/>), she has something to ask: how it went. Not in the quiet hours; Gentle, one every
+    /// <see cref="Agenda.ToAskAbout"/>), or something going on they told her about a couple of days ago (an open thread, see
+    /// <see cref="Threads"/>), she has something to ask: how it went, how it is going. Not in the quiet hours; Gentle, one every
     /// three hours at most. How it reaches them is the routing's (see <see cref="Hand"/>): at the PC once they are
     /// settled and free (a meeting that runs over keeps its call going, so she waits), by text while they are out.
     /// </summary>
@@ -320,14 +321,23 @@ public partial class Stool : Node2D
             return;
         if (!_chat.Ready || Her is null || !_settings.Now.SpeechBubbles || _chat.Conversation is not { } conversation || _toTell.Any(t => t.Title == "CHECK-IN"))
             return;
-        if (conversation.ToAskAbout(CheckInAfter) is not { } plan)
+        string note;
+        if (conversation.ToAskAbout(CheckInAfter) is { } plan)
+        {
+            _chat.Store.Asked(plan.Id, now);                // once, whatever comes of it
+            note = Agenda.CheckIn(plan, now, _activities.Within(plan.Text));
+        }
+        else if (conversation.ThreadToAskAbout() is { } thread)
+        {
+            _chat.Store.AskedThread(thread.Id, now);        // once, until there is news of it
+            note = Threads.CheckIn(thread, now);
+        }
+        else
             return;
-        _chat.Store.Asked(plan.Id, now);                    // once, whatever comes of it
         _lastCheckIn = now;
         GD.Print("Check-in: she has something to ask about");
         // only her mind asks it; it can wait for them, through the night if need be
-        Hand(new Telling("CHECK-IN", Agenda.CheckIn(plan, now, _activities.Within(plan.Text)), "", Matters.Should, Anywhere: true, now,
-                         TimeSpan.FromHours(12), Greet: true));
+        Hand(new Telling("CHECK-IN", note, "", Matters.Should, Anywhere: true, now, TimeSpan.FromHours(12), Greet: true));
     }
 
     // ---- Stand up, have some water --------------------------------------------------------------------------------------

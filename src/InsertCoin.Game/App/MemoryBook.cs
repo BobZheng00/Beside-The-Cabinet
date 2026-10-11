@@ -91,7 +91,10 @@ public partial class MemoryBook : Window
         top.AddChild(add);
         agenda.AddChild(top);
         _planList = List(agenda);
+        _threadList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        agenda.AddChild(_threadList);
         ShowPlans();
+        ShowThreads();
 
         var facts = Tab("Facts");
         _factList = List(facts);
@@ -257,6 +260,29 @@ public partial class MemoryBook : Window
             row.AddChild(back);
             row.AddChild(delete);
             _retiredList.AddChild(row);
+        }
+    }
+
+    private VBoxContainer _threadList = null!;
+
+    /// <summary>What is going on with no date, for her to ask about a couple of days after it came up (see <see cref="Threads"/>); Settled closes one.</summary>
+    private void ShowThreads()
+    {
+        foreach (var child in _threadList.GetChildren())
+            child.QueueFree();
+        var threads = _store.Threads();
+        if (threads.Count > 0)
+            _threadList.AddChild(Hint("Going on: she asks how it is going a couple of days after it comes up, once."));
+        foreach (var thread in threads)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 6);
+            row.AddChild(new Label { Text = $"{thread.Text} (since {Day(thread.Opened)})", AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                                     SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+            var settled = new Button { Text = "Settled", ThemeTypeVariation = "Quiet", TooltipText = "It's over: she won't ask about it" };
+            settled.Pressed += () => { _store.CloseThread(thread.Id, "settled in the memory book", DateTimeOffset.Now); row.QueueFree(); };
+            row.AddChild(settled);
+            _threadList.AddChild(row);
         }
     }
 

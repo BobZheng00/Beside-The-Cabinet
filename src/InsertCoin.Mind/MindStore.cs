@@ -171,6 +171,12 @@ public sealed class MindStore : IDisposable
                     OR (name = 'us' AND EXISTS (SELECT 1 FROM lines WHERE character = notes.scope));
                 PRAGMA user_version = 14;
                 """);
+        // open threads (see Threads): what is going on in the player's life with no date, for her to follow up; the
+        // player's, so every character's
+        Run("""
+            CREATE TABLE IF NOT EXISTS threads (
+                id INTEGER PRIMARY KEY, text TEXT NOT NULL, opened TEXT NOT NULL, mentioned TEXT NOT NULL, asked TEXT, closed TEXT, why TEXT)
+            """);
         // version 15: a note in her log can be the cabinet's record of a day (see Diary), which upkeep keeps no facts from
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('observations') WHERE name = 'source'"))
             if ((long)columns.ExecuteScalar()! == 0)
@@ -373,6 +379,54 @@ public sealed class MindStore : IDisposable
     public void DeletePlansFrom(string source)
     {
         using var command = Command("DELETE FROM agenda WHERE source = $s", ("$s", source));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>The open threads, oldest first (see <see cref="Mind.Threads"/>).</summary>
+    public IReadOnlyList<OpenThread> Threads()
+    {
+        using var command = Command("SELECT id, text, opened, mentioned, asked FROM threads WHERE closed IS NULL ORDER BY id");
+        using var reader = command.ExecuteReader();
+        var threads = new List<OpenThread>();
+        while (reader.Read())
+            threads.Add(new OpenThread(reader.GetInt64(0), reader.GetString(1), Parse(reader.GetString(2)), Parse(reader.GetString(3)),
+                                       reader.IsDBNull(4) ? null : Parse(reader.GetString(4))));
+        return threads;
+    }
+
+    public long AddThread(string text, DateTimeOffset at)
+    {
+        using var command = Command("INSERT INTO threads (text, opened, mentioned) VALUES ($t, $a, $a); SELECT last_insert_rowid()",
+                                    ("$t", text.Trim()), ("$a", Stamp(at)));
+        return (long)command.ExecuteScalar()!;
+    }
+
+    /// <summary>News of a thread: it came up again, as things stand now when <paramref name="text"/> says so.</summary>
+    public void MentionThread(long id, string? text, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE threads SET mentioned = $a, text = coalesce($t, text) WHERE id = $id",
+                                    ("$a", Stamp(at)), ("$t", (object?)text?.Trim() ?? DBNull.Value), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    public void CloseThread(long id, string why, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE threads SET closed = $a, why = $w WHERE id = $id", ("$a", Stamp(at)), ("$w", why), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>She asked how it is going.</summary>
+    public void AskedThread(long id, DateTimeOffset at)
+    {
+        using var command = Command("UPDATE threads SET asked = $a WHERE id = $id", ("$a", Stamp(at)), ("$id", id));
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Threads unmentioned since <paramref name="before"/> lapse.</summary>
+    public void LapseThreads(DateTimeOffset before, DateTimeOffset now)
+    {
+        using var command = Command("UPDATE threads SET closed = $n, why = 'lapsed' WHERE closed IS NULL AND mentioned < $b",
+                                    ("$n", Stamp(now)), ("$b", Stamp(before)));
         command.ExecuteNonQuery();
     }
 
@@ -862,7 +916,7 @@ public sealed class MindStore : IDisposable
     /// <summary>Forgets what every character knows about the player: the shared note and facts, the agenda, their activities and proofs.</summary>
     public void ForgetPlayer()
     {
-        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s; DELETE FROM agenda; " +
+        using var command = Command("DELETE FROM notes WHERE scope = $s; DELETE FROM facts WHERE scope = $s; DELETE FROM agenda; DELETE FROM threads; " +
                                     "DELETE FROM activities; DELETE FROM proofs; DELETE FROM claims;", ("$s", Shared));
         command.ExecuteNonQuery();
         DropVectors(FactKind);

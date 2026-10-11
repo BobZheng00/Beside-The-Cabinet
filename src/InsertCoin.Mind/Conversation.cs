@@ -494,6 +494,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>Something on the agenda she may ask about now, over for at least <paramref name="after"/> (see <see cref="Agenda.ToAskAbout"/>), or null.</summary>
     public Plan? ToAskAbout(TimeSpan after) => Agenda.ToAskAbout(store.Agenda(), _clock.GetLocalNow(), LastTalked, after).FirstOrDefault();
 
+    /// <summary>Something going on that the player told her about a couple of days ago, to ask how it is going (see <see cref="Threads"/>).</summary>
+    public OpenThread? ThreadToAskAbout() => Threads.ToAskAbout(store.Threads(), _clock.GetLocalNow());
+
     /// <summary>Something the cabinet did, for her to know about later.</summary>
     public void Witness(string what) => store.Add(character, Speaker.Cabinet, what, _clock.GetLocalNow());
 
@@ -698,7 +701,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var known = all.Count <= DigestFacts ? all : Recall.Related(text, all, DigestFacts, await MeaningOf(text[..Math.Min(text.Length, 2000)], cancel));
         // the player's own items: a calendar's are its to change (and a busy one would fill every request)
         var agenda = store.Agenda().Where(p => p.Source is null).ToList();
-        if (await Whole(client, Upkeep.Request(persona, known, notes, agenda), DigestOptions, cancel) is not { } response)
+        var threads = store.Threads();
+        if (await Whole(client, Upkeep.Request(persona, known, notes, agenda, threads), DigestOptions, cancel) is not { } response)
         {
             _digestAtOnce = Math.Max(300, used / 2);        // too much for one answer: fewer notes next time
             return false;
@@ -765,6 +769,24 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     break;
             }
         }
+        // what is going on with no date, to follow up (see Threads)
+        var open = threads.ToDictionary(t => t.Id);
+        foreach (var change in digestion.Threads)
+        {
+            switch (change.Op)
+            {
+                case "open" when change.Text is { Length: > 2 } text2 && !open.Values.Any(t => Recall.Same(t.Text, text2)):
+                    store.AddThread(text2, now);
+                    break;
+                case "update" when change.Id is { } id && open.ContainsKey(id):
+                    store.MentionThread(id, change.Text is { Length: > 2 } news ? news : null, now);
+                    break;
+                case "close" when change.Id is { } id && open.ContainsKey(id):
+                    store.CloseThread(id, "settled", now);
+                    break;
+            }
+        }
+        store.LapseThreads(now - Threads.Lapse, now);
         store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return true;
     }

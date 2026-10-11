@@ -25,6 +25,9 @@ public sealed record Digestion(IReadOnlyList<FactChange> Changes)
 {
     /// <summary>Changes to the agenda: things ahead with a date.</summary>
     public IReadOnlyList<PlanChange> Plans { get; init; } = [];
+
+    /// <summary>Changes to the open threads: what is going on with no date (see <see cref="Mind.Threads"/>).</summary>
+    public IReadOnlyList<ThreadChange> Threads { get; init; } = [];
 }
 
 /// <summary>
@@ -46,7 +49,9 @@ public static class Upkeep
     /// <param name="known">The facts to reconcile against: those related to the notes (see <see cref="Recall.Related"/>).</param>
     /// <param name="notes">Her new notes on the conversation (see <see cref="Log"/>), about six times shorter than its lines, dates written out.</param>
     /// <param name="agenda">What is on the agenda now, so new plans are added once and changes reach the right item.</param>
-    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Observation> notes, IReadOnlyList<Plan>? agenda = null)
+    /// <param name="threads">The open threads, so news reaches the right one and none is opened twice.</param>
+    public static List<ChatMessage> Request(Persona persona, IReadOnlyList<Fact> known, IReadOnlyList<Observation> notes, IReadOnlyList<Plan>? agenda = null,
+                                            IReadOnlyList<OpenThread>? threads = null)
     {
         var facts = known.Count == 0
             ? "(none yet)"
@@ -67,13 +72,19 @@ public static class Upkeep
                   {"op": "add", "when": "2026-10-06 15:00", "text": "Job interview at Acme", "remind": true, "before": "1 hour"},
                   {"op": "add", "when": "2026-10-05 08:00", "text": "Take vitamins", "remind": true, "repeat": "daily"},
                   {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
-                  {"op": "cancel", "id": 4}]}
+                  {"op": "cancel", "id": 4}],
+                 "threads": [
+                  {"op": "open", "text": "The player's cat is sick and at the vet."},
+                  {"op": "update", "id": 2, "text": "The player is still waiting to hear back from Acme."},
+                  {"op": "close", "id": 1}]}
 
                 Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk; "her" for what {{persona.Name}} has told the player about herself: her past, likes, opinions and habits. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
 
                 Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn any relative date ("tomorrow", "next Friday") into a date from the day of the note. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded: with "before" ("10 min", "1 hour", "1 day") when they asked to be reminded that long ahead, else "when" is when the reminder goes off. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
+
+                Threads are what is going on in the player's life with no date, that a friend would ask about a few days later: a worry, a decision, something they are waiting for, someone who is ill, a project under way. Open one for such a thing that is neither a thread nor on the agenda yet; update one when the notes bring news of it, its text as things stand now; close one that is settled. Most notes open none.
                 """),
-            new(ChatRole.User, $"The agenda:\n{plans}\n\nKnown facts that may relate:\n{facts}\n\nHer new notes:\n{Log.Laid(notes, null)}"),
+            new(ChatRole.User, $"Open threads:\n{Mind.Threads.Listed(threads ?? [])}\n\nThe agenda:\n{plans}\n\nKnown facts that may relate:\n{facts}\n\nHer new notes:\n{Log.Laid(notes, null)}"),
         ];
     }
 
@@ -108,7 +119,14 @@ public static class Upkeep
                         p.TryGetProperty("remind", out var r) && r.ValueKind == JsonValueKind.True,
                         string.Join(", ", new[] { Text(p, "before") is { Length: > 0 } b ? (b.Contains("before") ? b : b + " before") : null, Text(p, "repeat") }
                                               .Where(o => o is not null))));
-            return new Digestion(changes) { Plans = plans };
+            var threads = new List<ThreadChange>();
+            if (root.TryGetProperty("threads", out var open) && open.ValueKind == JsonValueKind.Array)
+                foreach (var t in open.EnumerateArray().Where(t => t.ValueKind == JsonValueKind.Object))
+                    threads.Add(new ThreadChange(
+                        Text(t, "op")?.ToLowerInvariant() ?? "",
+                        t.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n) ? n : null,
+                        Text(t, "text")?.Trim()));
+            return new Digestion(changes) { Plans = plans, Threads = threads };
         }
         catch (JsonException)
         {
