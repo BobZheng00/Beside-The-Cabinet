@@ -703,6 +703,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var now = _clock.GetLocalNow();
         var byId = known.ToDictionary(f => f.Id);
         var touched = new HashSet<string>();                // scopes whose important facts changed
+        var corrected = new HashSet<string>();              // ...or stopped being true
         foreach (var change in digestion.Changes)
         {
             switch (change.Op)
@@ -723,7 +724,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
                 // new one learned now; the same thing in other words is just rewritten
                 case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2:
-                    if (Recall.Same(old.Text, text2))
+                    var reworded = Recall.Same(old.Text, text2);
+                    if (reworded)
                         store.UpdateFact(id, text2, change.Importance);
                     else
                     {
@@ -731,13 +733,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         store.AddFact(old.Scope, text2, change.Importance ?? old.Importance, now);
                     }
                     if (Math.Max(old.Importance, change.Importance ?? 0) >= CoreFrom)
-                        touched.Add(old.Scope);
+                        (reworded ? touched : corrected).Add(old.Scope);
                     break;
                 // no longer true: retired, not deleted, so what used to be can still be recalled
                 case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned:
                     store.Retire(id, Ended, now);
                     if (gone.Importance >= CoreFrom)
-                        touched.Add(gone.Scope);
+                        corrected.Add(gone.Scope);
                     break;
             }
         }
@@ -764,8 +766,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        foreach (var scope in touched)
-            Stale(scope);
+        foreach (var scope in touched.Union(corrected))
+            Stale(scope, corrected.Contains(scope));
         return true;
     }
 
@@ -807,6 +809,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
         var mine = batch.Where(x => !x.Pinned).ToDictionary(x => x.Id);
         var touched = new HashSet<string>();
+        var corrected = new HashSet<string>();
         foreach (var merge in verdict.Merges.Where(m => m.Ids.Distinct().Count() == m.Ids.Count && m.Ids.All(mine.ContainsKey) && m.Ids.Select(id => mine[id].Scope).Distinct().Count() == 1))
         {
             var merged = merge.Ids.Select(id => mine[id]).ToList();
@@ -828,26 +831,37 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             store.Retire(retirement.Id, retirement.Why, now);
             if (mine[retirement.Id].Importance >= CoreFrom)
-                touched.Add(mine[retirement.Id].Scope);
+                corrected.Add(mine[retirement.Id].Scope);
         }
         var end = batch[^1].Id == facts[^1].Id;
         store.SetMark(key, end ? $"{now:O}|{store.Facts(character).Count}|0" : $"{(last == DateTimeOffset.MinValue ? now : last):O}|{count}|{batch[^1].Id}");
-        foreach (var scope in touched)
-            Stale(scope);
+        foreach (var scope in touched.Union(corrected))
+            Stale(scope, corrected.Contains(scope));
         return true;
     }
 
     /// <summary>How often an always-present note is rewritten at most, once something important in it has changed.</summary>
     public static readonly TimeSpan NotesEvery = TimeSpan.FromDays(1);
 
-    /// <summary>Something important about the player (<see cref="MindStore.Shared"/>) or the two of them changed: their note is out of date (see <see cref="RefreshNotes"/>).</summary>
-    private void Stale(string scope) => store.SetMark($"stale:{scope}", "1");
+    private const string Corrected = "corrected";
+
+    /// <summary>
+    /// Something important about the player (<see cref="MindStore.Shared"/>) or the two of them changed: their note is out of
+    /// date (see <see cref="RefreshNotes"/>), and <paramref name="corrected"/> when something in it is no longer true.
+    /// </summary>
+    private void Stale(string scope, bool corrected)
+    {
+        if (store.Mark($"stale:{scope}") != Corrected)      // a correction waiting stays one
+            store.SetMark($"stale:{scope}", corrected ? Corrected : "1");
+    }
 
     /// <summary>
     /// Rewrites the always-present notes whose important facts changed: once the talk is quiet, after the conversation
-    /// has been noted (upkeep calls it only then), at most once a day each, and at once while a note is still empty. A
-    /// rewrite reads up to 40 facts: done after every batch of notes, it was most of upkeep's cost (2026-10-11), and what
-    /// changes in between comes to her through recall anyway. Returns true when a note was rewritten.
+    /// has been noted (upkeep calls it only then), at most once a day each; at once while a note is still empty, and when
+    /// something important in it is no longer true, since a note saying what isn't so is the error that matters. A rewrite
+    /// reads up to 40 facts, and the notes head her prompt, so the next reply can't use the provider's cache: done after
+    /// every batch of notes, it made upkeep cost more than before (2026-10-11). What is new comes to her in the meantime
+    /// through the talk itself, her notes and recall. Returns true when a note was rewritten.
     /// </summary>
     public async Task<bool> RefreshNotes(IChatClient client, CancellationToken cancel = default)
     {
@@ -856,10 +870,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var now = _clock.GetLocalNow();
         foreach (var scope in new[] { MindStore.Shared, character })
         {
-            if (store.Mark($"stale:{scope}") is not { Length: > 0 })
+            if (store.Mark($"stale:{scope}") is not { Length: > 0 } stale)
                 continue;
             var empty = store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us).Trim().Length == 0;
-            if (!empty && store.Mark($"rewritten:{scope}") is { } last && now - DateTimeOffset.Parse(last, System.Globalization.CultureInfo.InvariantCulture) < NotesEvery)
+            if (!empty && stale != Corrected && store.Mark($"rewritten:{scope}") is { } last && now - DateTimeOffset.Parse(last, System.Globalization.CultureInfo.InvariantCulture) < NotesEvery)
                 continue;
             if (!await RewriteNote(client, scope, cancel))
                 return false;                               // tried again next time

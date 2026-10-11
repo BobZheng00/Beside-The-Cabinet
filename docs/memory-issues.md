@@ -52,7 +52,8 @@ only with a re-run that shows it fixed, and say which.
   other: kept from dense notes, nearly every event became a fact (116 against 55, 80 of them important), and every
   batch that touched an important fact rewrote the always-present notes from up to 40 facts.
 - **Fix** (3afb21d, branch `retrieval`): a batch only marks a note out of date; `Conversation.RefreshNotes` rewrites it
-  once the talk is noted and quiet, at most once a day each, at once while the note is empty; upkeep's request says
+  once the talk is noted and quiet, at most once a day each, at once while the note is empty or when something important
+  in it is no longer true (a fact changed or ended: a note saying what isn't so is the error that matters); upkeep's request says
   facts are what lasts beyond the day (her notes keep the events). Being re-measured (`runs\p3fix-locomo`). LoCoMo's
   sittings are days apart, so it shows the fewer facts more than the once a day; daily use gains more from that.
 

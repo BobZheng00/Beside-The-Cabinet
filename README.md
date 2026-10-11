@@ -61,7 +61,7 @@ it out. She knows the cabinet's numbers and remembers:
   against the facts that relate to them. When you just tell her something worth keeping she says she'll remember it
   and jots it in a little notebook at once. A fact that changes keeps its history: the old one is retired as
   changed, and "where did I live before?" can still find it, marked until when;
-- two short notes she always has in mind, rewritten by upkeep once something important in them has changed, at most once a day;
+- two short notes she always has in mind, rewritten by upkeep once something important in them has changed: at most once a day, but at once when something in them is no longer true;
 - your agenda: plans, exams and appointments with their dates, which she writes down when you mention them (or
   upkeep does later), and reminders you ask her for ("remind me at 9 to call Mum", "an hour before the interview",
   "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on weekdays, weekly

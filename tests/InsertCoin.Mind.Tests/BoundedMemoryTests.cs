@@ -25,30 +25,36 @@ public class BoundedMemoryTests
     }
 
     [Fact]
-    public async Task An_always_present_note_is_rewritten_once_a_day_at_most_and_at_once_while_it_is_empty()
+    public async Task An_always_present_note_is_rewritten_once_a_day_at_most_but_at_once_while_it_is_empty_or_says_what_is_no_longer_true()
     {
         using var temp = new TempStore();
         var clock = new FakeClock(Friday);
         var conversation = new Conversation(temp.Store, "shino", Shino, clock);
         var model = new FakeModel("Bob, who likes Hades.");
-        async Task Learn(string said, string fact)
+        async Task Learn(string said, string change)
         {
             temp.Store.Add("shino", Speaker.User, said, clock.Now);
             clock.Now = clock.Now.AddMinutes(11);
             model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "NOTE"}]}""".Replace("NOTE", said));
-            model.Answers.Enqueue("""{"facts": [{"op": "add", "about": "player", "text": "FACT", "importance": 8}]}""".Replace("FACT", fact));
+            model.Answers.Enqueue($"{{\"facts\": [{change}]}}");
             Assert.True(await conversation.Digest(model));
         }
+        static string Added(string fact) => """{"op": "add", "about": "player", "text": "FACT", "importance": 8}""".Replace("FACT", fact);
 
-        await Learn("I'm Bob", "The player's name is Bob.");
+        await Learn("I'm Bob", Added("The player's name is Bob."));
         Assert.True(await conversation.RefreshNotes(model));               // still empty: at once
-        await Learn("I love Hades", "The player loves Hades.");
+        await Learn("I love Hades", Added("The player loves Hades."));
         Assert.False(await conversation.RefreshNotes(model));              // rewritten less than a day ago: it waits
-        await Learn("and Celeste", "The player loves Celeste.");
+        await Learn("and Celeste", Added("The player loves Celeste."));
         clock.Now = clock.Now.AddDays(1);
         Assert.True(await conversation.RefreshNotes(model));               // once, for both
         Assert.False(await conversation.RefreshNotes(model));
-        Assert.Equal(2, model.Requests.Count(r => r[0].Text.Contains("You keep a short note")));
+        var hades = temp.Store.Facts("shino").Single(f => f.Text.Contains("Hades")).Id;
+        await Learn("I'm sick of Hades now", $$"""{"op": "update", "id": {{hades}}, "text": "The player is tired of Hades.", "importance": 8}""");
+        await Learn("and I'm Rob now", Added("The player goes by Rob."));
+        Assert.True(await conversation.RefreshNotes(model));               // no longer true: it can't wait for tomorrow
+        Assert.False(await conversation.RefreshNotes(model));
+        Assert.Equal(3, model.Requests.Count(r => r[0].Text.Contains("You keep a short note")));
     }
 
     [Fact]

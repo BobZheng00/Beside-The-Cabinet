@@ -78,7 +78,8 @@ provider cut at its length limit is asked again with twice the room, and a batch
    *Measured* (LoCoMo conversation 26, the 8k window): upkeep cost more, not less: 179k tokens against about 115k.
    Facts kept from dense notes took in nearly every event (116 against 55), and each batch that touched an important
    one rewrote the always-present notes. Since 3afb21d (branch `retrieval`) a batch only marks a note out of date and
-   `Conversation.RefreshNotes` rewrites it once the talk is noted and quiet, at most once a day; upkeep's request says
+   `Conversation.RefreshNotes` rewrites it once the talk is noted and quiet, at most once a day (at once when something
+   in it is no longer true); upkeep's request says
    facts are what lasts beyond the day. Being re-measured (M3).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
