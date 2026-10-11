@@ -131,11 +131,17 @@ public sealed record DayRecord
     public long DebtPaidMs { get; init; }
     public int Solves { get; init; }
 
+    /// <summary>The problems solved, as "Two Sum (Easy)", in the order they were (her diary's record of the day).</summary>
+    public ImmutableList<string> Solved { get; init; } = ImmutableList<string>.Empty;
+
     /// <summary>The activities that counted this day, each with the share of its worth paid so far (1 in full, 0.5 half).</summary>
     public ImmutableDictionary<string, double> Activities { get; init; } = ImmutableDictionary<string, double>.Empty;
 
     public long FocusedMs { get; init; }
     public long PlayedMs { get; init; }
+
+    /// <summary>The games played, by name.</summary>
+    public ImmutableSortedSet<string> Games { get; init; } = ImmutableSortedSet<string>.Empty;
 
     /// <summary>What play after bedtime cost on top of the time played.</summary>
     public long LateExtraMs { get; init; }

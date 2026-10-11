@@ -84,7 +84,14 @@ provider cut at its length limit is asked again with twice the room, and a batch
    84% right against 78% (M6).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
-   memories a reply used, to see and correct.
+   memories a reply used, to see and correct. The player's calls (2026-10-11): the day's entry holds everything the
+   record does; she may text about an open thread, and the answer may come by text, in person or not at all.
+   *Built 2026-10-11, the day's entry:* the ledger keeps each day's problems and games by name (`DayRecord.Solved`,
+   `Games`); `Diary.Entry` writes the day from its record (solved, activities, focus, play and the last game, bedtime
+   and what playing past it cost, earned and past the cap, debt paid, what faded, when at the PC, a good day), and
+   `Conversation.Record` puts each finished day into her log once, dated at its end, marked as the cabinet's
+   (`Observation.Source`, version 15) so upkeep keeps no facts from it; the first time, every day the ledger keeps.
+   Her texts are not in it yet.
 
 **Her profile from her facts** (proposed and chosen 2026-10-11; M8, M9). The two always-present notes are a
 copy of her facts that the model rewrites, so they lag behind the facts and each rewrite can drop or bend something;

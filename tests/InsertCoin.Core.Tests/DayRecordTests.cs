@@ -30,6 +30,20 @@ public class DayRecordTests
     }
 
     [Fact]
+    public void The_day_keeps_what_was_solved_and_what_was_played_by_name()
+    {
+        var m = new Machine();
+        m.Solve("two-sum", Difficulty.Easy);
+        m.Solve("lru-cache", Difficulty.Medium);
+        m.Play(TimeSpan.FromMinutes(5), "Hades");
+        m.Quit();
+        m.Play(TimeSpan.FromMinutes(5), "Celeste");
+
+        Assert.Equal(["two-sum (Easy)", "lru-cache (Medium)"], m.State.Today!.Solved);
+        Assert.Equal(["Celeste", "Hades"], m.State.Today.Games);
+    }
+
+    [Fact]
     public void The_record_keeps_only_so_many_days()
     {
         var m = new Machine(rules: new Rules { DaysKept = 3 });

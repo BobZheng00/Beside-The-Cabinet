@@ -35,8 +35,10 @@ public sealed class JsonFileStoreTests : IDisposable
         Assert.Equal(state.WeekStart, loaded.WeekStart);
         Assert.Equal(state.Week, loaded.Week);
         Assert.Equal(state.InstalledAt, loaded.InstalledAt);
-        Assert.Equal(state.Today, loaded.Today);
-        Assert.Equal(state.Days, loaded.Days);
+        // a day's lists compare by what is in them, as written, not as the same objects
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(state.Today), System.Text.Json.JsonSerializer.Serialize(loaded.Today));
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(state.Days), System.Text.Json.JsonSerializer.Serialize(loaded.Days));
+        Assert.Equal(["Two Sum (Hard)"], loaded.Today!.Solved);
     }
 
     [Fact]

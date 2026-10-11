@@ -61,6 +61,8 @@ it out. She knows the cabinet's numbers and remembers:
   against the facts that relate to them. When you just tell her something worth keeping she says she'll remember it
   and jots it in a little notebook at once. A fact that changes keeps its history: the old one is retired as
   changed, and "where did I live before?" can still find it, marked until when;
+- the cabinet's record of each day in her diary, written by code from the cabinet's own numbers so it is always right:
+  what you solved and played by name, your focus, activities, earnings, bedtime and when you were at the PC;
 - what she always has in mind about you and about the two of you: what you write on the memory book's Notes, word for
   word, then her most important facts (pinned first, then by importance), listed afresh for every reply, so a change
   is right in her very next one; for two weeks a fact that changed says what it was, and one that ended says so;

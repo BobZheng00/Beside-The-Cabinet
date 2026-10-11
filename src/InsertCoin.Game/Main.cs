@@ -349,6 +349,7 @@ public partial class Main : Node2D
         foreach (var e in result.Events)
             _director.Play(e);
         _stool.Witness(result.Events, _rules);
+        _stool.Record(_state);
         if (Lines.For(result.Events, _state, _rules, _random) is { } line && !_stool.Answering)
             _stool.Say(line);
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.

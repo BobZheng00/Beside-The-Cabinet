@@ -260,6 +260,7 @@ public sealed class Chat : IDisposable
     {
         _answering?.Cancel();
         _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch };
+        _recorded = default;                                // their diary catches up on the days too
     }
 
     /// <summary>The player's "remind me before things on my agenda", as set now (see <see cref="Conversation.ReminderLead"/>).</summary>
@@ -691,6 +692,17 @@ public sealed class Chat : IDisposable
         foreach (var e in events)
             if (Situation.Witness(e, rules) is { } what)
                 _conversation!.Witness(what);
+    }
+
+    private DateOnly _recorded;
+
+    /// <summary>Puts the cabinet's record of finished days in her diary (see <see cref="Conversation.Record"/>) when a day has turned.</summary>
+    public void Record(LedgerState state)
+    {
+        if (!Ready || state.Days.Count == 0 || state.Days[^1].Day == _recorded)
+            return;
+        _conversation!.Record(state);
+        _recorded = state.Days[^1].Day;
     }
 
     /// <summary>Logs a canned line she said on her own.</summary>

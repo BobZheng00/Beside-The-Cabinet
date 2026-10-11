@@ -105,7 +105,7 @@ public sealed class Ledger(Rules rules)
             GoodDays = paid.GoodDays.Add(day),
             BestStreak = Math.Max(paid.BestStreak, streak),
             Week = paid.Week with { Solves = paid.Week.Solves + 1 },
-            Today = paid.Today! with { Solves = paid.Today.Solves + 1 },
+            Today = paid.Today! with { Solves = paid.Today.Solves + 1, Solved = paid.Today.Solved.Add($"{task.Title} ({difficulty})") },
         };
     }
 
@@ -356,7 +356,8 @@ public sealed class Ledger(Rules rules)
         {
             Session = session with { PlayedMs = session.PlayedMs + elapsedMs, LateExtraMs = session.LateExtraMs + costMs - elapsedMs },
             Week = week with { PlayedMs = week.PlayedMs + elapsedMs },
-            Today = today with { PlayedMs = today.PlayedMs + elapsedMs, LateExtraMs = today.LateExtraMs + costMs - elapsedMs, LastPlayed = now },
+            Today = today with { PlayedMs = today.PlayedMs + elapsedMs, LateExtraMs = today.LateExtraMs + costMs - elapsedMs, LastPlayed = now,
+                                 Games = today.Games.Union(session.GameNames) },
         };
     }
 

@@ -677,7 +677,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     private IReadOnlyList<Observation> Unkept()
     {
         var kept = long.TryParse(store.Mark(KeptMark), out var id) ? id : 0;
-        return [.. store.Observations(character).Where(o => o.Id > kept && o.Span == Span.Day && !o.Condensed).OrderBy(o => o.Id)];
+        return [.. store.Observations(character).Where(o => o.Id > kept && o.Span == Span.Day && !o.Condensed && o.Source is null).OrderBy(o => o.Id)];
     }
 
     /// <summary>Keeps the facts and plans her unkept notes tell of (see <see cref="Digest"/>), a few thousand tokens of notes at a time.</summary>
@@ -853,6 +853,27 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         roomier.MaxOutputTokens = (options.MaxOutputTokens ?? 2000) * 2;
         response = await client.GetResponseAsync(request, roomier, cancel);
         return response.FinishReason == ChatFinishReason.Length ? null : response;
+    }
+
+    /// <summary>
+    /// Puts the cabinet's record of each finished day not yet in her diary into it (see <see cref="Diary"/>), a note dated at
+    /// the end of that day: written by code, so always right, and nothing upkeep keeps facts from. The first time, every
+    /// day the ledger keeps (up to 120), so nothing is missed.
+    /// </summary>
+    public void Record(InsertCoin.Core.LedgerState state)
+    {
+        var through = DateOnly.TryParseExact(store.Mark($"diary:{character}"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                                             System.Globalization.DateTimeStyles.None, out var day) ? day : DateOnly.MinValue;
+        var good = state.StreakDays();
+        var zone = _clock.LocalTimeZone;
+        var notes = state.Days.Where(d => d.Day > through).Select(d =>
+        {
+            var end = d.Day.ToDateTime(new TimeOnly(23, 59));
+            return new Observation(0, new DateTimeOffset(end, zone.GetUtcOffset(end)), Priority.Medium, Diary.Entry(d, good.Contains(d.Day)), 0, 0,
+                                   Source: Diary.Cabinet);
+        }).ToList();
+        if (notes.Count > 0)
+            store.Record(character, notes, state.Days[^1].Day);
     }
 
     /// <summary>What she always has in mind about the player (<see cref="MindStore.Shared"/>) or the two of them, for this reply (see <see cref="Prompt.Known"/>).</summary>

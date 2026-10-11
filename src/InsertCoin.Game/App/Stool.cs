@@ -283,6 +283,9 @@ public partial class Stool : Node2D
     /// <summary>What just happened on the cabinet, for her mind to take note of.</summary>
     public void Witness(IEnumerable<LedgerEvent> events, Rules rules) => _chat.Witness(events, rules);
 
+    /// <summary>The cabinet's record of finished days, for her diary.</summary>
+    public void Record(LedgerState state) => _chat.Record(state);
+
     /// <summary>Her memory, the agenda among it (shared by every character).</summary>
     public MindStore Store => _chat.Store;
 

@@ -167,6 +167,10 @@ public sealed class MindStore : IDisposable
                     OR (name = 'us' AND EXISTS (SELECT 1 FROM lines WHERE character = notes.scope));
                 PRAGMA user_version = 14;
                 """);
+        // version 15: a note in her log can be the cabinet's record of a day (see Diary), which upkeep keeps no facts from
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('observations') WHERE name = 'source'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE observations ADD COLUMN source TEXT; PRAGMA user_version = 15;");
     }
 
     // ---- Vectors (what facts, notes and old lines mean, for search by meaning) -------------------------------------
@@ -726,6 +730,15 @@ public sealed class MindStore : IDisposable
     /// Lines up to and including <paramref name="through"/> have been observed, and these are her notes on them: added
     /// to her log together, so neither happens without the other. The lines stay in the window until it is folded.
     /// </summary>
+    /// <summary>The cabinet's record of days into her log (see <see cref="Diary"/>), and the last day it has got to, together.</summary>
+    public void Record(string character, IReadOnlyList<Observation> days, DateOnly through)
+    {
+        using var transaction = _db.BeginTransaction();
+        AddObservations(character, days);
+        SetMark($"diary:{character}", through.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        transaction.Commit();
+    }
+
     public void Observe(string character, IReadOnlyList<Observation> observed, long through)
     {
         using var transaction = _db.BeginTransaction();
@@ -772,8 +785,9 @@ public sealed class MindStore : IDisposable
     {
         foreach (var o in observations)
         {
-            using var add = Command("INSERT INTO observations (character, at, priority, text, first, last, span) VALUES ($c, $a, $p, $t, $f, $l, $s)",
-                ("$c", character), ("$a", Stamp(o.At)), ("$p", (int)o.Priority), ("$t", o.Text.Trim()), ("$f", o.First), ("$l", o.Last), ("$s", (int)o.Span));
+            using var add = Command("INSERT INTO observations (character, at, priority, text, first, last, span, source) VALUES ($c, $a, $p, $t, $f, $l, $s, $o)",
+                ("$c", character), ("$a", Stamp(o.At)), ("$p", (int)o.Priority), ("$t", o.Text.Trim()), ("$f", o.First), ("$l", o.Last), ("$s", (int)o.Span),
+                ("$o", (object?)o.Source ?? DBNull.Value));
             add.ExecuteNonQuery();
         }
     }
@@ -781,12 +795,12 @@ public sealed class MindStore : IDisposable
     /// <summary>Her log, oldest first, the notes that were condensed into others too.</summary>
     public IReadOnlyList<Observation> Observations(string character)
     {
-        using var command = Command("SELECT id, at, priority, text, first, last, span, condensed FROM observations WHERE character = $c ORDER BY at, id", ("$c", character));
+        using var command = Command("SELECT id, at, priority, text, first, last, span, condensed, source FROM observations WHERE character = $c ORDER BY at, id", ("$c", character));
         using var reader = command.ExecuteReader();
         var log = new List<Observation>();
         while (reader.Read())
             log.Add(new Observation(reader.GetInt64(0), Parse(reader.GetString(1)), (Priority)reader.GetInt32(2), reader.GetString(3), reader.GetInt64(4), reader.GetInt64(5),
-                                    (Span)reader.GetInt32(6), reader.GetInt32(7) != 0));
+                                    (Span)reader.GetInt32(6), reader.GetInt32(7) != 0, reader.IsDBNull(8) ? null : reader.GetString(8)));
         return log;
     }
 

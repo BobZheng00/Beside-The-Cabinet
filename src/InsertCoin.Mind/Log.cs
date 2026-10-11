@@ -13,7 +13,9 @@ public enum Priority { High, Medium, Low }
 /// said, or, condensed (see <see cref="Log.ToCondense"/>), for the week, month or year starting at <see cref="At"/>.
 /// <see cref="Condensed"/>: it went into a longer one's notes, so it is out of view and only recalled.
 /// </summary>
-public sealed record Observation(long Id, DateTimeOffset At, Priority Priority, string Text, long First, long Last, Span Span = Span.Day, bool Condensed = false);
+/// <param name="Source">Null for her own note; <see cref="Diary.Cabinet"/> for the cabinet's record of a day.</param>
+public sealed record Observation(long Id, DateTimeOffset At, Priority Priority, string Text, long First, long Last, Span Span = Span.Day, bool Condensed = false,
+                                 string? Source = null);
 
 /// <summary>A stretch of her log to condense: the notes of a finished week, month or year, into notes for <see cref="Span"/> starting <see cref="At"/>.</summary>
 public sealed record Stretch(Span Span, DateTimeOffset At, string Period, IReadOnlyList<Observation> Notes);
