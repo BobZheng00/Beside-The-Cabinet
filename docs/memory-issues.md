@@ -9,15 +9,15 @@ only with a re-run that shows it fixed, and say which.
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | open |
-| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; 3afb21d took back two-thirds of that (134k against 179k; the old memory 112k) |
+| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; back to the old memory's level with the profile change (116k against 112k) |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
 | R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
 | R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
-| M8 | Facts grow long as the weekly review merges related ones | fixed on the branch `profile-from-facts`: asked for in 20 words; a merge over about 30 isn't taken |
-| M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | fixed on the branch `profile-from-facts`: listed from her facts for every reply |
+| M8 | Facts grow long as the weekly review merges related ones | fixed: median 16 words, the longest 27 (were 23 and 68) |
+| M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | fixed: listed from her facts for every reply, answers unchanged (84%) |
 | M10 | A restart between noting and keeping lost what those notes told of | fixed on `main` (2cfd3b0) |
 
 ## M1. The summary is cut off at its newest end
@@ -62,6 +62,8 @@ only with a re-run that shows it fixed, and say which.
 - **Measured** (2026-10-11, the same conversation, with retrieval): 81 requests, 90k read and 44k written, 134k in
   all: two-thirds of phase 3's rise taken back, still about a fifth over the old memory. Facts: 57 (18 current)
   against 116 (42 current).
+- **With the profile change** (a39c3e9: no rewrites at all, shorter facts): 56 requests and 116k tokens, within 4% of
+  the old memory with fewer requests.
 
 ## M4. Search starts slowly and grows in memory with years of talk
 
@@ -162,6 +164,8 @@ only with a re-run that shows it fixed, and say which.
 - **Fix** (a39c3e9, branch `profile-from-facts`): facts are asked for in one sentence of at most 20 words, one thing
   each; a review's merge that comes out over about 30 words (45 tokens) joined different things, and isn't taken.
   Not built: sending a long kept fact back to be split; first to see whether the wording keeps them short.
+- **Measured** (conversation 26, from scratch): facts median 16 words, the longest 27, 3 over 25 (were median 23, the
+  longest 68, 25 over); 20 merged away against 25.
 
 ## M9. Her profile is a copy of her facts the model rewrites, so it lags and can drift
 
@@ -173,7 +177,8 @@ only with a re-run that shows it fixed, and say which.
   attended an LGBTQ+ conference…").
 - **Fix** (a39c3e9, branch `profile-from-facts`; the player's choice): code lists her most important facts for every
   reply (`Prompt.Known`) instead of the model rewriting a copy, and the Notes are the player's own, never rewritten;
-  the notes the model wrote went into her log (version 14). Being measured.
+  the notes the model wrote went into her log (version 14). Measured on conversation 26: 127 of 152 right, the same
+  as the rewritten profile (7 flipped each way), with no request spent on it.
 
 ## M10. A restart between noting and keeping lost what those notes told of
 

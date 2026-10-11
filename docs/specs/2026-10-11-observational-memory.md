@@ -97,4 +97,5 @@ a time (home, job, what she calls them), so a new one closes the old in code rat
 *Built 2026-10-11* on the branch `profile-from-facts` (a39c3e9: `Prompt.Known`, `Conversation.Known`; `MindStore`
 version 14 moves the old notes into her log, out of view and recalled; the Notes tab is the player's, her log's tab the
 Diary). Facts are asked for in at most 20 words and a merge over about 30 isn't taken; a long kept fact is not sent
-back to be split, to see first whether the wording keeps them short. The keys: not built.
+back to be split, to see first whether the wording keeps them short. The keys: not built. Measured and merged the
+same day: answers unchanged (84%), upkeep 116k tokens against 134k, facts a median of 16 words.

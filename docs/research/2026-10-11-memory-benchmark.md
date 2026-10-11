@@ -144,6 +144,16 @@ questions (15 to 21 of 32): of 108 questions whose evidence had left the window,
 reached her turn for 82% (43% before). Answering reads about 7% more a question for the larger recall, 78% of it
 from the provider's cache. Never-said questions declined: 15% (M5).
 
+### Her profile from her facts (LoCoMo conversation 26, the 8k window)
+
+What she always has in mind listed from her facts by code instead of rewritten by the model, facts asked for in at
+most 20 words, long merges refused (M8, M9). Answered again on the last version's memory: 125 of 151 against 127
+(7 right only then, 5 only now), no difference. From scratch, every question answered: **127 of 152 (84%)**, the
+same as the last version (7 flipped each way); Mem0's grade 137 (90%); never-said declined 7 of 47, as before.
+Against the old memory's runs: 84% against 75%, 83% against 69%. Upkeep 56 requests and 116k tokens (the last
+version 81 and 134k, the old memory 66 and 112k), taking the conversation in in 15 minutes instead of about 30.
+Facts: median 16 words, the longest 27, 3 over 25 (the last version: median 23, longest 68, 25 over).
+
 ## Comparing with Mem0, Zep and Letta
 
 - **LoCoMo** is where they publish: all ten conversations, the 1,540 answerable questions, Mem0's generous grade,
