@@ -35,6 +35,40 @@ public enum Reach
     KeepsInTouch,
 }
 
+/// <summary>
+/// Her plan to reach the player again ("Keeps in touch"), from her [later: HH:MM | what about]: at its time she has
+/// her chance, by text if they are still out, in person if they are back; once they are back, at once, as a roommate
+/// asks on seeing them. One at a time: a new one replaces the last.
+/// </summary>
+public sealed record Later(DateTimeOffset At, string About)
+{
+    /// <summary>How soon and how far ahead she may plan (to tune).</summary>
+    public static readonly TimeSpan Soonest = TimeSpan.FromMinutes(30), Furthest = TimeSpan.FromHours(12);
+
+    /// <summary>
+    /// What she wrote as a plan: the next such time from now, if half an hour to twelve hours ahead; otherwise null, and
+    /// nothing is planned. A date before the time, or no bar after it, is taken too.
+    /// </summary>
+    public static Later? Read(string payload, DateTimeOffset now, TimeZoneInfo zone)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(payload, @"^\s*(?:\d{4}-\d{2}-\d{2}\s+)?(\d{1,2}:\d{2})\s*\|?\s*([^\s|].*?)\s*$");
+        if (!m.Success || !TimeOnly.TryParseExact(m.Groups[1].Value, "H:mm", Prompt.English, System.Globalization.DateTimeStyles.None, out var time))
+            return null;
+        var wall = now.Date + time.ToTimeSpan();
+        if (wall <= now.DateTime)
+            wall = wall.AddDays(1);
+        var at = new DateTimeOffset(wall, zone.GetUtcOffset(wall));
+        return at - now >= Soonest && at - now <= Furthest ? new Later(at, m.Groups[2].Value) : null;
+    }
+
+    /// <summary>As kept in her memory (see <see cref="Reaching.LaterMark"/>), and read back.</summary>
+    public string Mark => $"{At.ToString("O", Prompt.English)}|{About}";
+
+    public static Later? FromMark(string? mark) =>
+        mark?.Split('|', 2) is [var at, var about] && DateTimeOffset.TryParse(at, Prompt.English, System.Globalization.DateTimeStyles.None, out var when)
+            ? new Later(when, about) : null;
+}
+
 /// <summary>How something to tell reaches the player now (see <see cref="Reaching.Route"/>).</summary>
 public enum Way
 {
@@ -197,23 +231,33 @@ public static class Reaching
         return phone ? route : route with { Way = route.Way == Way.Text ? Way.Wait : route.Way, TextIfGone = false };
     }
 
-    /// <summary>How long the player is away before a moment for a text of her own, and between such moments (to tune).</summary>
-    public static readonly TimeSpan OwnTextEvery = TimeSpan.FromHours(1);
+    /// <summary>How long into an absence her first chance to text something of her own comes, unless she planned one (to tune).</summary>
+    public static readonly TimeSpan FirstChance = TimeSpan.FromMinutes(30);
 
     /// <summary>
-    /// Whether she may have a moment to text the player something of her own ("Keeps in touch"): once they have been
-    /// away an hour, then an hour after each such moment, never in the quiet hours. Texts of hers still unanswered don't
-    /// hold her back: they read them all when they look (the user, 2026-10-10). Whether she writes anything is her
-    /// mind's; how clingy she sounds is her card's.
+    /// Whether she has her first chance to text the player something of her own ("Keeps in touch"): half an hour into
+    /// an absence, never in the quiet hours. From there she plans her own (see <see cref="Later"/>). Texts of hers still
+    /// unanswered don't hold her back: they read them all when they look (the user, 2026-10-10). Whether she writes
+    /// anything is her mind's; how clingy she sounds is her card's.
     /// </summary>
-    /// <param name="waited">How long since they went, or since her last such moment if that was later.</param>
-    public static bool MayTextOwn(Reach reach, Whereabouts where, TimeSpan waited, bool quiet) =>
-        reach == Reach.KeepsInTouch && where == Whereabouts.Away && waited >= OwnTextEvery && !quiet;
+    public static bool MayTextOwn(Reach reach, Whereabouts where, TimeSpan awayFor, bool quiet) =>
+        reach == Reach.KeepsInTouch && where == Whereabouts.Away && awayFor >= FirstChance && !quiet;
 
-    /// <summary>What her mind is told at such a moment: whether to say anything is hers.</summary>
+    /// <summary>What her mind is told at her first chance: whether to say anything, and whether to plan a next, is hers.</summary>
     public static string OwnText(TimeSpan away) =>
-        $"The player has been away from the PC for {Words.Span((long)away.TotalMilliseconds)}. If there's something you'd like to tell them or " +
-        "ask them, text them; if not, answer only [quiet].";
+        $"The player has been away from the PC for {Words.Span((long)away.TotalMilliseconds)}. If there's something you'd like to tell or ask them, " +
+        $"text them; if not, answer [quiet]. {PlanNext}";
+
+    /// <summary>What her mind is told when a plan of hers comes due (see <see cref="Later"/>): at its time, or sooner, as the player is back.</summary>
+    public static string LaterNote(Later later, bool back) =>
+        (back ? "The player is back at the PC. " : "") +
+        $"Earlier you meant to bring this up around {later.At.ToString("HH:mm", Prompt.English)}: {later.About}. If it still fits, do; if not, " +
+        $"answer [quiet]. {PlanNext}";
+
+    private const string PlanNext = "Either way, you may add [later: HH:MM | what about] for when you'd next like to.";
+
+    /// <summary>The mark kept in her memory while a plan of hers waits (see <see cref="Later"/>).</summary>
+    public const string LaterMark = "her.later";
 
     /// <summary>
     /// At the PC, how it comes this moment. In full screen or a game they can't be spoken to: what can wait does, the

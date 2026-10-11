@@ -107,16 +107,68 @@ public class ReachingTests
     }
 
     [Fact]
-    public void A_text_of_her_own_comes_after_an_hour_away_then_hourly_never_in_the_quiet_hours()
+    public void Her_first_chance_comes_half_an_hour_into_an_absence_never_in_the_quiet_hours()
     {
-        var hour = TimeSpan.FromHours(1);
+        var half = TimeSpan.FromMinutes(30);
 
-        Assert.True(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, hour, quiet: false));
-        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, TimeSpan.FromMinutes(50), quiet: false));   // too soon after they went, or after her last
-        Assert.False(Reaching.MayTextOwn(Reach.LikeARoommate, Whereabouts.Away, hour, quiet: false));
-        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Asleep, hour, quiet: false));
-        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, hour, quiet: true));                        // out late, by their word
+        Assert.True(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, half, quiet: false));
+        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, TimeSpan.FromMinutes(25), quiet: false));
+        Assert.False(Reaching.MayTextOwn(Reach.LikeARoommate, Whereabouts.Away, half, quiet: false));
+        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Asleep, half, quiet: false));
+        Assert.False(Reaching.MayTextOwn(Reach.KeepsInTouch, Whereabouts.Away, half, quiet: true));                         // out late, by their word
         Assert.Contains("1 h 20 min", Reaching.OwnText(TimeSpan.FromMinutes(80)));
+        Assert.Contains("[later: HH:MM | what about]", Reaching.OwnText(half));
+    }
+
+    [Fact]
+    public void Her_plan_is_the_next_such_time_from_half_an_hour_to_twelve_hours_ahead()
+    {
+        var zone = TimeZoneInfo.CreateCustomTimeZone("test", Noon.Offset, "test", "test");
+        Later? Read(string payload, DateTimeOffset? now = null) => Later.Read(payload, now ?? Noon, zone);
+
+        Assert.Equal(new Later(Noon.AddMinutes(90), "ask how the gym went"), Read("13:30 | ask how the gym went"));
+        Assert.Equal(new Later(Noon.AddHours(6), "dinner"), Read("2026-10-10 18:00 | dinner"));                        // a date before it, as in [plan: …]
+        Assert.Equal(new Later(Noon.AddHours(2), "lunch"), Read("14:00 lunch"));                                      // no bar
+        Assert.Equal(new Later(Noon.AddHours(19), "good morning"), Read("07:00 | good morning", Noon.AddHours(10)));  // past midnight
+        Assert.Null(Read("12:15 | too soon"));
+        Assert.Null(Read("11:00 | tomorrow, too far ahead"));
+        Assert.Null(Read("25:00 | no such time"));
+        Assert.Null(Read("soon | no time"));
+        Assert.Null(Read("13:30 |"));
+    }
+
+    [Fact]
+    public void Her_plan_is_kept_in_her_memory_and_told_back_to_her_when_due()
+    {
+        var plan = new Later(Noon.AddMinutes(90), "ask how the gym went | and lunch");
+
+        Assert.Equal(plan, Later.FromMark(plan.Mark));
+        Assert.Null(Later.FromMark(""));
+        Assert.Null(Later.FromMark(null));
+        Assert.StartsWith("Earlier you meant to bring this up around 13:30: ask how the gym went | and lunch.", Reaching.LaterNote(plan, back: false));
+        Assert.StartsWith("The player is back at the PC. Earlier you meant", Reaching.LaterNote(plan, back: true));
+    }
+
+    [Fact]
+    public async Task Her_plan_to_reach_them_later_is_kept_and_never_shown()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "Shino is cheerful."), new FakeClock(Noon));
+        var shown = new List<string>();
+
+        await conversation.Answer(new FakeModel("Have fun at the gym! [out] [later: 13:30 | ask how the gym went]"), "I'm off to the gym", "", shown.Add, (_, _) => { });
+
+        Assert.DoesNotContain("[", string.Concat(shown));
+        Assert.Equal(new Later(Noon.AddMinutes(90), "ask how the gym went"), Later.FromMark(temp.Store.Mark(Reaching.LaterMark)));
+    }
+
+    [Fact]
+    public void She_is_told_she_may_plan_to_reach_them_only_when_keeping_in_touch()
+    {
+        var persona = new Persona("Shino", "Shino is cheerful.");
+
+        Assert.Contains("add [later: HH:MM | what about] to plan when you'd next like to reach them", Prompt.Build(persona, "", "", null, [], "", "hi", keepsInTouch: true)[0].Text);
+        Assert.DoesNotContain("[later:", Prompt.Build(persona, "", "", null, [], "", "hi")[0].Text);
     }
 
     private static Telling Lasting(TimeSpan fresh) => new("CHECK-IN", "How did it go?", "", Matters.Should, true, Noon, fresh);

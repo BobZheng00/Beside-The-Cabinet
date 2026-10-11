@@ -106,10 +106,10 @@ One setting for all of it, changing only what reaches the phone (at the PC she i
 - **Only what you set:** must-reach only.
 - **Like a roommate** (the default, the user's choice, matching today's defaults): must and should.
 - **Keeps in touch:** could too, and texts of her own when the player has been away a while ("how's the day going?").
-  Here her mind does decide: the app opens a moment (after an hour away, then hourly, never in the quiet hours; to
-  tune), and she writes something or stays quiet
-  (`[quiet]`, as when she thinks over the player's memo). How clingy she sounds is her card's; how often is the
-  player's setting.
+  Here her mind does decide: she plans when to reach them next (in her goodbye, or at a first chance half an hour
+  into an absence), and at each she writes something or stays quiet (`[quiet]`, as when she thinks over the
+  player's memo) and may plan the next. How clingy she sounds is her card's; whether she may is the player's
+  setting.
 
 ## Texting with her
 
@@ -254,16 +254,28 @@ Windows notification stays with the reminders.
   default), Keeps in touch. `Reaching.Route` takes it: only what you set, a should waits for the player instead of
   going to their phone (and keeps no text in case they've gone); keeping in touch, a could that makes sense anywhere
   is texted while they are away. At the PC nothing changes.
-- **Her own texts** (`Reaching.MayTextOwn`): `Stool.Track` opens a moment once the player has been away an hour
-  (since `Track` first saw them away), then an hour after each moment, never in the quiet hours (which matters only
-  when they said they were going out: an idle PC in the quiet hours means asleep). A moment she lets pass counts too,
-  so a quiet hour costs one call to her mind. Her mind is told how long they've been away (`Reaching.OwnText`) and
-  writes a text or answers only `[quiet]`, and then nothing goes. Nothing is kept across a restart: the clock starts
-  again, so a restart never brings a text sooner.
-- **Changed the same night:** first built with two a day at most, three hours apart and none while one of hers was
-  unanswered. The user found that too tight: the hourly clock is limit enough, and texts left unanswered are read
-  together, as with anything else sent while they're out.
-- **Dev:** `whereabouts:away:90` (away for 90 minutes already).
+- **Her own texts: she plans them** (`Later`, `Stool.KeepInTouch`; the user, 2026-10-11: a person forms an
+  intention tied to a time or to seeing someone, rather than deciding every hour). One plan at a time,
+  `[later: HH:MM | what about]`, half an hour to twelve hours ahead, kept in her memory (`her.later`, so a restart
+  keeps it). She can plan in her goodbye (her prompt says so only with Keeps in touch on); a player who leaves
+  without a word gets her first chance half an hour into the absence (`Reaching.MayTextOwn`, `Reaching.OwnText`).
+  When a plan comes due she is told what she meant (`Reaching.LaterNote`), texts or answers `[quiet]`, and may plan
+  the next. Back at the PC first, the plan comes due at once and goes by the routing (a word first, once they have
+  settled): she brings it up in person, plans it again, or lets it go. A plan due in the quiet hours with the player
+  out is let go; one due while they're asleep lapses by the routing. Her unanswered texts don't hold her back.
+- **How it got here, the same two nights:** first two a day at most, three hours apart and none while one of hers was
+  unanswered; then an hourly check (the user: too tight, and unanswered texts are read together, as anything sent
+  while they're out); then her own plans.
+- **Tried on the user's own model** (2026-10-11, a GPT model through their provider, a test profile with
+  the demo's key, texts to a stand-in). Told "heading out for a bit, back in a couple of
+  hours", she planned a check-in two hours on; due, she texted how it was going and planned to see whether
+  they were back; back early, they were asked in person how it went. Leaving without a word, her first chance texted
+  "sleep well" and planned a hello for 08:00. Her plan topics are short notes ("check in"). Two texts forced a minute
+  apart came out alike; real ones are hours apart.
+- **Found by that test:** her voice's example line was "おかえり！ Welcome back!", and on the player's return she
+  copied it whole, all in Japanese. The example is now a line no moment of the cabinet's calls for ("I see. That
+  sounds fun!"); the next try greeted them in English.
+- **Dev:** `whereabouts:away:90` (away for 90 minutes already), `later:now` (her plan comes due now).
 
 ## Not chosen, and why
 

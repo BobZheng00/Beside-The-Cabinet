@@ -127,7 +127,7 @@ public partial class Stool : Node2D
         _lively = lively;
         _characters = Path.Combine(dataDir, "characters");
 
-        _chat = new Chat(dataDir) { ReminderLead = () => settings.Now.ReminderLead };
+        _chat = new Chat(dataDir) { ReminderLead = () => settings.Now.ReminderLead, KeepsInTouch = () => settings.Now.Reach == Reach.KeepsInTouch };
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
         _chat.SearchThrough(settings.Now.AddOns.Search);
@@ -456,7 +456,8 @@ public partial class Stool : Node2D
     private Whereabouts? _pretend;                          // dev: where the player is said to be, whatever the cabinet watches
     private DateTimeOffset _nextPass;                       // when what waits is looked at again: once a second, at once when something new comes
     private DateTimeOffset? _awaySince;                     // the player has been away since then
-    private DateTimeOffset _lastOwn;                        // her last moment to text something of her own (Keeps in touch)
+    private DateTimeOffset _chanceAt;                       // her last chance to reach them of her own accord (Keeps in touch)
+    private string? _planSeen;                              // her plan to reach them as last logged
 
     /// <summary>
     /// Something to tell the player, from any feature: told at the PC, texted, kept for when they are back, or let go,
@@ -505,6 +506,7 @@ public partial class Stool : Node2D
             GD.Print("Reaching: they are back at the PC after saying they were off");
         }
         var where = Where(now);
+        var back = where == Whereabouts.Here && _where is Whereabouts.Away or Whereabouts.Asleep;
         _awaySince = where == Whereabouts.Away ? _awaySince ?? now : null;
         if (where != _where)
         {
@@ -513,13 +515,8 @@ public partial class Stool : Node2D
                      (watched.Locked ? ", the screen locked" : "") + (watched.Said is { } said ? $", they said {(said.Asleep ? "goodnight" : "they were off")}" : "") +
                      (_pretend is not null ? ", as a dev action has it" : "") + ")");
         }
-        // keeping in touch: an hour away, then hourly, a moment to text them something of her own; whether she writes anything is hers
-        if (_awaySince is { } since && Reaching.MayTextOwn(_settings.Now.Reach, where, now - (since > _lastOwn ? since : _lastOwn), Quiet(now.Hour))
-            && _chat.Ready && Her is not null && CanText())
-        {
-            _lastOwn = now;
-            Hand(new Telling("OWN TEXT", Reaching.OwnText(now - since), "", Matters.Could, Anywhere: true, now, TimeSpan.FromMinutes(1)));
-        }
+        if (_settings.Now.Reach == Reach.KeepsInTouch && _chat.Ready && Her is not null)
+            KeepInTouch(now, where, back);
         foreach (var kept in _inCase.ToList())
         {
             if (_pretend is null && idle < now - kept.Since)       // used the PC since: they were there after all
@@ -533,6 +530,38 @@ public partial class Stool : Node2D
                 GD.Print("Reaching: they had gone; the text kept for it goes");
                 _ = Send(kept.Text);
             }
+        }
+    }
+
+    /// <summary>
+    /// Keeping in touch: her plan to reach the player comes due at its time, or at once when they are back at the PC;
+    /// without one, her first chance comes half an hour into an absence. Whether she says anything, and whether she plans
+    /// a next, is hers (see <see cref="Later"/>).
+    /// </summary>
+    private void KeepInTouch(DateTimeOffset now, Whereabouts where, bool back)
+    {
+        var mark = _chat.Store.Mark(Reaching.LaterMark);
+        var later = Later.FromMark(mark);
+        if (mark != _planSeen)
+        {
+            _planSeen = mark;
+            if (later is not null)
+                GD.Print($"Reaching: she plans to reach them again at {later.At:HH:mm}: {later.About}");
+        }
+        if (later is not null && (now >= later.At || back))
+        {
+            _chat.Store.SetMark(Reaching.LaterMark, "");
+            _chanceAt = now;
+            if (Quiet(now.Hour) && where == Whereabouts.Away)
+                GD.Print("Reaching: her plan came due in the quiet hours with the player out; let go");
+            else
+                Hand(new Telling("LATER", Reaching.LaterNote(later, back), "", Matters.Could, Anywhere: true, now, Reaching.CanWait));
+        }
+        else if (later is null && _awaySince is { } since && _chanceAt < since && CanText()
+                 && Reaching.MayTextOwn(_settings.Now.Reach, where, now - since, Quiet(now.Hour)))
+        {
+            _chanceAt = now;
+            Hand(new Telling("OWN TEXT", Reaching.OwnText(now - since), "", Matters.Could, Anywhere: true, now, TimeSpan.FromMinutes(1)));
         }
     }
 
@@ -1874,6 +1903,12 @@ public partial class Stool : Node2D
                     Hand(new Telling("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
                                          : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
                                      "", rest == "ask" ? Matters.Should : Matters.Could, Anywhere: false, DateTimeOffset.Now, TimeSpan.FromHours(2)));
+                break;
+            case "later":                                   // later:now has her plan to reach them come due now
+                if (Later.FromMark(_chat.Store.Mark(Reaching.LaterMark)) is { } planned)
+                    _chat.Store.SetMark(Reaching.LaterMark, (planned with { At = DateTimeOffset.Now }).Mark);
+                else
+                    GD.Print("Reaching: no plan of hers to bring forward");
                 break;
             case "whereabouts":                             // whereabouts:away (here, unsure, asleep) has the player there whatever the cabinet watches; whereabouts:off watches again
                 var place = rest.Split(':');                // whereabouts:away:90: away for 90 minutes already

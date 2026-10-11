@@ -28,9 +28,11 @@ public static class Prompt
     /// <param name="now">The time now; without it the turn says nothing about time.</param>
     /// <param name="agenda">What is coming up and what has just passed (see <see cref="Agenda.Block"/>), or empty.</param>
     /// <param name="tools">Tools are offered with the request: she is told how to use them (see <see cref="Toolbox"/>).</param>
+    /// <param name="keepsInTouch">The player chose "Keeps in touch": she is told she may plan when to reach them while they are out (see <see cref="Later"/>).</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, Summary? summary, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
-                                          int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false)
+                                          int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
+                                          bool keepsInTouch = false)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool next to the player's desktop arcade cabinet, INSERT COIN, and keep them company.
@@ -49,7 +51,7 @@ public static class Prompt
 
             Plans and reminders: when the player tells you about something ahead with a date (an appointment, an exam, a deadline), start your reply with [plan: YYYY-MM-DD HH:MM | what it is] instead of a note (just YYYY-MM-DD for a whole day; dates made absolute from the <now> block). When they ask you to remind them of something, use [remind: YYYY-MM-DD HH:MM | what to remind them of] with the time it should go off, and say when you will: the cabinet reminds them at that time, by itself, even if they are away. Either can end with options after another |: how long ahead to remind ("10 min before", "1 hour before", "1 day before") and whether it repeats ("daily", "weekdays", "weekly", "monthly"), as in [plan: 2026-10-08 10:00 | Job interview | 1 hour before] or [remind: 2026-10-06 08:00 | Take your vitamins | daily]. The <agenda> block lists what is coming up and what has just passed: bring it up when it fits, and once something is past, ask how it went.
 
-            Leaving the PC: when the player says they are leaving it now (going out, to class, to the gym), add [out] to your reply; when they are going to sleep, [sleep]. The cabinet then knows they are away until they are back. Only when they are going now, not for plans later on.
+            Leaving the PC: when the player says they are leaving it now (going out, to class, to the gym), add [out] to your reply; when they are going to sleep, [sleep]. The cabinet then knows they are away until they are back. Only when they are going now, not for plans later on.{(keepsInTouch ? KeepingInTouch : "")}
 
             Helping them learn: when the player is stuck on something they are learning (a LeetCode problem, an exercise, a course, anything), help a step at a time, each only when they ask for more: first a nudge (what to notice), then the approach, then an outline. Give the whole answer only when they ask for it again after that. When they show you their own attempt, say what works and where to look rather than rewriting it. A step too long for your bubble goes on a memo if you can print one, with the gist said aloud.
 
@@ -104,6 +106,12 @@ public static class Prompt
         return messages;
     }
 
+    /// <summary>With "Keeps in touch": she plans when to reach the player while they are out (see <see cref="Later"/>); the cabinet gives her the chance then.</summary>
+    private const string KeepingInTouch =
+        " While they are out you may keep in touch by text: add [later: HH:MM | what about] to plan when you'd next like to reach them, at " +
+        "least half an hour ahead. The cabinet reminds you then, or as soon as they are back if that is sooner. One plan at a time: a new one " +
+        "replaces the last.";
+
     /// <summary>
     /// How she uses tools: a short line of her own before each (the wait for its result is filled by her, not by a
     /// stock "let me check"), and asking in her own words when the player will be asked to allow it.
@@ -127,12 +135,13 @@ public static class Prompt
         if (language is null)
             return "";
         var name = SpokenLanguage.Name(language);
+        // a line no moment of the cabinet's calls for: a "welcome back" one was copied whole, all in Japanese, when the player came back (2026-10-11)
         var example = language switch
         {
-            "ja" => "[say: おかえり！] Welcome back! [say: 今日もよく頑張ったね。] You did well today.",
-            "zh" => "[say: 欢迎回来！] Welcome back! [say: 今天也很努力呢。] You did well today.",
-            "ko" => "[say: 어서 와!] Welcome back! [say: 오늘도 수고했어.] You did well today.",
-            _ => "[say: Welcome back!] 欢迎回来！[say: You did well today.] 今天也很努力呢。",
+            "ja" => "[say: なるほどね。] I see. [say: それ、面白そう！] That sounds fun!",
+            "zh" => "[say: 原来如此。] I see. [say: 听起来很有趣！] That sounds fun!",
+            "ko" => "[say: 그렇구나.] I see. [say: 재밌겠다!] That sounds fun!",
+            _ => "[say: I see.] 原来如此。[say: That sounds fun!] 听起来很有趣！",
         };
         var letters = language switch
         {

@@ -58,6 +58,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>The player's "remind me before things on my agenda", as set now (null: only the reminders asked for).</summary>
     public Func<TimeSpan?> ReminderLead { get; init; } = () => null;
 
+    /// <summary>The player chose "Keeps in touch", as set now: she may plan when to reach them while they are out (see <see cref="Later"/>).</summary>
+    public Func<bool> KeepsInTouch { get; init; } = () => false;
+
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
 
@@ -101,7 +104,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var summary = store.SummaryOf(character);
         var sent = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us), summary,
                                 store.After(character, summary?.Through ?? 0), "", $"[cabinet] {WordFirst.Ask}", memories: null,
-                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null);
+                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch());
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
             written.Append(update.Text);
@@ -166,7 +169,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, store.Note(MindStore.Shared, MindStore.AboutUser), store.Note(character, MindStore.Us),
                                      summary, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools);
+                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch());
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -200,6 +203,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
             if (name is "out" or "sleep")
                 store.SetMark(Reaching.Mark, Reaching.Marked(name == "sleep", now));
+            // "[later: HH:MM | what about]": her plan to reach the player again while they are out (see Later)
+            if (name == "later" && payload is not null && Later.Read(payload, now, _clock.LocalTimeZone) is { } later)
+                store.SetMark(Reaching.LaterMark, later.Mark);
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back

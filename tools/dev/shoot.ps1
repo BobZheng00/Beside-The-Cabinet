@@ -10,6 +10,9 @@
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma
 # -Model    file(s) copied into the profile's characters folder (wildcards allowed)
+# -KeyFrom  a profile folder whose AI key the run uses (companion\key.bin, copied still encrypted, removed after): a test
+#           on the player's own provider, only with their leave, as it is billed to them. Nothing else of theirs is
+#           copied (not reminders.bin), so texts still go only where the script sends them
 # -Window   also capture the app's own window with this title (a settings window, a dialog) at each shot, from the
 #           window itself (PrintWindow), so nothing else on screen is ever captured
 # -Hidden   keep the app off every monitor (and not on top) and capture it from the window itself: nothing appears on
@@ -18,7 +21,7 @@
 #           other, on a light backdrop, as <Tag>-<n>-desk.png: how they sit on the desktop, without showing anything
 # Output: <Out>\<Tag>-<n>.png (and <Tag>-<n>-window.png), plus the app's log and errors.
 param([string]$Script = "", [double[]]$Shots = @(6), [string]$Tag = "shot", [string]$Bg = "#F2EFF7", [string]$Size = "M",
-      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden, [switch]$Desk,
+      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$KeyFrom = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden, [switch]$Desk,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-shots"),
       [string]$Godot = "<tools>\Godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe")
 
@@ -27,6 +30,10 @@ New-Item -ItemType Directory $Out -Force | Out-Null
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
 if (Test-Path (Join-Path $profile "companion")) { Remove-Item (Join-Path $profile "companion") -Recurse -Force }   # her memory starts fresh too
+if ($KeyFrom -ne "") {
+  New-Item -ItemType Directory (Join-Path $profile "companion") -Force | Out-Null
+  Copy-Item (Join-Path $KeyFrom "companion\key.bin") (Join-Path $profile "companion") -Force
+}
 if ($Model -ne "") {
   New-Item -ItemType Directory (Join-Path $profile "characters") -Force | Out-Null
   Copy-Item $Model (Join-Path $profile "characters") -Force
@@ -129,6 +136,7 @@ Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Objec
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 if ($form) { $form.Close() }
 Start-Sleep -Milliseconds 500
+if ($KeyFrom -ne "") { Remove-Item (Join-Path $profile "companion\key.bin") -Force -ErrorAction SilentlyContinue }
 if ($Exe -eq "") {
   Get-Content $err -ErrorAction SilentlyContinue | Select-Object -First 25
   Get-Content $log -ErrorAction SilentlyContinue | Select-String -Pattern "ERROR|Exception|Companion '" | Select-Object -First 25

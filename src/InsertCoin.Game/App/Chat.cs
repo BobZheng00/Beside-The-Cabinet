@@ -259,11 +259,14 @@ public sealed class Chat : IDisposable
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead };
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch };
     }
 
     /// <summary>The player's "remind me before things on my agenda", as set now (see <see cref="Conversation.ReminderLead"/>).</summary>
     public Func<TimeSpan?> ReminderLead { get; init; } = () => null;
+
+    /// <summary>The player chose "Keeps in touch", as set now (see <see cref="Conversation.KeepsInTouch"/>).</summary>
+    public Func<bool> KeepsInTouch { get; init; } = () => false;
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
     public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => Godot.FileAccess.FileExists($"res://models/{m.Name}/model.onnx"))];

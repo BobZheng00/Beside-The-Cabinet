@@ -99,9 +99,10 @@ makes sense at the PC (bedtime words, a break from a long game) waits for you wh
 to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
 I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to. "She reaches out" sets how
 much reaches your phone: only what you set (reminders, focus turns), like a roommate (that, and asking how things
-went: the default), or keeps in touch, when she also texts you something of her own while you're away: at most one
-an hour, never at night, and only if she has something to say. Texts of hers you haven't answered don't stop her: you
-read them all when you look.
+went: the default), or keeps in touch, when she also texts you things of her own while you're out, when she plans to:
+she can plan one in her goodbye when you tell her you're heading out, or gets a first chance half an hour after you
+leave without a word, and each time she may plan the next. Never at night, and only if she has something to say;
+texts of hers you haven't answered don't stop her. If you're back before one she planned, she brings it up in person.
 
 **Texting with her.** On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with her on
 Telegram": make a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). She
@@ -302,7 +303,7 @@ agenda items, retired facts and a moment to try it on), `remind:some_text` (a re
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
-`whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
+`later:now` (her plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in Telegram, such as
 `fake_telegram.py`), `paircode:CODE` (the next pairing code, for it to send back),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
