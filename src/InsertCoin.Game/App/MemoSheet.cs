@@ -330,7 +330,7 @@ public partial class MemoSheet : Node2D
         _print.Visible = editing && _memo is null;
         _tell.Visible = editing && _memo is null && _memos.HerName is not null;
         _tell.Text = $"Let {_memos.HerName} read it";
-        _tell.TooltipText = "She reads it and may act on it (a reminder, a date on the agenda), or let it be. Untick to keep it to yourself.";
+        _tell.TooltipText = Words.Wrap("She reads it and may act on it (a reminder, a date on the agenda), or let it be. Untick to keep it to yourself.");
         _deleting = false;
         _delete.Warn = false;
         Say(editing && _memo is null ? "Print it, and it comes out of the cabinet's slot." : "");

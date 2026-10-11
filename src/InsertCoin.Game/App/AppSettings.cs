@@ -29,6 +29,7 @@ public sealed record AppSettings
     public InsertCoin.Mind.Elsewhere ReminderElsewhere { get; init; } = new();   // where her texts go while the player is away (secrets apart, encrypted)
     public int AwayMinutes { get; init; } = InsertCoin.Mind.Reaching.AwayMinutes;   // no input this long and the player is away (2 to 30)
     public bool AlsoAtThePc { get; init; }              // reminders reach the phone too while the player is at the PC, as a plain line (the old way)
+    public InsertCoin.Mind.Reach Reach { get; init; } = InsertCoin.Mind.Reach.LikeARoommate;   // how much she reaches out to their phone
     public string Companion { get; init; } = "shino";   // character folder under res://characters
     public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
     public bool SpeechBubbles { get; init; } = true;    // false: she still reacts, but says nothing

@@ -97,7 +97,11 @@ stored encrypted, "Send a test" to check): reminders, a focus session's turns, a
 reminder never waits more than 30 seconds for her words: then the plain line goes). Asleep, only reminders. What only
 makes sense at the PC (bedtime words, a break from a long game) waits for you while it still matters; a suggestion
 to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
-I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to.
+I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to. "She reaches out" sets how
+much reaches your phone: only what you set (reminders, focus turns), like a roommate (that, and asking how things
+went: the default), or keeps in touch, when she also texts you something of her own now and then, once you've been
+away an hour: twice a day at most, three hours apart, never at night, never while her last is unanswered, and only
+if she has something to say.
 
 **Texting with her.** On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with her on
 Telegram": make a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). She
@@ -289,7 +293,8 @@ menu at that screen point), `chat:some_text` (say something to her), `chatbox` (
 (Settings; `settings:voice` at that page: `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
-from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingswidths` (logs any page wider
+from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
+hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
@@ -297,7 +302,7 @@ agenda items, retired facts and a moment to try it on), `remind:some_text` (a re
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
-`whereabouts:away` (the player is away whatever the cabinet watches; `here`, `unsure`, `asleep`; `whereabouts:off` watches
+`whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in Telegram, such as
 `fake_telegram.py`), `paircode:CODE` (the next pairing code, for it to send back),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),

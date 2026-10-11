@@ -455,6 +455,7 @@ public partial class Stool : Node2D
     private Whereabouts? _where;                            // where the player was last made out to be, for the log
     private Whereabouts? _pretend;                          // dev: where the player is said to be, whatever the cabinet watches
     private DateTimeOffset _nextPass;                       // when what waits is looked at again: once a second, at once when something new comes
+    private DateTimeOffset? _awaySince;                     // the player has been away since then
 
     /// <summary>
     /// Something to tell the player, from any feature: told at the PC, texted, kept for when they are back, or let go,
@@ -503,12 +504,21 @@ public partial class Stool : Node2D
             GD.Print("Reaching: they are back at the PC after saying they were off");
         }
         var where = Where(now);
+        _awaySince = where == Whereabouts.Away ? _awaySince ?? now : null;
         if (where != _where)
         {
             _where = where;
             GD.Print($"Reaching: the player is {where.ToString().ToLowerInvariant()} (no input for {idle.TotalMinutes:0.0} min" +
                      (watched.Locked ? ", the screen locked" : "") + (watched.Said is { } said ? $", they said {(said.Asleep ? "goodnight" : "they were off")}" : "") +
                      (_pretend is not null ? ", as a dev action has it" : "") + ")");
+        }
+        // keeping in touch: now and then, a moment to text them something of her own; whether she writes anything is hers
+        if (_settings.Now.Reach == Reach.KeepsInTouch && _awaySince is { } since && _chat.Ready && Her is not null && CanText()
+            && Reaching.Moments(_chat.Store.Mark(Reaching.OwnTexts)) is var moments
+            && Reaching.MayTextOwn(_settings.Now.Reach, where, now - since, Quiet(now.Hour), moments, _chat.Conversation?.LastHeard, now))
+        {
+            _chat.Store.SetMark(Reaching.OwnTexts, Reaching.Moments([.. moments, now]));
+            Hand(new Telling("OWN TEXT", Reaching.OwnText(now - since), "", Matters.Could, Anywhere: true, now, TimeSpan.FromMinutes(1)));
         }
         foreach (var kept in _inCase.ToList())
         {
@@ -548,7 +558,7 @@ public partial class Stool : Node2D
         var where = Where(now);
         foreach (var telling in _toTell.OrderBy(t => t.Matters).ThenBy(t => t.At).ToList())
         {
-            var route = Reaching.Route(telling.Matters, telling.Anywhere, where, CanText());
+            var route = Reaching.Route(telling.Matters, telling.Anywhere, where, CanText(), _settings.Now.Reach);
             switch (route.Way)
             {
                 case Way.Wait:
@@ -664,7 +674,7 @@ public partial class Stool : Node2D
                      : null;
         if (notice is null)
         {
-            GD.Print($"Reaching: {telling.Title} not texted: only her mind says it, and it couldn't");
+            GD.Print($"Reaching: {telling.Title} not texted: only her mind says it, and it {(telling.Matters == Matters.Could ? "let it be" : "couldn't")}");
             return;
         }
         GD.Print($"Reaching: {telling.Title} texted, {(notice.Hers ? "in her words" : "as a plain line")} (the player is {where.ToString().ToLowerInvariant()})");
@@ -1866,7 +1876,10 @@ public partial class Stool : Node2D
                                      "", rest == "ask" ? Matters.Should : Matters.Could, Anywhere: false, DateTimeOffset.Now, TimeSpan.FromHours(2)));
                 break;
             case "whereabouts":                             // whereabouts:away (here, unsure, asleep) has the player there whatever the cabinet watches; whereabouts:off watches again
-                _pretend = Enum.TryParse<Whereabouts>(rest, ignoreCase: true, out var where) ? where : null;
+                var place = rest.Split(':');                // whereabouts:away:90: away for 90 minutes already
+                _pretend = Enum.TryParse<Whereabouts>(place[0], ignoreCase: true, out var where) ? where : null;
+                if (place.Length > 1 && _pretend == Whereabouts.Away)
+                    _awaySince = DateTimeOffset.Now.AddMinutes(-double.Parse(place[1], System.Globalization.CultureInfo.InvariantCulture));
                 GD.Print(_pretend is { } pretend ? $"Reaching: the player is said to be {pretend.ToString().ToLowerInvariant()}" : "Reaching: watching where the player is again");
                 break;
             case "proofroll":                               // proofroll:0 always wants proof, proofroll:1 never (instead of chance)

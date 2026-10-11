@@ -159,6 +159,22 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Dev: the pointer resting on the control with this text on the page showing, so its hover tip shows; the real mouse never moves.</summary>
+    public void DevHover(string label)
+    {
+        if (_showing is null || PageOf(_showing) is not { } page)
+            return;
+        var target = Within(page).FirstOrDefault(c => c.IsVisibleInTree() && c.TooltipText.Length > 0
+                                                      && ((c as Label)?.Text ?? (c as Button)?.Text ?? "").StartsWith(label, StringComparison.OrdinalIgnoreCase));
+        if (target is null)
+        {
+            GD.PrintErr($"Settings: nothing with a hover tip called \"{label}\" on {_showing}");
+            return;
+        }
+        Notification((int)NotificationVpMouseEnter);       // tips only show in a window the mouse is in
+        PushInput(new InputEventMouseMotion { Position = target.GetGlobalRect().GetCenter() }, true);
+    }
+
     /// <summary>Dev: scrolls the page showing this far down (pixels), to see the end of a long one.</summary>
     public void DevScroll(int down)
     {

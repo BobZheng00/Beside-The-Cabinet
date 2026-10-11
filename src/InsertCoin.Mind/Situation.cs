@@ -109,4 +109,24 @@ public static class Words
 
     /// <summary>"1 day", "3 days".</summary>
     public static string Count(int n, string thing) => n == 1 ? $"1 {thing}" : $"{n} {thing}s";
+
+    /// <summary>Text in lines of at most <paramref name="width"/> characters, broken between words: for a hover tip, which doesn't wrap by itself.</summary>
+    public static string Wrap(string text, int width = 60)
+    {
+        var lines = new List<string>();
+        foreach (var paragraph in text.Split('\n'))
+        {
+            var line = "";
+            foreach (var word in paragraph.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                if (line.Length > 0 && line.Length + 1 + word.Length > width)
+                {
+                    lines.Add(line);
+                    line = word;
+                }
+                else
+                    line = line.Length == 0 ? word : $"{line} {word}";
+            lines.Add(line);
+        }
+        return string.Join("\n", lines);
+    }
 }

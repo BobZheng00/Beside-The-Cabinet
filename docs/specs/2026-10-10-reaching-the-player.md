@@ -1,7 +1,7 @@
 # Reaching the player
 
-*Decided with the user, 2026-10-10. Steps 2 and 3 built the same day (see "Built" below); how much she reaches out is
-not built yet. Numbers marked (to tune) are first guesses, to be set on real use.*
+*Decided with the user, 2026-10-10. Steps 2, 3 and 4 built the same day (see "Built" below); the later ones are not.
+Numbers marked (to tune) are first guesses, to be set on real use.*
 
 ## Why
 
@@ -176,7 +176,7 @@ Windows notification stays with the reminders.
    *Built 2026-10-10* (below).
 3. Telegram, both ways: pairing, texting, photos and files, buttons for her cards, messages that waited.
    *Built 2026-10-10* (below).
-4. How much she reaches out, with "keeps in touch".
+4. How much she reaches out, with "keeps in touch". *Built 2026-10-10* (below).
 5. Later: voice notes; Discord; the private route; a channel for players in mainland China, where Telegram and
    Discord are blocked.
 
@@ -245,6 +245,20 @@ Windows notification stays with the reminders.
 - **Tests and dev:** `telegramat:http://127.0.0.1:port` (a stand-in Telegram), `paircode:CODE` (the next code), and
   `<tools>\agent-trial\tools\fake_telegram.py`, which plays the player's side from a script.
 - **Not yet:** voice notes; "Pair again" lets the old chat go until the cabinet restarts if pairing isn't finished.
+
+## Built (step 4, 2026-10-10)
+
+- **The setting** (`Reach`; Settings → Your phone, "She reaches out"): Only what you set, Like a roommate (the
+  default), Keeps in touch. `Reaching.Route` takes it: only what you set, a should waits for the player instead of
+  going to their phone (and keeps no text in case they've gone); keeping in touch, a could that makes sense anywhere
+  is texted while they are away. At the PC nothing changes.
+- **Her own texts** (`Reaching.MayTextOwn`): `Stool.Track` opens a moment once the player has been away an hour
+  (since `Track` first saw them away), at most two a day, three hours apart, never in the quiet hours, never while
+  the last moment is unanswered (nothing from them since, `Conversation.LastHeard`). The moments are counted, not
+  the texts: a moment she let pass counts too, so she errs on the side of fewer. Her mind is told how long they've
+  been away (`Reaching.OwnText`) and writes a text or answers only `[quiet]`, and then nothing goes. The moments
+  are kept in her memory (`player.owntexts`), so a restart doesn't reset them.
+- **Dev:** `whereabouts:away:90` (away for 90 minutes already).
 
 ## Not chosen, and why
 

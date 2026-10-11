@@ -91,4 +91,12 @@ public class SituationTests
         Assert.Equal(new Provider(Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-4-5"),
                      Provider.From("anthropic", " https://api.anthropic.com ", "claude-haiku-4-5"));
     }
+
+    [Fact]
+    public void A_hover_tip_is_broken_into_short_lines_between_words()
+    {
+        Assert.Equal("Opens a web page in\nthe player's browser.\nAsked first.", Words.Wrap("Opens a web page in the player's browser.\nAsked first.", 21));
+        Assert.Equal("Short.", Words.Wrap("Short."));
+        Assert.Equal("averyveryverylongword\nfits", Words.Wrap("averyveryverylongword fits", 10));     // a word longer than a line keeps its own
+    }
 }

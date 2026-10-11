@@ -124,6 +124,12 @@ public static class Paper
         theme.SetFontSize("font_size", "Group", 12);
         theme.SetColor("font_color", "Group", Faint);
 
+        // hover tips: a slip of the same paper, not Godot's dark strip (their text is wrapped where set: tips don't wrap)
+        theme.SetStylebox("panel", "TooltipPanel", Box(Colors.White, line, 1, 6, 10, 6));
+        theme.SetColor("font_color", "TooltipLabel", Letters);
+        theme.SetColor("font_shadow_color", "TooltipLabel", Colors.Transparent);
+        theme.SetFontSize("font_size", "TooltipLabel", 13);
+
         // a slider: a soft track, filled in purple up to a round knob
         StyleBoxFlat Track(Color fill) => Box(fill, fill, 0, 4, 0, 3);
         theme.SetStylebox("slider", "HSlider", Track(new Color("E2DAF7")));

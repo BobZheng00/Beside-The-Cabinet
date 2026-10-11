@@ -98,7 +98,7 @@ public partial class MemoryBook : Window
         ShowNoFacts();
         // what her review moved to the background: kept, out of mind, and the player can bring it back
         _retiredToggle = new Button { ThemeTypeVariation = "Quiet", ToggleMode = true, Alignment = HorizontalAlignment.Left,
-                                      TooltipText = "Facts her weekly review retired: past plans, things since replaced, trivia long unmentioned. She no longer recalls them." };
+                                      TooltipText = Words.Wrap("Facts her weekly review retired: past plans, things since replaced, trivia long unmentioned. She no longer recalls them.") };
         facts.AddChild(_retiredToggle);
         var retiredScroll = new ScrollContainer { Visible = false, CustomMinimumSize = new Vector2(0, 180), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         _retiredList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -210,7 +210,7 @@ public partial class MemoryBook : Window
         {
             // forgotten for now: it has not come up in a long time; pinning brings it back
             text.Modulate = new Color(1, 1, 1, 0.5f);
-            text.TooltipText += ". Faded: it has not come up in a long time, so she no longer recalls it. Pin it to keep it.";
+            text.TooltipText = Words.Wrap(text.TooltipText + ". Faded: it has not come up in a long time, so she no longer recalls it. Pin it to keep it.");
         }
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this" };
         delete.Pressed += () => { _deletedFacts.Add(fact.Id); row.QueueFree(); };
@@ -303,7 +303,7 @@ public partial class MemoryBook : Window
         var second = new HBoxContainer();
         second.AddThemeConstantOverride("separation", 6);
         second.AddChild(new Control { CustomMinimumSize = new Vector2(150, 0) });         // under the time: the what, and how it reminds
-        var lead = new OptionButton { TooltipText = "When its reminder goes off. For a whole day, counted from 09:00 that day." };
+        var lead = new OptionButton { TooltipText = Words.Wrap("When its reminder goes off. For a whole day, counted from 09:00 that day.") };
         var leads = Leads.Select(l => l.Before).ToList();
         foreach (var (label, _) in Leads)
             lead.AddItem(label);
@@ -314,7 +314,7 @@ public partial class MemoryBook : Window
             leads.Add(before);
         }
         lead.Selected = leads.IndexOf(before);
-        var repeat = new OptionButton { TooltipText = "Comes round again: it moves on to its next time once it is over" };
+        var repeat = new OptionButton { TooltipText = Words.Wrap("Comes round again: it moves on to its next time once it is over") };
         foreach (var (label, _) in Repeats)
             repeat.AddItem(label);
         repeat.Selected = Array.FindIndex(Repeats, r => r.Repeat == (plan?.Repeat ?? Repeat.Once));
@@ -326,13 +326,13 @@ public partial class MemoryBook : Window
             when.Editable = text.Editable = false;
             repeat.Disabled = true;
             delete.Visible = false;
-            text.TooltipText = $"From your calendar “{source}”: change it there (Settings → Calendars).";
+            text.TooltipText = Words.Wrap($"From your calendar “{source}”: change it there (Settings → Calendars).");
             second.AddChild(new Label { Text = $"from {source}", ThemeTypeVariation = "Hint" });
         }
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)
         {
             text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
-            text.TooltipText = "Just past: she may ask how it went. It leaves the agenda two days after.";
+            text.TooltipText = Words.Wrap("Just past: she may ask how it went. It leaves the agenda two days after.");
             second.AddChild(new Label { Text = "just past", ThemeTypeVariation = "Hint" });
         }
         item.AddChild(second);

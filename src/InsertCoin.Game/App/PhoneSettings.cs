@@ -21,6 +21,11 @@ public partial class PhoneSettings : VBoxContainer
     public event Action<int>? AwayChosen;
     /// <summary>Reminders reach the phone while the player is at the PC too, or not.</summary>
     public event Action<bool>? AtThePcChosen;
+    /// <summary>How much she reaches out to the phone.</summary>
+    public event Action<Reach>? ReachChosen;
+
+    private static readonly (Reach Reach, string Label)[] Reaches =
+        [(Reach.OnlyWhatYouSet, "Only what you set"), (Reach.LikeARoommate, "Like a roommate"), (Reach.KeepsInTouch, "Keeps in touch")];
     /// <summary>"Forget it": the paired bot is let go.</summary>
     public event Action? TelegramForgotten;
 
@@ -35,7 +40,7 @@ public partial class PhoneSettings : VBoxContainer
 
     /// <param name="texting">The texting with her, to pair a new bot through.</param>
     /// <param name="name">Her name, which the bot is given.</param>
-    public void Build(Elsewhere elsewhere, ElsewhereSecrets secrets, int awayMinutes, bool alsoAtThePc, Texting texting, string name)
+    public void Build(Elsewhere elsewhere, ElsewhereSecrets secrets, int awayMinutes, bool alsoAtThePc, Reach reach, Texting texting, string name)
     {
         _elsewhere = elsewhere;
         _secrets = secrets;
@@ -46,6 +51,12 @@ public partial class PhoneSettings : VBoxContainer
                     minutes => $"{minutes} minutes", minutes => AwayChosen?.Invoke(minutes));
         Form.Hint(this, "Without the mouse or keys; away at once when the screen is locked, or when you tell her you're heading out. In " +
                         "between she isn't sure: she calls you first, and texts if you don't come back.");
+        Form.Choice(Form.Grid(this), "She reaches out", Reaches.Select(r => r.Label), Array.FindIndex(Reaches, r => r.Reach == reach),
+                    index => ReachChosen?.Invoke(Reaches[index].Reach));
+        Form.Hint(this, $"Only what you set: reminders and a focus session's turns. Like a roommate: those, and what of hers matters, such as " +
+                        $"asking how something went. Keeps in touch: also, now and then, a text of {name}'s own when you've been away an hour " +
+                        "or more: twice a day at most, three hours apart, never at night, never while her last one is unanswered. At the PC " +
+                        "she is the same whichever you choose.");
         Form.Tick(this, "Also while I'm at the PC", alsoAtThePc, on => AtThePcChosen?.Invoke(on));
         Form.Hint(this, "Reminders reach your phone even when you're at the PC, as a plain line, as they used to.");
 

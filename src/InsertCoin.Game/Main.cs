@@ -559,6 +559,12 @@ public partial class Main : Node2D
                 _settingsWindow!.DevScroll(int.Parse(action["settingsscroll:".Length..]));
             return;
         }
+        if (action.StartsWith("settingshover:"))          // settingshover:label rests the pointer on that control, so its hover tip shows
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevHover(action["settingshover:".Length..].Replace('_', ' '));
+            return;
+        }
         if (action == "settingswidths")                     // logs any page made so far that is wider than its room
         {
             if (IsInstanceValid(_settingsWindow))
@@ -791,7 +797,8 @@ public partial class Main : Node2D
     private Control YourPhonePage()
     {
         var page = new PhoneSettings();
-        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), _settings.AwayMinutes, _settings.AlsoAtThePc, _texting, _stool.HerName());
+        page.Build(_settings.ReminderElsewhere, ElsewhereSecrets.FromJson(_elsewhereKeys.Load()), _settings.AwayMinutes, _settings.AlsoAtThePc, _settings.Reach,
+                   _texting, _stool.HerName());
         page.Chosen += (where, secrets) =>
         {
             // the Telegram bot is the pairing's: kept as it is now, whatever the page held when it was made
@@ -810,6 +817,7 @@ public partial class Main : Node2D
         };
         page.AwayChosen += minutes => SaveSettings(_settings with { AwayMinutes = minutes });
         page.AtThePcChosen += on => SaveSettings(_settings with { AlsoAtThePc = on });
+        page.ReachChosen += reach => SaveSettings(_settings with { Reach = reach });
         return page;
     }
 

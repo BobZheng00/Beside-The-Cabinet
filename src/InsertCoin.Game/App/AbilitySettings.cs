@@ -113,7 +113,7 @@ public partial class AbilitySettings : VBoxContainer
                     chosen.Remove(tool.Name);
                 PermissionsChosen?.Invoke(chosen);
             };
-            grid.AddChild(new Label { Text = tool.Title, SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = tool.Function.Description,
+            grid.AddChild(new Label { Text = tool.Title, SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = Words.Wrap(tool.Function.Description),
                                       MouseFilter = MouseFilterEnum.Pass });
             grid.AddChild(choice);
         }

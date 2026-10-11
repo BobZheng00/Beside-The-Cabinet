@@ -92,6 +92,63 @@ public class ReachingTests
         Assert.Equal(new Route(Way.Lapse), Reaching.Route(Matters.Could, true, Whereabouts.Away, canText: false));
     }
 
+    [Fact]
+    public void How_much_she_reaches_out_changes_only_what_reaches_the_phone()
+    {
+        // only what you set: what is hers waits for them, what they set still goes
+        Assert.Equal(new Route(Way.Wait), Reaching.Route(Matters.Should, true, Whereabouts.Away, reach: Reach.OnlyWhatYouSet));
+        Assert.Equal(new Route(Way.Call, Ticket: true), Reaching.Route(Matters.Should, true, Whereabouts.Unsure, reach: Reach.OnlyWhatYouSet));
+        Assert.Equal(new Route(Way.Text), Reaching.Route(Matters.Must, true, Whereabouts.Away, reach: Reach.OnlyWhatYouSet));
+        // keeps in touch: a could that makes sense anywhere is texted while away, never at night
+        Assert.Equal(new Route(Way.Text), Reaching.Route(Matters.Could, true, Whereabouts.Away, reach: Reach.KeepsInTouch));
+        Assert.Equal(new Route(Way.Lapse), Reaching.Route(Matters.Could, false, Whereabouts.Away, reach: Reach.KeepsInTouch));
+        Assert.Equal(new Route(Way.Lapse), Reaching.Route(Matters.Could, true, Whereabouts.Asleep, reach: Reach.KeepsInTouch));
+        Assert.Equal(new Route(Way.Call), Reaching.Route(Matters.Could, true, Whereabouts.Here, reach: Reach.KeepsInTouch));
+    }
+
+    [Fact]
+    public void A_text_of_her_own_waits_for_an_hour_away_twice_a_day_three_hours_apart_and_an_answer_to_the_last()
+    {
+        var hour = TimeSpan.FromHours(1);
+        bool May(TimeSpan away, IReadOnlyList<DateTimeOffset> moments, DateTimeOffset? heard = null, Reach reach = Reach.KeepsInTouch,
+                 Whereabouts where = Whereabouts.Away, bool quiet = false) =>
+            Reaching.MayTextOwn(reach, where, away, quiet, moments, heard, Noon);
+
+        Assert.True(May(hour, []));
+        Assert.False(May(hour, [], reach: Reach.LikeARoommate));
+        Assert.False(May(TimeSpan.FromMinutes(50), []));
+        Assert.False(May(hour, [], quiet: true));
+        Assert.False(May(hour, [], where: Whereabouts.Asleep));
+        Assert.False(May(hour, [Noon.AddHours(-2)], heard: Noon.AddMinutes(-5)));                    // too soon after the last
+        Assert.False(May(hour, [Noon.AddHours(-4)], heard: Noon.AddHours(-5)));                      // the last unanswered
+        Assert.True(May(hour, [Noon.AddHours(-4)], heard: Noon.AddHours(-3)));
+        Assert.False(May(hour, [Noon.AddHours(-8), Noon.AddHours(-4)], heard: Noon.AddHours(-1)));  // two today already
+        Assert.True(May(hour, [Noon.AddHours(-30), Noon.AddHours(-26)], heard: Noon.AddHours(-20)));  // yesterday's don't count
+    }
+
+    [Fact]
+    public void Her_moments_are_kept_three_at_most_and_read_back()
+    {
+        var kept = Reaching.Moments([Noon.AddHours(-9), Noon.AddHours(-6), Noon.AddHours(-3), Noon]);
+
+        Assert.Equal([Noon.AddHours(-6), Noon.AddHours(-3), Noon], Reaching.Moments(kept));
+        Assert.Empty(Reaching.Moments((string?)null));
+        Assert.Contains("1 h 20 min", Reaching.OwnText(TimeSpan.FromMinutes(80)));
+    }
+
+    [Fact]
+    public async Task What_was_last_heard_from_the_player_is_theirs_not_hers()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", new Persona("Shino", "Shino is cheerful."), new FakeClock(Noon));
+        Assert.Null(conversation.LastHeard);
+
+        await conversation.Answer(new FakeModel("Hi!"), "hello", "", _ => { }, (_, _) => { });
+        conversation.Said("Still there?");
+
+        Assert.Equal(Noon, conversation.LastHeard);
+    }
+
     private static Telling Lasting(TimeSpan fresh) => new("CHECK-IN", "How did it go?", "", Matters.Should, true, Noon, fresh);
 
     [Fact]

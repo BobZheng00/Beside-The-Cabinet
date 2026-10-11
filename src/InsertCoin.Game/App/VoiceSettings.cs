@@ -118,7 +118,7 @@ public partial class VoiceSettings : VBoxContainer
         var addFile = Form.Button(actions, "Add clips…", () => AddVoice?.Invoke());
         addFile.TooltipText = "Clips join this voice; a voice's .zip replaces it";
         var addFolder = Form.Button(actions, "Add a folder…", () => AddFolder?.Invoke());
-        addFolder.TooltipText = "A voice's folder (clips with their words, maybe a model): it replaces this voice";
+        addFolder.TooltipText = Words.Wrap("A voice's folder (clips with their words, maybe a model): it replaces this voice");
         if (_profile is not null)
         {
             Form.Button(actions, "Test", () => _ = Test());

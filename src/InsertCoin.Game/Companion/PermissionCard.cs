@@ -79,9 +79,9 @@ public partial class PermissionCard : Node2D
         _no.Text = "No";
         _always.Visible = true;
         _always.Text = asking.Scope is { } site ? $"Always for {site}" : "Always";
-        _always.TooltipText = asking.Scope is { } scope
+        _always.TooltipText = Words.Wrap(asking.Scope is { } scope
             ? $"From now on she may do this on {scope} without asking. Settings → Abilities can take it back."
-            : "From now on she may do this without asking. Settings → Abilities can take it back.";
+            : "From now on she may do this without asking. Settings → Abilities can take it back.");
         return Show(asking.What, asking.Detail, bottomLeft, cancel);
     }
 

@@ -453,6 +453,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public DateTimeOffset? LastTalked =>
         store.Through(character, long.MaxValue, 40).Where(l => l.Speaker != Speaker.Cabinet).Select(l => (DateTimeOffset?)l.At).Max();
 
+    /// <summary>When the player last said or texted something (not counting her lines or the cabinet's), or null.</summary>
+    public DateTimeOffset? LastHeard =>
+        store.Through(character, long.MaxValue, 40).Where(l => l.Speaker == Speaker.User).Select(l => (DateTimeOffset?)l.At).Max();
+
     /// <summary>Something on the agenda she may ask about now, over for at least <paramref name="after"/> (see <see cref="Agenda.ToAskAbout"/>), or null.</summary>
     public Plan? ToAskAbout(TimeSpan after) => Agenda.ToAskAbout(store.Agenda(), _clock.GetLocalNow(), LastTalked, after).FirstOrDefault();
 
