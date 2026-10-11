@@ -92,6 +92,15 @@ provider cut at its length limit is asked again with twice the room, and a batch
    `Conversation.Record` puts each finished day into her log once, dated at its end, marked as the cabinet's
    (`Observation.Source`, version 15) so upkeep keeps no facts from it; the first time, every day the ledger keeps.
    Her texts are not in it yet.
+   *Built 2026-10-11, her own story:* facts about her (`MindStore.Herself`, scope "{character}/her") beside the
+   player and "us": what she has told the player about herself (her past, likes, opinions, habits), kept by upkeep as
+   "her" from notes that note what she says about herself too, all listed for every reply under "What you have told
+   the player about yourself", recalled like other facts, marked "her" in the memory book, forgotten with her.
+   *Built 2026-10-11, open threads:* what is going on with no date (`Threads`, its own table, the player's): upkeep
+   opens, updates and closes them beside the plans; two days after one last came up she asks how it is going, once,
+   as a check-in (at the PC when settled and free, by text while out); news of it allows one more question later;
+   three weeks unmentioned, it lapses. The memory book's Agenda lists them with a Settled button. Not built yet: which
+   memories a reply used.
 
 **Her profile from her facts** (proposed and chosen 2026-10-11; M8, M9). The two always-present notes are a
 copy of her facts that the model rewrites, so they lag behind the facts and each rewrite can drop or bend something;

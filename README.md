@@ -63,6 +63,11 @@ it out. She knows the cabinet's numbers and remembers:
   changed, and "where did I live before?" can still find it, marked until when;
 - the cabinet's record of each day in her diary, written by code from the cabinet's own numbers so it is always right:
   what you solved and played by name, your focus, activities, earnings, bedtime and when you were at the PC;
+- what she has told you about herself (her past, what she likes), kept as hers and always in mind, so her stories stay
+  the same; the memory book marks those facts "her";
+- what is going on in your life with no date (a worry, a decision, something you're waiting for): a couple of days
+  after it comes up she asks how it's going, once, at the PC or by text while you're out; the memory book's Agenda
+  lists them, and Settled closes one;
 - what she always has in mind about you and about the two of you: what you write on the memory book's Notes, word for
   word, then her most important facts (pinned first, then by importance), listed afresh for every reply, so a change
   is right in her very next one; for two weeks a fact that changed says what it was, and one that ended says so;
