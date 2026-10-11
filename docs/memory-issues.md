@@ -71,7 +71,14 @@ only with a re-run that shows it fixed, and say which.
 - **Evidence:** LoCoMo conversation 26 at the 8k window (2026-10-11): 9 of 41 unanswerable questions answered as
   unanswerable (22%; empty replies left out, see R1). These questions often swap who did something (asking about the player what she herself did),
   so part of it is the benchmark's trickiness; LongMemEval's 4 unanswerable questions were all handled.
-- **To do:** read the failures; whether her recalled memories should say plainly when nothing relevant was found.
+- **Read 2026-10-11:** nearly all of LoCoMo's misses are its name-swap traps ("What did Caroline realize after her
+  charity race?" when it was Melanie's): with the second person as her, she answers about her own race ("After the
+  charity race, I realized…"), sometimes pointing the swap out ("If you mean your necklace, Caroline…"), which the
+  grade counts as wrong. With her notes of observations more is in view, so she answers more of them (13% marked
+  right against 22%). That is not a memory she made up; LongMemEval's never-said questions, things truly never
+  mentioned, are the measure to watch for this (all 4 handled so far).
+- **To do:** watch LongMemEval's unanswerable questions; whether her recalled memories should say plainly when nothing
+  relevant was found.
 
 ## M6. What has left the window comes back only about half the time
 
