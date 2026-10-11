@@ -91,6 +91,42 @@ never fell into lists. The reminder of who she is at the end of every turn (spec
 The judge is her own model and was generous, and these messages don't ask for long help; harder probes (an
 explanation, a week's plan) are the next step for this test.
 
+### The log against the old memory (LoCoMo conversation 26, the 8k window, question by question)
+
+The old memory's two runs differ by about 8 points on the same questions, so a change is judged question by question
+(`ref\paired.py` in the benchmark folder), never on one run's total.
+
+| Answerable questions | Old memory | Phase 1, the log |
+|---|---|---|
+| against the old memory's first run (150) | 75% | 76% (16 right only with the log, 15 only with the old) |
+| against its second run (137), strict | 69% | 77% (18 against 7) |
+| the same, Mem0's grade | 78% | 88% |
+| temporal | 21 | 26 |
+| evidence folded out of the window | 70 | 80 |
+
+Unanswerable questions marked right fell from 23% to 13% (10% against the second run): nearly all are LoCoMo's name-swap traps, which she
+answers about the right event (issue M5); not a memory she made up.
+
+### The old memory over more of LoCoMo
+
+At the 8k window over six conversations (833 answerable questions): 70% right on the strict grade, 77% on Mem0's.
+The 32k runs (the whole conversation word for word, our own baseline) and the last conversations were still running.
+
+### Retrieval, measured without a model
+
+`--set locomo --mode reach` replays her search and recall on the memories already taken in (9 conversations, 1,376
+answerable questions with evidence) and counts where the evidence ends up. Brought back into her prompt by search:
+31% as it was; 35% with six passages in 2,000 tokens; 38% with ten found instead of four; **54% with whole passages
+instead of the best line and the next**; 56% with old talk ranked by relevance whatever its age (multi-hop 4% to 22%).
+Eight passages in 2,500 tokens gave 58%, not worth a thousand more tokens on every message. Built on the branch
+`retrieval`; a run with answers is to confirm it.
+
+### What upkeep costs
+
+LoCoMo conversation 26 at the 8k window: the old memory 66 upkeep requests and about 115k tokens; phase 1 about the
+same; phase 3 92 requests and 179k (facts inflated to 116 from 55, and the always-present notes rewritten after every
+batch). The fix (always-present notes at most once a day, facts only what lasts) was being re-measured.
+
 ## Comparing with Mem0, Zep and Letta
 
 - **LoCoMo** is where they publish: all ten conversations, the 1,540 answerable questions, Mem0's generous grade,

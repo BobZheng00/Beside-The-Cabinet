@@ -9,7 +9,7 @@ only with a re-run that shows it fixed, and say which.
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | open |
-| M3 | Upkeep costs about three times the conversation | open, a cost |
+| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; fixed on the branch `retrieval` (3afb21d), being re-measured |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval` by the free score; a real run to confirm |
@@ -47,6 +47,14 @@ only with a re-run that shows it fixed, and say which.
 - **Notes:** digests read 3,000 tokens of talk at a time with the related facts, and every digest that touches an
   important fact rewrites a note. For a player who chats a few thousand tokens a day it is small; it decides what a
   benchmark run costs.
+- **Phase 3 made it worse** (2026-10-11, LoCoMo conversation 26 at the 8k window): 92 upkeep requests, 113k tokens read
+  and 66k written, against 66, 87k and 25k for the old memory; 179k in all against about 115k. Two causes feeding each
+  other: kept from dense notes, nearly every event became a fact (116 against 55, 80 of them important), and every
+  batch that touched an important fact rewrote the always-present notes from up to 40 facts.
+- **Fix** (3afb21d, branch `retrieval`): a batch only marks a note out of date; `Conversation.RefreshNotes` rewrites it
+  once the talk is noted and quiet, at most once a day each, at once while the note is empty; upkeep's request says
+  facts are what lasts beyond the day (her notes keep the events). Being re-measured (`runs\p3fix-locomo`). LoCoMo's
+  sittings are days apart, so it shows the fewer facts more than the once a day; daily use gains more from that.
 
 ## M4. Search starts slowly and grows in memory with years of talk
 
