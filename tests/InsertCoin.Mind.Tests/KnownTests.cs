@@ -35,8 +35,9 @@ public class KnownTests
         var model = new FakeModel("Of course I remember!");
         model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Shino said she loves rainy days and used to play the violin."}]}""");
         model.Answers.Enqueue("""
-            {"facts": [{"op": "add", "about": "her", "text": "Shino loves rainy days.", "importance": 4},
-                       {"op": "add", "about": "her", "text": "Shino used to play the violin.", "importance": 5}]}
+            {"facts": [{"op": "add", "about": "her", "text": "Shino loves rainy days.", "importance": 6},
+                       {"op": "add", "about": "her", "text": "Shino used to play the violin.", "importance": 7},
+                       {"op": "add", "about": "her", "text": "Shino's cat is called Mint.", "importance": 4}]}
             """);
 
         Assert.True(await conversation.Digest(model));
@@ -45,6 +46,7 @@ public class KnownTests
         await conversation.Answer(model, "do you remember what you told me?", "", _ => { }, (_, _) => { });
         var system = model.Requests[^1][0].Text.ReplaceLineEndings("\n");
         Assert.Contains("What you have told the player about yourself:\n- Shino used to play the violin.\n- Shino loves rainy days.", system);
+        Assert.DoesNotContain("Mint", system);                           // small ones come back through recall, when they come up
         Assert.Contains("What you know about the player:\nNothing yet.", system);      // hers, not taken for the player's
 
         temp.Store.Forget("shino");

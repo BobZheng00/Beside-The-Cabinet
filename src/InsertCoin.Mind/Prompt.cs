@@ -212,8 +212,7 @@ public static class Prompt
     /// then by importance and the newest, while they fit; for a couple of weeks a fact that changed says what it was, and
     /// an important one that ended says so, so she knows what is news.
     /// </summary>
-    /// <param name="from">The importance from which a fact is listed (her own story lists them all).</param>
-    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now, int from = KnownFrom)
+    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now)
     {
         var lines = new List<string>();
         if (own.Trim() is { Length: > 0 } words)
@@ -228,12 +227,12 @@ public static class Prompt
         }
         var recent = retired.Where(f => f.Retired is { } at && now - at <= ChangeShown).ToList();
         string Day(Fact f) => f.Retired!.Value.ToString("d MMM", English);
-        foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= from)
+        foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= KnownFrom)
                                   .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
             Add(recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
                 ? $"- {Dated(fact)} (Since {Day(before)}; before: {before.Text})"
                 : $"- {Dated(fact)}");
-        foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= from))
+        foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= KnownFrom))
             Add($"- No longer so since {Day(ended)}: {ended.Text}");
         return string.Join("\n", lines);
     }

@@ -898,13 +898,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             store.Record(character, notes, state.Days[^1].Day);
     }
 
-    /// <summary>What she always has in mind about the player (<see cref="MindStore.Shared"/>) or the two of them, for this reply (see <see cref="Prompt.Known"/>).</summary>
-    /// Her own story (<see cref="MindStore.Herself"/>) has no note of the player's, and every fact of it is listed while they fit,
-    /// small ones too: it is what keeps her the same person.
+    /// <summary>
+    /// What she always has in mind about the player (<see cref="MindStore.Shared"/>), the two of them, or herself
+    /// (<see cref="MindStore.Herself"/>, which has no note of the player's), for this reply (see <see cref="Prompt.Known"/>):
+    /// the important facts, the same for each. Listing all of hers, small ones too, put trivia kept wrong ahead of the
+    /// conversation itself ("a dog named Oliver", a cat in fact): answers fell from 84% to 80% on LoCoMo (2026-10-11).
+    /// </summary>
     private string Known(string scope) =>
         Prompt.Known(MindStore.IsHerself(scope) ? "" : store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us),
-                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow(),
-                     MindStore.IsHerself(scope) ? 1 : Prompt.KnownFrom);
+                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow());
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));
 }
