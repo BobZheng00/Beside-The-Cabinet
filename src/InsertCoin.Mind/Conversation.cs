@@ -220,6 +220,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back
+        var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
@@ -240,6 +241,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     {
                         store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
                         toolsDone = reply.Length;
+                        acted = true;
                     }
                 if (update.FinishReason == ChatFinishReason.Length)
                     CutShort = true;
@@ -247,6 +249,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 {
                     afterTool = true;                       // what she says next carries on after a pause
                     toolsDone = reply.Length;
+                    acted = true;
                 }
                 else if (update.Text is { Length: > 0 } piece)
                 {
@@ -260,7 +263,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         CutShort = false;
         try
         {
-            for (var withTools = offered is not null; ;)
+            for (bool withTools = offered is not null, again = true; ;)
             {
                 try
                 {
@@ -269,6 +272,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         await Stream(Calling(client, tools!), sent, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
                     else
                         await Stream(client, sent, ReplyOptions);
+                    // nothing at all came back, as a busy provider sometimes answers (R1): asked once more, unless a tool was
+                    // used, which asking again would repeat
+                    if (reply.Length == 0 && !acted && again)
+                    {
+                        again = false;
+                        continue;
+                    }
                     break;
                 }
                 catch (Exception e) when (withTools && !heard && !cancel.IsCancellationRequested && tools!.Hosting && (Toolbox.RefusesHosted(e) || Toolbox.Refuses(e)))

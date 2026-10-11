@@ -155,4 +155,27 @@ public class ConversationTests
         Assert.Equal(["hello again"], temp.Store.After("shino", 0).Select(l => l.Text));
         Assert.True(again > 0);
     }
+
+    [Fact]
+    public async Task A_reply_that_comes_back_empty_is_asked_for_once_more()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel("Welcome back!");
+        model.Streams.Enqueue([]);                                         // a busy provider: no words at all
+        var shown = "";
+
+        await conversation.Answer(model, "I'm back", "", words => shown += words, (_, _) => { });
+
+        Assert.Equal("Welcome back!", shown);
+        Assert.Equal(2, model.Requests.Count);
+
+        var silent = new FakeModel("Hello!");
+        silent.Streams.Enqueue([]);
+        silent.Streams.Enqueue([]);
+        shown = "";
+        await conversation.Answer(silent, "hello?", "", words => shown += words, (_, _) => { });
+        Assert.Equal("", shown);                                           // once more only
+        Assert.Equal(2, silent.Requests.Count);
+    }
 }

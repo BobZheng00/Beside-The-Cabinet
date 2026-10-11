@@ -24,6 +24,15 @@ public class KnownTests
     }
 
     [Fact]
+    public void A_fact_that_tells_a_time_from_when_it_was_said_says_when_that_was()
+    {
+        Fact[] facts = [F(1, "The player began learning guitar about five years ago.", 7, daysAgo: 30), F(2, "The player drinks green tea.", 7)];
+
+        Assert.Equal("- The player drinks green tea.\n- The player began learning guitar about five years ago. (as of 2 Sep 2026)",
+                     Prompt.Known("", facts, [], Friday));
+    }
+
+    [Fact]
     public void A_change_shows_as_one_for_two_weeks_and_an_important_fact_that_ended_says_so()
     {
         var toronto = F(2, "The player lives in Toronto.", 8, daysAgo: 3);

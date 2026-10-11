@@ -42,7 +42,7 @@ public static class Recall
         query.ExceptWith(Terms(name));                      // her own name says nothing about what to remember
         var candidates = new List<(Memory Memory, HashSet<string> Terms, float[]? Vector, double Retention, int Importance, bool Old, bool Pinned)>();
         foreach (var fact in facts.Where(f => !f.Faded(now)))
-            candidates.Add((new Memory(fact.Text, fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
+            candidates.Add((new Memory(Prompt.Dated(fact), fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
                             fact.Retention(now), fact.Importance, false, fact.Pinned));
         foreach (var fact in formerly ?? [])
             candidates.Add((new Memory($"Until {fact.Retired?.ToString("d MMM yyyy", English)}: {fact.Text}"), Terms(fact.Text).ToHashSet(),

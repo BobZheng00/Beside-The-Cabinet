@@ -106,4 +106,18 @@ public class CharacterCardTests
         Assert.Contains("- Glimmerstone is a dangerous mineral that powers the realm.", sent[^1].Text);
         Assert.Contains("- Elowen calls the player Doctor.", sent[^1].Text);
     }
+
+    [Fact]
+    public void A_card_longer_than_her_room_is_cut_at_a_whole_sentence_never_mid_word()
+    {
+        var long_ = string.Concat(Enumerable.Repeat("Elowen keeps the ship's records in perfect order. ", 300));     // about 15,000 characters
+        var json = $$$"""{"spec": "chara_card_v2", "data": {"name": "Elowen", "description": "{{{long_}}}", "post_history_instructions": "{{{long_}}}"}}""";
+
+        var persona = CharacterCard.Read(Encoding.UTF8.GetBytes(json))!.ToPersona("Bob");
+
+        Assert.InRange(persona.Description.Length, CharacterCard.PersonaLimit - 60, CharacterCard.PersonaLimit);
+        Assert.EndsWith("perfect order.", persona.Description);
+        Assert.InRange(persona.Steady!.Length, 1, CharacterCard.SteadyLimit);
+        Assert.EndsWith("perfect order.", persona.Steady);
+    }
 }

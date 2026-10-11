@@ -8,12 +8,12 @@ only with a re-run that shows it fixed, and say which.
 | # | Issue | Status |
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
-| M2 | Facts keep relative times, which go stale | open |
+| M2 | Facts keep relative times, which go stale | fixed: such a fact says when it was said, in her list and in recall |
 | M3 | Upkeep costs about three times the conversation | phase 3 made it worse; back to the old memory's level with the profile change (116k against 112k) |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | open |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
-| R1 | The provider sometimes sends back an empty reply, and she says nothing | open (the player's provider, under load) |
+| R1 | The provider sometimes sends back an empty reply, and she says nothing | fixed: asked for once more |
 | M7 | Her always-present notes were cut mid-word at 1,400 characters | fixed on the branch `observational-memory` |
 | R2 | An answer cut at the provider's length limit could be kept cut, or lost | fixed on the branch `observational-memory` |
 | M8 | Facts grow long as the weekly review merges related ones | fixed: median 16 words, the longest 27 (were 23 and 68) |
@@ -42,6 +42,10 @@ only with a re-run that shows it fixed, and say which.
   tells her it has aged.
 - **To do:** have facts written with dates ("in September 2026"), and show a recalled fact's age as moments and old
   lines already show theirs.
+
+- **Fix** (2026-10-11): 2 of 34 facts in a benchmark memory still said "about five years ago" or "recently". A fact with
+  such words says when it was said, as of the day she learned it ("(as of 2 Sep 2026)"), in what she always has in mind
+  and in recall (`Prompt.Dated`); the words are matched in code, nothing asks the model.
 
 ## M3. Upkeep costs about three times the conversation
 
@@ -124,8 +128,8 @@ only with a re-run that shows it fixed, and say which.
 - **Evidence:** 15 of 199 LoCoMo answers (2026-10-11) came back with no words and no usage, no error, while about ten
   requests ran at once on the player's provider; asked again alone they answered. LongMemEval's runs also saw
   "Service request failed" twice.
-- **To do:** in the app, ask once more when a reply ends with no words at all; the benchmark now counts it as a
-  failure to ask again.
+- **Fix** (2026-10-11): a reply that comes back with no words, and no tool used (asking again would repeat it), is
+  asked for once more; the benchmark counts it as a failure to ask again.
 
 ## M7. Her always-present notes were cut mid-word at 1,400 characters
 

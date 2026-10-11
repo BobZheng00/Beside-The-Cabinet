@@ -22,6 +22,17 @@ public static class Prompt
 
     /// <summary>How long a fact that changed or ended shows as news.</summary>
     public static readonly TimeSpan ChangeShown = TimeSpan.FromDays(14);
+
+    /// <summary>Words that tell a time from when something was said ("five years ago", "next week", 最近).</summary>
+    private static readonly System.Text.RegularExpressions.Regex Relative = new(
+        @"\b(ago|recently|lately|soon|yesterday|today|tonight|tomorrow)\b|\b(next|last|this|coming) (week|weekend|month|year|summer|" +
+        @"winter|spring|autumn|fall|term|semester|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|" +
+        "最近|昨天|今天|明天|前天|后天|上周|下周|上个月|下个月|去年|明年|年前|天前|周前|个月前",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    /// <summary>A fact as she is given it: one that tells a time from when it was said says when that was, so it can't go stale (M2).</summary>
+    public static string Dated(Fact fact) =>
+        Relative.IsMatch(fact.Text) ? $"{fact.Text} (as of {fact.Learned.ToString("d MMM yyyy", English)})" : fact.Text;
     /// <summary>The conversation word for word, in tokens, unless a setting says otherwise (see <see cref="Conversation.Window"/>).</summary>
     public const int DefaultWindow = 32_000, LocalWindow = 8_000;
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
@@ -216,8 +227,8 @@ public static class Prompt
         foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= KnownFrom)
                                   .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
             Add(recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
-                ? $"- {fact.Text} (Since {Day(before)}; before: {before.Text})"
-                : $"- {fact.Text}");
+                ? $"- {Dated(fact)} (Since {Day(before)}; before: {before.Text})"
+                : $"- {Dated(fact)}");
         foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= KnownFrom))
             Add($"- No longer so since {Day(ended)}: {ended.Text}");
         return string.Join("\n", lines);

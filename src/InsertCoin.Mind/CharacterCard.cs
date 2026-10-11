@@ -59,15 +59,13 @@ public sealed record CharacterCard(string Name, string Description, string Perso
             parts.Add($"How {Name} talks, for example:\n{Fill(Examples.Replace("<START>", "", StringComparison.OrdinalIgnoreCase))}");
         if (AuthorNotes.Trim().Length > 0)
             parts.Add($"Notes from the card's author: {Fill(AuthorNotes)}");
-        var description = string.Join("\n\n", parts.Where(p => p.Length > 0));
-        if (description.Length > PersonaLimit)
-            description = description[..PersonaLimit];
+        var description = Prompt.Fit(string.Join("\n\n", parts.Where(p => p.Length > 0)), PersonaLimit);     // at a whole sentence
         var steady = string.Join('\n', new[] { PostHistory, DepthNote }.Where(t => t.Trim().Length > 0).Select(Fill));
         return new Persona(Name, description)
         {
             Lore = [.. Lore.Select(l => l with { Content = Fill(l.Content) })],
             Greeting = Greeting.Trim().Length > 0 ? Fill(Greeting) : null,
-            Steady = steady.Length == 0 ? null : steady.Length > SteadyLimit ? steady[..SteadyLimit] : steady,
+            Steady = steady.Length == 0 ? null : Prompt.Fit(steady, SteadyLimit),
         };
     }
 

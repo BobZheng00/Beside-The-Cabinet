@@ -11,6 +11,8 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public Exception? Fails { get; init; }
     /// <summary>Thrown for any streamed request carrying a picture or a PDF, as a model that can't take them does.</summary>
     public Exception? RefusesPictures { get; init; }
+    /// <summary>Replies for streamed requests, one per request, before falling back to the pieces (none: an empty reply).</summary>
+    public Queue<string[]> Streams { get; } = new();
     /// <summary>Answers for non-streamed requests, one per request, before falling back to the pieces.</summary>
     public Queue<string> Answers { get; } = new();
     /// <summary>How non-streamed answers end, one per request (cut off at the length limit, say), before they simply stop.</summary>
@@ -38,7 +40,7 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
             throw Fails;
         if (RefusesPictures is not null && Requests[^1].Any(m => m.Contents.OfType<DataContent>().Any()))
             throw RefusesPictures;
-        foreach (var piece in pieces)
+        foreach (var piece in Streams.Count > 0 ? Streams.Dequeue() : pieces)
         {
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();      // as a real client stops when the reply is called off
