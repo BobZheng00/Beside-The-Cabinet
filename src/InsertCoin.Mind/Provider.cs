@@ -41,11 +41,37 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     public IChatClient Connect(string? key) => Protocol switch
     {
         Protocol.Anthropic => new AnthropicClient { ApiKey = key, BaseUrl = BaseUrl.TrimEnd('/'), Timeout = Timeout, MaxRetries = 1 }.AsIChatClient(Model),
-        // local servers want no key, but the client insists on one
-        _ => new OpenAIClient(new ApiKeyCredential(string.IsNullOrEmpty(key) ? "none" : key),
-                              new OpenAIClientOptions { Endpoint = new Uri(BaseUrl), NetworkTimeout = Timeout, RetryPolicy = new ClientRetryPolicy(maxRetries: 1) })
-            .GetChatClient(Model).AsIChatClient(),
+        _ => OpenAi(key).GetChatClient(Model).AsIChatClient(),
     };
+
+    // local servers want no key, but the client insists on one
+    private OpenAIClient OpenAi(string? key) =>
+        new(new ApiKeyCredential(string.IsNullOrEmpty(key) ? "none" : key),
+            new OpenAIClientOptions { Endpoint = new Uri(BaseUrl), NetworkTimeout = Timeout, RetryPolicy = new ClientRetryPolicy(maxRetries: 1) });
+
+    /// <summary>
+    /// Whether the provider searches the web itself for this model, asked once with its search tool (a search, so it
+    /// costs a little; only when the player tests). Anthropic's goes through the Messages API her replies use. An
+    /// OpenAI-compatible one is asked through OpenAI's Responses API, the only one with a search tool for most models:
+    /// her replies use the chat API, which has none (2026-10-11: the player's provider searched with a GPT model through
+    /// the first, not the second), so for those this says only that the provider could.
+    /// </summary>
+    public async Task<bool> SearchesItself(string? key, CancellationToken cancel)
+    {
+#pragma warning disable OPENAI001                           // the Responses client is marked experimental
+        using var client = Protocol == Protocol.Anthropic ? Connect(key) : OpenAi(key).GetResponsesClient().AsIChatClient(Model);
+#pragma warning restore OPENAI001
+        try
+        {
+            var response = await client.GetResponseAsync("What is the top news headline today? Search the web for it.",
+                                                         new ChatOptions { Tools = [new HostedWebSearchTool()], MaxOutputTokens = 2000 }, cancel);
+            return response.Messages.SelectMany(m => m.Contents).Any(c => c is WebSearchToolCallContent or WebSearchToolResultContent);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return false;                                   // no such API at this server, or its search turned down: either way, none
+        }
+    }
 
     /// <summary>
     /// The tool a streamed update shows the model beginning to call, before its arguments have all come (the client

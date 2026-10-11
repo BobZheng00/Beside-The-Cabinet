@@ -136,8 +136,21 @@ public partial class MindSettings : VBoxContainer
             using var client = provider.Connect(_key.Text.Trim().Length > 0 ? _key.Text.Trim() : _chat.Keys.Load());
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var reply = await client.GetResponseAsync("Say hello in at most five words.", new ChatOptions { MaxOutputTokens = 300 }, timeout.Token);
+            var connected = $"Connected. The model says: {reply.Text.Trim()}" + (_unsaved ? " Save to use it." : "");
+            if (!IsInstanceValid(this))
+                return;
+            Form.Say(_result, connected + " Now trying its web search…", Paper.Good);
+            // whether she can search the web without the add-on, so the player knows before she has to say she can't
+            using var searching = new CancellationTokenSource(TimeSpan.FromSeconds(90));       // the player's provider took 47 s to search
+            var searches = await provider.SearchesItself(_key.Text.Trim().Length > 0 ? _key.Text.Trim() : _chat.Keys.Load(), searching.Token);
             if (IsInstanceValid(this))
-                Form.Say(_result, $"Connected. The model says: {reply.Text.Trim()}" + (_unsaved ? " Save to use it." : ""), Paper.Good);
+                Form.Say(_result, connected + " " + (searches, provider.Protocol) switch
+                {
+                    (true, Protocol.Anthropic) => "Web search: she can use your provider's own.",
+                    (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, which she doesn't use yet. " +
+                                 "Until she does, the SearXNG add-on (Add-ons) gives her web search.",
+                    _ => "Web search: your provider has none for this model. The SearXNG add-on (Add-ons) gives her web search.",
+                }, Paper.Good);
         }
         catch (Exception e)
         {
