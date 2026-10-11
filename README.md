@@ -377,6 +377,9 @@ tools/models              fetch.py — downloads the local models: her memory se
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
                           own windows too; -Desk: all its windows where they sit together); clip.ps1 records a clip of
                           her moving; sheet.ps1 makes contact sheets
+tools/bench               memory.cs — her memory on LongMemEval and LoCoMo, and staying in character (docs/research/2026-10-11-memory-benchmark.md):
+                          `dotnet run tools/bench/memory.cs -- --data <json> --out <folder> [--set locomo|persona]`;
+                          it runs on a profile's own provider and key (the demo's), billed to its owner
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
 
