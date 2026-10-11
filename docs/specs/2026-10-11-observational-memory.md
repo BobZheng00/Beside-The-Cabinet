@@ -57,7 +57,21 @@ provider cut at its length limit is asked again with twice the room, and a batch
    then days).
 3. **One digestion:** facts, plans and notes drawn from the observations instead of from the raw lines again, and the
    day's moments retired (the memory book shows the log). Facts get dates of validity: an update closes the old fact
-   instead of deleting it.
+   instead of deleting it. In detail (proposed 2026-10-11):
+   - *Observe when quiet, show when folded.* Facts and plans must be learned soon after they are said, not when the
+     lines leave the window days later, so observing moves to where digesting is now: a few minutes into the quiet.
+     The window keeps the lines word for word; folding no longer asks the model, it only moves lines out of view, and
+     their notes come into view in their place (lines not yet observed are observed first).
+   - *Facts and plans from the notes:* a second narrow request reads only the new notes (about six times shorter
+     than the lines), with the related facts and the agenda, and answers the fact and plan changes, as the digest does
+     today. The two always-present notes are rewritten from the facts, as now.
+   - *Facts keep their history:* an update retires the old fact as changed, with the date, and adds the new one; recall
+     shows current facts, and a question about before ("where did I live before?") can find the old one "(until
+     September 2026)".
+   - *Moments retire:* they were a second summary of the same talk. Existing ones become notes of their span (day,
+     week, month, year), so nothing is lost, and the memory book's Moments shows her notes.
+   - *Cost:* one model pass over the raw talk instead of two (digest and fold), the facts read from notes: expected
+     well under half of today's upkeep (M3).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
    memories a reply used, to see and correct.
