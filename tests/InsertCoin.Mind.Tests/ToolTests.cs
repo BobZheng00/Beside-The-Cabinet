@@ -167,6 +167,27 @@ public class ToolTests
     }
 
     [Fact]
+    public async Task She_is_told_which_tools_will_ask_on_a_card_as_things_are_set_so_she_asks_in_words_only_for_those()
+    {
+        using var temp = new TempStore();
+        var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), Jot([])]);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeToolModel(["Hi!"], ["Hi!"], ["Hi!"]);
+
+        await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
+        Assert.Contains("These ask the player on a card by your stool before they act: open_link.", model.Requests[0][0].Text);
+
+        tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Allowed });   // Always, as the player set music
+        await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
+        Assert.Contains("None of them needs asking: just use them.", model.Requests[^1][0].Text);
+
+        tools.Choose(new Dictionary<string, Permission>());
+        tools.Auto = true;                                                                          // Auto goes ahead too
+        await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
+        Assert.Contains("None of them needs asking: just use them.", model.Requests[^1][0].Text);
+    }
+
+    [Fact]
     public async Task A_model_without_tools_answers_without_them_from_then_on()
     {
         using var temp = new TempStore();

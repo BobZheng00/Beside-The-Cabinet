@@ -221,6 +221,14 @@ public sealed class Toolbox
         : _chosen.TryGetValue(tool.Name, out whole) ? whole
         : tool.Standard;
 
+    /// <summary>
+    /// The tools that ask the player on a card before acting, as things are set now (Ask, and under Auto only what is the
+    /// player's own): she asks in her own words as she uses one of these, and only these. Told to ask for whatever acts
+    /// outside the app, she asked "Shall I turn your music on?" with music set to Always (2026-10-11).
+    /// </summary>
+    public IReadOnlyList<string> AsksFirst =>
+        [.. _tools.Values.Where(t => PermissionOf(t) == Permission.Ask && (!Auto || t.Private)).Select(t => t.Name).Order(StringComparer.Ordinal)];
+
     /// <summary>The tools offered to the model, the same list every request (null when none are).</summary>
     public IList<AITool>? Offered
     {
