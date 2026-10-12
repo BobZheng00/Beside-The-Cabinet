@@ -29,6 +29,8 @@ The README is the manual: features, every dev action, build commands. `docs/spec
   - `2026-10-10-reaching-the-player.md`: a roommate who calls at the PC and texts when the player is away; texting with her on Telegram, both ways.
   - `2026-10-10-settings-and-setup.md`: one Settings window of short pages, saved as changed; guides for setup outside the app; Getting started; the short tray.
   - `2026-10-11-observational-memory.md`: her memory as a dated log of notes (phases 1 to 4; what is built where).
+- `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
+- `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database).
 - `docs/memory-issues.md`: what goes wrong in her memory, with evidence and status (M1 to M14, R1, R2).
 - `tools/bench/memory.cs`: the memory benchmark (LongMemEval, LoCoMo, staying in character, the free retrieval score).
@@ -240,7 +242,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 8. later abilities, most as add-ons: the clipboard (asking first), weather, writing to the calendar (Google or Microsoft sign-in), local MCP servers, a gesture per sentence (parked: motion files);
 9. the next phase: character import, mini-games on the CRT, Steam last.
 
-**Release, talked over 2026-10-09** (the user's idea: open source on GitHub, and on Steam at a low price for those who want it easy and updated; the community contributes): an established model (Krita, Mindustry, Shattered Pixel Dungeon). To settle before then:
+**Release, talked over 2026-10-09** (the user's idea: open source on GitHub, and on Steam at a low price for those who want it easy and updated; the community contributes): an established model (Krita, Mindustry, Shattered Pixel Dungeon). Taken up 2026-10-12 in `docs/publishing.md` (the user: nobody else may sell it; the progress stays public, so the history is cleaned rather than squashed, in a separate clone; their email in commits is fine). To settle before then:
 - the licence, before the first outside contribution: Valve says copyleft (GPL) is problematic with the Steamworks SDK, permissive (MIT, Apache 2.0) is fine; we use no Steamworks SDK today;
 - the name, the cabinet's art and the default character kept outside the code's licence, so a resold copy isn't ours;
 - every bundled model and library allows commercial redistribution (SenseVoice, Smart Turn, the e5 model…; GPT-SoVITS is the player's own install; test characters never ship);

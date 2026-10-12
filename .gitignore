@@ -11,3 +11,6 @@ __pycache__/
 builds/
 __pycache__/
 /src/InsertCoin.Game/models/
+
+# your own notes: never published (docs/publishing.md)
+/private/
