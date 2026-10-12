@@ -12,7 +12,8 @@ updated. Nobody else should be able to sell it.
   License (FSL-1.1-MIT).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
-- [ ] **The name** (shortlist below; after a second round, Neon Hearth recommended). Best settled before the push,
+- [ ] **The name** (shortlist below; after a third round, thought out in Chinese first: 围炉 · いろり · Inglenook
+  recommended). Best settled before the push,
   as the README, the NOTICE and the repository's address carry it (GitHub redirects a renamed repository, so it can
   still change after). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
 - [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
@@ -84,12 +85,25 @@ and coin beside company can sound like paid company or a crypto firm, so this ro
 
 | Name | Why | Notes |
 |---|---|---|
-| **Neon Hearth** (recommended) | the cabinet's glow, and a hearth: the warm place a home gathers round; nothing about coins, so it outlasts the coin mechanic | nothing by that name on Steam or the web |
+| Neon Hearth | the cabinet's glow, and a hearth: the warm place a home gathers round; nothing about coins, so it outlasts the coin mechanic | nothing by that name on Steam or the web; set aside in the third round, as skins may leave the cabinet anything but neon |
 | **Kept Company** | what she does, said plainly; "kept" for what she remembers | no app or game by that name |
 | Two's Company | the saying, and two players | taken: Two's Company, Inc., a giftware wholesaler, holds trademarks by that name, and a retro two-player game on itch.io has it |
 | Save Point | where a game lets you rest and keeps your progress | taken: two game-tracker apps (savepoint.gg, SavePoint: Game Tracker) and trademark filings, one of them for game apps (2026) |
 | Pull Up a Stool | her stool, and an invitation | free, but a search for it brings up toilet games |
 | Small Hours | company late at night | a horror game on itch.io |
+
+**Third round** (the user, 2026-10-12: the direction of Neon Hearth, but the cabinet's look may change with skins, so
+not neon; and the name has to work in Chinese and Japanese, perhaps thought out in Chinese first). Steam gives each
+language its own store name (It Takes Two is 双人成行 in Chinese), so the three names share an idea, each in that
+language's own words, rather than being translations: puns don't survive one. Checked the same day on Steam's store
+in each language and the web; still to check for the one chosen: trademarks in each market (USPTO, CIPO, China's
+CNIPA, Japan's JPO) and Chinese app stores such as TapTap, which these searches barely reach.
+
+| Idea | 中文 | 日本語 | English | Notes |
+|---|---|---|---|---|
+| **Sitting by the hearth** (recommended) | 围炉 (gathering round the stove: 围炉夜话, 围炉煮茶) | いろり (囲炉裏, the hearth a household sits round) | **Inglenook** (the seat built in beside a hearth: where she sits) | none of the three on Steam; Inglenook is also a California winery and a railway shunting puzzle |
+| A light left on for you | 留灯 | あかり (ともしび is taken: a Steam title, and a mobile game of 2026) | Lamplit | nothing called 留灯 or Lamplit on Steam or the web |
+| The deskmate | 同桌 | となりの席 | (Deskmate) | the English is too close to Desktop Mate, a desktop companion on Steam |
 
 ## Ready already (checked 2026-10-12)
 
