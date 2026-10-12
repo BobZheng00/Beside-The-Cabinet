@@ -16,12 +16,16 @@ balance: [docs/specs/2026-10-07-balance.md](docs/specs/2026-10-07-balance.md)
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu: the
-cabinet, Settings…, the memory book and chat history, a memo of your own, a LeetCode check, and the switches flipped
-often (Mute sounds, Voice, Conversation). Settings is one window with a page for each thing, listed down its left
-side (her mind, voice, talking aloud, characters, abilities, privacy, add-ons; reminders, check-ins, your phone,
-calendars, balance; the cabinet, usage), each saved as you change it; only her provider waits for its Save. At
-first run the cabinet asks for your initials, then your LeetCode name, which is optional: Enter with none goes on
-without it (Settings → Balance → Change… adds one later).
+cabinet, Settings…, Getting started… (until it is done), the memory book and chat history, a memo of your own, a
+LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). Settings is one window with a page
+for each thing, listed down its left side (getting started; her mind, voice, talking aloud, characters, abilities,
+privacy, add-ons; reminders, check-ins, your phone, calendars, balance; the cabinet, usage), each saved as you change
+it; only her provider waits for its Save. At first run the cabinet asks for your initials, then your LeetCode name,
+which is optional: Enter with none goes on without it (Settings → Balance → Change… adds one later). Then Settings
+opens at Getting started: the name she calls you (also on Settings → Characters), then her mind (needed for her to
+talk), her voice, talking aloud, your phone and a calendar, each saying what it gives and takes, with Set up… (its
+page) and Later, and what balance starts with. It stays first in Settings and in the tray until everything is done
+or put off, or you hide it.
 
 **Balance.** What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), and focus sessions, which pay by the minute as each part ends, however short: 15
 minutes of play for every hour focused (half an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it
@@ -42,7 +46,8 @@ in your pauses as you talk to her, and her head follows what her voice stresses.
 the stool empty, silences her bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too.
 
 She can also talk. In Settings → Her mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
-Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key, name a model, Test and Save. Then clicking
+Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
+provider's page for one), name a model, Test and Save. Then clicking
 her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
 it out. She knows the cabinet's numbers and remembers:
 
@@ -313,12 +318,12 @@ bubble clicked), `nocall` (another app's microphone doesn't count as a call), `s
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `settings`
-(Settings; `settings:voice` at that page: `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,
+(Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
 from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
-than its room, which would run off the window's right edge),
+than its room, which would run off the window's right edge), `trayitems` (logs the tray menu's entries),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `memorybookdo:Apply`
 (presses that button in it, `+_Add` too), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,

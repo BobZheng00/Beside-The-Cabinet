@@ -5,16 +5,17 @@ namespace InsertCoin.Game.Desktop;
 public enum TrayMood { Fine, Low, Debt }
 
 /// <summary>
-/// System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu: the cabinet, Settings…, her
-/// books, a memo, a check of LeetCode, the switches flipped often (sounds, her voice, a conversation), and Quit.
+/// System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu: the cabinet, Settings…,
+/// Getting started… while anything is left of it, her books, a memo, a check of LeetCode, the switches flipped often
+/// (sounds, her voice, a conversation), and Quit.
 /// Everything else is in Settings (see <see cref="App.SettingsWindow"/>).
 /// </summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, Settings, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
+    public event Action? ShowCabinet, Settings, GettingStarted, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
     public event Action<bool>? MutedChanged, VoiceChanged, ConversationChanged;
 
-    private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9;
+    private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9, StartId = 10;
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
         [TrayMood.Fine] = new Color("4dd9e8"), [TrayMood.Low] = new Color("ffb347"), [TrayMood.Debt] = new Color("ff4f9a"),
@@ -56,11 +57,27 @@ public partial class TrayIcon : Node
     /// <summary>Dev: opens the menu at this screen point, as a right click on the icon would.</summary>
     public void DevShowMenu(Vector2I at) => _menu.Popup(new Rect2I(at, Vector2I.Zero));
 
+    /// <summary>Dev: the menu's entries as they are now, for the log.</summary>
+    public string DevItems() => string.Join(" | ", Enumerable.Range(0, _menu.ItemCount).Select(i => _menu.GetItemText(i)).Where(t => t.Length > 0));
+
     /// <summary>Shows the switches as they are now (changed in Settings, say).</summary>
     public void Sync(bool muted, bool voice)
     {
         _menu.SetItemChecked(_menu.GetItemIndex(MuteId), muted);
         _menu.SetItemChecked(_menu.GetItemIndex(VoiceId), voice);
+    }
+
+    /// <summary>Shows "Getting started…" under Settings… while anything is left of it, and takes it away once nothing is.</summary>
+    public void ShowStart(bool left)
+    {
+        var at = _menu.GetItemIndex(StartId);
+        if (left && at < 0)
+        {
+            _menu.AddItem("Getting started…", StartId);
+            _menu.SetItemIndex(_menu.GetItemIndex(StartId), _menu.GetItemIndex(SettingsId) + 1);
+        }
+        else if (!left && at >= 0)
+            _menu.RemoveItem(at);
     }
 
     /// <summary>Shows whether a conversation is on (it ends by itself after a quiet while, or by the talk key).</summary>
@@ -83,6 +100,7 @@ public partial class TrayIcon : Node
         {
             case ShowId: ShowCabinet?.Invoke(); break;
             case SettingsId: Settings?.Invoke(); break;
+            case StartId: GettingStarted?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;
             case HistoryId: ChatHistory?.Invoke(); break;
             case MemoId: WriteMemo?.Invoke(); break;

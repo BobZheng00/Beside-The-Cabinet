@@ -1,6 +1,6 @@
 # Settings and setup
 
-*Decided with the user, 2026-10-10. Step 1 built the same day; the rest is not built yet.*
+*Decided with the user, 2026-10-10. Steps 1 to 3 built the same day, step 4 (Getting started) on 2026-10-12.*
 
 ## Why
 
@@ -72,6 +72,28 @@ done or hidden:
 Each says what it gives, what it needs and how long it takes, with Set up… and Later. Later still: she mentions
 something not set up when it would help, once.
 
+**Built 2026-10-12** (`App/GettingStarted.cs`; the steps in `Main.StartSteps` and `Stool.StartSteps`):
+- **Settings → Getting started** is listed first, above the groups, while anything is left and it isn't hidden; the
+  tray has "Getting started…" under Settings… for as long. It opens by itself once the cabinet has said hello after
+  the initials and the LeetCode name, on the first run only. It is made again each time it shows (`SettingsPage.Fresh`),
+  so coming back from a page shows what changed there.
+- **Your name first:** what she calls the player (`AppSettings.CallMe`), saved as typed and also on Settings →
+  Characters. It fills a card's {{user}} and her prompt's "What you know about the player" ("The player goes by Bob.",
+  `Persona.Player`); whoever is on the stool takes it up once the typing stops. Unset, she has no name for them: the
+  LeetCode name is no longer used for it (the user, 2026-10-10: Hana said "BobSmith").
+- **The steps:** Her mind (needed), Her voice, Talking aloud (shown only when the build has ears; ready from the start,
+  it says how to talk), Your phone, Calendars; then Balance, what a day can earn and the bedtime, with Change…. Each has
+  a word for how it stands (Done, Needed, Optional, Later), what it gives and needs and about how long it takes, and
+  what it says now (her provider, her voice's state, where texts go, how many calendars). Set up… opens its page;
+  Later puts an optional step off (`StartLater`), and it no longer counts as left. Done or not is read from the
+  settings and her parts, not ticked by hand.
+- **Hide Getting started** takes it out of Settings and the tray for good (`StartHidden`); everything in it stays on its
+  own page. "All set" shows once nothing is left.
+- **Her mind's guide** is the step it lacked: "Get a key from OpenAI…" (and the others; "Get Ollama…" for a server on
+  this PC) opens the provider's page for keys (`Preset.Site`). The other guides were there already: GPT-SoVITS's
+  download on Her voice, Telegram's steps on Your phone, where Google and Outlook keep a calendar's address on Calendars.
+- **Not built:** her mentioning, once, something not set up when it would help.
+
 ## The tray
 
 About ten entries: Show cabinet, Settings…, Getting started… (while unfinished), Memory book…, Chat history…, Write a
@@ -98,10 +120,10 @@ memo…, Check LeetCode now, the switches flipped often (Mute sounds, Voice, Con
 
 ## Dev
 
-`settings` opens the window (tray → Settings…), `settings:<page>` at a page (`mind`, `voice`, `listening`, `characters`, `abilities`,
+`settings` opens the window (tray → Settings…), `settings:<page>` at a page (`start`, `mind`, `voice`, `listening`, `characters`, `abilities`,
 `privacy`, `addons`, `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`). `settingsdo:<label>` presses
 the button or flips the tick with that text on the page showing; `settingsdo:<label>:<value>` sets the choice (by
 number, from 0) or the field next to that label. Underscores for spaces. `settingsscroll:600` scrolls the page
 showing; `settingswidths` logs any page made so far that is wider than its room (it would run off the window's
 right edge, as the old voice window's row of buttons did). "Start with Windows" is Windows' own setting, the same in
-a test run: never flip it in one.
+a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes).

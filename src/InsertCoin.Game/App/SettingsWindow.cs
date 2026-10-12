@@ -4,8 +4,12 @@ using InsertCoin.Game.Companion;
 
 namespace InsertCoin.Game.App;
 
-/// <summary>A page of the settings: its name in dev actions and links, the group it is listed in, its name in the list, and how it is made (the first time it shows).</summary>
-public sealed record SettingsPage(string Id, string Group, string Name, Func<Control> Make);
+/// <summary>
+/// A page of the settings: its name in dev actions and links, the group it is listed in (<see cref="SettingsWindow.First"/>:
+/// above the groups), its name in the list, and how it is made: the first time it shows, or each time when it is
+/// <paramref name="Fresh"/> (it tells how things stand on the other pages).
+/// </summary>
+public sealed record SettingsPage(string Id, string Group, string Name, Func<Control> Make, bool Fresh = false);
 
 /// <summary>
 /// Every setting in one window (tray → Settings…): the pages listed on the left in three groups (her, the player's day,
@@ -14,8 +18,8 @@ public sealed record SettingsPage(string Id, string Group, string Name, Func<Con
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    public const string Her = "Her", Day = "Your day", Cabinet = "The cabinet";
-    private static readonly string[] Groups = [Her, Day, Cabinet];
+    public const string First = "", Her = "Her", Day = "Your day", Cabinet = "The cabinet";
+    private static readonly string[] Groups = [First, Her, Day, Cabinet];
 
     private readonly Dictionary<string, SettingsPage> _pages = [];
     private readonly Dictionary<string, Button> _entries = [];
@@ -52,7 +56,8 @@ public partial class SettingsWindow : Window
                 if (group is not null)
                     list.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
                 group = page.Group;
-                list.AddChild(new Label { Text = group.ToUpperInvariant(), ThemeTypeVariation = "Group" });
+                if (group != First)
+                    list.AddChild(new Label { Text = group.ToUpperInvariant(), ThemeTypeVariation = "Group" });
             }
             var entry = new Button { Text = page.Name, ThemeTypeVariation = "Side", ToggleMode = true, ButtonGroup = chosen, Alignment = HorizontalAlignment.Left };
             entry.Pressed += () => ShowPage(page.Id);
@@ -77,6 +82,8 @@ public partial class SettingsWindow : Window
     {
         if (!_pages.TryGetValue(id, out var page))
             return;
+        if (page.Fresh && _showing != id && _made.Remove(id, out var stale))
+            stale.QueueFree();
         if (!_made.TryGetValue(id, out var made))
         {
             made = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };

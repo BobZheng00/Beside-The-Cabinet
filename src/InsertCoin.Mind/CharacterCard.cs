@@ -66,6 +66,7 @@ public sealed record CharacterCard(string Name, string Description, string Perso
             Lore = [.. Lore.Select(l => l with { Content = Fill(l.Content) })],
             Greeting = Greeting.Trim().Length > 0 ? Fill(Greeting) : null,
             Steady = steady.Length == 0 ? null : Prompt.Fit(steady, SteadyLimit),
+            Player = playerName,
         };
     }
 

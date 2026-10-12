@@ -3,8 +3,9 @@ using Godot;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Characters: who sits on the stool, or nobody; whether she says her lines in speech bubbles; adding a
-/// character (a 3D model, a character card, a voice), and the folder they are kept in. Each change is used at once.
+/// Settings → Characters: the name she calls the player by; who sits on the stool, or nobody; whether she says her lines
+/// in speech bubbles; adding a character (a 3D model, a character card, a voice), and the folder they are kept in. Each
+/// change is used at once.
 /// </summary>
 public partial class CharacterSettings : VBoxContainer
 {
@@ -14,12 +15,15 @@ public partial class CharacterSettings : VBoxContainer
     public event Action<bool>? BubblesChosen;
     /// <summary>Another character takes the stool (their id).</summary>
     public event Action<string>? Seated;
+    /// <summary>The name she calls the player by, as it is typed.</summary>
+    public event Action<string>? Named;
     /// <summary>"Add a character…" and "Open characters folder".</summary>
     public event Action? Add, OpenFolder;
 
-    public void Build((string Id, string Name)[] characters, string seated, bool shown, bool bubbles)
+    public void Build((string Id, string Name)[] characters, string seated, bool shown, bool bubbles, string? callMe)
     {
         Form.Page(this, "Characters");
+        Form.Field(Form.Grid(this), "Your name", callMe, "what she calls you", typed: text => Named?.Invoke(text));
         Form.Tick(this, "Someone on the stool", shown, on => ShownChosen?.Invoke(on));
         Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without her.");
         Form.Tick(this, "Speech bubbles", bubbles, on => BubblesChosen?.Invoke(on));

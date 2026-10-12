@@ -1194,7 +1194,7 @@ public partial class Stool : Node2D
                     else
                         _ = NotNow();
                 };
-                _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.Username));
+                _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.CallMe));
                 _voice.Seat(VoiceFolder(character.Id));
             }
             catch (Exception e)
@@ -1674,6 +1674,47 @@ public partial class Stool : Node2D
     /// <summary>The name of whoever is on the stool, for her pages to say.</summary>
     internal string HerName() => OnStool()?.Name ?? "Your companion";
 
+    private int _naming;                                    // the name typed last, so she takes it up once typing stops
+
+    /// <summary>
+    /// The name the player gave to be called by (Getting started, Characters): saved at once, and taken up by whoever is
+    /// on the stool once the typing stops (taking it up cancels what she is saying).
+    /// </summary>
+    internal void CallMe(string name)
+    {
+        _settings.Save(_settings.Now with { CallMe = name.Trim().Length > 0 ? name.Trim() : null });
+        var typed = ++_naming;
+        GetTree().CreateTimer(1.5).Timeout += () =>
+        {
+            if (typed == _naming && _chat.Conversation is { } now && CompanionView.Available(_characters).FirstOrDefault(c => c.Id == now.Character) is { } character)
+                _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.CallMe));
+        };
+    }
+
+    /// <summary>Her steps of Getting started: her mind, which she needs to talk; her voice; talking aloud, when this build has ears.</summary>
+    internal IEnumerable<StartStep> StartSteps()
+    {
+        var her = HerName();
+        var provider = ChatProvider();
+        yield return new("mind", "Her mind",
+            $"{her} talks through your own AI provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, or a server on this PC): pick one, get a key " +
+            "on its site, name a model, Test and Save. Providers charge a little for each reply; one on this PC is free. About 5 minutes.",
+            Needed: true, Done: provider is not null,
+            provider is null ? $"Not connected: {her} can't talk with you yet."
+                : $"{her} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.");
+        yield return new("voice", "Her voice",
+            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: get it once (a few GB), then give her a voice from clips of it " +
+            "with their words. About 20 minutes; training a model of her voice takes longer.",
+            Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
+        if (Listening.HasEars)
+            yield return new("listening", "Talking aloud",
+                $"Talk to {her} through your microphone: what you say is made into words on this PC, and only the words go to her provider. " +
+                "Nothing to install.",
+                Needed: false, Done: true,
+                _settings.Now.TalkKey == TalkKey.Off ? $"Ready: hold the mouse on {her} and speak."
+                    : $"Ready: hold {TalkKey.Keys.FirstOrDefault(k => k.Name == _settings.Now.TalkKey).Label ?? "the talk key"} in any app and speak.");
+    }
+
     /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word.</summary>
     private Control MindPage()
     {
@@ -1742,7 +1783,8 @@ public partial class Stool : Node2D
     private Control CharactersPage()
     {
         var page = new CharacterSettings();
-        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles);
+        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, _settings.Now.CallMe);
+        page.Named += CallMe;
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;
         page.Seated += Seat;

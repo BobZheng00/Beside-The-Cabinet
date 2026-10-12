@@ -13,6 +13,8 @@ public sealed record Persona(string Name, string Description)
     /// character's note, read at the end of every turn (see <see cref="Prompt.Build"/>); null for the plain reminder.
     /// </summary>
     public string? Steady { get; init; }
+    /// <summary>The name the player asked to be called by (Getting started), or null when they haven't given one.</summary>
+    public string? Player { get; init; }
 
     /// <summary>For a character nobody has described: friendly, and nothing assumed about who they are.</summary>
     public static Persona Plain(string name) => new(name,

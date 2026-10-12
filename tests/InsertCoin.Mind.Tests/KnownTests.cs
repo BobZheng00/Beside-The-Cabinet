@@ -49,6 +49,10 @@ public class KnownTests
         Assert.DoesNotContain("Mint", system);                           // small ones come back through recall, when they come up
         Assert.Contains("What you know about the player:\nNothing yet.", system);      // hers, not taken for the player's
 
+        await new Conversation(temp.Store, "shino", new Persona("Shino", "A friend.") { Player = "Bob" }, new FakeClock(DateTimeOffset.Now))
+            .Answer(model, "hi", "", _ => { }, (_, _) => { });
+        Assert.Contains("What you know about the player:\nThe player goes by Bob.\n\n", model.Requests[^1][0].Text.ReplaceLineEndings("\n"));   // the name they gave at Getting started
+
         temp.Store.Forget("shino");
         Assert.Empty(temp.Store.Facts("shino"));
     }

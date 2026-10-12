@@ -7,6 +7,9 @@ namespace InsertCoin.Game.App;
 public sealed record AppSettings
 {
     public string? Username { get; init; }
+    public string? CallMe { get; init; }                // the name she calls the player by (Getting started); unset: none, not the LeetCode name
+    public string[] StartLater { get; init; } = [];     // Getting started's steps put off for later, by page
+    public bool StartHidden { get; init; }              // Getting started hidden: out of Settings and the tray
     public string Initials { get; init; } = "AAA";
     public string Skin { get; init; } = "cozy";
     public string[] IgnoredSteamAppIds { get; init; } = ["431960"];   // Wallpaper Engine

@@ -34,6 +34,7 @@ public partial class MindSettings : VBoxContainer
     private Chat _chat = null!;
     private OptionButton _preset = null!;
     private LineEdit _url = null!, _key = null!, _model = null!;
+    private Button _site = null!;
     private Label _now = null!, _result = null!;
     private Protocol _protocol;
     private Provider? _saved;
@@ -44,7 +45,7 @@ public partial class MindSettings : VBoxContainer
         _chat = chat;
         _saved = current;
         Form.Page(this, "Her mind");
-        Form.Hint(this, $"{name} answers through your own AI provider: pick it, paste your key, name a model, then Test and Save. " +
+        Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                         "Your key stays on this PC, encrypted for your Windows account.");
         _now = Form.Result(this);
         ShowNow();
@@ -56,6 +57,9 @@ public partial class MindSettings : VBoxContainer
         Form.Row(grid, "Provider", _preset);
         _url = Form.Field(grid, "Server", null, "https://…/v1", typed: _ => Unsaved());
         _key = Form.Field(grid, "API key", null, "", secret: true, typed: _ => Unsaved());
+        _site = new Button { ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
+        _site.Pressed += () => OS.ShellOpen(Provider.Presets[_preset.Selected].Site);
+        Form.Row(grid, "", _site);
         _model = Form.Field(grid, "Model", null, "", typed: _ => Unsaved());
 
         var buttons = Form.Buttons(this);
@@ -118,6 +122,9 @@ public partial class MindSettings : VBoxContainer
         }
         _model.PlaceholderText = preset.ModelHint.Length > 0 ? preset.ModelHint : "the model's name at this provider";
         _key.PlaceholderText = _chat.Keys.Has ? "saved (leave empty to keep it)" : preset.NeedsKey ? "paste your key" : "not needed";
+        var named = preset.Name.Split(" (")[0];
+        _site.Text = preset.NeedsKey ? $"Get a key from {named}…" : $"Get {named}…";
+        _site.Visible = preset.Site.Length > 0;
         _result.Text = "";
     }
 

@@ -19,13 +19,13 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     /// <summary>Starting points for the settings form. "Other" takes any OpenAI-compatible server.</summary>
     public static readonly Preset[] Presets =
     [
-        new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "", NeedsKey: true),
-        new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-4-5", NeedsKey: true),
-        new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "", NeedsKey: true),
-        new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-chat", NeedsKey: true),
-        new("Qwen (DashScope)", Protocol.OpenAi, "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", NeedsKey: true),
-        new("Ollama (this PC)", Protocol.OpenAi, "http://localhost:11434/v1", "", NeedsKey: false),
-        new("LM Studio (this PC)", Protocol.OpenAi, "http://localhost:1234/v1", "", NeedsKey: false),
+        new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "", NeedsKey: true, "https://platform.openai.com/api-keys"),
+        new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-4-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
+        new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "", NeedsKey: true, "https://openrouter.ai/settings/keys"),
+        new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-chat", NeedsKey: true, "https://platform.deepseek.com/api_keys"),
+        new("Qwen (DashScope)", Protocol.OpenAi, "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", NeedsKey: true, "https://bailian.console.aliyun.com/"),
+        new("Ollama (this PC)", Protocol.OpenAi, "http://localhost:11434/v1", "", NeedsKey: false, "https://ollama.com/download"),
+        new("LM Studio (this PC)", Protocol.OpenAi, "http://localhost:1234/v1", "", NeedsKey: false, "https://lmstudio.ai/"),
         new("Other (OpenAI-compatible)", Protocol.OpenAi, "", "", NeedsKey: true),
     ];
 
@@ -118,4 +118,5 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     }
 }
 
-public sealed record Preset(string Name, Protocol Protocol, string BaseUrl, string ModelHint, bool NeedsKey);
+/// <param name="Site">Where to get what it needs: the provider's page of API keys, or a server's download page; empty for none.</param>
+public sealed record Preset(string Name, Protocol Protocol, string BaseUrl, string ModelHint, bool NeedsKey, string Site = "");

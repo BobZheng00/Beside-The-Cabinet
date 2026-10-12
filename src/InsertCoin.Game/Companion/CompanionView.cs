@@ -699,7 +699,8 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
     /// <summary>
     /// Who they are, in their author's words. A character card in the user's characters folder comes first
     /// (<see cref="CardIn"/>); then <c>persona.md</c> in a built-in character's folder or in a user character's own
-    /// folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without either, a plain friendly companion.
+    /// folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without either, a plain friendly companion. Each
+    /// knows the name the player asked to be called by (a card's {{user}} becomes it too).
     /// </summary>
     public InsertCoin.Mind.Persona Persona(string userFolder, string? playerName)
     {
@@ -719,7 +720,7 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
                 .Concat(System.IO.Path.GetFileName(folder).Equals(Id, StringComparison.OrdinalIgnoreCase) ? [System.IO.Path.Combine(folder, "persona.md")] : []);
             text = candidates.Where(File.Exists).Select(File.ReadAllText).FirstOrDefault();
         }
-        return string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) : new InsertCoin.Mind.Persona(Name, text.Trim());
+        return (string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) : new InsertCoin.Mind.Persona(Name, text.Trim())) with { Player = playerName };
     }
 
     /// <summary>

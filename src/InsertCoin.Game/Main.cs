@@ -215,13 +215,18 @@ public partial class Main : Node2D
         _tray = new TrayIcon();
         AddChild(_tray);
         _tray.Build(_settings.Muted, _settings.Voice);
-        _settingsFile.Changed += () => _tray.Sync(_settings.Muted, _settings.Voice);     // flipped in Settings too
+        _settingsFile.Changed += () =>
+        {
+            _tray.Sync(_settings.Muted, _settings.Voice);   // flipped in Settings too
+            _tray.ShowStart(StartLeft());
+        };
         _tray.MutedChanged += SetMuted;
         _tray.VoiceChanged += _stool.SetVoice;
         _tray.ConversationChanged += _stool.Converse;
         _stool.ConversingChanged += _tray.SetConversation;
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.Settings += () => OpenSettings(null);
+        _tray.GettingStarted += () => OpenSettings("start");
         _stool.OpenSettings += OpenSettings;
         _stool.SettingsChanged += page =>
         {
@@ -238,7 +243,10 @@ public partial class Main : Node2D
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += (initials, username) =>
         {
+            var first = !_settings.SetUp;
             SaveSettings(_settings with { Initials = initials, Username = username, SetUp = true });
+            if (first)
+                GetTree().CreateTimer(3.5).Timeout += () => OpenSettings("start");      // once the cabinet has said hello
             if (IsInstanceValid(_settingsWindow))
                 _settingsWindow!.RefreshPage("balance");     // the LeetCode name shown there
             _cabinet.Screen.Flash($"HI {initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
@@ -290,6 +298,7 @@ public partial class Main : Node2D
             games.Add(new RunningGame("dev", "Dev Game"));
 
         Apply(new Tick(games, elapsed, Idle()));
+        _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
             Save();
@@ -648,6 +657,7 @@ public partial class Main : Node2D
         {
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
             case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
+            case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
             case "remindertry":                             // the "Try it" on Settings → Reminders
@@ -733,13 +743,17 @@ public partial class Main : Node2D
         }
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
-        _settingsWindow.Build([.. SettingsPages(), .. _stool.SettingsPages()], page);
+        _settingsWindow.Build([.. SettingsPages(page), .. _stool.SettingsPages()], page);
         _settingsWindow.Open();
     }
 
-    /// <summary>The cabinet's pages of the settings: the player's day (reminders, check-ins, their phone, calendars, balance) and the cabinet itself.</summary>
-    private IEnumerable<SettingsPage> SettingsPages() =>
+    /// <summary>
+    /// The cabinet's pages of the settings: Getting started while anything is left of it (or when asked for), the
+    /// player's day (reminders, check-ins, their phone, calendars, balance) and the cabinet itself.
+    /// </summary>
+    private IEnumerable<SettingsPage> SettingsPages(string? open) =>
     [
+        .. StartLeft() || open == "start" ? [new SettingsPage("start", SettingsWindow.First, "Getting started", StartPage, Fresh: true)] : Array.Empty<SettingsPage>(),
         new("reminders", SettingsWindow.Day, "Reminders", RemindersPage),
         new("checkins", SettingsWindow.Day, "Check-ins", CheckInsPage),
         new("phone", SettingsWindow.Day, "Your phone", YourPhonePage),
@@ -747,6 +761,53 @@ public partial class Main : Node2D
         new("balance", SettingsWindow.Day, "Balance", BalancePage),
         new("cabinet", SettingsWindow.Cabinet, "Cabinet", CabinetPage),
     ];
+
+    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar.</summary>
+    private List<StartStep> StartSteps()
+    {
+        var where = _settings.ReminderElsewhere;
+        var places = new[] { (where.Telegram, "Telegram"), (where.Ntfy, "ntfy"), (where.Discord, "Discord"), (where.Webhook, "a webhook") }
+            .Where(p => p.Item1).Select(p => p.Item2).ToList();
+        var linked = _calendars.Links.Count;
+        return
+        [
+            .. _stool.StartSteps(),
+            new("phone", "Your phone",
+                "Reminders, and her texts while you are away from the PC; with Telegram you can text her back. Needs Telegram on your phone " +
+                "(or ntfy, Discord, any webhook). About 5 minutes.",
+                Needed: false, Done: places.Count > 0, places.Count > 0 ? $"They reach you by {string.Join(", ", places)}." : "Not set up."),
+            new("calendars", "Calendars",
+                "Your calendar's next two weeks join her agenda, so she knows what is coming up. Needs its secret iCal address (Google or " +
+                "Outlook). About 2 minutes.",
+                Needed: false, Done: linked > 0, linked > 0 ? $"{linked} linked." : "Not set up."),
+        ];
+    }
+
+    /// <summary>Whether Getting started has anything left and isn't hidden: it is listed first in Settings and in the tray till then.</summary>
+    private bool StartLeft() => !_settings.StartHidden && GettingStarted.Left(_settings.CallMe, StartSteps(), _settings.StartLater);
+
+    private Control StartPage()
+    {
+        static string Time(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
+        var page = new GettingStarted();
+        page.Build(_stool.HerName(), _settings.CallMe, StartSteps(), _settings.StartLater,
+                   $"A day can earn up to {Time(_settings.WeekdayCapMinutes)} of play Monday to Thursday, {Time(_settings.FridayCapMinutes)} on Friday " +
+                   $"and {Time(_settings.WeekendCapMinutes)} at weekends; " +
+                   (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."));
+        page.Named += name =>
+        {
+            _stool.CallMe(name);
+            _settingsWindow?.RefreshPage("characters");    // the name shown there too
+        };
+        page.Open += id => _settingsWindow?.ShowPage(id);
+        page.Later += id =>
+        {
+            SaveSettings(_settings with { StartLater = [.. _settings.StartLater, id] });
+            _settingsWindow?.RefreshPage("start");
+        };
+        page.HideAsked += () => SaveSettings(_settings with { StartHidden = true });
+        return page;
+    }
 
     private Control RemindersPage()
     {

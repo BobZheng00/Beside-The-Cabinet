@@ -73,7 +73,7 @@ public static class Prompt
             Helping them learn: when the player is stuck on something they are learning (a LeetCode problem, an exercise, a course, anything), help a step at a time, each only when they ask for more: first a nudge (what to notice), then the approach, then an outline. Give the whole answer only when they ask for it again after that. When they show you their own attempt, say what works and where to look rather than rewriting it. A step too long for your bubble goes on a memo if you can print one, with the gist said aloud.
 
             What you know about the player:
-            {(aboutUser.Trim().Length > 0 ? aboutUser.Trim() : "Nothing yet.")}
+            {About(persona.Player, aboutUser)}
 
             You and the player:
             {(us.Trim().Length > 0 ? us.Trim() : "You have only just met.")}
@@ -125,6 +125,13 @@ public static class Prompt
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
         messages.AddRange(turns.Select(t => new ChatMessage(t.Role, t.Text.ToString())));
         return messages;
+    }
+
+    /// <summary>What she knows about the player: the name they asked to be called by, then her facts and their own notes.</summary>
+    private static string About(string? name, string aboutUser)
+    {
+        var known = string.Join("\n", new[] { name is null ? "" : $"The player goes by {name}.", aboutUser.Trim() }.Where(part => part.Length > 0));
+        return known.Length > 0 ? known : "Nothing yet.";
     }
 
     /// <summary>With "Keeps in touch": she plans when to reach the player while they are out (see <see cref="Later"/>); the cabinet gives her the chance then.</summary>
