@@ -61,4 +61,4 @@ How the player talks to her without holding the talk key. Decided with the user 
   - `mictalk:<wav>`: a recording said into the open microphone;
   - `converse` (or `converse:on`, `converse:off`);
   - `listeningsettings`: the Chat settings Listening tab.
-- **Not tried yet:** the real microphone hands-free, and the double tap (a dev run never presses keys). Both are in `docs/to-try.md`.
+- **Not tried yet:** the real microphone hands-free, and the double tap (a dev run never presses keys). Both are on the user's own list of things to try.

@@ -438,15 +438,17 @@ missing; `python tools/models/fetch.py small` beforehand gives a lighter build w
 ### Standalone build
 
 ```
-python tools/export/fetch_template.py --get <folder>/templates/4.7.2-stable-mono   # once: 40 MB instead of the 1.2 GB archive
+python tools/export/fetch_template.py --get <folder>/templates/4.7.2-stable-mono          # once: 40 MB instead of the 1.2 GB archive
 build.cmd                                                                                  # -> builds\InsertCoin\InsertCoin.exe + data folder
 ```
 
-The export preset points at that template path. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
+The export preset (`custom_template/release` in `src/InsertCoin.Game/export_presets.cfg`) names that template: set it to
+yours. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
 (the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly.
 Godot's exporter writes the app icon (`icon.ico`) and the product name into the `.exe` itself; no `rcedit` needed.
 
-Godot 4.7.2 .NET is expected at `<tools>\Godot\Godot_v4.7.2-stable_mono_win64\`. After changing art or sounds,
+Set `GODOT` to your Godot 4.7.2 .NET editor's exe, or put `set "GODOT=…"` in `private\local.cmd` (git ignores
+`private/`): `run.cmd`, `demo.cmd`, `firstrun.cmd`, `build.cmd` and the test scripts read it. After changing art or sounds,
 re-import: `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
 The project uses the Compatibility renderer: Forward+ cannot do transparent windows here.
 

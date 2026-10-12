@@ -15,17 +15,23 @@
 # Output: <Out>\<Tag>.gif and <Tag>.mp4 (the frames are deleted), plus the app's log.
 param([string]$Script = "", [double]$Seconds = 6, [double]$From = 2, [string]$Tag = "clip", [string]$Settings = "", [string]$Characters = "",
       [string]$Crop = "180:460:65:130", [double]$Scale = 1, [int]$Fps = 30, [string]$Bg = "#F2EFF7",
-      [string]$Out = "<tools>\voice-trial\clips-body",
-      [string]$Godot = "<tools>\Godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe",
+      [string]$Out = (Join-Path $env:TEMP "insert-coin-clips"),
+      [string]$Godot = "",
       [string]$Ffmpeg = "ffmpeg")
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
+$local = Join-Path $repo "private\local.cmd"
+if ($Godot -eq "" -and -not $Exe) {
+  $editor = if ($env:GODOT) { $env:GODOT } elseif (Test-Path $local) { (Select-String -Path $local -Pattern 'GODOT=([^"\r\n]+)').Matches[0].Groups[1].Value } else { "" }
+  if ($editor -eq "") { throw "Set GODOT to your Godot 4.7.2 .NET editor's exe, or put set `"GODOT=...`" in private\local.cmd" }
+  $Godot = $editor -replace '\.exe$', '_console.exe'
+}
 New-Item -ItemType Directory $Out -Force | Out-Null
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Remove-Item $profile -Recurse -Force }
 New-Item -ItemType Directory $profile | Out-Null
 if ($Characters -ne "") { Copy-Item $Characters (Join-Path $profile "characters") -Recurse }
-"{ `"Username`": `"BobSmith`", `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": false, `"WindowX`": -4000, `"WindowY`": 100 $Settings }" |
+"{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": false, `"WindowX`": -4000, `"WindowY`": 100 $Settings }" |
   Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 $frames = Join-Path $Out "frames-$Tag"

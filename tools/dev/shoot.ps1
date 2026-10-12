@@ -8,7 +8,7 @@
 # -Script   dev actions "action@seconds,..." (see README); times count from app start, about 2 s after launch
 # -Shots    seconds after launch at which to capture
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
-# -Settings extra JSON members for settings.json, starting with a comma
+# -Settings extra JSON members for settings.json, starting with a comma (', "SetUp": false' for a first run)
 # -Model    file(s) copied into the profile's characters folder (wildcards allowed)
 # -KeyFrom  a profile folder whose AI key the run uses (companion\key.bin, copied still encrypted, removed after): a test
 #           on the player's own provider, only with their leave, as it is billed to them. Nothing else of theirs is
@@ -19,13 +19,20 @@
 #           screen, so it is safe while the user is busy (in a game, say); transparent parts come out black
 # -Desk     also put every one of the app's windows (the cabinet, memo sheets…) together where they are relative to each
 #           other, on a light backdrop, as <Tag>-<n>-desk.png: how they sit on the desktop, without showing anything
+# -Godot    the console build of Godot to run (default: the _console.exe beside GODOT, or the one private\local.cmd names)
 # Output: <Out>\<Tag>-<n>.png (and <Tag>-<n>-window.png), plus the app's log and errors.
 param([string]$Script = "", [double[]]$Shots = @(6), [string]$Tag = "shot", [string]$Bg = "#F2EFF7", [string]$Size = "M",
       [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$KeyFrom = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden, [switch]$Desk,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-shots"),
-      [string]$Godot = "<tools>\Godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe")
+      [string]$Godot = "")
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
+$local = Join-Path $repo "private\local.cmd"
+if ($Godot -eq "" -and -not $Exe) {
+  $editor = if ($env:GODOT) { $env:GODOT } elseif (Test-Path $local) { (Select-String -Path $local -Pattern 'GODOT=([^"\r\n]+)').Matches[0].Groups[1].Value } else { "" }
+  if ($editor -eq "") { throw "Set GODOT to your Godot 4.7.2 .NET editor's exe, or put set `"GODOT=...`" in private\local.cmd" }
+  $Godot = $editor -replace '\.exe$', '_console.exe'
+}
 New-Item -ItemType Directory $Out -Force | Out-Null
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
@@ -40,7 +47,7 @@ if ($Model -ne "") {
 }
 if ($Hidden) { $X = -4000; $Y = 100; $Bg = "none" }
 $onTop = if ($Hidden) { "false" } else { "true" }
-"{ `"Username`": `"BobSmith`", `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": $onTop, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }" |
+"{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": $onTop, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }" |
   Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 Add-Type -AssemblyName System.Drawing

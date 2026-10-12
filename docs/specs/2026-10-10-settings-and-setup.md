@@ -124,7 +124,7 @@ short flow for what she can't do without, the checklist for the rest.
   few seconds of it (leaning in to listen, a nod, a tilt, re-settling, a leg swung if neat). The Welcome and "Meet …"
   open beside the cabinet, so the stool stays in view (`Paper.Open`, `besideCabinet`). Judged on clips of Shino,
   Fumiriya and Hana; Xbot, a mannequin with very thick thighs, gets its hands sunk into them and turned palm up.
-- **`firstrun.cmd`**: a fresh profile every time, for trying the first run (the user, 2026-10-12); `docs/smoke-test.md`,
+- **`firstrun.cmd`**: a fresh profile every time, for trying the first run (the user, 2026-10-12); the user's smoke test,
   step 7.
 
 ## The tray

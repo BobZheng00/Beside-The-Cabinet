@@ -13,7 +13,8 @@ updated. Nobody else should be able to sell it.
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
 - [ ] **The name** (shortlist below). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
-- [ ] **Which notes stay private** after the personal-information review (below): the user's call where it is unclear.
+- [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
+  notes about this PC; the progress stays public (below).
 - [x] **The email in commits:** fine (the user), as long as GitHub shows the commits as theirs: add the address
   under GitHub → Settings → Emails and verify it; leave "Block command line pushes that expose my email" off, or the
   push is refused.
@@ -87,20 +88,26 @@ organisation are still to check for whichever is chosen.
 
 ## Before going public
 
-- [ ] **Personal information out, progress kept.** The review (below) lists what to change. The user's own notes go
-  to a git-ignored `private/` folder that CLAUDE.md imports, so the working notes stay whole on this PC; the
-  progress (specs, research, CLAUDE.md's "Where we are", the commits) stays public.
-- [ ] **The history**, rewritten in a separate clone, never in the working folder (the user's rule): the private files
-  taken out of every commit, the personal terms replaced in every version of every file and in the commit messages,
-  every commit and date kept. Then a scan of the whole rewritten history for every term, the build and the tests, and
-  only then a push. Afterwards the clean clone is the one to work in (its commits have new hashes): copy `private/`,
-  the models and the demo profile's characters across.
+- [x] **Personal information out of today's files, progress kept** (2026-10-12). One list of replacements, kept in
+  `private/rewrite/rules.py` (it names what it replaces), cleaned every tracked file: the test character is Hana, the
+  LeetCode name in tests BobSmith, the town Springfield, the provider "the provider", local folders `<tools>`; two
+  research lines about game assets went. CLAUDE.md keeps the rules, the map and the progress, and imports this PC's own
+  notes from `private/notes.md`; the list of things to try and the smoke test moved to `private/`. A search of every
+  tracked file finds nothing left; all tests pass.
+- [ ] **The history**, rewritten in a separate clone, never in the working folder (the user's rule), with
+  git-filter-repo (installed 2026-10-12) and the same list (`private/rewrite/rewrite.py`): the two private files taken
+  out of every commit, the replacements made in every version of every file and in the commit messages, the
+  `Claude-Session:` links stripped from them (the user's choice), every commit and date kept, empty ones too. Then
+  `private/rewrite/check.py --history` on the clone, and only then a push, by the user. Afterwards the clean clone is
+  the one to work in (its commits have new hashes): copy `private/`, the models and `.godot` across.
 - [ ] **LICENSE**, a NOTICE for the name and art, and CONTRIBUTING with the CLA.
 - [ ] **A README front page for strangers:** what it is, a screenshot or GIF, what it needs (Windows 10 or 11, x64; a
   graphics card only for her voice), downloading a release, building from source, bringing your own AI key and what
   is sent where. The developer manual moves below it or into `docs/`.
-- [ ] **The launch scripts** (`run.cmd`, `demo.cmd`, `firstrun.cmd`, `tools/dev/*.ps1`) point at `<tools>\Godot`:
-  read the Godot path from `GODOT` as `build.cmd` does.
+- [x] **The launch scripts** read the Godot editor's path from `GODOT`, or from `private\local.cmd` (2026-10-12; the
+  test scripts use the `_console.exe` beside it, and their throwaway profiles no longer carry a LeetCode name). Left as
+  it was: the export preset's template path (`custom_template/release` in `export_presets.cfg`), which a builder sets
+  to their own.
 - [ ] **The release zip:** a THIRD-PARTY-NOTICES file for the libraries and models in it (MIT, Apache and BSD ask for
   their notices in binary copies), and SenseVoice's attribution. The build is about 700 MB (GitHub allows 2 GB a file).
 - [ ] **The GitHub page:** description, topics, a social preview image, the first release.
@@ -120,23 +127,37 @@ item is and what replaces it, stays private (`private/personal-review.md`, git-i
   items.
 - **Mostly invented:** the life in the tests (exams, interviews, appointments, pets, moves); kept unless the user wants
   it neutral.
-- **Per file:** `docs/to-try.md` and `docs/smoke-test.md` go private; CLAUDE.md splits (rules, map and progress public, the
-  developer's own setup and habits in `private/notes.md`, which it imports); everything else stays public after the fixes.
-- **Waiting on the user:** "Bob" as the tests' player name (keep or rename), the invented test life (keep or neutral),
-  the `Claude-Session:` links in commit messages (keep or strip; they open only for the user's account), whether the bot
-  name in a test is their real bot, and the rewrite tool (git-filter-repo, a download, or a small filter of our own).
+- **Per file:** the list of things to try and the smoke test went private; CLAUDE.md split (rules, map and progress
+  public, the developer's own setup and habits in `private/notes.md`, which it imports); everything else stays public,
+  fixed.
+- **Decided by the user (2026-10-12):** "Bob" stays the tests' player name; the invented test life stays; the
+  `Claude-Session:` links are stripped from the commit messages (and left off new commits); the bot name in a test was
+  invented anyway; git-filter-repo may be installed.
 
 ## Steam, later (nothing here blocks GitHub)
 
 - [ ] **The speech model's licence.** SenseVoice's [FunASR model licence](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE)
   asks for attribution but says nothing about paid products, and Alibaba may revise it. Ask them, swap the model, or
   have the Steam build fetch it on first run.
-- [ ] **Steam's AI disclosure.** Her chat is live-generated AI: the store page says so and the survey describes the
-  guardrails; Valve won't approve adult sexual content generated by live AI ([GeekWire](https://www.geekwire.com/2024/valve-software-reveals-new-rules-for-ai-powered-game-development-on-steam/),
-  [Gigazine](https://gigazine.net/gsc_news/en/20240111-steam-game-ai)). The app imports any character card: expect a
-  question about it.
+- [ ] **Steam's AI disclosure.** Her chat is live-generated AI: the store page says so and the content survey
+  describes the guardrails against illegal content; Valve won't ship adult sexual content generated by live AI, an AI
+  "virtual interactive partner" being its own example ([Steamworks: content survey](https://partner.steamgames.com/doc/gettingstarted/contentsurvey),
+  [GeekWire](https://www.geekwire.com/2024/valve-software-reveals-new-rules-for-ai-powered-game-development-on-steam/),
+  [Gigazine](https://gigazine.net/gsc_news/en/20240111-steam-game-ai)). Players can report what live AI made through
+  Steam's overlay.
+- [ ] **Adult content, the question the user asked (2026-10-12).** Mate Engine [sidesteps it](https://store.steampowered.com/app/3625270/):
+  its chat is "a small, local AI with simple messages", and its store page shows no AI disclosure or mature-content
+  notes. Ours is more exposed: the player brings any provider, a local model without filters included, and any
+  character card, and NSFW cards are common. Hosted providers' own rules block most of it; a local model blocks none.
+  For the Steam build, guardrails the code keeps rather than a prompt alone: a content rule in her instructions (the
+  app decides what she does), her replies checked before they show (the provider's own moderation where it has one,
+  else a small local classifier, as her ears and memory models run), cards marked NSFW refused on import, and the
+  disclosure saying all of it. The GitHub build can leave it to the player, as SillyTavern does.
 - [ ] **The Steamworks SDK** (achievements, Workshop) stays out of the public repository: Valve's SDK terms limit
   redistributing it (to check when the time comes); a public build simply goes without it.
 - [ ] **Steam Direct:** $100 per app; Valve takes 30%.
 - [ ] **What Steam adds** over the free GitHub build, as Mate Engine and Mindustry do: automatic updates, Workshop
-  characters and voices, cloud saves, perhaps cosmetic extras.
+  characters and voices, cloud saves, perhaps cosmetic extras. Mate Engine's set-up, the closest to ours: free on
+  GitHub, $3.99 on Steam with accessories, event messages, Workshop and automatic updates; its code under AGPL-3.0 with
+  terms of its own, its default avatar all rights reserved and not to be put in others' builds. The same split suits
+  us: the code under the chosen license, the name, the cabinet's art and the default characters' personas reserved.

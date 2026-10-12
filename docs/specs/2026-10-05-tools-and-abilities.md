@@ -278,7 +278,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 
 **Not yet:**
 - ~~answering the card by voice ("yes")~~ *built 2026-10-09:* while the card asks, a short "yes", "always" or "no" said aloud answers it (`SpokenAnswer`: English, Chinese, Japanese and Korean words, a few together if they agree, "yes, always" being always; six words at most). The talk key no longer cuts her off while the card waits: she stops talking and the question stands. *Tried 2026-10-09* with recordings through her real ears: "Yes." allowed once, "Yes, always." always (the next page on the site opened without asking), and "No, open YouTube instead please." was a new message, the card unanswered. Anything else said is a message, and the card goes unanswered, as before. With follow-up listening after questions (or in a conversation) she listens for the answer once she has asked. Typing still can't answer it: clicks or the voice;
-- a real provider's model choosing tools well, and how varied its bridging lines are. Both are in `docs/to-try.md`.
+- a real provider's model choosing tools well, and how varied its bridging lines are. Both are on the user's own list of things to try.
 
 ## The CRT's small system (the user's idea, 2026-10-06; *built*)
 
