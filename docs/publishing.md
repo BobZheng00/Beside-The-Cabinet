@@ -12,8 +12,8 @@ updated. Nobody else should be able to sell it.
   License (FSL-1.1-MIT).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
-- [ ] **The name** (shortlist below; after a third round, thought out in Chinese first: 围炉 · いろり · Inglenook
-  recommended). Best settled before the push,
+- [ ] **The name** (shortlist below; after a fourth round, Company by Lamplight recommended, 灯下有伴 in Chinese,
+  灯りのとなり in Japanese). Best settled before the push,
   as the README, the NOTICE and the repository's address carry it (GitHub redirects a renamed repository, so it can
   still change after). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
 - [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
@@ -101,9 +101,22 @@ CNIPA, Japan's JPO) and Chinese app stores such as TapTap, which these searches 
 
 | Idea | 中文 | 日本語 | English | Notes |
 |---|---|---|---|---|
-| **Sitting by the hearth** (recommended) | 围炉 (gathering round the stove: 围炉夜话, 围炉煮茶) | いろり (囲炉裏, the hearth a household sits round) | **Inglenook** (the seat built in beside a hearth: where she sits) | none of the three on Steam; Inglenook is also a California winery and a railway shunting puzzle |
+| Sitting by the hearth | 围炉 (gathering round the stove: 围炉夜话, 围炉煮茶) | いろり (囲炉裏, the hearth a household sits round) | Inglenook (the seat built in beside a hearth: where she sits) | none of the three on Steam; Inglenook is also a California winery and a railway shunting puzzle; set aside in the fourth round |
 | A light left on for you | 留灯 | あかり (ともしび is taken: a Steam title, and a mobile game of 2026) | Lamplit | nothing called 留灯 or Lamplit on Steam or the web |
 | The deskmate | 同桌 | となりの席 | (Deskmate) | the English is too close to Desktop Mate, a desktop companion on Steam |
+
+**Fourth round** (the user, 2026-10-12: the feeling Lamplit gives, but alone it can't tell what the app is; the idea
+should be clear in the name without being as plain as Mate Engine). Lamplit's feeling with the one word that says what
+she is, as a phrase rather than a label. All three share one idea, so one Chinese and one Japanese name serve them:
+**灯下有伴** (under the lamp, there's company) and **灯りのとなり** (beside the lamplight; となり as in となりの席, someone
+right next to you). Nothing by these names on Steam in any of the three languages or on the web; "Lamplight" alone
+names two games on Steam, and Lamplight City and The Lamplighters League are there too.
+
+| Name | Why | Notes |
+|---|---|---|
+| **Company by Lamplight** (recommended) | a scene rather than a label: "company" can only mean someone with you, "by lamplight" the evenings at the desk | said short, "Lamplight" is those games' name |
+| Lamplit Friend | keeps the word itself; "friend" says what she is | short form "Lamplit", free |
+| Lamplit Companion | the clearest, with the word people search for; nearest to a plain label | short form "Lamplit", free |
 
 ## Ready already (checked 2026-10-12)
 
