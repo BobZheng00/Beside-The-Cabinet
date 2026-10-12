@@ -12,8 +12,8 @@ updated. Nobody else should be able to sell it.
   License (FSL-1.1-MIT).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
-- [ ] **The name** (shortlist below; after a fourth round, Company by Lamplight recommended, 灯下有伴 in Chinese,
-  灯りのとなり in Japanese). Best settled before the push,
+- [ ] **The name** (shortlist below; the latest, the user's own: Beside the Cabinet, with a subtitle saying what she
+  is). Best settled before the push,
   as the README, the NOTICE and the repository's address carry it (GitHub redirects a renamed repository, so it can
   still change after). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
 - [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
@@ -132,6 +132,13 @@ companion", "AI companion", "desktop pet", "AI chat" and 桌宠):
   English in the Chinese and Japanese stores too.
 - **霓虹之心** (the user's earlier idea): free in the Chinese store; in English, Neon Hearts City is a game, and "neon"
   on Steam mostly means cyberpunk and action (Neon White, Neon Rage, Cyberpunk Neon Survivor).
+
+**Beside the Cabinet** (the user's idea, 2026-10-12, in the pattern of Across the Desk). The app's own scene: she sits
+on her stool beside the cabinet, and so beside the player; a reskinned cabinet is still a cabinet. Nothing by that name
+on Steam or the web, nor anything like it in the Chinese and Japanese stores. "Beside", not "besides", which means
+"apart from". The risk: "cabinet" alone reads as furniture or a government (the web's other cabinets are political
+games: The Cabinet, Cabinet Meeting, Cabinet Bingo). The store page's art makes it an arcade cabinet; elsewhere a plain
+subtitle does, and holds the words people search for: **Beside the Cabinet: A Desktop Companion**.
 
 ## Ready already (checked 2026-10-12)
 
