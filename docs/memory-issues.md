@@ -19,6 +19,7 @@ only with a re-run that shows it fixed, and say which.
 | M8 | Facts grow long as the weekly review merges related ones | fixed: median 16 words, the longest 27 (were 23 and 68) |
 | M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | fixed: listed from her facts for every reply, answers unchanged (84%) |
 | M10 | A restart between noting and keeping lost what those notes told of | fixed on `main` (2cfd3b0) |
+| M11 | Facts about her can be kept wrong, or from the player's life | her list now only what matters most; kept wrong is still possible |
 
 ## M1. The summary is cut off at its newest end
 
@@ -193,3 +194,15 @@ only with a re-run that shows it fixed, and say which.
   note as kept, passing over those whose facts and plans were yet to be kept (the provider failed, or the app closed).
 - **Fix** (2cfd3b0, on `main`): steps that run once go by the version the store was at when opened, and the steps
   that run every time no longer set it. A test opens the memory twice with such a note waiting.
+
+## M11. Facts about her can be kept wrong, or from the player's life
+
+- **What the player would notice:** she tells the same wrong detail about herself every time (her dog is a cat), or
+  claims the player's plan as her own.
+- **Evidence** (2026-10-11, LoCoMo conversation 26, her own story built): of 11 facts kept about her, "Melanie has a
+  dog named Oliver" (a cat; her dog is Luna, left out) and "Melanie is considering adoption" (the player's plan) were
+  wrong. Listed in full in her prompt, they outweighed the conversation: answers fell from 84% to 80%, the lost ones
+  about her pets and children.
+- **Fix so far:** her list takes the player's rule, importance 6 and up or pinned (2035efc, branch `her-story`), so
+  small facts come back only through recall, beside the talk they were kept from. Being measured (`runs\her2-locomo`).
+  Kept wrong is still possible for any fact: what HaluMem would measure, the player's call not to for now.
