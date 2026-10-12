@@ -168,12 +168,15 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   nothing left; its newest files are the same as the working folder's (one tree); the author line is the user's own.
 - [ ] **The push**, by the user, from the clean clone: create the GitHub repository, then `git remote add origin
   <its address>` and `git push -u origin main` there. GitHub shows the commits as the user's once their email is on
-  their account.
+  their account. The repository can start private and be made public once the rest of this list is done; pushing
+  early ends the carrying of each commit across (below).
 - [ ] **Then work from the clean history.** Its commits have new hashes, so the working folder takes them over:
   first a backup of the old history (`git bundle create <somewhere>/insert-coin-before-publishing.bundle --all`),
   then in the working folder `git fetch <the clean clone> main` and `git reset --hard FETCH_HEAD` (the same files, so
-  nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay). Anything committed in the
-  working folder meanwhile is cherry-picked into the clean clone first, as this checklist's own update was.
+  nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay), then `git remote add origin
+  <its address>` and `git push -u origin main` there too (nothing new to send; it links the working folder to GitHub).
+  Anything committed in the working folder meanwhile is cherry-picked into the clean clone first, as this checklist's
+  own update was.
 - [ ] **What players see takes the new name**: the README, the window and tray titles, the first run's welcome, the
   name a webhook gives the app, and Godot's application name (`config/name`, which is also the window title; Godot's
   own folder for its logs moves with it, the player's profile doesn't). The code, the profile folder
