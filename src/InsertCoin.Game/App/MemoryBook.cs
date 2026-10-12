@@ -9,9 +9,11 @@ namespace InsertCoin.Game.App;
 /// Everything she remembers, in the open, a tab each: the two notes she always has in mind; the agenda (plans and
 /// reminders, each with how long before to remind and whether it repeats); the facts upkeep and her own notes have
 /// collected (edit, pin to keep it always in mind, delete, and bring back what her review retired); the dated
-/// moments of past conversations; the player's memos; and the forget buttons. Nothing changes until Save, except
-/// the memos (each acts at once, as on the cabinet); the forget buttons ask twice and act at once, and the page
-/// then shows what is left, keeping unsaved changes to the rest.
+/// moments of past conversations; the player's memos; and the forget buttons. Nothing changes until Apply (or Save
+/// and close), except the memos (each acts at once, as on the cabinet); the forget buttons ask twice and act at once,
+/// and the page then shows what is left, keeping unsaved changes to the rest. While it is open, the lists follow what
+/// upkeep, her replies and reminders change, unless the player has changed something not yet applied: then a line
+/// says so, and Apply shows the latest.
 /// </summary>
 public partial class MemoryBook : Window
 {
@@ -39,6 +41,9 @@ public partial class MemoryBook : Window
     private Button _retiredToggle = null!;
     private Label? _noFacts;
     private readonly Dictionary<string, Action> _forget = [];
+    private bool _touched;                                  // the player changed something not yet applied
+    private string _shown = "";                             // what the lists were made from (see Read)
+    private Label _newer = null!;
 
     /// <summary>The user wants to read the conversation itself.</summary>
     public event Action? History;
@@ -78,6 +83,8 @@ public partial class MemoryBook : Window
         _about = Note(notes, "About you (every character knows this)", "What to call you, what you're working towards…",
                       store.Note(MindStore.Shared, MindStore.AboutUser));
         _us = Note(notes, $"You and {characterName}", "How you two get along, running jokes…", store.Note(characterId, MindStore.Us));
+        _about.TextChanged += () => _touched = true;
+        _us.TextChanged += () => _touched = true;
 
         var agenda = Tab("Agenda");
         var top = new HBoxContainer();
@@ -98,9 +105,7 @@ public partial class MemoryBook : Window
 
         var facts = Tab("Facts");
         _factList = List(facts);
-        foreach (var fact in store.Facts(characterId).OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
-            AddFactRow(fact);
-        ShowNoFacts();
+        ShowFacts();
         // what her review moved to the background: kept, out of mind, and the player can bring it back
         _retiredToggle = new Button { ThemeTypeVariation = "Quiet", ToggleMode = true, Alignment = HorizontalAlignment.Left,
                                       TooltipText = Words.Wrap("Facts her weekly review retired: past plans, things since replaced, trivia long unmentioned. She no longer recalls them.") };
@@ -164,17 +169,72 @@ public partial class MemoryBook : Window
 
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 8);
-        buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-        var cancel = new Button { Text = "Cancel", ThemeTypeVariation = "Quiet" };
-        var save = new Button { Text = "Save" };
+        // empty until her memory changes under the player's edits: the room left of the buttons, all of it
+        _newer = new Label { ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        buttons.AddChild(_newer);
+        var cancel = new Button { Text = "Cancel", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        var apply = new Button { Text = "Apply", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, TooltipText = "Save your changes and keep the book open" };
+        var save = new Button { Text = "Save and close", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         cancel.Pressed += QueueFree;
-        save.Pressed += Save;
+        apply.Pressed += () => { Save(); Reload(); };
+        save.Pressed += () => { Save(); QueueFree(); };
         buttons.AddChild(cancel);
+        buttons.AddChild(apply);
         buttons.AddChild(save);
         outer.AddChild(buttons);
+
+        _shown = Read();
+        var check = new Godot.Timer { WaitTime = 2, Autostart = true };
+        check.Timeout += Check;
+        AddChild(check);
     }
 
-    public void Open() => Paper.Open(this, new Vector2(620, 680));
+    public void Open() => Paper.Open(this, new Vector2(700, 680));
+
+    /// <summary>Dev: presses the button showing with this label, as a click would.</summary>
+    public void DevPress(string label)
+    {
+        if (FindChildren("*", nameof(Button), recursive: true, owned: false).OfType<Button>().FirstOrDefault(b => b.Text == label && b.IsVisibleInTree()) is { } button)
+        {
+            button.EmitSignal(BaseButton.SignalName.Pressed);
+            GD.Print($"Memory book: \"{label}\" pressed");
+        }
+        else
+            GD.PrintErr($"Memory book: no button \"{label}\" showing");
+    }
+
+    /// <summary>What the lists show, read afresh (not when a fact was last recalled, which every reply changes).</summary>
+    private string Read() => string.Join('\n', [
+        .. _store.Agenda().Select(p => p.ToString()),
+        .. _store.Threads().Select(t => $"{t.Id} {t.Text}"),
+        .. _store.Facts(_character).Select(f => $"{f.Id} {f.Pinned} {f.Importance} {f.Text}"),
+        .. _store.Retired(_character).Select(f => $"{f.Id}"),
+        .. _store.Observations(_character).Select(o => $"{o.Id} {o.Condensed} {o.Text}")]);
+
+    /// <summary>Every two seconds: her memory changed meanwhile (upkeep, a reply, a reminder); the lists follow, unless the player is in the middle of changing them.</summary>
+    private void Check()
+    {
+        if (!Visible || Read() == _shown)
+            return;
+        if (_touched)
+            _newer.Text = $"{_name} has noted more since. Apply saves yours and shows it.";
+        else
+            Reload();
+    }
+
+    /// <summary>The lists read afresh, as when the book opens.</summary>
+    private void Reload()
+    {
+        _deletedNotes.Clear();
+        ShowFacts();
+        ShowRetired();
+        ShowPlans();
+        ShowThreads();
+        ShowNotes();
+        _touched = false;
+        _newer.Text = "";
+        _shown = Read();
+    }
 
     /// <summary>Shows a tab ("notes", "agenda", "facts", "diary", "memos", "forget"); "retired" shows the facts with the retired ones open.</summary>
     public void ShowTab(string which)
@@ -219,13 +279,27 @@ public partial class MemoryBook : Window
             text.TooltipText = Words.Wrap(text.TooltipText + ". Faded: it has not come up in a long time, so she no longer recalls it. Pin it to keep it.");
         }
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this" };
-        delete.Pressed += () => { _deletedFacts.Add(fact.Id); row.QueueFree(); };
+        delete.Pressed += () => { _deletedFacts.Add(fact.Id); row.QueueFree(); _touched = true; };
+        text.TextChanged += _ => _touched = true;
+        pin.Toggled += _ => _touched = true;
         row.AddChild(whose);
         row.AddChild(text);
         row.AddChild(pin);
         row.AddChild(delete);
         _factList.AddChild(row);
         _facts.Add((fact, text, pin, row));
+    }
+
+    private void ShowFacts()
+    {
+        foreach (var child in _factList.GetChildren())
+            child.QueueFree();
+        _facts.Clear();
+        _deletedFacts.Clear();
+        _noFacts = null;
+        foreach (var fact in _store.Facts(_character).OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
+            AddFactRow(fact);
+        ShowNoFacts();
     }
 
     private void ShowRetired()
@@ -321,8 +395,13 @@ public partial class MemoryBook : Window
             CustomMinimumSize = new Vector2(150, 0),
             TooltipText = "YYYY-MM-DD HH:MM, or YYYY-MM-DD for a whole day",
         };
-        when.TextChanged += t => when.Modulate = Agenda.ParseWhen(t, now, TimeZoneInfo.Local) is null ? new Color(1, 0.5f, 0.5f) : Colors.White;
+        when.TextChanged += t =>
+        {
+            when.Modulate = Agenda.ParseWhen(t, now, TimeZoneInfo.Local) is null ? new Color(1, 0.5f, 0.5f) : Colors.White;
+            _touched = true;
+        };
         var text = new LineEdit { Text = plan?.Text ?? "", PlaceholderText = "What it is", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        text.TextChanged += _ => _touched = true;
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Take it off the agenda" };
         first.AddChild(when);
         first.AddChild(text);
@@ -347,6 +426,8 @@ public partial class MemoryBook : Window
         foreach (var (label, _) in Repeats)
             repeat.AddItem(label);
         repeat.Selected = Array.FindIndex(Repeats, r => r.Repeat == (plan?.Repeat ?? Repeat.Once));
+        lead.ItemSelected += _ => _touched = true;
+        repeat.ItemSelected += _ => _touched = true;
         second.AddChild(lead);
         second.AddChild(repeat);
         if (plan?.Source is { } source)
@@ -373,11 +454,15 @@ public partial class MemoryBook : Window
                 _deletedPlans.Add(plan.Id);
             _plans.RemoveAll(p => p.Row == item);
             item.QueueFree();
+            _touched = true;
         };
         _planList.AddChild(item);
         _plans.Add(new PlanRow(plan, when, text, lead, leads, repeat, item));
         if (plan is null)
+        {
+            _touched = true;
             text.GrabFocus();
+        }
     }
 
     private void AddNoteRow(Observation note)
@@ -387,7 +472,7 @@ public partial class MemoryBook : Window
         row.AddChild(new Label { Text = Log.Heading(note.Span, note.At), ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(78, 0), AutowrapMode = TextServer.AutowrapMode.WordSmart });
         row.AddChild(new Label { Text = (note.Priority == Priority.High ? "! " : "") + note.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
-        delete.Pressed += () => { _deletedNotes.Add(note.Id); row.QueueFree(); };
+        delete.Pressed += () => { _deletedNotes.Add(note.Id); row.QueueFree(); _touched = true; };
         row.AddChild(delete);
         _noteList.AddChild(row);
     }
@@ -432,7 +517,8 @@ public partial class MemoryBook : Window
             words.AddThemeConstantOverride("separation", 0);
             words.AddChild(new Label { Text = memo.Title, ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis });
             var where = memo.Place switch { MemoPlace.Hanging => "hanging from the slot", MemoPlace.Pinned => "pinned on the cabinet", _ => "kept" };
-            words.AddChild(Hint($"{_memos.From(memo)} · {Day(memo.At)} · {where}"));
+            words.AddChild(new Label { Text = $"{_memos.From(memo)} · {Day(memo.At)} · {where}", ThemeTypeVariation = "Hint", ClipText = true,
+                                       TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis });
             row.AddChild(words);
             var read = new Button { Text = "Read", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
             read.Pressed += () => _memos.Open(memo.Id);
@@ -499,7 +585,6 @@ public partial class MemoryBook : Window
         }
         foreach (var id in _deletedPlans)
             _store.DeletePlan(id);
-        QueueFree();
     }
 
     /// <summary>A button that only acts on a second click within a few seconds, then says it is done.</summary>

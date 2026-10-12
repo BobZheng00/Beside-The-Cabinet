@@ -159,7 +159,8 @@ you by name with さん unless her character or you say otherwise). A sentence l
 the log counts them ("went unheard"). While a game runs she rests her voice:
 the server is stopped so the game has the graphics card, and started again after. The tray's Voice (or "She speaks aloud" in Settings) switches it off;
 "Mute sounds" mutes her too. Clicking her stops her mid-sentence, and so does talking over her with the talk key
-or asking something new. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
+or asking something new; while she is still thinking, before any of her reply is out, a click only opens the slip,
+and only something new sent stops her. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
 yet, so she can come back to it. Without her voice, what you heard means the pages of her bubble you had seen.
 
 What she brings up herself with nothing else to show it (a check-in, a word on rest or bedtime, standing up) comes
@@ -282,7 +283,9 @@ upkeep; with the model's prices entered (from your provider's price page), the c
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes she works from above
 it). Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: her log, memos, forget): edit, pin
-(always in mind, upkeep leaves it alone) or delete anything.
+(always in mind, upkeep leaves it alone) or delete anything. Apply saves and keeps it open, Save and close saves and
+closes; while it is open it follows what upkeep and her replies change, unless you have changes not yet applied (a
+line says so then).
 "Clear the chat" starts the conversation afresh and keeps what she remembers; "Forget all with …" clears the
 conversation and everything about the two of you; "Forget all about me" clears what every character knows about
 you. It stays in the profile folder (`companion\memory.db`); the key is encrypted for your Windows
@@ -310,7 +313,8 @@ flips the tick with that text on the page showing; `settingsdo:Label:value` sets
 from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge),
-`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `ticketpress:0`
+`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `memorybookdo:Apply`
+(presses that button in it, `+_Add` too), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),

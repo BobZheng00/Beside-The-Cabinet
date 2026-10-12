@@ -1036,7 +1036,10 @@ public partial class Stool : Node2D
         }
         var replying = Replying;
         _listening.Drop();
-        _ = Interrupt();
+        // still thinking, none of her reply out yet: the click only opens the slip, so a slip of the mouse doesn't throw
+        // the answer away; sending something new still cuts it off (see Ask) (the user, 2026-10-12)
+        if (!_chat.StillThinking)
+            _ = Interrupt();
         _lively(6);
         if (!replying)
             Her?.Play(Moment.Greet);                        // cut off, she stops and looks at the player instead
@@ -1986,6 +1989,7 @@ public partial class Stool : Node2D
                 break;
             case "chathistory": OpenChatHistory(); break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
+            case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Apply presses that button in the memory book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment

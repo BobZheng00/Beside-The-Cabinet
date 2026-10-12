@@ -179,6 +179,10 @@ public sealed class Chat : IDisposable
     public bool Ready => _client is not null && _conversation is not null;
     public bool Answering => _answering is not null;
 
+    /// <summary>A reply is asked for and none of it is out yet: she is still thinking.</summary>
+    public bool StillThinking => _answering is not null && !_wordsOut;
+    private bool _wordsOut;
+
     /// <summary>Her last reply as shown, once it has come in whole; null while one is coming, or when it failed or was cut off.</summary>
     public string? Replied { get; private set; }
     public Conversation? Conversation => _conversation;
@@ -413,6 +417,7 @@ public sealed class Chat : IDisposable
         _view = view;
         var refused = Tools.Refused;
         _usedTool = false;
+        _wordsOut = false;
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
@@ -448,6 +453,7 @@ public sealed class Chat : IDisposable
                                               return;
                                           }
                                           shown ??= clock.ElapsedMilliseconds;
+                                          _wordsOut = true;
                                           view.Continue(words);
                                           speech?.Text(words);
                                       },
