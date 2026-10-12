@@ -456,7 +456,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `ToonMaterials` + `toon.gdshaderinc` replace the model's materials: two flat tones from one fixed light, texture
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
-- `SpeechBubble` draws what she says: canned lines from `App/Lines.cs` (on events a friend would react to) type
+- `SpeechBubble` draws what she says: her plain lines from `App/Lines.cs` (on events a friend would react to, when
+  her mind can't say them in her own words) type
   themselves out; replies from her mind start as thinking dots and grow as they stream in. A long one is shown a
   page at a time, like subtitles: each page turns once her voice has said it (`Voice.Progress`), or, when she is not
   speaking, once there has been time to read it, and the bubble fades only when she has finished. `ChatBox` is the slip

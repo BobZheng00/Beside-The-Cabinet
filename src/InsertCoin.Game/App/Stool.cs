@@ -479,7 +479,7 @@ public partial class Stool : Node2D
     /// Something to tell the player, from any feature: told at the PC, texted, kept for when they are back, or let go,
     /// as <see cref="Reaching"/> says for where they are; the most important first, once she is free (see <see cref="PassOn"/>).
     /// </summary>
-    private void Hand(Telling telling)
+    internal void Hand(Telling telling)
     {
         _toTell.Add(telling);
         _nextPass = DateTimeOffset.MinValue;

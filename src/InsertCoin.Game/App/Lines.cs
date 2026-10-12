@@ -4,20 +4,46 @@ using InsertCoin.Core;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// What the companion says about what just happened. Plain canned lines: instant, free and offline. Her mind
-/// (App/Chat.cs) answers when spoken to; these remain her remarks on events, only those a friend would react to: the
-/// cabinet's bookkeeping (a token going in, the clock pausing, the overnight fade, the day's cap, part of a debt paid,
-/// an IOU printed) shows on its own screen (see <see cref="Director"/>), not in her bubble (the user, 2026-10-12: her
-/// first words each morning were the fade).
+/// What the companion says about what just happened, and her plain lines: instant, free and offline, for when her mind
+/// can't be reached. Only what a friend would react to: the cabinet's bookkeeping (a token going in, the clock pausing,
+/// the overnight fade, the day's cap, part of a debt paid, an IOU printed) shows on its own screen (see
+/// <see cref="Director"/>), not in her bubble (the user, 2026-10-12: her first words each morning were the fade).
 /// </summary>
 public static class Lines
 {
-    /// <summary>One line for a step's events (the most pressing one wins), or null when there is nothing to say.</summary>
-    public static string? For(IReadOnlyList<LedgerEvent> events, LedgerState state, Rules rules, Random random)
+    /// <summary>
+    /// What she has to say about a step's events (the most pressing one), handed over as anything she tells is (see
+    /// <see cref="InsertCoin.Mind.Reaching"/>): in her own words when her mind can, told what happened, else the plain
+    /// line (these were the plain lines only, in no character's voice: "JACKPOT! 4 coins for a Hard one!", 2026-10-12).
+    /// Each makes sense only at the PC, for a few minutes; while a game runs she isn't spoken through, and a warning
+    /// the cabinet put on a ticket (time running low or out, past bedtime) needs nothing more. Null when there is
+    /// nothing to say.
+    /// </summary>
+    public static InsertCoin.Mind.Telling? Remark(IReadOnlyList<LedgerEvent> events, LedgerState state, Rules rules, Random random, DateTimeOffset now)
     {
-        var said = events.Select(e => (Weight: Urgency(e), Line: For(e, state, rules, random))).Where(x => x.Line is not null).ToList();
-        return said.Count == 0 ? null : said.MaxBy(x => x.Weight).Line;
+        var said = events.Select(e => (Event: e, Weight: Urgency(e), Line: For(e, state, rules, random))).Where(x => x.Line is not null).ToList();
+        if (said.Count == 0)
+            return null;
+        var (e, _, line) = said.MaxBy(x => x.Weight);
+        var what = InsertCoin.Mind.Situation.Witness(e, rules) ?? line!;
+        return new InsertCoin.Mind.Telling(Title(e), $"{what} Say something about it in a short sentence, in your own words.", line!,
+                                           InsertCoin.Mind.Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3),
+                                           Ticketed: e is LowTime or CreditsOut or LateNight or SessionStarted);
     }
+
+    /// <summary>What a ticket or the log calls it.</summary>
+    private static string Title(LedgerEvent e) => e switch
+    {
+        CoinsEarned => "SOLVED",
+        StreakStar => "STREAK",
+        DebtPaid => "DEBT PAID",
+        LowTime => "TIME LEFT",
+        CreditsOut => "OUT OF TIME",
+        SessionStarted => "GAME ON",
+        SessionEnded => "GAME OVER",
+        LateNight => "LATE NIGHT",
+        _ => "CABINET",
+    };
 
     /// <summary>
     /// Reminders going off: "Reminder: call Mum." One that came due while the cabinet was closed says when:
