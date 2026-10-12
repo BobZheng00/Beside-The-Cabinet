@@ -94,12 +94,19 @@ organisation are still to check for whichever is chosen.
   research lines about game assets went. CLAUDE.md keeps the rules, the map and the progress, and imports this PC's own
   notes from `private/notes.md`; the list of things to try and the smoke test moved to `private/`. A search of every
   tracked file finds nothing left; all tests pass.
-- [ ] **The history**, rewritten in a separate clone, never in the working folder (the user's rule), with
-  git-filter-repo (installed 2026-10-12) and the same list (`private/rewrite/rewrite.py`): the two private files taken
-  out of every commit, the replacements made in every version of every file and in the commit messages, the
-  `Claude-Session:` links stripped from them (the user's choice), every commit and date kept, empty ones too. Then
-  `private/rewrite/check.py --history` on the clone, and only then a push, by the user. Afterwards the clean clone is
-  the one to work in (its commits have new hashes): copy `private/`, the models and `.godot` across.
+- [x] **The history**, rewritten 2026-10-12 in a separate clone beside the working folder, never in it (the user's
+  rule), with git-filter-repo and the same list (`private/rewrite/rewrite.py`): the two private files out of every
+  commit, the replacements made in every version of every file and in every commit message, the `Claude-Session:`
+  links stripped (the user's choice), all commits and dates kept. Checked: `private/rewrite/check.py --history` finds
+  nothing left; its newest files are the same as the working folder's (one tree); the author line is the user's own.
+- [ ] **The push**, by the user, from the clean clone: create the GitHub repository, then `git remote add origin
+  <its address>` and `git push -u origin main` there. GitHub shows the commits as the user's once their email is on
+  their account.
+- [ ] **Then work from the clean history.** Its commits have new hashes, so the working folder takes them over:
+  first a backup of the old history (`git bundle create <somewhere>/insert-coin-before-publishing.bundle --all`),
+  then in the working folder `git fetch <the clean clone> main` and `git reset --hard FETCH_HEAD` (the same files, so
+  nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay). Anything committed in the
+  working folder meanwhile is cherry-picked into the clean clone first, as this checklist's own update was.
 - [ ] **LICENSE**, a NOTICE for the name and art, and CONTRIBUTING with the CLA.
 - [ ] **A README front page for strangers:** what it is, a screenshot or GIF, what it needs (Windows 10 or 11, x64; a
   graphics card only for her voice), downloading a release, building from source, bringing your own AI key and what
