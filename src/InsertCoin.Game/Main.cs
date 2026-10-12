@@ -103,7 +103,7 @@ public partial class Main : Node2D
         AddChild(_stool);
         MoveChild(_stool, _cabinet.GetIndex() + 1);           // drawn over the cabinet art, under everything else
         _stool.Build(dataDir, _settingsFile, _cabinet, _window,
-                     situation: () => Situation.Describe(_state, _rules, DateTimeOffset.Now, _settings.Username),
+                     situation: () => Situation.Describe(_state, _rules, DateTimeOffset.Now),
                      lively: Lively);
         _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
         _stool.Focus.TimeFocused += time => Apply(new Focused(time));      // focus pays by the minute, at once

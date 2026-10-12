@@ -5,8 +5,9 @@ namespace InsertCoin.Mind;
 
 /// <summary>
 /// The cabinet's record of a day, in her diary (phase 4, docs/specs/2026-10-11-observational-memory.md): written by code
-/// from the ledger's record of the day, never by the model, so what was solved, focused, done, played and earned, and
-/// when the player was at the PC, is always right. One note a day, dated at its end, in her log with her own notes.
+/// from the ledger's record of the day, never by the model, so what was solved, focused, done and played, and when the
+/// player was at the PC, is always right. One note a day, dated at its end, in her log with her own notes. What the day
+/// earned (the cap, the fade, debt) is kept out of it (see <see cref="Accounts"/>): her cabinet tool gives it when asked.
 /// </summary>
 public static class Diary
 {
@@ -15,7 +16,7 @@ public static class Diary
 
     private static readonly CultureInfo English = CultureInfo.InvariantCulture;
 
-    /// <summary>The day in a sentence, everything its record holds; <paramref name="good"/> when it counted towards the streak.</summary>
+    /// <summary>The day in a sentence, what the player did in it; <paramref name="good"/> when it counted towards the streak.</summary>
     public static string Entry(DayRecord day, bool good)
     {
         var parts = new List<string>();
@@ -31,20 +32,29 @@ public static class Diary
             parts.Add($"played {Words.Span(day.PlayedMs)}" + (day.Games.Count > 0 ? $" ({string.Join(", ", day.Games)})" : "")
                       + (day.LastPlayed is { } last ? $", the last game ending at {last.ToString("HH:mm", English)}" : ""));
         if (day.LateExtraMs > 0)
-            parts.Add($"playing past bedtime cost {Words.Span(day.LateExtraMs)} extra");
+            parts.Add("played past bedtime");
         if (day.Bedtime is { } bedtime)
             parts.Add($"bedtime {bedtime.ToString(@"hh\:mm", English)}");
-        if (day.EarnedMs > 0)
-            parts.Add($"earned {Words.Span(day.EarnedMs)} of play" +
-                      (day.OverCapMs > 0 ? $", and {Words.Span(day.OverCapMs)} more past the day's cap of {Words.Span(day.CapMs)}" : ""));
-        if (day.DebtPaidMs > 0)
-            parts.Add($"paid back {Words.Span(day.DebtPaidMs)} of debt");
-        if (day.FadedMs > 0)
-            parts.Add($"{Words.Span(day.FadedMs)} of unplayed time faded overnight as it began");
         if (day.FirstActive is { } first && day.LastActive is { } seen)
             parts.Add($"at the PC from {first.ToString("HH:mm", English)} to {seen.ToString("HH:mm", English)}");
         if (good)
             parts.Add("a good day, towards the streak");
         return parts.Count == 0 ? "The cabinet's record: not at the PC all day." : $"The cabinet's record: {string.Join("; ", parts)}.";
+    }
+
+    /// <summary>What the day earned and cost, in a sentence ("Earned 1 h 30 min of play; …"), or empty when nothing.</summary>
+    public static string Accounts(DayRecord day)
+    {
+        var parts = new List<string>();
+        if (day.EarnedMs > 0)
+            parts.Add($"earned {Words.Span(day.EarnedMs)} of play" +
+                      (day.OverCapMs > 0 ? $", and {Words.Span(day.OverCapMs)} more past the day's cap of {Words.Span(day.CapMs)}" : ""));
+        if (day.LateExtraMs > 0)
+            parts.Add($"playing past bedtime cost {Words.Span(day.LateExtraMs)} extra");
+        if (day.DebtPaidMs > 0)
+            parts.Add($"paid back {Words.Span(day.DebtPaidMs)} of debt");
+        if (day.FadedMs > 0)
+            parts.Add($"{Words.Span(day.FadedMs)} of unplayed time faded overnight as it began");
+        return parts.Count == 0 ? "" : char.ToUpperInvariant(parts[0][0]) + string.Join("; ", parts)[1..] + ".";
     }
 }

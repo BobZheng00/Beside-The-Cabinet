@@ -184,6 +184,21 @@ public static class BuiltIn
         FromWeb = true,
     };
 
+    /// <summary>
+    /// The cabinet's numbers in full (see <see cref="Situation.Ledger"/>), which her turn leaves out: for when the player
+    /// asks about play time, a day's record or how play is earned. It only reads, so it needs no asking.
+    /// </summary>
+    /// <param name="look">The numbers, with the record of the day named, if any.</param>
+    public static Tool Cabinet(Func<string?, string> look) => new(
+        AIFunctionFactory.Create(
+            ([Description("A day to give the record of: \"today\", \"yesterday\" or YYYY-MM-DD; leave it out for none")] string? day = null) => look(day),
+            "cabinet_numbers",
+            "The cabinet's numbers in full: play time banked or owed, what today and this week earned against the day's cap, the streak, how " +
+            "play is earned (what a problem, an activity or focus pays; the cap, the overnight fade, bedtime) and a day's record (what the player " +
+            "did and what it earned). Use it when they ask about any of these; what matters right now is already in your turn."),
+        "Check the cabinet's numbers",
+        OutsideApp: false);
+
     /// <summary>A LeetCode problem's public data, for hints (see <see cref="LeetCodeProblems"/>). It only reads.</summary>
     /// <param name="describe">Looks it up; throws, saying why, when it can't.</param>
     public static Tool LeetCodeProblem(Func<string, CancellationToken, Task<string>> describe) => new(

@@ -53,7 +53,7 @@ public sealed class Chat : IDisposable
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
                              BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
                              BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
-                             BuiltIn.OpenApp(StartMenu.Apps, StartMenu.Open)])
+                             BuiltIn.OpenApp(StartMenu.Apps, StartMenu.Open), BuiltIn.Cabinet(day => Ledger?.Invoke(day) ?? "The cabinet has no numbers yet.")])
         {
             AskPlayer = AskFirst,
         };
@@ -92,6 +92,9 @@ public sealed class Chat : IDisposable
 
     /// <summary>The saved playlist a name means, as her card shows it.</summary>
     public Func<string?, string>? Playlist { get; set; }
+
+    /// <summary>The cabinet's numbers in full, for her cabinet tool (see <see cref="Situation.Ledger"/>).</summary>
+    public Func<string?, string>? Ledger { get; set; }
 
     private string FocusAct(string action, int? focus, int? rest) => Focus?.Invoke(action, focus, rest) ?? "Focus sessions aren't available here.";
 

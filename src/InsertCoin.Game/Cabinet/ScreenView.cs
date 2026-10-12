@@ -165,6 +165,22 @@ public partial class ScreenView : Node2D
         };
     }
 
+    /// <summary>A <see cref="Flash"/> whose big number counts from one time to another, as the overnight fade takes play time off.</summary>
+    public void FlashCount(long fromMs, long toMs, string caption, double seconds)
+    {
+        Flash(Clock(fromMs), caption, seconds);
+        var id = _flashId;
+        var count = CreateTween();
+        count.TweenInterval(0.8);                           // read the old time first
+        count.TweenMethod(Callable.From<double>(ms =>
+        {
+            if (id != _flashId)
+                return;                                     // a newer flash owns the screen
+            _flash = (Clock((long)ms), caption);
+            Redraw();
+        }), (double)fromMs, (double)toMs, 1.6).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+    }
+
     /// <summary>Holds the screen for text entry until <see cref="ClearPrompt"/>.</summary>
     public void Prompt(string big, string caption, string status)
     {

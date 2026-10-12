@@ -22,13 +22,15 @@ public class DiaryTests
     };
 
     [Fact]
-    public void A_day_is_written_from_everything_its_record_holds()
+    public void A_day_is_written_from_what_the_player_did_and_what_it_earned_is_kept_apart()
     {
         Assert.Equal("The cabinet's record: solved 2 problems: Two Sum (Easy), LRU Cache (Medium); did a walk (counted half), the gym; " +
-                     "focused 1 h 40 min; played 1 h 10 min (Hades), the last game ending at 23:40; playing past bedtime cost 5 min extra; " +
-                     "bedtime 23:30; earned 2 h 30 min of play, and 30 min more past the day's cap of 2 h 30 min; at the PC from 09:10 to 23:55; " +
-                     "a good day, towards the streak.",
+                     "focused 1 h 40 min; played 1 h 10 min (Hades), the last game ending at 23:40; played past bedtime; " +
+                     "bedtime 23:30; at the PC from 09:10 to 23:55; a good day, towards the streak.",
                      Diary.Entry(Saturday, good: true));
+        Assert.Equal("Earned 2 h 30 min of play, and 30 min more past the day's cap of 2 h 30 min; playing past bedtime cost 5 min extra.",
+                     Diary.Accounts(Saturday));
+        Assert.Equal("", Diary.Accounts(new DayRecord { Day = new DateOnly(2026, 10, 4) }));
         Assert.Equal("The cabinet's record: not at the PC all day.", Diary.Entry(new DayRecord { Day = new DateOnly(2026, 10, 4) }, good: false));
     }
 

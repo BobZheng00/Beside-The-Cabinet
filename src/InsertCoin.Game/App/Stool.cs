@@ -207,6 +207,9 @@ public partial class Stool : Node2D
         };
         _chat.Focus = FocusAct;
         _chat.Music = MusicAct;
+        _chat.Ledger = day => Ledger?.Invoke() is { } state && Rules?.Invoke() is { } rules
+            ? InsertCoin.Mind.Situation.Ledger(state, rules, DateTimeOffset.Now, _settings.Now.Username, day)
+            : "The cabinet has no numbers yet.";
         _chat.Playlist = name => SavedPlaylist(name) is { } playlist ? $"{playlist.Name} ({Desktop.Music.Shown(playlist.Link)})" : $"No saved playlist called \"{name}\"";
         _memos.Written += (title, text) =>
         {

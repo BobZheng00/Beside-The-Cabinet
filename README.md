@@ -58,11 +58,17 @@ it out. She knows the cabinet's numbers and remembers:
   age, a finished week of notes is condensed into notes for the week, weeks into months and months into years, so
   they never outgrow their room; the originals stay, recalled when they come up;
 - facts about you (shared by every character) and about the two of you, kept from her notes by upkeep, checked
-  against the facts that relate to them. When you just tell her something worth keeping she says she'll remember it
-  and jots it in a little notebook at once. A fact that changes keeps its history: the old one is retired as
-  changed, and "where did I live before?" can still find it, marked until when;
+  against the facts that relate to them. She answers as anyone would and keeps them quietly, at her next upkeep. A
+  fact that changes keeps its history: the old one is retired as changed, and "where did I live before?" can still
+  find it, marked until when;
 - the cabinet's record of each day in her diary, written by code from the cabinet's own numbers so it is always right:
-  what you solved and played by name, your focus, activities, earnings, bedtime and when you were at the PC;
+  what you solved and played by name, your focus, activities, bedtime and when you were at the PC. What a day earned
+  is not in it;
+- of the cabinet, only what matters at the moment: your play time, a game on, time owed, the day's cap reached, past
+  your bedtime. The rest (today's and the week's numbers, the streak, how play is earned, a day's record with what it
+  earned) she looks up with her cabinet tool when you ask. The cabinet's bookkeeping (a token going in, the
+  overnight fade, the cap, an IOU) shows on its own screen, not in her bubble: a new day's fade counts the time down
+  on the CRT;
 - what she has told you about herself (her past, what she likes), kept as hers and always in mind, so her stories stay
   the same; the memory book marks those facts "her";
 - what is going on in your life with no date (a worry, a decision, something you're waiting for): a couple of days
@@ -201,7 +207,7 @@ in full screen or quiet time, or while a game runs, unless you allow it, and nev
 MIC whenever the microphone is open.
 
 She can do things too, with tools (Settings → Abilities): open a web page in your browser or an app from your
-Start menu, read a page, search the web, look up a LeetCode problem, and the rest below. She
+Start menu, read a page, search the web, look up a LeetCode problem, check the cabinet's numbers, and the rest below. She
 says what she's about to do in her own words, and anything acting outside the app asks first: a card by her stool
 shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site or app) and No.
 Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there to forget. Auto lets her
@@ -450,7 +456,7 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `ToonMaterials` + `toon.gdshaderinc` replace the model's materials: two flat tones from one fixed light, texture
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
-- `SpeechBubble` draws what she says: canned lines from `App/Lines.cs` (built from the ledger's numbers) type
+- `SpeechBubble` draws what she says: canned lines from `App/Lines.cs` (on events a friend would react to) type
   themselves out; replies from her mind start as thinking dots and grow as they stream in. A long one is shown a
   page at a time, like subtitles: each page turns once her voice has said it (`Voice.Progress`), or, when she is not
   speaking, once there has been time to read it, and the bubble fades only when she has finished. `ChatBox` is the slip

@@ -84,7 +84,8 @@ provider cut at its length limit is asked again with twice the room, and a batch
    84% right against 78% (M6).
 4. **What fits a companion:** a day's entry from the cabinet's own records (solves, focus, play, activities, her
    texts), written by code, not by the model; open threads to follow up; what she has said about herself; which
-   memories a reply used, to see and correct. The player's calls (2026-10-11): the day's entry holds everything the
+   memories a reply used, to see and correct. (2026-10-12, the user: what a day earned left the entry for her cabinet
+   tool, as the cabinet weighed too much in her mind.) The player's calls (2026-10-11): the day's entry holds everything the
    record does; she may text about an open thread, and the answer may come by text, in person or not at all.
    *Built 2026-10-11, the day's entry:* the ledger keeps each day's problems and games by name (`DayRecord.Solved`,
    `Games`); `Diary.Entry` writes the day from its record (solved, activities, focus, play and the last game, bedtime

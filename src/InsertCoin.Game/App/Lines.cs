@@ -4,8 +4,11 @@ using InsertCoin.Core;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// What the companion says about what just happened. Plain canned lines built from the ledger's own numbers: instant,
-/// free and offline. Her mind (App/Chat.cs) answers when spoken to; these remain her remarks on events.
+/// What the companion says about what just happened. Plain canned lines: instant, free and offline. Her mind
+/// (App/Chat.cs) answers when spoken to; these remain her remarks on events, only those a friend would react to: the
+/// cabinet's bookkeeping (a token going in, the clock pausing, the overnight fade, the day's cap, part of a debt paid,
+/// an IOU printed) shows on its own screen (see <see cref="Director"/>), not in her bubble (the user, 2026-10-12: her
+/// first words each morning were the fade).
 /// </summary>
 public static class Lines
 {
@@ -63,35 +66,27 @@ public static class Lines
 
     private static string? For(LedgerEvent e, LedgerState state, Rules rules, Random random) => e switch
     {
-        CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, $"JACKPOT! {c.Tokens} coins for a Hard one!", $"A Hard one! That's {Span(c.Tokens * rules.TokenMs)} of play.") + Bonus(c),
-        CoinsEarned { Tokens: 1 } c => Pick(random, "+1 coin. Every one counts!", $"Solved! {Span(rules.TokenMs)} more to play.") + Bonus(c),
-        CoinsEarned c => Pick(random, $"Nice! +{c.Tokens} coins.", $"Solved! {Span(c.Tokens * rules.TokenMs)} more to play.") + Bonus(c),
-        StreakStar s => Pick(random, $"Day {s.Streak} of your streak! A bonus coin.", $"That's {s.Streak} good days in a row. Bonus coin!"),
+        CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, "A Hard one! Well done.", "You cracked a Hard one!") + Bonus(c),
+        CoinsEarned c => Pick(random, "Solved! Nice work.", "Another one done!") + Bonus(c),
+        StreakStar s => Pick(random, $"Day {s.Streak} of your streak!", $"That's {s.Streak} good days in a row!"),
         DebtPaid { DebtLeftMs: 0 } => "Debt cleared. Clean slate!",
-        DebtPaid p => $"That paid off {Span(p.PaidMs)}. {Span(p.DebtLeftMs)} still owed.",
-        TokenInserted t => t.CreditsLeft > 0 ? $"Token in. {t.CreditsLeft} left after this one." : "Token in. That was your last one.",
         LowTime { Level: Warning.FiveMinutes } => "Five minutes left. Look for a save point?",
         LowTime { Level: Warning.OneMinute } => "One minute! Save your game.",
         CreditsOut => $"Out of time. You're playing on credit now, at x{rules.DebtMultiplier.ToString("0.#", CultureInfo.InvariantCulture)}.",
-        IouPrinted i => $"IOU #{i.TicketNumber}. That's {Span(i.DebtMs)} to pay back.",
         SessionStarted => state.TimeLeftMs(rules) > 0 ? $"Have fun! You've got {Span(state.TimeLeftMs(rules))}." : "No coins... this one goes on your tab.",
-        SessionEnded end => $"Good game! {Span(end.Receipt.PlayedMs)} played." + (state.DebtMs > 0 ? $" You owe {Span(state.DebtMs)}." : ""),
-        Paused => "Stepped away? I'll stop the clock.",
-        Resumed => "Welcome back! The clock is running.",
-        CapReached r => $"That's all the play today can earn ({Span(r.CapMs)}). Anything more is just for you.",
+        SessionEnded end => $"Good game! {Span(end.Receipt.PlayedMs)} played.",
         LateNight l => $"It's past your bedtime. Play costs x{l.Multiplier.ToString("0.#", CultureInfo.InvariantCulture)} now.",
-        Faded f => $"New day! {Span(f.FadedMs)} faded overnight; {Span(f.LeftMs)} left.",
         _ => null,
     };
 
-    private static string Bonus(CoinsEarned c) => c.StarToken ? $" Day {c.Streak} streak bonus!" : "";
+    private static string Bonus(CoinsEarned c) => c.StarToken ? $" Day {c.Streak} of your streak!" : "";
 
     private static int Urgency(LedgerEvent e) => e switch
     {
-        LowTime or CreditsOut or IouPrinted => 5,
-        DebtPaid or CapReached or LateNight => 4,
+        LowTime or CreditsOut => 5,
+        DebtPaid or LateNight => 4,
         CoinsEarned or StreakStar => 3,
-        SessionStarted or SessionEnded or Faded => 2,
+        SessionStarted or SessionEnded => 2,
         _ => 1,
     };
 

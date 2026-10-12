@@ -124,7 +124,7 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
             case Faded f:
                 audio.Play("cashbox");
                 cabinet.Tray.Set((int)(f.LeftMs / rules.TokenMs));
-                cabinet.Screen.Flash("NEW DAY", $"{Clock(f.FadedMs)} FADED OVERNIGHT\n{Clock(f.LeftMs)} LEFT", 4.0);
+                cabinet.Screen.FlashCount(f.FadedMs + f.LeftMs, f.LeftMs, $"NEW DAY\n{Clock(f.FadedMs)} FADED OVERNIGHT", 4.5);
                 break;
         }
     }
