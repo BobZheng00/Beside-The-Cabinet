@@ -78,7 +78,8 @@ cache at a tenth of that or less.
   next week is in every turn; what has just passed is too, so she can ask how it went; once past it becomes a moment
   and leaves the agenda. Reminders are agenda items that also notify: a bubble, her voice and a Windows notification
   at the time, and a word when the player comes back if they were away. Upkeep files dated things in the agenda
-  instead of as facts; she can also add one in the conversation (`[plan: …]`, like `[note: …]`).
+  instead of as facts; she can also add one in the conversation (`[plan: …]`). (She also kept facts as she replied, `[note: …]`, until
+  2026-10-11: she said she'd remember after everything she was told, and upkeep keeps what lasts.)
 
 ### 5. Memory that stops growing
 

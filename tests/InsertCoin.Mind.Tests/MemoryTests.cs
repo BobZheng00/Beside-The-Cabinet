@@ -99,22 +99,21 @@ public class MemoryTests
                      "Shino: A pottery class voucher, then!", found.Text);
     }
 
-    // ---- Notes taken during a reply --------------------------------------------------------------------------------
+    // ---- What she knows, in her replies -----------------------------------------------------------------------------
 
     [Fact]
-    public async Task A_note_in_a_reply_is_kept_at_once_and_comes_back_when_relevant()
+    public async Task A_fact_comes_back_when_relevant_and_a_note_in_a_reply_is_not_kept()
     {
+        // she kept "[note: ...]" facts as she replied and said each time that she would remember (2026-10-11: "I'll remember
+        // that" after everything the player told her); upkeep keeps what lasts, from the talk
         using var temp = new TempStore();
+        temp.Store.AddFact(MindStore.Shared, "The player has a job interview on Tuesday 6 October.", 7, Friday);
         var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
-        var acted = new List<string>();
 
-        var answer = await conversation.Answer(new FakeModel("[note: The player has a job interview on Tuesday 6 October.] Got it, I'll remember!"),
-                                               "I have a job interview next Tuesday", "", _ => { }, (name, _) => acted.Add(name));
-
-        Assert.Equal("Got it, I'll remember!", answer);
-        Assert.Equal(["note"], acted);
-        var fact = Assert.Single(temp.Store.Facts("shino"));
-        Assert.Equal((MindStore.Shared, "The player has a job interview on Tuesday 6 October.", 7), (fact.Scope, fact.Text, fact.Importance));
+        var first = new FakeModel("[note: The player likes tea.] Tea, nice.");
+        Assert.Equal("Tea, nice.", await conversation.Answer(first, "I like tea", "", _ => { }, (_, _) => { }));
+        Assert.Single(temp.Store.Facts("shino"));
+        Assert.DoesNotContain("[note:", first.Requests.Single()[0].Text);
 
         var next = new FakeModel("Good luck!");
         await conversation.Answer(next, "the interview is tomorrow, wish me luck", "", _ => { }, (_, _) => { });
@@ -126,11 +125,17 @@ public class MemoryTests
     public async Task Something_told_twice_is_kept_once()
     {
         using var temp = new TempStore();
-        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
-        await conversation.Answer(new FakeModel("[note: The player has an interview on Tuesday 6 October.] Noted!"), "interview tuesday", "", _ => { }, (_, _) => { });
-        await conversation.Answer(new FakeModel("[note: The player has an interview on Tuesday, 6 October!] Noted!"), "interview tuesday!", "", _ => { }, (_, _) => { });
+        var store = temp.Store;
+        store.AddFact(MindStore.Shared, "The player has an interview on Tuesday 6 October.", 7, Friday.AddDays(-1));
+        store.Add("shino", Speaker.User, "interview tuesday!", Friday);
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11)));
+        var model = new FakeModel();
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The player has an interview on Tuesday 6 October."}]}""");
+        model.Answers.Enqueue("""{"facts": [{"op": "add", "about": "player", "text": "The player has an interview on Tuesday, 6 October!", "importance": 7}]}""");
 
-        Assert.Single(temp.Store.Facts("shino"));
+        Assert.True(await conversation.Digest(model));
+
+        Assert.Single(store.Facts("shino"));
         Assert.True(Recall.Same("玩家下周二有面试。", "玩家下周二有面试！"));
         Assert.False(Recall.Same("The player likes Hades.", "The player likes Celeste."));
         // nearly the same words, but another name or number: another fact

@@ -20,7 +20,7 @@ public static class BuiltIn
                 return "Opened in the player's browser.";
             },
             "open_link",
-            "Opens a web page in the player's browser: a LeetCode problem, a playlist, something they asked for. The player is asked first."),
+            "Opens a web page in the player's browser: a LeetCode problem, a playlist, something they asked for."),
         "Open a web page",
         OutsideApp: true,
         arguments => Page(Text(arguments, "url")) is { } page
@@ -78,7 +78,7 @@ public static class BuiltIn
             "music",
             "Controls the player's music app (Spotify or another, through Windows' media controls; Spotify is started if it isn't open): starts one " +
             "of their saved playlists from its beginning, plays what was playing, pauses, skips. What is playing and the playlists they saved are in " +
-            "the cabinet block. The player is asked first."),
+            "the cabinet block."),
         "Control the music",
         OutsideApp: true,
         arguments => Text(arguments, "action")?.Trim().ToLowerInvariant() switch
@@ -105,8 +105,7 @@ public static class BuiltIn
             "Takes a screenshot, shown to you right after this reply: of the window the player was working in (their editor, a browser tab, " +
             "a PDF), or of their whole screen. Use it when they ask you to look at their screen or something on it, or for help with what " +
             "they're working on when you need to see it: their code, an error, an exercise, a diagram (the window titles name it; this shows " +
-            "it). In this reply say only a few words (that you'll have a look); you answer once you see it. The player is asked first, unless " +
-            "they allowed it."),
+            "it). In this reply say only a few words (that you'll have a look); you answer once you see it."),
         "Look at your screen",
         OutsideApp: true,
         arguments => Whole(Text(arguments, "part")) || working() is not { } title
@@ -213,8 +212,7 @@ public static class BuiltIn
                 return $"Opened {found.Name}.";
             },
             "open_app",
-            "Opens an app on the player's PC from their Start menu: an editor, a study app, a notes app. Not games: those are started from the cabinet. " +
-            "The player is asked first."),
+            "Opens an app on the player's PC from their Start menu: an editor, a study app, a notes app. Not games: those are started from the cabinet."),
         "Open an app",
         OutsideApp: true,
         arguments => Apps.Find(apps(), Text(arguments, "app") ?? "").Found is { } found ? Asked("Open this app?", found.Name, found.Name) : null)

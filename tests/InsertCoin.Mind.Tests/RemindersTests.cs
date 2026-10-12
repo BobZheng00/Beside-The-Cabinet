@@ -112,6 +112,26 @@ public class RemindersTests
     }
 
     [Fact]
+    public async Task A_reminder_she_could_not_say_is_not_said_late_in_her_next_reply()
+    {
+        // 2026-10-11: her words for a reminder failed on the provider's 503, the cabinet's request stayed in the talk, and
+        // minutes after its ticket she said "Time to stretch" with the weather
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var stretch = Agenda.Announcement([P("Stretch", Friday, TimeSpan.Zero)], Friday);
+        var water = Agenda.Announcement([P("Drink water", Friday, TimeSpan.Zero)], Friday);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            conversation.Announce(new FakeModel { Fails = new InvalidOperationException("HTTP 503") }, stretch, "", _ => { }, (_, _) => { }));
+        var empty = new FakeModel();                                         // nothing back, twice
+        Assert.Equal("", await conversation.Announce(empty, water, "", _ => { }, (_, _) => { }));
+        Assert.Equal(2, empty.Requests.Count);
+        Assert.Equal("", await conversation.Announce(new FakeModel("[quiet]"), water, "", _ => { }, (_, _) => { }));    // quiet is an answer
+
+        Assert.Equal([(Speaker.Cabinet, water)], temp.Store.After("shino", 0).Select(l => (l.Speaker, l.Text)));
+    }
+
+    [Fact]
     public void A_repeating_item_without_a_reminder_moves_on_once_over()
     {
         using var temp = new TempStore();

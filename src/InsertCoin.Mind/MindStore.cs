@@ -689,6 +689,13 @@ public sealed class MindStore : IDisposable
         command.ExecuteNonQuery();
     }
 
+    /// <summary>A line taken back: something the cabinet asked her to say that she never answered.</summary>
+    public void RemoveLine(long id)
+    {
+        using var command = Command("DELETE FROM lines WHERE id = $i", ("$i", id));
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>The character's lines after the given id, oldest first.</summary>
     public IReadOnlyList<Line> After(string character, long id)
     {

@@ -452,7 +452,7 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   speaking, once there has been time to read it, and the bubble fades only when she has finished. `ChatBox` is the slip
   you type on, `Paper` the shared look (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
-  `[wave]`, `[worry]`, `[note: …]`…), logs cabinet events into the conversation, folds it when it grows, runs
+  `[wave]`, `[worry]`, `[plan: …]`…), logs cabinet events into the conversation, folds it when it grows, runs
   upkeep every minute, and lets her use her tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`; `PermissionCard`
   is where she asks). `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
   `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](docs/specs/2026-10-02-companion-helper.md),

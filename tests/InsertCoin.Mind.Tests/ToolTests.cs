@@ -180,6 +180,8 @@ public class ToolTests
         tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Allowed });   // Always, as the player set music
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
         Assert.Contains("None of them needs asking: just use them.", model.Requests[^1][0].Text);
+        // nor do the tools' own words say so: music's "The player is asked first" had her ask "Shall I…?" when set to Always (2026-10-11)
+        Assert.All(model.Options[^1]!.Tools!, t => Assert.DoesNotContain("asked first", t.Description));
 
         tools.Choose(new Dictionary<string, Permission>());
         tools.Auto = true;                                                                          // Auto goes ahead too

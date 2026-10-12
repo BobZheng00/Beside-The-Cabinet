@@ -19,7 +19,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>Why a fact was retired when it stopped being true: it changed (followed by what it is now), or it ended. Recalled as what used to be.</summary>
     public const string Changed = "changed to:", Ended = "no longer true";
-    private const int KeepLines = 12, NoteImportance = 7, GiveUpAfter = 3, LoreBudget = 500;
+    private const int KeepLines = 12, GiveUpAfter = 3, LoreBudget = 500;
 
     /// <summary>A merged fact longer than this (about 30 words) joined different things into a paragraph, and isn't taken (M8).</summary>
     private const int MergedTokens = 45;
@@ -199,7 +199,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             reply.Append(piece);
             text(piece);
         }
-        // "[note: ...]": the player told her something to keep; it is kept now, not at the next upkeep.
         // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
         // "[saw: ...]": what a picture or file handed to her shows, kept in its place
         var seen = new List<string>();
@@ -207,8 +206,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             if (name == "saw" && payload?.Trim() is { Length: > 0 } saw)
                 seen.Add(saw);
-            if (name == "note" && payload is { Length: > 2 } && !store.Facts(character).Any(f => Recall.Same(f.Text, payload)))
-                store.AddFact(MindStore.Shared, payload, NoteImportance, now);
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
             // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
@@ -220,6 +217,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             direction(name, payload);
         }, Show);
         var heard = false;                                  // anything at all came back
+        var wrote = false;                                  // any words, stage directions too ([quiet] is an answer)
         var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
@@ -253,6 +251,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 }
                 else if (update.Text is { Length: > 0 } piece)
                 {
+                    wrote = true;
                     Show(stage.Feed(afterTool ? Spaced(reply, piece) : piece));
                     afterTool = false;
                 }
@@ -274,7 +273,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         await Stream(client, sent, ReplyOptions);
                     // nothing at all came back, as a busy provider sometimes answers (R1): asked once more, unless a tool was
                     // used, which asking again would repeat
-                    if (reply.Length == 0 && !acted && again)
+                    if (!wrote && !acted && again)
                     {
                         again = false;
                         continue;
@@ -307,12 +306,22 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             Keep(reply.ToString());                         // stopped part-way (cut off, or out of time): what she had written is hers
             throw;
         }
+        catch (Exception) when (fromCabinet && !wrote && !acted)
+        {
+            store.RemoveLine(line);                         // unanswered: see below
+            throw;
+        }
         finally
         {
             if (handed.Count > 0)
                 store.Rewrite(line, Kept(said, handed, seen, seeing));
         }
         var whole = reply.ToString();
+        // what the cabinet asked her to say and she never answered is taken back: left in, her next reply would say it,
+        // late (2026-10-11: a reminder's words failed on the provider's 503, and minutes after its ticket she said "Time
+        // to stretch" with the weather, then "the stretch reminder came and went" with the music)
+        if (fromCabinet && !wrote && !acted)
+            store.RemoveLine(line);
         return Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole);
     }
 
