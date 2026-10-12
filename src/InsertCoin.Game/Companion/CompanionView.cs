@@ -445,6 +445,9 @@ public partial class CompanionView : Node2D
     /// <summary>Dev: which feet hang free of the stool's ring ("left", "right", "both", "ring").</summary>
     public void DevLegs(string which) => _puppet.Hang(which is "left" or "both", which is "right" or "both");
 
+    /// <summary>Dev: a tune in their head now, as an idle moment has it.</summary>
+    public void DevHum() => _puppet.DevHum();
+
     /// <summary>Dev: follow a pretend pointer at this canvas point from now on.</summary>
     public void DevPointer(Vector2 canvasPoint) => _devPointer = canvasPoint;
 

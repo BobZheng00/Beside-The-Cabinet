@@ -48,7 +48,8 @@ about debt, dozes while the session is paused. In a conversation she looks away 
 in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her and she waves, and the slip to type to her opens. Settings → Characters leaves
 the stool empty, silences her bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too.
 It also sets how each character sits, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed
-(knees apart, hands on the thighs, fewer tilts, legs mostly still); they move into it as it is chosen, and "Show me"
+(knees a little apart, often a foot down off the ring, a hand on one thigh and the other by the hip, fewer tilts, the
+legs still, a nod to a tune instead of a sway); they move into it as it is chosen, and "Show me"
 plays a few seconds of it. Fumiriya starts relaxed, the others neat; the first run and "Meet …" ask it too.
 
 She can also talk. In Settings → Her mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
@@ -322,7 +323,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `bubbleclick`
 (a click on her bubble's words while it waits on her call), `bubblechip:yes` or `bubblechip:notnow` (that answer on her
 bubble clicked), `nocall` (another app's microphone doesn't count as a call), `saver`
-(toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `add:C:\path\model.glb`
+(toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `hum` (a tune in their
+head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to her), `chatbox` (open the slip), `settings`
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,

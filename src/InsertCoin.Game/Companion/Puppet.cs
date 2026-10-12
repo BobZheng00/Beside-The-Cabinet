@@ -21,8 +21,10 @@ public enum Moment
 /// <summary>
 /// How a character carries themselves on the stool, chosen per character by the player (Settings → Characters, the
 /// first run, "Meet …"), whoever they are: neat, knees together and hands folded in the lap, the head tilting as they
-/// listen and react, a leg swung now and then; or relaxed, knees apart and a hand on each thigh, the head tilting about a
-/// third as much (a nod more than a tilt), the legs mostly still. Their gestures are the same.
+/// listen and react, a leg swung now and then, a tune in their head swaying them; or relaxed, as people sit at ease on a
+/// stool: knees a little apart, one foot often down off the ring, a hand on one thigh and the other by the hip, the back a
+/// little rounded, the head tilting about a third as much (a nod more than a tilt), the legs still, a tune showing as a
+/// nod on its beat. Their gestures are the same.
 /// </summary>
 public enum Manner { Neat, Relaxed }
 
@@ -80,9 +82,12 @@ internal sealed class Puppet
         .Both("UpperLeg", -(90 - ThighSlope), -2, 0).Both("LowerLeg", 114, 0, 0).Both("Foot", 30, 0, 0)   // knee bend is refitted per character
         .Both("Shoulder", 0, 0, -2);
 
-    // Relaxed: the knees apart (degrees each thigh turns out), the head's tilts a third as much.
-    private const float KneesApart = 12, RelaxedTilt = 0.35f;
-    private static readonly Pose Spread = new Pose().Both("UpperLeg", -(90 - ThighSlope), KneesApart, 0);
+    // Relaxed: the knees a little apart (degrees each thigh turns out; at 12 they sprawled), the back a little rounded
+    // with the head kept level, the head's tilts a third as much.
+    private const float KneesApart = 6, RelaxedTilt = 0.35f;
+    private static readonly Pose Loose = new Pose()
+        .Set("Spine", 6, 0, 0).Set("Chest", 4, 0, 0).Set("Neck", -5, 0, 0).Set("Head", -6, 0, 0)
+        .Both("UpperLeg", -(90 - ThighSlope), KneesApart, 0);
 
     // Hands at rest in her lap, the left lying on the right.
     private static readonly Hand LeftRest = new(new(0.030f, 0.165f, 0.135f), new(-0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(0.7f, -0.3f, -0.6f));
@@ -183,7 +188,7 @@ internal sealed class Puppet
     private readonly Vector3 _seat;                       // where the hips bone goes, from the seat centre
     private readonly bool _dangling;                      // her feet do not reach the stool's ring
     private readonly float _kneeOnRing;                   // knee bend (degrees) that rests her toes on the ring
-    private readonly Hand _onThigh;                       // relaxed, the left hand at rest on its thigh (the right mirrored)
+    private readonly Hand _onThigh, _byHip;               // relaxed hands, both given for the left side (the right takes _byHip mirrored)
     private readonly Dictionary<string, float> _hang = [], _hangGoal = [];   // per leg: 0 = foot on the ring, 1 = hanging free
     private double _nextLegChange = 10;
     private readonly Dictionary<string, Quaternion> _goal = [], _frame = [];
@@ -233,8 +238,18 @@ internal sealed class Puppet
     /// </summary>
     public IReadOnlyList<(string Bone, string Side, float Follow)> Followers { get; init; } = [];
 
-    /// <summary>How they sit and carry themselves; changed, they move into it.</summary>
-    public Manner Manner { get; set; }
+    /// <summary>How they sit and carry themselves; changed, they move into it, feet too.</summary>
+    public Manner Manner
+    {
+        get => _manner;
+        set
+        {
+            if (value != _manner)
+                _nextLegChange = Math.Min(_nextLegChange, _time + 0.8);
+            _manner = value;
+        }
+    }
+    private Manner _manner;
 
     private float Tilt => Manner == Manner.Relaxed ? RelaxedTilt : 1;
 
@@ -283,12 +298,17 @@ internal sealed class Puppet
         // She is seated by her hip joints; where the hips bone sits relative to them differs from rig to rig.
         var fromJoints = rig.RestOffset("LeftUpperLeg", "Hips");
         _seat = new Vector3(0, HipJointHeight * _size + fromJoints.Y, HipJointBack * _size + fromJoints.Z);
-        // A relaxed hand lies on its thigh a third of the way to the knee, fingers along it: found from this character's
-        // hip joints and thigh, as hips and legs differ more than laps do.
+        // Relaxed hands, one unlike the other, each on its own thigh (turned in across the lap, a hand reads as covering
+        // it): the left past halfway to the knee, fingers along the thigh; the right nearer its hip, turned in a little.
+        // The elbows hang by the body. Found from this character's hip joints and thigh, as hips and legs differ more
+        // than laps do.
         var (apart, slope) = (Mathf.DegToRad(KneesApart), Mathf.DegToRad(ThighSlope));
         var along = new Vector3(Mathf.Sin(apart) * Mathf.Cos(slope), -Mathf.Sin(slope), Mathf.Cos(apart) * Mathf.Cos(slope));
         var hipJoint = new Vector3(Mathf.Abs(fromJoints.X), HipJointHeight * _size, HipJointBack * _size);
-        _onThigh = new Hand(hipJoint + along * (0.34f * thigh) + Vector3.Up * (0.11f * _size), along, new(0, -1, 0.1f), new(0.4f, -0.75f, -0.55f));
+        var onTop = Vector3.Up * (0.11f * _size);
+        _onThigh = new Hand(hipJoint + along * (0.55f * thigh) + onTop, along, new(0, -1, 0.1f), new(0.25f, -0.85f, -0.45f));
+        _byHip = new Hand(hipJoint + along * (0.3f * thigh) + onTop, (along + new Vector3(-0.3f, 0, 0)).Normalized(),
+            new(0, -1, 0.1f), new(0.3f, -0.85f, -0.4f));
 
         foreach (var name in Overlays.Keys)
             _on[name] = _shown[name] = _shownSpeed[name] = 0;
@@ -508,7 +528,7 @@ internal sealed class Puppet
         foreach (var (bone, degrees) in _sit)
             _goal[bone] = Rig.Euler(degrees);
         if (Manner == Manner.Relaxed)
-            foreach (var (bone, degrees) in Spread)
+            foreach (var (bone, degrees) in Loose)
                 _goal[bone] = Rig.Euler(degrees);
         foreach (var side in Sides)
         {
@@ -716,15 +736,25 @@ internal sealed class Puppet
         return lift;
     }
 
-    /// <summary>Balance is never perfect: the torso leans and turns a little all the time; humming sways it more.</summary>
+    /// <summary>
+    /// Balance is never perfect: the torso leans and turns a little all the time; a tune in their head sways it more.
+    /// At ease, the body rolls less from side to side and leans in and out a little more, and a tune shows as a nod.
+    /// </summary>
     private void Sway(float t)
     {
-        var roll = 1.4f * Wobble(t, 9.1f, 4.3f, 1);
-        Add("Spine", 0.5f * Wobble(t, 7.7f, 12.9f, 3), 1.1f * Wobble(t, 13.1f, 8.3f, 5), roll);
+        var relaxed = Manner == Manner.Relaxed;
+        var roll = (relaxed ? 0.6f : 1.4f) * Wobble(t, 9.1f, 4.3f, 1);
+        Add("Spine", (relaxed ? 1.2f : 0.5f) * Wobble(t, 7.7f, 12.9f, 3), 1.1f * Wobble(t, 13.1f, 8.3f, 5), roll);
         Add("Chest", 0, 0, -0.6f * roll);
 
         var hum = (float)(_time - _humAt);
-        if (hum is >= 0 and < 3.4f)
+        if (hum is >= 0 and < 3.4f && relaxed)
+        {
+            var beat = Envelope(hum, 0.5f, 2.7f, 3.4f) * (0.5f - 0.5f * Mathf.Cos(hum * Mathf.Tau * 1.6f));
+            Add("Head", 3 * beat, 0, 0);
+            Add("Neck", beat, 0, 0);
+        }
+        else if (hum is >= 0 and < 3.4f)
         {
             var swing = Envelope(hum, 0.5f, 2.7f, 3.4f) * Mathf.Sin(hum * Mathf.Tau * 0.85f);
             Add("Spine", 0, 0, 3.2f * swing);
@@ -750,8 +780,13 @@ internal sealed class Puppet
             _nextLegChange = _time + _random.RandfRange(14, 38);
             var now = (_hangGoal["Left"], _hangGoal["Right"]);
             var next = now;
+            // both on the ring, the left down, the right down, both down: at ease, one foot down most of the time
+            var (both, left, right) = Manner == Manner.Relaxed ? (0.15f, 0.5f, 0.85f) : (0.4f, 0.58f, 0.76f);
             while (next == now)
-                next = _random.Randf() switch { < 0.4f => (0f, 0f), < 0.58f => (1f, 0f), < 0.76f => (0f, 1f), _ => (1f, 1f) };
+            {
+                var r = _random.Randf();
+                next = r < both ? (0f, 0f) : r < left ? (1f, 0f) : r < right ? (0f, 1f) : (1f, 1f);
+            }
             (_hangGoal["Left"], _hangGoal["Right"]) = next;
         }
         foreach (var side in Sides)
@@ -783,11 +818,15 @@ internal sealed class Puppet
         _nextLegChange = _time + 30;
     }
 
+    /// <summary>Dev: a tune in their head now.</summary>
+    public void DevHum() => _humAt = _time;
+
     /// <summary>A hanging leg swings gently; a heel on the ring bobs; now and then a leg (or both) swings out and back.</summary>
     private void Legs(float t)
     {
-        Add("LeftLowerLeg", 7 * Mathf.Sin(t * 1.5f) * _awake * _hang["Left"], 0, 0);
-        Add("RightLowerLeg", 7 * Mathf.Sin(t * 1.5f + 2.4f) * _awake * _hang["Right"], 0, 0);
+        var drift = Manner == Manner.Relaxed ? 3 : 7;      // at ease, a hanging leg all but still
+        Add("LeftLowerLeg", drift * Mathf.Sin(t * 1.5f) * _awake * _hang["Left"], 0, 0);
+        Add("RightLowerLeg", drift * Mathf.Sin(t * 1.5f + 2.4f) * _awake * _hang["Right"], 0, 0);
         Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake * (1 - _hang["Left"]), 0, 0);
         Add("RightFoot", 2.5f * Mathf.Sin(t * 1.3f + 1) * _awake * (1 - _hang["Right"]), 0, 0);
 
@@ -934,8 +973,8 @@ internal sealed class Puppet
             return;
         _nextFidget = _time + _random.RandfRange(5.5f, 12);
         var pick = _random.Randf();
-        if (Manner == Manner.Relaxed && pick < 0.36f && _random.Randf() < 0.75f)
-            pick = _random.RandfRange(0.36f, 1);            // relaxed: the legs mostly still
+        if (Manner == Manner.Relaxed && pick < 0.36f)
+            pick = _random.RandfRange(0.36f, 1);            // relaxed: no legs swung
         if (pick < 0.22f)
         {
             _kickAt = _time;
@@ -971,8 +1010,8 @@ internal sealed class Puppet
     {
         var left = side == "Left";
         // The hand travels through space from one placement to the next, so the elbow stays bent on the way.
-        var place = Manner == Manner.Relaxed ? (left ? _onThigh : _onThigh.Mirrored) : (left ? LeftRest : RightRest).Sized(_size);
-        var grip = Grip.Even(RestCurl);
+        var place = Manner == Manner.Relaxed ? (left ? _onThigh : _byHip.Mirrored) : (left ? LeftRest : RightRest).Sized(_size);
+        var grip = Grip.Even(Manner == Manner.Relaxed ? 24 : RestCurl);   // at ease, fingers curl over the thigh
         foreach (var (name, overlay) in Overlays)
         {
             if (_shown[name] <= 0.001f || (left ? overlay.Left : overlay.Right) is not { } target

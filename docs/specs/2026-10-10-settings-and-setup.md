@@ -119,7 +119,14 @@ short flow for what she can't do without, the checklist for the rest.
   never guessed from the character (`Manner`, `AppSettings.Manners`): neat, today's (knees together, hands folded in
   the lap, the head tilting as she listens and reacts, a leg swung now and then), or relaxed (knees apart, a hand on
   each thigh, found from that character's own hips and thighs, head tilts a third as much, the legs mostly still).
-  The gestures are shared. Fumiriya starts relaxed, everyone else neat. The choice is on the first run's character
+  The gestures are shared. **Relaxed, reworked the same day** after the user's first run ("the knees are too split
+  apart, especially on the girl model", the hands and arms strange, the side-to-side sway "very strange on a male
+  model"), from how people sit at ease on a stool (men sit more open than women on average, but not sprawled; one foot
+  on the rung and one down; asymmetry; a back a little rounded): knees 6° apart each instead of 12°, one foot down
+  most of the time, the left hand past halfway to the knee and the right nearer its hip, each on its own thigh with the
+  fingers curled over it and the elbows by the body (turned in across the lap, a hand read as covering it), the back a
+  little rounded, less side-to-side balance, no legs swung, and a tune shown as a nod on its beat, not a sway. Neat is
+  unchanged. Judged on clips of Fumiriya and Shino (`clips-body\relaxed-*2`). Fumiriya starts relaxed, everyone else neat. The choice is on the first run's character
   page, on "Meet …" and on Characters; whoever is on the stool moves into it as it is chosen, and "Show me" plays a
   few seconds of it (leaning in to listen, a nod, a tilt, re-settling, a leg swung if neat). The Welcome and "Meet …"
   open beside the cabinet, so the stool stays in view (`Paper.Open`, `besideCabinet`). Judged on clips of Shino,

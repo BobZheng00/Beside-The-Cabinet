@@ -2144,6 +2144,7 @@ public partial class Stool : Node2D
             case "click": Clicked(); break;                 // as if she had been clicked
             case "bubblechip": Her?.DevAnswer(rest != "notnow"); break;     // bubblechip:yes or bubblechip:notnow: as if that answer on her bubble were clicked
             case "legs": Her?.DevLegs(rest); break;         // legs:left|right|both|ring sets which feet hang off the stool's ring
+            case "hum": Her?.DevHum(); break;               // hum: a tune in their head now (a sway, or a nod when relaxed)
             case "closeup": Her?.DevCloseUp(rest != "off"); break;     // closeup:hands narrows her camera onto her hands, closeup:off puts it back
             case "moment": Her?.Play(Enum.Parse<Moment>(rest, ignoreCase: true)); break;
             default: return _listening.Dev(name, rest);
