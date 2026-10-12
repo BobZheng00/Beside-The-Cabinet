@@ -1443,6 +1443,7 @@ public partial class Stool : Node2D
         if (added.Count == 0 && cards.Count == 0)
         {
             AddedVoice(voice!);
+            Meet(open: false);
             return;
         }
         if (added.Count > 0)
@@ -1455,6 +1456,7 @@ public partial class Stool : Node2D
             GetTree().CreateTimer(0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
         if (voice is not null)
             AddedVoice(voice);
+        Meet(open: added.Count > 0);                        // what the new one has of their own, and lacks
     }
 
     /// <summary>A dropped file that is for her to look at, not a character, a character card or a voice.</summary>
@@ -1661,7 +1663,7 @@ public partial class Stool : Node2D
     /// </summary>
     public IEnumerable<SettingsPage> SettingsPages() =>
     [
-        new("mind", SettingsWindow.Her, "Her mind", MindPage),
+        new("mind", SettingsWindow.Her, "Her mind", () => MindPage()),
         new("voice", SettingsWindow.Her, "Her voice", VoicePage),
         new("listening", SettingsWindow.Her, "Talking aloud", ListeningPage),
         new("characters", SettingsWindow.Her, "Characters", CharactersPage),
@@ -1675,6 +1677,63 @@ public partial class Stool : Node2D
     internal string HerName() => OnStool()?.Name ?? "Your companion";
 
     private int _naming;                                    // the name typed last, so she takes it up once typing stops
+    private MeetSheet? _meet;
+
+    /// <summary>Who sits on the stool now, by id.</summary>
+    internal string? Seated => OnStool()?.Id;
+
+    /// <summary>Who can sit on the stool, with who they are in their persona's first sentence (the first run's choice).</summary>
+    internal (string Id, string Name, string About)[] Meetable() =>
+        [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name, FirstSentence(c.Persona(_characters, null).Description)))];
+
+    private static string FirstSentence(string text) => text.IndexOf(". ", StringComparison.Ordinal) is var end and > 0 and < 240 ? text[..(end + 1)] : "";
+
+    /// <summary>The first run is over: she says hello, in her own words once her mind is connected, else that it isn't yet.</summary>
+    internal void Greet()
+    {
+        var now = DateTimeOffset.Now;
+        Hand(_chat.Ready
+            ? new Telling("HELLO", "The player has just set up the cabinet and chosen you to keep them company: you are meeting for the first " +
+                                   "time. Say hello in a short sentence.", _settings.Now.CallMe is { } name ? $"Hi, {name}!" : "Hi!",
+                          Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3), Greet: true)
+            : new Telling("HELLO", "", "Hi! Connect my mind in Getting started, and we can talk.", Matters.Must, Anywhere: false, now,
+                          TimeSpan.FromMinutes(3), Greet: true));
+    }
+
+    /// <summary>
+    /// "Meet …" for whoever is on the stool (see <see cref="MeetSheet"/>): opened when a character is added
+    /// (<paramref name="open"/>), else filled again with what they have now, if it shows.
+    /// </summary>
+    private void Meet(bool open)
+    {
+        if (!open && !IsInstanceValid(_meet) || OnStool() is not { } seated
+            || CompanionView.Available(_characters).FirstOrDefault(c => c.Id == seated.Id) is not { } character)
+            return;
+        var opening = !IsInstanceValid(_meet);
+        if (opening)
+        {
+            _meet = new MeetSheet();
+            AddChild(_meet);
+            _meet.Build();
+            _meet.AddCard += PickCharacter;
+            _meet.AddVoice += PickVoice;
+            _meet.SetUpVoices += () => OpenSettings?.Invoke("voice");
+            _meet.Named += CallMe;
+        }
+        var persona = character.CardIn(_characters) is not null ? "their character card"
+            : character.Persona(_characters, null).Description == InsertCoin.Mind.Persona.Plain(character.Name).Description ? null
+            : "their persona file";
+        _meet!.Fill(seated.Name, persona, _voice.Profile is not null, VoiceServer.Check(_settings.Now.VoiceEngine) is null, _settings.Now.CallMe);
+        if (opening)
+            _meet.Open();
+    }
+
+    /// <summary>Dev: presses or types on "Meet …", as <see cref="SettingsWindow.DevDo(string, string?)"/> does.</summary>
+    internal void DevMeet(string label, string? value)
+    {
+        if (IsInstanceValid(_meet))
+            _meet!.DevDo(label, value);
+    }
 
     /// <summary>
     /// The name the player gave to be called by (Getting started, Characters): saved at once, and taken up by whoever is
@@ -1715,11 +1774,11 @@ public partial class Stool : Node2D
                     : $"Ready: hold {TalkKey.Keys.FirstOrDefault(k => k.Name == _settings.Now.TalkKey).Label ?? "the talk key"} in any app and speak.");
     }
 
-    /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word.</summary>
-    private Control MindPage()
+    /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word; <paramref name="brief"/>, the provider alone.</summary>
+    internal Control MindPage(bool brief = false)
     {
         var page = new MindSettings();
-        page.Build(_chat, ChatProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow);
+        page.Build(_chat, ChatProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow, brief);
         page.Saved += provider =>
         {
             _settings.Save(_settings.Now with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
@@ -1938,6 +1997,10 @@ public partial class Stool : Node2D
                 break;
             case "character": Seat(rest); break;            // character:id swaps who sits on the stool
             case "add": Add([rest]); break;                 // add:path as if it had been dropped on the window
+            case "meetdo":                                  // meetdo:label[:value] presses or types on "Meet …"
+                var meet = text.Split(':', 2);
+                DevMeet(meet[0], meet.Length > 1 ? meet[1] : null);
+                break;
             case "pick": PickCharacter(); break;            // the "Add a character…" file dialog
             case "chat":                                    // chat:text sends a line to her as if typed
                 OpenChat(focus: false);

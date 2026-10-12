@@ -53,6 +53,7 @@ public partial class Main : Node2D
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
     private Calendars _calendars = null!;
     private SettingsWindow? _settingsWindow;
+    private Welcome? _welcome;
     private Texting _texting = null!;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
@@ -241,15 +242,12 @@ public partial class Main : Node2D
         _tray.Quit += () => { Save(); GetTree().Quit(); };
 
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
-        _onboarding.Completed += (initials, username) =>
+        _onboarding.Completed += username =>
         {
-            var first = !_settings.SetUp;
-            SaveSettings(_settings with { Initials = initials, Username = username, SetUp = true });
-            if (first)
-                GetTree().CreateTimer(3.5).Timeout += () => OpenSettings("start");      // once the cabinet has said hello
+            SaveSettings(_settings with { Username = username });
             if (IsInstanceValid(_settingsWindow))
                 _settingsWindow!.RefreshPage("balance");     // the LeetCode name shown there
-            _cabinet.Screen.Flash($"HI {initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
+            _cabinet.Screen.Flash($"HI {_settings.Initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
             _audio.Play("hello");
             _backoffSeconds = 60;
@@ -257,7 +255,7 @@ public partial class Main : Node2D
         };
         AddTimer(0.5, _onboarding.Blink);
         if (!_settings.SetUp && string.IsNullOrWhiteSpace(_settings.Username))
-            _onboarding.Start();
+            GetTree().CreateTimer(1.0).Timeout += OpenWelcome;          // the cabinet first, then the welcome beside it
 
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
@@ -554,6 +552,13 @@ public partial class Main : Node2D
             OpenSettings(action.Length > "settings:".Length ? action["settings:".Length..] : null);     // settings:page opens it at that page
             return;
         }
+        if (action.StartsWith("welcomedo:"))                // welcomedo:label[:value]: as settingsdo, on the welcome
+        {
+            var parts = action["welcomedo:".Length..].Replace('_', ' ').Split(':', 2);
+            if (IsInstanceValid(_welcome))
+                _welcome!.DevDo(parts[0], parts.Length > 1 ? parts[1] : null);
+            return;
+        }
         if (action.StartsWith("settingsdo:"))
         {
             // settingsdo:label presses the button or flips the tick with that text on the page showing; settingsdo:label:value
@@ -656,7 +661,8 @@ public partial class Main : Node2D
         switch (action)
         {
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
-            case "player": _onboarding.Start(keepInitials: _settings.Initials); break;
+            case "player": _onboarding.Start(); break;
+            case "welcome": OpenWelcome(); break;                // the first run's welcome, again
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
@@ -762,7 +768,31 @@ public partial class Main : Node2D
         new("cabinet", SettingsWindow.Cabinet, "Cabinet", CabinetPage),
     ];
 
-    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar.</summary>
+    /// <summary>
+    /// The first run (see <see cref="Welcome"/>): the player's name, who keeps them company and her mind; then the
+    /// cabinet is theirs, their initials taken from the name, and she says hello. The rest waits in Getting started.
+    /// </summary>
+    private void OpenWelcome()
+    {
+        if (IsInstanceValid(_welcome))
+            return;
+        _welcome = new Welcome();
+        AddChild(_welcome);
+        _welcome.Build(_settingsFile, _stool.Meetable(), _stool.Seated ?? "", _stool.Seat, _stool.CallMe, () => _stool.MindPage(brief: true),
+                       () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null);
+        _welcome.Done += name =>
+        {
+            var initials = new string([.. (name ?? "").ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).Take(3)]);
+            SaveSettings(_settings with { SetUp = true, Initials = initials.Length > 0 ? initials : _settings.Initials });
+            _cabinet.Screen.Flash($"HI {_settings.Initials}", "LET'S PLAY", 3.0);
+            _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
+            _audio.Play("hello");
+            _stool.Greet();
+        };
+        _welcome.Open();
+    }
+
+    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar, and LeetCode.</summary>
     private List<StartStep> StartSteps()
     {
         var where = _settings.ReminderElsewhere;
@@ -780,6 +810,10 @@ public partial class Main : Node2D
                 "Your calendar's next two weeks join her agenda, so she knows what is coming up. Needs its secret iCal address (Google or " +
                 "Outlook). About 2 minutes.",
                 Needed: false, Done: linked > 0, linked > 0 ? $"{linked} linked." : "Not set up."),
+            new("balance", "LeetCode",
+                "Problems you solve on LeetCode earn play: 15 minutes for an Easy one, 30 for a Medium, an hour for a Hard. Needs your " +
+                "LeetCode name (Change… beside it on Balance). A minute.",
+                Needed: false, Done: _settings.Username is { Length: > 0 }, _settings.Username is { Length: > 0 } user ? $"Playing as {user}." : "Not set up."),
         ];
     }
 
@@ -904,10 +938,10 @@ public partial class Main : Node2D
         };
         page.ChangePlayer += () =>
         {
-            // the cabinet's screen asks for the LeetCode name again; the initials stay
+            // the cabinet's screen asks for the LeetCode name
             _window.Rise(4, _settings.AlwaysOnTop);
             DisplayServer.WindowMoveToForeground();
-            _onboarding.Start(keepInitials: _settings.Initials);
+            _onboarding.Start();
         };
         return page;
     }

@@ -121,9 +121,14 @@ public partial class SettingsWindow : Window
     /// </summary>
     public void DevDo(string label, string? value)
     {
-        if (_showing is null || PageOf(_showing) is not { } page)
-            return;
-        var all = Within(page).Where(c => c.IsVisibleInTree()).ToList();
+        if (_showing is not null && PageOf(_showing) is { } page)
+            DevDo(page, label, value, _showing);
+    }
+
+    /// <summary>Dev: the same within <paramref name="root"/> (another window of the cabinet's: Welcome, Meet), named <paramref name="where"/> in the log.</summary>
+    public static void DevDo(Node root, string label, string? value, string where)
+    {
+        var all = Within(root).Where(c => c.IsVisibleInTree()).ToList();
         if (value is null)
         {
             switch (all.OfType<Button>().FirstOrDefault(b => b is not OptionButton && b.Text.StartsWith(label, StringComparison.OrdinalIgnoreCase)))
@@ -137,7 +142,7 @@ public partial class SettingsWindow : Window
                     GD.Print($"Settings: \"{button.Text}\" pressed");
                     break;
                 default:
-                    GD.PrintErr($"Settings: nothing called \"{label}\" on {_showing}");
+                    GD.PrintErr($"Settings: nothing called \"{label}\" on {where}");
                     break;
             }
             return;
@@ -161,7 +166,7 @@ public partial class SettingsWindow : Window
                 GD.Print($"Settings: {label} is {number.Value}");
                 break;
             default:
-                GD.PrintErr($"Settings: no choice or field after \"{label}\" on {_showing}");
+                GD.PrintErr($"Settings: no choice or field after \"{label}\" on {where}");
                 break;
         }
     }

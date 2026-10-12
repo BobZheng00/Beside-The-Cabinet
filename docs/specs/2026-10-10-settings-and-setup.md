@@ -94,6 +94,29 @@ something not set up when it would help, once.
   download on Her voice, Telegram's steps on Your phone, where Google and Outlook keep a calendar's address on Calendars.
 - **Not built:** her mentioning, once, something not set up when it would help.
 
+## The first run
+
+*Decided with the user, 2026-10-12, built the same day* ("should we have a onboarding flow for … user first open the
+app to set up their name, llm key, other required and common settings, and our default character? and when ever the
+user add a new character, they should go through the setup again?"). It revisits "a first-run wizard" (below): a
+short flow for what she can't do without, the checklist for the rest.
+
+- **Welcome** (`App/Welcome.cs`), a moment after the cabinet appears: three pages. Your name (`CallMe`; the initials
+  come from it, its first three letters or digits, so the cabinet no longer asks); who keeps you company, the built-in
+  characters with their persona's first sentence, seated on the stool as picked; her mind, the Her mind page without
+  how she remembers (`MindSettings`, `brief`), made as the page comes up so it names whoever was picked. Finish once a
+  provider is saved, Skip for now before; closing it keeps what was chosen. Then the screen says HI and she says
+  hello in her own words (`Stool.Greet`), or, without a mind, that Getting started connects it.
+- **LeetCode left the first run** for Getting started's optional steps (its Set up… opens Balance, whose Change…
+  asks on the cabinet's screen, `Onboarding`, now the LeetCode name alone). The app is no longer LeetCode first.
+- **A new character** gets "Meet …" (`App/MeetSheet.cs`) when added, not the whole setup again: the provider, the
+  name and what the player has told any of them are shared. It says who they are (their card, a persona file, or none:
+  a plain friendly companion, with Add a character card…), their voice (Add a voice…, and Set up voices… while
+  GPT-SoVITS isn't), and the name they call the player (one for every character, the user's choice by default; a card
+  may say otherwise). It fills in again as a card or a voice comes in.
+- **`firstrun.cmd`**: a fresh profile every time, for trying the first run (the user, 2026-10-12); `docs/smoke-test.md`,
+  step 7.
+
 ## The tray
 
 About ten entries: Show cabinet, Settings…, Getting started… (while unfinished), Memory book…, Chat history…, Write a
@@ -126,4 +149,6 @@ the button or flips the tick with that text on the page showing; `settingsdo:<la
 number, from 0) or the field next to that label. Underscores for spaces. `settingsscroll:600` scrolls the page
 showing; `settingswidths` logs any page made so far that is wider than its room (it would run off the window's
 right edge, as the old voice window's row of buttons did). "Start with Windows" is Windows' own setting, the same in
-a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes).
+a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes). `welcome` opens the
+first run's Welcome again; `welcomedo:<label>[:<value>]` and `meetdo:<label>[:<value>]` are `settingsdo` on the
+Welcome and on "Meet …".

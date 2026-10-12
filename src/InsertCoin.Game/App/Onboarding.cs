@@ -6,32 +6,29 @@ using InsertCoin.Game.Cabinet;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// First-run setup on the cabinet screen, arcade style: ENTER YOUR INITIALS, then the LeetCode player —
-/// typed as a username or pasted as a profile link — checked against the task source before it is accepted. The
-/// LeetCode name is optional: Enter with none goes on without one (focus and the rest earn play too).
+/// The LeetCode player on the cabinet screen, arcade style (Settings → Balance → Change…): typed as a username or
+/// pasted as a profile link, checked against the task source before it is accepted. Enter with none goes on without
+/// one (focus and the rest earn play too); Esc leaves it as it was. The first run asks for the rest (see <see cref="Welcome"/>).
 /// </summary>
 public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank audio)
 {
-    private enum Step { Initials, Player, Checking }
+    private enum Step { Player, Checking }
 
-    /// <summary>Raised with (initials, username) once the player has been verified; the username is null when they went on without one.</summary>
-    public event Action<string, string?>? Completed;
+    /// <summary>Raised with the username once verified, or null when they went on without one.</summary>
+    public event Action<string?>? Completed;
     public event Action? Cancelled;
 
     private Step _step;
-    private string _initials = "", _player = "", _note = "";
-    private bool _cursor = true, _canCancel;
+    private string _player = "", _note = "";
+    private bool _cursor = true;
 
     public bool Active { get; private set; }
 
-    /// <summary>Starts setup. With <paramref name="keepInitials"/> only the player is asked (changing player later).</summary>
-    public void Start(string? keepInitials = null)
+    public void Start()
     {
         Active = true;
-        _canCancel = keepInitials is not null;
-        _initials = keepInitials ?? "";
         _player = _note = "";
-        _step = keepInitials is null ? Step.Initials : Step.Player;
+        _step = Step.Player;
         Draw();
     }
 
@@ -49,7 +46,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
             return;
         _note = "";
         audio.Play("key");
-        if (key.Keycode == Godot.Key.Escape && _canCancel)
+        if (key.Keycode == Godot.Key.Escape)
         {
             Finish();
             Cancelled?.Invoke();
@@ -66,40 +63,18 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
         Draw();
     }
 
-    private void Type(string text)
-    {
-        text = new string([.. text.Where(c => !char.IsControl(c))]);
-        if (_step == Step.Initials)
-            Edit(current => Limit(current + new string([.. text.ToUpperInvariant().Where(char.IsAsciiLetterOrDigit)]), 3));
-        else
-            Edit(current => Limit(current + text, 120));
-    }
+    private void Type(string text) => Edit(current => Limit(current + new string([.. text.Where(c => !char.IsControl(c))]), 120));
 
     private static string Limit(string text, int max) => text.Length <= max ? text : text[..max];
 
-    private void Edit(Func<string, string> change)
-    {
-        if (_step == Step.Initials)
-            _initials = change(_initials);
-        else
-            _player = change(_player);
-    }
+    private void Edit(Func<string, string> change) => _player = change(_player);
 
     private async void Confirm()
     {
-        if (_step == Step.Initials)
-        {
-            if (_initials.Length == 0)
-                _note = "AT LEAST ONE LETTER";
-            else
-                _step = Step.Player;
-            return;
-        }
-
         if (_player.Trim().Length == 0)
         {
             Finish();
-            Completed?.Invoke(_initials, null);
+            Completed?.Invoke(null);
             return;
         }
         if (!LeetCodeProfile.TryParse(_player, out var username, out var error))
@@ -115,7 +90,7 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
             if (await tasks.PlayerExistsAsync(username!, CancellationToken.None))
             {
                 Finish();
-                Completed?.Invoke(_initials, username!);
+                Completed?.Invoke(username!);
                 return;
             }
             _note = "PLAYER NOT FOUND";
@@ -142,12 +117,9 @@ public sealed class Onboarding(ScreenView screen, ITaskSource tasks, AudioBank a
         var cursor = _cursor ? "_" : " ";
         switch (_step)
         {
-            case Step.Initials:
-                screen.Prompt(_initials + (_initials.Length < 3 ? cursor : ""), "ENTER YOUR INITIALS", Note("TYPE, THEN ENTER"));
-                break;
             case Step.Player:
                 var shown = _player.Length > 22 ? "<" + _player[^21..] : _player;
-                screen.Prompt(shown + cursor, "LEETCODE NAME\nOR PROFILE LINK", Note(_canCancel ? "CTRL+V PASTES - ESC CANCELS" : "OPTIONAL - ENTER TO SKIP"));
+                screen.Prompt(shown + cursor, "LEETCODE NAME\nOR PROFILE LINK", Note("CTRL+V PASTES - ESC CANCELS"));
                 break;
             case Step.Checking:
                 screen.Prompt("...", "ASKING LEETCODE", "PLEASE WAIT");

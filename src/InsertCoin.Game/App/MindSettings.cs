@@ -35,15 +35,19 @@ public partial class MindSettings : VBoxContainer
     private OptionButton _preset = null!;
     private LineEdit _url = null!, _key = null!, _model = null!;
     private Button _site = null!;
+    private Label _siteRow = null!;                         // hidden with the button: a grid closes up over what is hidden
+    private string _name = "";
     private Label _now = null!, _result = null!;
     private Protocol _protocol;
     private Provider? _saved;
     private bool _unsaved;                                  // the fields changed since she last took them up
 
-    public void Build(Chat chat, Provider? current, string name, string? search, int? window)
+    /// <param name="brief">Only the provider (the first run): how she remembers can wait.</param>
+    public void Build(Chat chat, Provider? current, string name, string? search, int? window, bool brief = false)
     {
         _chat = chat;
         _saved = current;
+        _name = name;
         Form.Page(this, "Her mind");
         Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                         "Your key stays on this PC, encrypted for your Windows account.");
@@ -59,7 +63,7 @@ public partial class MindSettings : VBoxContainer
         _key = Form.Field(grid, "API key", null, "", secret: true, typed: _ => Unsaved());
         _site = new Button { ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
         _site.Pressed += () => OS.ShellOpen(Provider.Presets[_preset.Selected].Site);
-        Form.Row(grid, "", _site);
+        _siteRow = Form.Row(grid, "", _site);
         _model = Form.Field(grid, "Model", null, "", typed: _ => Unsaved());
 
         var buttons = Form.Buttons(this);
@@ -68,18 +72,8 @@ public partial class MindSettings : VBoxContainer
         _result = Form.Result(buttons);
 
         // how she finds what to remember: a local model (by meaning, any language it knows) or shared words only
-        AddChild(new HSeparator());
-        var memory = Form.Grid(this);
-        var searches = Chat.Searchable().Select(m => (m.Name, m.Label)).Append((Name: Chat.WordsOnly, Label: "Shared words only (no model, least memory)")).ToList();
-        Form.Choice(memory, "Memory search", searches.Select(s => s.Label), Math.Max(0, searches.FindIndex(s => s.Name == search)),
-                    index => SearchChosen?.Invoke(searches[index].Name), wide: true);
-        Form.Choice(memory, "Word for word", Windows.Select(w => w.Label), Math.Max(0, Array.FindIndex(Windows, w => w.Tokens == window)),
-                    index => WindowChosen?.Invoke(Windows[index].Tokens), wide: true);
-        var cached = chat.Cached is { } c ? $" Her last {c.Replies} {(c.Replies == 1 ? "reply" : "replies")}: {c.Share:P0} of what she read came from the provider's cache." : "";
-        Form.Hint(this, "How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
-                        "The multilingual model understands the most languages; the small one uses less memory. " +
-                        "Word for word: the newest part of your conversation, which she reads in full every time; older talk is summarised " +
-                        "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached);
+        if (!brief)
+            Remembering(chat, search, window);
 
         _preset.ItemSelected += index =>
         {
@@ -97,13 +91,30 @@ public partial class MindSettings : VBoxContainer
         }
     }
 
+    /// <summary>How she finds what to remember, and how much of the conversation she keeps word for word.</summary>
+    private void Remembering(Chat chat, string? search, int? window)
+    {
+        AddChild(new HSeparator());
+        var memory = Form.Grid(this);
+        var searches = Chat.Searchable().Select(m => (m.Name, m.Label)).Append((Name: Chat.WordsOnly, Label: "Shared words only (no model, least memory)")).ToList();
+        Form.Choice(memory, "Memory search", searches.Select(s => s.Label), Math.Max(0, searches.FindIndex(s => s.Name == search)),
+                    index => SearchChosen?.Invoke(searches[index].Name), wide: true);
+        Form.Choice(memory, "Word for word", Windows.Select(w => w.Label), Math.Max(0, Array.FindIndex(Windows, w => w.Tokens == window)),
+                    index => WindowChosen?.Invoke(Windows[index].Tokens), wide: true);
+        var cached = chat.Cached is { } c ? $" Her last {c.Replies} {(c.Replies == 1 ? "reply" : "replies")}: {c.Share:P0} of what she read came from the provider's cache." : "";
+        Form.Hint(this, "How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
+                        "The multilingual model understands the most languages; the small one uses less memory. " +
+                        "Word for word: the newest part of your conversation, which she reads in full every time; older talk is summarised " +
+                        "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached);
+    }
+
     /// <summary>The line at the top: which provider she answers through now, or that she can't talk yet.</summary>
     private void ShowNow()
     {
         if (_saved is { } provider)
-            Form.Say(_now, $"She answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.", Paper.Good);
+            Form.Say(_now, $"{_name} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.", Paper.Good);
         else
-            Form.Say(_now, "Not connected: she can't talk with you until this is filled in and saved.", Paper.Bad);
+            Form.Say(_now, $"Not connected: {_name} can't talk with you until this is filled in and saved.", Paper.Bad);
     }
 
     private void Unsaved()
@@ -124,7 +135,7 @@ public partial class MindSettings : VBoxContainer
         _key.PlaceholderText = _chat.Keys.Has ? "saved (leave empty to keep it)" : preset.NeedsKey ? "paste your key" : "not needed";
         var named = preset.Name.Split(" (")[0];
         _site.Text = preset.NeedsKey ? $"Get a key from {named}…" : $"Get {named}…";
-        _site.Visible = preset.Site.Length > 0;
+        _site.Visible = _siteRow.Visible = preset.Site.Length > 0;
         _result.Text = "";
     }
 
