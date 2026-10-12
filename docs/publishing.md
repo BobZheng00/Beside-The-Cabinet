@@ -12,7 +12,9 @@ updated. Nobody else should be able to sell it.
   License (FSL-1.1-MIT).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
-- [ ] **The name** (shortlist below). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
+- [ ] **The name** (shortlist below; after a second round, Neon Hearth recommended). Best settled before the push,
+  as the README, the NOTICE and the repository's address carry it (GitHub redirects a renamed repository, so it can
+  still change after). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
 - [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
   notes about this PC; the progress stays public (below).
 - [x] **The email in commits:** fine (the user), as long as GitHub shows the commits as theirs: add the address
@@ -74,6 +76,20 @@ organisation are still to check for whichever is chosen.
 | **Cozy Cabinet** | the art direction in two words | cozy organising games exist, none by that name found; says less about her |
 | **Quarter Life** | an arcade's quarters, a life in balance, the quarter-life years of its players | a Hasbro parody board game is called "Quarter Life Crisis", and it sounds like Valve's Half-Life: riskier on Steam |
 | Player Two | the companion as player two | taken in this very space: Player2 is an AI gaming-companion platform; avoid |
+
+**Second round** (the user, 2026-10-12: not a big fan of Coin & Company, though it beats the rest of the first round).
+Checked the same day on Steam's store and the web. The everyday phrases that would say it best are taken; two words
+that don't usually meet are free, and only those can be protected as a name. Coin & Company reads like a shop's name,
+and coin beside company can sound like paid company or a crypto firm, so this round leaves money out.
+
+| Name | Why | Notes |
+|---|---|---|
+| **Neon Hearth** (recommended) | the cabinet's glow, and a hearth: the warm place a home gathers round; nothing about coins, so it outlasts the coin mechanic | nothing by that name on Steam or the web |
+| **Kept Company** | what she does, said plainly; "kept" for what she remembers | no app or game by that name |
+| Two's Company | the saying, and two players | taken: Two's Company, Inc., a giftware wholesaler, holds trademarks by that name, and a retro two-player game on itch.io has it |
+| Save Point | where a game lets you rest and keeps your progress | taken: two game-tracker apps (savepoint.gg, SavePoint: Game Tracker) and trademark filings, one of them for game apps (2026) |
+| Pull Up a Stool | her stool, and an invitation | free, but a search for it brings up toilet games |
+| Small Hours | company late at night | a horror game on itch.io |
 
 ## Ready already (checked 2026-10-12)
 
@@ -160,6 +176,16 @@ item is and what replaces it, stays private (`private/personal-review.md`, git-i
   app decides what she does), her replies checked before they show (the provider's own moderation where it has one,
   else a small local classifier, as her ears and memory models run), cards marked NSFW refused on import, and the
   disclosure saying all of it. The GitHub build can leave it to the player, as SillyTavern does.
+- [ ] **One codebase for both builds, no Steam branch** (the user asked, 2026-10-12, whether the Steam version should
+  be a branch that every change also goes to). Recommended: the Steam build is a second export preset in
+  `src/InsertCoin.Game/export_presets.cfg` with `steam` in its custom features, and the code asks
+  `OS.HasFeature("steam")` in one place to switch the guardrails on (Workshop and the rest later). Every fix then
+  reaches both builds without a merge, and the same tests cover both. A branch that takes every change has to be
+  merged into after every commit, and the guardrails sit in the busiest code (her instructions, her replies, card
+  import), so those merges would conflict, and sooner or later a fix would reach one build only. Each Steam release
+  gets a tag (`steam-1.0`); only if a shipped build needs a fix while `main` is mid-change does a short branch start
+  from that tag, merged back and deleted after. The Steamworks SDK, like the models, is fetched for the Steam build,
+  not committed. Nothing to do before GitHub.
 - [ ] **The Steamworks SDK** (achievements, Workshop) stays out of the public repository: Valve's SDK terms limit
   redistributing it (to check when the time comes); a public build simply goes without it.
 - [ ] **Steam Direct:** $100 per app; Valve takes 30%.
