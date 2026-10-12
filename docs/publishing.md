@@ -118,6 +118,21 @@ names two games on Steam, and Lamplight City and The Lamplighters League are the
 | Lamplit Friend | keeps the word itself; "friend" says what she is | short form "Lamplit", free |
 | Lamplit Companion | the clearest, with the word people search for; nearest to a plain label | short form "Lamplit", free |
 
+**What similar apps on Steam are called** (the user asked, 2026-10-12, still unsatisfied; Steam searched for "desktop
+companion", "AI companion", "desktop pet", "AI chat" and 桌宠):
+- **Plain labels**, the most common: Desktop Companion (listed twice), Desktop Pet, AI Desktop Pet, Desktop
+  Mate, Mate Engine, Companion OS, AI Pals; in Chinese 桌宠屋, 3D桌宠, 桌宠引擎, 虚拟桌宠模拟器 (VPet). Clear, but
+  dozens look alike and none could be protected.
+- **A short name with a plain subtitle**: Luvu: Your Desktop Pet; Molili AI Friends: Your AI Desk Pal; CMChar: Your
+  Virtual Companion; FuBuBu: AI Companion; Your Desktop Companion - Lumi; in Chinese 知秋桌宠, Meowker 喵客 - 工作时的
+  猫咪桌宠伴侣, 角色屋 桌面伙伴. The name says who, the subtitle what (and holds the words people search for).
+- **A small story or a promise**, the few that stand out: Whispers from the Star; AI2U: With You 'Til The End;
+  AIly's Daydream: AI Roomie; Across the Desk: Study Mate.
+- The best known keep one English name in every store: Desktop Mate, MateEngine and Whispers from the Star show in
+  English in the Chinese and Japanese stores too.
+- **霓虹之心** (the user's earlier idea): free in the Chinese store; in English, Neon Hearts City is a game, and "neon"
+  on Steam mostly means cyberpunk and action (Neon White, Neon Rage, Cyberpunk Neon Survivor).
+
 ## Ready already (checked 2026-10-12)
 
 - No keys or secrets anywhere in the history (193 commits searched for API keys, bot tokens, private calendar links
