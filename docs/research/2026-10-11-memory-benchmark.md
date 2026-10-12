@@ -193,6 +193,20 @@ her listed in full though some were kept wrong (a dog named Oliver, a cat). With
 133k tokens against 116k (+15%). Of 10 threads opened, 9 lapsed in LoCoMo's weeks between sittings; LoCoMo has no
 question that a follow-up would answer, so threads are for the smoke test and daily use to judge.
 
+### Facts checked against the conversation (2026-10-11)
+
+Every fact kept in three LoCoMo memories (380: conversation 26 with her own story, 42 and 44 on the final build;
+set-aside ones included) went to a model with the whole conversation in view, in batches, for a verdict and the turns
+that show it; each fact not judged right was then read by hand. 330 right (87%), 39 partly, 4 wrong, 7 out of date
+or not said, none about the wrong person (three say "her" of a man: our prompts call the companion "she"). Most
+"partly" verdicts are a little more than was said ("annual" camping trips) or a fact rewritten or merged and judged
+at its oldest part's day; the judge is lenient (it passed "a dog named Oliver"). Of the 4 wrong, two were rewritten
+in place and kept their first day, one is an old wish rightly set aside, one merged two of the player's books into
+one. The two kinds of real error were both in code, not in what the model kept: the sameness check took a changed
+name for a rewording and wrote over it (M11), and the weekly review's merges dropped a name or number in 35 of 499
+(M12). Both fixed (da4f101). What did go missing is upstream: things said in passing with a date reach no note with
+it (M13).
+
 ### Prompt caching, reviewed (2026-10-11)
 
 Her prompt runs from steadiest to least steady: her character, rules, the lists always in mind and the diary notes in

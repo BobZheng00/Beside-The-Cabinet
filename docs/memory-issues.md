@@ -19,7 +19,9 @@ only with a re-run that shows it fixed, and say which.
 | M8 | Facts grow long as the weekly review merges related ones | fixed: median 16 words, the longest 27 (were 23 and 68) |
 | M9 | Her profile is a copy of her facts the model rewrites, so it lags and can drift | fixed: listed from her facts for every reply, answers unchanged (84%) |
 | M10 | A restart between noting and keeping lost what those notes told of | fixed on `main` (2cfd3b0) |
-| M11 | Facts about her can be kept wrong, or from the player's life | her list now only what matters most; kept wrong is still possible |
+| M11 | Facts about her can be kept wrong, or from the player's life | checked: 87% of facts right, none about the wrong person; the dog was a name written over by a code check, fixed on `main` (da4f101; a test replays it, no benchmark re-run) |
+| M12 | The weekly review's merges dropped names and numbers | fixed on `main` (da4f101): such a merge is not taken (a test, no benchmark re-run) |
+| M13 | Things said in passing, with a date, often reach no note with it | open: most of the time questions still missed |
 
 ## M1. The summary is cut off at its newest end
 
@@ -197,14 +199,54 @@ only with a re-run that shows it fixed, and say which.
 
 ## M11. Facts about her can be kept wrong, or from the player's life
 
-- **What the player would notice:** she tells the same wrong detail about herself every time (her dog is a cat), or
+- **What the player would notice:** she tells the same wrong detail about herself every time (her dog's name), or
   claims the player's plan as her own.
-- **Evidence** (2026-10-11, LoCoMo conversation 26, her own story built): of 11 facts kept about her, "Melanie has a
-  dog named Oliver" (a cat; her dog is Luna, left out) and "Melanie is considering adoption" (the player's plan) were
-  wrong. Listed in full in her prompt, they outweighed the conversation: answers fell from 84% to 80%, the lost ones
-  about her pets and children.
-- **Fix so far:** her list takes the player's rule, importance 6 and up or pinned (2035efc, branch `her-story`), so
-  small facts come back only through recall, beside the talk they were kept from. Measured (answered again on the same
-  memory): 128 of 152 (84%), against 121 with all her facts listed and 127 on `main` before her own story. Still wrong
-  where recall brings the fact kept wrong ("What pets does Melanie have?"), and a count of her children gone stale.
-  Kept wrong is still possible for any fact: what HaluMem would measure, the player's call not to for now.
+- **Evidence** (2026-10-11, LoCoMo conversation 26, her own story built): "Melanie has a dog named Oliver" (her dog is
+  Luna; Oliver is a cat), among 11 facts about her. Listed in full in her prompt, small facts outweighed the
+  conversation: answers fell from 84% to 80%. Her list now takes the player's rule, importance 6 and up or pinned
+  (2035efc): 84% again.
+- **Checked against the conversation** (2026-10-11): every fact kept in three LoCoMo memories (380, set-aside ones
+  included), judged by a model with the whole conversation in view, each flag then read by hand
+  (`probe\audit_facts.cs`, `ref\audit_summary.py` in `<tools>\memory-bench`): 330 right, 39 partly (mostly a
+  little more than was said, or a fact rewritten or merged and judged at its oldest part's day), 4 wrong, 7 out of
+  date or not said. None is about the wrong person (three say "her" of a man: our prompts call the companion "she").
+  Of the 4 wrong, two were rewritten in place by the same check as the dog and kept their first day ("four dogs" when
+  there were three), one is an old wish rightly set aside, and one merged two of the player's books into one.
+  "Melanie is considering adoption", put here before as the player's plan, is right: she said "maybe I should do it
+  too… I'll do that" (session 17). The judge is lenient: it passed the dog.
+- **Cause of the dog:** not the model. Her note of 12 July had it right (a dog, Luna; a cat, Oliver). On 23 August the
+  conversation itself has Oliver hide his bone (LoCoMo contradicts itself) and a new cat, Bailey. Upkeep updated the
+  Luna fact to "a dog named Oliver", and `Recall.Same`, going by shared words alone (6 of 8 here, just its three
+  quarters), took it for the same fact reworded: rewritten in place, with no history, and Luna was gone. The same
+  check would drop a second cat as a copy of the first, and it ignored numbers of one or two digits ("2 children",
+  "3 children").
+- **Fix** (da4f101): two facts are the same only with the same names and numbers too
+  (`Recall.Within`). A changed name or number is kept as a change, with its history; a second pet is a second fact.
+  A test replays the benchmark's sequence. Over the facts of 16 benchmark memories (about 2,000), 9 pairs are now
+  kept apart, each a fact with a detail more than the other ("a puppy named Toby", "a German Shepherd puppy named
+  Toby"): a change kept with its history, or a near-copy the weekly review merges.
+
+## M12. The weekly review's merges dropped names and numbers
+
+- **What the player would notice:** she remembers that they graduated from UCLA but not their GPA, or the brooch but
+  not what they paid for it.
+- **Evidence** (2026-10-11, the final build's memories of LongMemEval and LoCoMo): 35 of 499 merges dropped a name or
+  number of a fact they merged: "a 3.6 GPA at UCLA" into "graduated from UCLA in 2020", "bought the brooch for
+  $200" into "owns a 1920s silver brooch", and a 1960s Canon from a grandfather into a 1950s Rolleiflex, another
+  camera. Merged-away facts are not recalled (only changed and ended ones are), so the detail was left only in her
+  notes and the talk word for word.
+- **Fix** (da4f101): a merge of two or more facts must keep every name and number of each, or it is
+  not taken (`Recall.Within`), and the facts stay as they were. A rewrite of one fact (a past plan put in the past
+  tense) is left free.
+
+## M13. Things said in passing, with a date, often reach no note with it
+
+- **What the player would notice:** asked when something happened, she gives another event's date, or says she
+  doesn't know.
+- **Evidence** (2026-10-11, LoCoMo conversation 26): 7 of the 24 questions still missed ask when. Three were said in
+  passing and reached no note with their date: "after we went camping with my fam two weekends ago" (17 July; the
+  trip is noted on 15 July, undated), "here's a pic from when we met up last week" (9 June), "we had a blast last
+  year at the Pride fest" (17 August). Another is LoCoMo's own slip: the charity race was "last Saturday", noted as
+  Saturday 20 May, where its answer says Sunday.
+- **Notes:** the lines stay searchable word for word, so it is partly search: whether recall brings the line back.
+  To do: count over more conversations how many dated events reach no note before deciding on a change.
