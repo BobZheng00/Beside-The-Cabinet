@@ -185,6 +185,14 @@ out "because ground truth answers were unavailable"; our totals leave it out too
 mixing up her life and the player's ("Eagles mesmerize you most", her own interest): her own story (phase 4) is for
 that. Genuinely never said, LongMemEval's unanswerable questions: 3 of 3.
 
+### Her own story and open threads (phase 4, conversation 26)
+
+From scratch with both: 121 of 152 (80%) against 127, the questions lost about her own life, answered from facts about
+her listed in full though some were kept wrong (a dog named Oliver, a cat). With her list taking the player's rule
+(importance 6 and up), answered again on the same memory: 128 of 152 (84%), never-said 7 of 47 as before. Upkeep
+133k tokens against 116k (+15%). Of 10 threads opened, 9 lapsed in LoCoMo's weeks between sittings; LoCoMo has no
+question that a follow-up would answer, so threads are for the smoke test and daily use to judge.
+
 ### Prompt caching, reviewed (2026-10-11)
 
 Her prompt runs from steadiest to least steady: her character, rules, the lists always in mind and the diary notes in

@@ -9,7 +9,7 @@ only with a re-run that shows it fixed, and say which.
 |---|---|---|
 | M1 | The summary is cut off at its newest end | fixed on the branch `observational-memory`: no summary, a log of whole notes |
 | M2 | Facts keep relative times, which go stale | fixed: such a fact says when it was said, in her list and in recall |
-| M3 | Upkeep costs about three times the conversation | phase 3 made it worse; near the old memory's with the profile change: +4% to +19% on LoCoMo, -30% on LongMemEval |
+| M3 | Upkeep costs about three times the conversation | near the old memory's with the profile change (+4% to +19% on LoCoMo, -30% on LongMemEval); +15% more with her own story and threads |
 | M4 | Search starts slowly and grows in memory with years of talk | open, not yet urgent |
 | M5 | Asked about something never said, she often makes up an answer | mostly LoCoMo's name swaps, declined as rarely with everything in view; mixing up her life and the player's is what her own story is for |
 | M6 | What has left the window comes back only about half the time | fixed on the branch `retrieval`: it reached her 82% of the time, and she was right 84% overall (from 78%) |
@@ -204,5 +204,7 @@ only with a re-run that shows it fixed, and say which.
   wrong. Listed in full in her prompt, they outweighed the conversation: answers fell from 84% to 80%, the lost ones
   about her pets and children.
 - **Fix so far:** her list takes the player's rule, importance 6 and up or pinned (2035efc, branch `her-story`), so
-  small facts come back only through recall, beside the talk they were kept from. Being measured (`runs\her2-locomo`).
+  small facts come back only through recall, beside the talk they were kept from. Measured (answered again on the same
+  memory): 128 of 152 (84%), against 121 with all her facts listed and 127 on `main` before her own story. Still wrong
+  where recall brings the fact kept wrong ("What pets does Melanie have?"), and a count of her children gone stale.
   Kept wrong is still possible for any fact: what HaluMem would measure, the player's call not to for now.
