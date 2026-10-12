@@ -109,7 +109,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var folded = store.Folded(character);
         var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
-                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)));
+                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known);
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
             written.Append(update.Text);
@@ -180,7 +180,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, Known(MindStore.Shared), Known(character),
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)));
+                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));

@@ -197,7 +197,10 @@ public static class BuiltIn
             "play is earned (what a problem, an activity or focus pays; the cap, the overnight fade, bedtime) and a day's record (what the player " +
             "did and what it earned). Use it when they ask about any of these; what matters right now is already in your turn."),
         "Check the cabinet's numbers",
-        OutsideApp: false);
+        OutsideApp: false)
+    {
+        Known = true,
+    };
 
     /// <summary>A LeetCode problem's public data, for hints (see <see cref="LeetCodeProblems"/>). It only reads.</summary>
     /// <param name="describe">Looks it up; throws, saying why, when it can't.</param>

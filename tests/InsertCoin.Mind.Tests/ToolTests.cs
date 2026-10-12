@@ -167,6 +167,21 @@ public class ToolTests
     }
 
     [Fact]
+    public async Task A_tool_that_tells_her_what_she_would_simply_know_gets_no_line_of_hers_before_it()
+    {
+        using var temp = new TempStore();
+        var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), BuiltIn.Cabinet(_ => "Play time banked: 1 h.")]);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeToolModel(["Hi!"]);
+
+        await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Contains("Before you use a tool (not cabinet_numbers: what it tells you, you simply know), say a short line first", model.Requests[0][0].Text);
+        tools.Choose(new Dictionary<string, Permission> { ["cabinet_numbers"] = Permission.Off });
+        Assert.Empty(tools.Known);                                                      // switched off: not named
+    }
+
+    [Fact]
     public async Task She_is_told_which_tools_will_ask_on_a_card_as_things_are_set_so_she_asks_in_words_only_for_those()
     {
         using var temp = new TempStore();

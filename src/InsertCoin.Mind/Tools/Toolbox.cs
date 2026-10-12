@@ -71,6 +71,12 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
     public bool AtThePc { get; init; }
 
     /// <summary>
+    /// It tells her what she would simply know (the cabinet's numbers), at once: no line of hers before it, which is for
+    /// a wait ("I'll check the cabinet's earning rules" read stiff, 2026-10-12).
+    /// </summary>
+    public bool Known { get; init; }
+
+    /// <summary>
     /// Run by the provider itself (its own web search): offered in place of <see cref="Function"/>, which then only names
     /// and describes it. The provider runs it in the middle of a reply, so it is never asked about.
     /// </summary>
@@ -228,6 +234,10 @@ public sealed class Toolbox
     /// </summary>
     public IReadOnlyList<string> AsksFirst =>
         [.. _tools.Values.Where(t => PermissionOf(t) == Permission.Ask && (!Auto || t.Private)).Select(t => t.Name).Order(StringComparer.Ordinal)];
+
+    /// <summary>The tools offered that tell her what she would simply know (see <see cref="Tool.Known"/>): no line before them.</summary>
+    public IReadOnlyList<string> Known =>
+        [.. _tools.Values.Where(t => t.Known && PermissionOf(t) != Permission.Off).Select(t => t.Name).Order(StringComparer.Ordinal)];
 
     /// <summary>The tools offered to the model, the same list every request (null when none are).</summary>
     public IList<AITool>? Offered
