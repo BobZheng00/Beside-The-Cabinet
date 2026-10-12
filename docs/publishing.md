@@ -12,10 +12,10 @@ updated. Nobody else should be able to sell it.
   License (FSL-1.1-MIT).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
-- [ ] **The name** (shortlist below; the latest, the user's own: Beside the Cabinet, with a subtitle saying what she
-  is). Best settled before the push,
-  as the README, the NOTICE and the repository's address carry it (GitHub redirects a renamed repository, so it can
-  still change after). The cabinet's marquee can keep saying INSERT COIN in the game world either way.
+- [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
+  A title in another language waits for the Steam release. On Steam with a plain subtitle (Beside the Cabinet: A
+  Desktop Companion). The cabinet's marquee keeps saying INSERT COIN in the game world. Still to check: the trademark
+  registers (USPTO, CIPO, CNIPA) and a domain.
 - [x] **Which notes stay private** (2026-10-12): the user's list of things to try and their smoke test, and CLAUDE.md's
   notes about this PC; the progress stays public (below).
 - [x] **The email in commits:** fine (the user), as long as GitHub shows the commits as theirs: add the address
@@ -63,6 +63,8 @@ commercially. Unlike Aseprite's EULA, people may still share builds and forks fo
   Steamworks SDK ([Steamworks: distributing open source](https://partner.steamgames.com/doc/sdk/uploading/distributing_opensource)).
 
 ## The name
+
+**Decided 2026-10-12: Beside the Cabinet.** The rounds below are how it was reached.
 
 "Insert Coin" is a common phrase and several small games already use it ([one on itch.io](https://starkium.itch.io/insert-coin),
 [another](https://maxyjof.itch.io/insert-coin/donate)), so it would be hard to protect. A quick search (2026-10-12)
@@ -172,6 +174,14 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   then in the working folder `git fetch <the clean clone> main` and `git reset --hard FETCH_HEAD` (the same files, so
   nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay). Anything committed in the
   working folder meanwhile is cherry-picked into the clean clone first, as this checklist's own update was.
+- [ ] **What players see takes the new name**: the README, the window and tray titles, the first run's welcome, the
+  name a webhook gives the app, and Godot's application name (`config/name`, which is also the window title; Godot's
+  own folder for its logs moves with it, the player's profile doesn't). The code, the profile folder
+  (`%APPDATA%\InsertCoin`) and the one-copy lock keep InsertCoin, so nothing of a player's moves; the cabinet keeps
+  INSERT COIN on its marquee and in her instructions. The exe's name is the user's call (a new one means ticking
+  "Start with Windows" again).
+- [ ] **Words that fit either character**: the pages "Her mind" and "Her voice" and the hints that say "she" read wrong
+  with Fumiriya, who is a he; at least what the first run and Getting started show.
 - [ ] **LICENSE**, a NOTICE for the name and art, and CONTRIBUTING with the CLA.
 - [ ] **A README front page for strangers:** what it is, a screenshot or GIF, what it needs (Windows 10 or 11, x64; a
   graphics card only for her voice), downloading a release, building from source, bringing your own AI key and what
