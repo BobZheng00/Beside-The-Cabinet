@@ -11,7 +11,9 @@ namespace InsertCoin.Game.App;
 /// </summary>
 public partial class MeetSheet : Window
 {
-    public event Action? AddCard, AddVoice, SetUpVoices;
+    public event Action? AddCard, AddVoice, SetUpVoices, ShowManner;
+    /// <summary>How they sit, as chosen.</summary>
+    public event Action<Companion.Manner>? MannerChosen;
     /// <summary>The name she calls the player by, as it is typed.</summary>
     public event Action<string>? Named;
 
@@ -29,12 +31,13 @@ public partial class MeetSheet : Window
         sheet.AddChild(_column);
     }
 
-    public void Open() => Paper.Open(this, new Vector2(520, 520));
+    public void Open() => Paper.Open(this, new Vector2(520, 620), besideCabinet: true);       // they are seen as their manner is chosen
 
     /// <param name="persona">Where who they are comes from ("their character card"), or null: none yet.</param>
     /// <param name="voiced">They have a voice of their own.</param>
     /// <param name="voices">Voices can be spoken on this PC (GPT-SoVITS is set up).</param>
-    public void Fill(string name, string? persona, bool voiced, bool voices, string? callMe)
+    /// <param name="manner">How they sit (see <see cref="Companion.Manner"/>).</param>
+    public void Fill(string name, string? persona, bool voiced, bool voices, string? callMe, Companion.Manner manner)
     {
         Title = $"Meet {name}";
         foreach (var old in _column.GetChildren())
@@ -65,6 +68,9 @@ public partial class MeetSheet : Window
         }
         if (!voices)
             Form.Button(Form.Buttons(_column), "Set up voices…", () => SetUpVoices?.Invoke());
+
+        Form.Subheading(_column, $"How {name} sits");
+        CharacterSettings.Manners(_column, manner, chosen => MannerChosen?.Invoke(chosen), () => ShowManner?.Invoke());
 
         Form.Subheading(_column, "What they call you");
         Form.Field(Form.Grid(_column), "Your name", callMe, "your name, or what you like to be called", typed: text => Named?.Invoke(text));

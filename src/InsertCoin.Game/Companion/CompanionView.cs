@@ -110,6 +110,15 @@ public partial class CompanionView : Node2D
 
     public void Play(Moment moment) => _puppet.Play(moment);
 
+    /// <summary>How they sit and carry themselves (see <see cref="Companion.Manner"/>); changed, they move into it.</summary>
+    public Manner Manner
+    {
+        set => _puppet.Manner = value;
+    }
+
+    /// <summary>A few seconds of how they carry themselves, to see a manner as it is chosen.</summary>
+    public void ShowManner() => _puppet.ShowManner();
+
     /// <summary>How far her mouth is open as she speaks aloud (0–1), set every frame by her voice.</summary>
     public float Mouth
     {

@@ -778,8 +778,7 @@ public partial class Main : Node2D
             return;
         _welcome = new Welcome();
         AddChild(_welcome);
-        _welcome.Build(_settingsFile, _stool.Meetable(), _stool.Seated ?? "", _stool.Seat, _stool.CallMe, () => _stool.MindPage(brief: true),
-                       () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null);
+        _welcome.Build(_settingsFile, _stool, () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null);
         _welcome.Done += name =>
         {
             var initials = new string([.. (name ?? "").ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).Take(3)]);

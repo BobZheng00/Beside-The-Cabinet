@@ -47,6 +47,9 @@ what the cabinet does: claps for a Hard solve, a small fist pump for the others,
 about debt, dozes while the session is paused. In a conversation she looks away to think and back to answer, nods
 in your pauses as you talk to her, and her head follows what her voice stresses. She says a line about it in a speech bubble; click her and she waves, and the slip to type to her opens. Settings → Characters leaves
 the stool empty, silences her bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too.
+It also sets how each character sits, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed
+(knees apart, hands on the thighs, fewer tilts, legs mostly still); they move into it as it is chosen, and "Show me"
+plays a few seconds of it. Fumiriya starts relaxed, the others neat; the first run and "Meet …" ask it too.
 
 She can also talk. In Settings → Her mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
 Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
@@ -315,6 +318,7 @@ threads from the talk so far, without waiting for ten quiet minutes) · `Esc` qu
 Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
 `point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
+`manner:relaxed` or `manner:neat` (how whoever is on the stool sits), `showmanner` ("Show me" on it),
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if she were clicked), `bubbleclick`
 (a click on her bubble's words while it waits on her call), `bubblechip:yes` or `bubblechip:notnow` (that answer on her
 bubble clicked), `nocall` (another app's microphone doesn't count as a call), `saver`

@@ -35,6 +35,7 @@ public sealed record AppSettings
     public InsertCoin.Mind.Reach Reach { get; init; } = InsertCoin.Mind.Reach.LikeARoommate;   // how much she reaches out to their phone
     public string Companion { get; init; } = "shino";   // character folder under res://characters
     public bool ShowCompanion { get; init; } = true;    // false leaves the stool empty
+    public Dictionary<string, InsertCoin.Game.Companion.Manner> Manners { get; init; } = new() { ["fumiriya"] = InsertCoin.Game.Companion.Manner.Relaxed };   // how each sits, by character; unset: neat
     public bool SpeechBubbles { get; init; } = true;    // false: she still reacts, but says nothing
     public bool EnergySaver { get; init; }              // draw at a low frame rate all the time, not only while a game runs
     public string? ChatProtocol { get; init; }          // OpenAi or Anthropic: how to talk to the user's provider

@@ -163,9 +163,10 @@ public static class Paper
 
     /// <summary>
     /// A window in the cabinet's paper style, sized for the screen's DPI (no bigger than the screen leaves room for: at
-    /// 150% a tall one would run under the taskbar) and opened in the middle of it.
+    /// 150% a tall one would run under the taskbar) and opened in the middle of it, or <paramref name="besideCabinet"/>
+    /// where whoever is on the stool stays in view (left of the cabinet if there is room, else right of it).
     /// </summary>
-    public static void Open(Window window, Vector2 size)
+    public static void Open(Window window, Vector2 size, bool besideCabinet = false)
     {
         var scale = DisplayServer.ScreenGetDpi(DisplayServer.WindowGetCurrentScreen()) / 96f;
         var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
@@ -174,13 +175,22 @@ public static class Paper
         window.Size = new Vector2I(Math.Min(wanted.X, screen.Size.X - 16), Math.Min(wanted.Y, screen.Size.Y - 48));     // the title bar is outside it
         window.MinSize = window.Size;
         window.Theme = WindowTheme();
-        window.Position = OffScreen ? new Vector2I(-6000, 100) : screen.Position + (screen.Size - window.Size) / 2;
+        window.Position = OffScreen ? new Vector2I(-6000, 100) : besideCabinet ? Beside(window.Size, screen) : screen.Position + (screen.Size - window.Size) / 2;
         // shown, Windows makes a window the active one: off screen it would take the keys someone types elsewhere
         // (an Enter pressing its buttons), so it never takes focus there
         window.Unfocusable = OffScreen;
         window.Show();
         if (!OffScreen)
             window.GrabFocus();
+    }
+
+    private static Vector2I Beside(Vector2I size, Rect2I screen)
+    {
+        var cabinet = new Rect2I(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize());
+        var top = Math.Clamp(cabinet.Position.Y + 40, screen.Position.Y + 32, Math.Max(screen.Position.Y + 32, screen.End.Y - size.Y));   // the title bar above it
+        return cabinet.Position.X - size.X - 12 >= screen.Position.X ? new Vector2I(cabinet.Position.X - size.X - 12, top)
+             : cabinet.End.X + 12 + size.X <= screen.End.X ? new Vector2I(cabinet.End.X + 12, top)
+             : screen.Position + (screen.Size - size) / 2;
     }
 
     /// <summary>A rounded box: fill, outline, corner radius and inner margins.</summary>

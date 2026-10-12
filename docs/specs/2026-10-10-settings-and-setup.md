@@ -114,6 +114,16 @@ short flow for what she can't do without, the checklist for the rest.
   a plain friendly companion, with Add a character card…), their voice (Add a voice…, and Set up voices… while
   GPT-SoVITS isn't), and the name they call the player (one for every character, the user's choice by default; a card
   may say otherwise). It fills in again as a card or a voice comes in.
+- **How they sit** (the user, 2026-10-12: "we provide a boy and a girl default character but the motion is shaped to
+  only apply to the girl character"): not two motion templates but a manner per character, chosen by the player and
+  never guessed from the character (`Manner`, `AppSettings.Manners`): neat, today's (knees together, hands folded in
+  the lap, the head tilting as she listens and reacts, a leg swung now and then), or relaxed (knees apart, a hand on
+  each thigh, found from that character's own hips and thighs, head tilts a third as much, the legs mostly still).
+  The gestures are shared. Fumiriya starts relaxed, everyone else neat. The choice is on the first run's character
+  page, on "Meet …" and on Characters; whoever is on the stool moves into it as it is chosen, and "Show me" plays a
+  few seconds of it (leaning in to listen, a nod, a tilt, re-settling, a leg swung if neat). The Welcome and "Meet …"
+  open beside the cabinet, so the stool stays in view (`Paper.Open`, `besideCabinet`). Judged on clips of Shino,
+  Fumiriya and Hana; Xbot, a mannequin with very thick thighs, gets its hands sunk into them and turned palm up.
 - **`firstrun.cmd`**: a fresh profile every time, for trying the first run (the user, 2026-10-12); `docs/smoke-test.md`,
   step 7.
 

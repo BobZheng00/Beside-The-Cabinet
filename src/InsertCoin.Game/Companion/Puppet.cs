@@ -19,6 +19,14 @@ public enum Moment
 }
 
 /// <summary>
+/// How a character carries themselves on the stool, chosen per character by the player (Settings → Characters, the
+/// first run, "Meet …"), whoever they are: neat, knees together and hands folded in the lap, the head tilting as they
+/// listen and react, a leg swung now and then; or relaxed, knees apart and a hand on each thigh, the head tilting about a
+/// third as much (a nod more than a tilt), the legs mostly still. Their gestures are the same.
+/// </summary>
+public enum Manner { Neat, Relaxed }
+
+/// <summary>
 /// The companion's body language. Three layers, in this order every frame:
 /// poses (seated, plus reaction poses switched on and off by short timelines), springs (every joint follows its
 /// pose like a damped spring, so moves accelerate, overshoot and settle, the hand arriving after the arm), and
@@ -71,6 +79,10 @@ internal sealed class Puppet
         .Set("Neck", -3, 0, 0).Set("Head", -4, 0, 0)
         .Both("UpperLeg", -(90 - ThighSlope), -2, 0).Both("LowerLeg", 114, 0, 0).Both("Foot", 30, 0, 0)   // knee bend is refitted per character
         .Both("Shoulder", 0, 0, -2);
+
+    // Relaxed: the knees apart (degrees each thigh turns out), the head's tilts a third as much.
+    private const float KneesApart = 12, RelaxedTilt = 0.35f;
+    private static readonly Pose Spread = new Pose().Both("UpperLeg", -(90 - ThighSlope), KneesApart, 0);
 
     // Hands at rest in her lap, the left lying on the right.
     private static readonly Hand LeftRest = new(new(0.030f, 0.165f, 0.135f), new(-0.80f, -0.05f, 0.60f), new(0, -1, 0.1f), new(0.7f, -0.3f, -0.6f));
@@ -171,6 +183,7 @@ internal sealed class Puppet
     private readonly Vector3 _seat;                       // where the hips bone goes, from the seat centre
     private readonly bool _dangling;                      // her feet do not reach the stool's ring
     private readonly float _kneeOnRing;                   // knee bend (degrees) that rests her toes on the ring
+    private readonly Hand _onThigh;                       // relaxed, the left hand at rest on its thigh (the right mirrored)
     private readonly Dictionary<string, float> _hang = [], _hangGoal = [];   // per leg: 0 = foot on the ring, 1 = hanging free
     private double _nextLegChange = 10;
     private readonly Dictionary<string, Quaternion> _goal = [], _frame = [];
@@ -220,6 +233,11 @@ internal sealed class Puppet
     /// </summary>
     public IReadOnlyList<(string Bone, string Side, float Follow)> Followers { get; init; } = [];
 
+    /// <summary>How they sit and carry themselves; changed, they move into it.</summary>
+    public Manner Manner { get; set; }
+
+    private float Tilt => Manner == Manner.Relaxed ? RelaxedTilt : 1;
+
     /// <summary>Where her head is, in the skeleton's space.</summary>
     public Vector3 Head => _rig.PositionOf("Head");
 
@@ -265,6 +283,12 @@ internal sealed class Puppet
         // She is seated by her hip joints; where the hips bone sits relative to them differs from rig to rig.
         var fromJoints = rig.RestOffset("LeftUpperLeg", "Hips");
         _seat = new Vector3(0, HipJointHeight * _size + fromJoints.Y, HipJointBack * _size + fromJoints.Z);
+        // A relaxed hand lies on its thigh a third of the way to the knee, fingers along it: found from this character's
+        // hip joints and thigh, as hips and legs differ more than laps do.
+        var (apart, slope) = (Mathf.DegToRad(KneesApart), Mathf.DegToRad(ThighSlope));
+        var along = new Vector3(Mathf.Sin(apart) * Mathf.Cos(slope), -Mathf.Sin(slope), Mathf.Cos(apart) * Mathf.Cos(slope));
+        var hipJoint = new Vector3(Mathf.Abs(fromJoints.X), HipJointHeight * _size, HipJointBack * _size);
+        _onThigh = new Hand(hipJoint + along * (0.34f * thigh) + Vector3.Up * (0.11f * _size), along, new(0, -1, 0.1f), new(0.4f, -0.75f, -0.55f));
 
         foreach (var name in Overlays.Keys)
             _on[name] = _shown[name] = _shownSpeed[name] = 0;
@@ -483,6 +507,9 @@ internal sealed class Puppet
         _goal.Clear();
         foreach (var (bone, degrees) in _sit)
             _goal[bone] = Rig.Euler(degrees);
+        if (Manner == Manner.Relaxed)
+            foreach (var (bone, degrees) in Spread)
+                _goal[bone] = Rig.Euler(degrees);
         foreach (var side in Sides)
         {
             // a foot on the ring has the knee bent back to reach it; let down, the shin hangs and the foot relaxes
@@ -492,7 +519,8 @@ internal sealed class Puppet
         foreach (var (name, overlay) in Overlays)
             if (_shown[name] > 0.001f)
                 foreach (var (bone, degrees) in overlay.Body)
-                    _goal[bone] = _goal.GetValueOrDefault(bone, Quaternion.Identity).Slerp(Rig.Euler(degrees), _shown[name]);
+                    _goal[bone] = _goal.GetValueOrDefault(bone, Quaternion.Identity)
+                        .Slerp(Rig.Euler(bone is "Head" or "Neck" ? degrees with { Z = degrees.Z * Tilt } : degrees), _shown[name]);
         Gaze(dt, t);
 
         // 2. Springs: ... and each joint then chases its pose with some give.
@@ -579,7 +607,7 @@ internal sealed class Puppet
         var calm = (Pointer is null && _time > _busyUntil ? 1f : 0.45f) * _awake;
         var driftYaw = Mathf.DegToRad(3.6f) * Wobble(t, 6.5f, 11.3f, 0) * calm;
         var driftPitch = Mathf.DegToRad(2.0f) * Wobble(t, 3.9f, 7.1f, 2) * calm;
-        var roll = 3.2f * Wobble(t, 5.5f, 9.7f, 4) * calm;
+        var roll = 3.2f * Wobble(t, 5.5f, 9.7f, 4) * calm * Tilt;
 
         Turn("Spine", _headYaw * 0.05f, 0, 0);
         Turn("Chest", _headYaw * 0.06f, 0, 0);
@@ -728,6 +756,24 @@ internal sealed class Puppet
         }
         foreach (var side in Sides)
             _hang[side] += (_hangGoal[side] - _hang[side]) * (1 - Mathf.Exp(-dt * 1.6f));     // about a second to let a foot down
+    }
+
+    /// <summary>
+    /// A few seconds of how they carry themselves, to see a manner as it is chosen: leaning in to listen, a nod, a
+    /// tilt of the head, re-settling on the seat, and with the neat manner a leg swung.
+    /// </summary>
+    public void ShowManner()
+    {
+        Play(Moment.Listen);
+        After(1.3, () => Play(Moment.Nod));
+        After(2.6, () => Play(Moment.Heard));
+        After(3.8, () => _on["tiltRight"] = 1);
+        After(5.4, () => _on["tiltRight"] = 0);
+        After(6.0, () => _on["shift"] = 1);
+        After(6.5, () => _on["shift"] = 0);
+        if (Manner == Manner.Neat && !_dangling)
+            After(7.2, () => (_kickAt, _kickSide) = (_time, "Right"));
+        _nextFidget = _time + 11;                           // nothing of their own meanwhile
     }
 
     /// <summary>Dev: put her feet where asked (true = hanging free) and hold that for a while.</summary>
@@ -888,6 +934,8 @@ internal sealed class Puppet
             return;
         _nextFidget = _time + _random.RandfRange(5.5f, 12);
         var pick = _random.Randf();
+        if (Manner == Manner.Relaxed && pick < 0.36f && _random.Randf() < 0.75f)
+            pick = _random.RandfRange(0.36f, 1);            // relaxed: the legs mostly still
         if (pick < 0.22f)
         {
             _kickAt = _time;
@@ -923,7 +971,7 @@ internal sealed class Puppet
     {
         var left = side == "Left";
         // The hand travels through space from one placement to the next, so the elbow stays bent on the way.
-        var place = (left ? LeftRest : RightRest).Sized(_size);
+        var place = Manner == Manner.Relaxed ? (left ? _onThigh : _onThigh.Mirrored) : (left ? LeftRest : RightRest).Sized(_size);
         var grip = Grip.Even(RestCurl);
         foreach (var (name, overlay) in Overlays)
         {

@@ -23,17 +23,16 @@ public partial class Welcome : Window
     private VBoxContainer _mindPage = null!;
     private bool _done, _chosen = true;                     // _chosen: another character since her mind's page was made, which names them
 
-    /// <param name="characters">Who can sit on the stool: their id, name and who they are in a sentence.</param>
-    /// <param name="mind">Makes the page that connects her mind (Settings → Her mind, without what can wait).</param>
+    /// <param name="stool">Who can sit on it and how, who sits there, the name they call the player, and her mind's page.</param>
     /// <param name="connected">Whether her mind is connected now.</param>
-    public void Build(SettingsFile settings, (string Id, string Name, string About)[] characters, string seated, Action<string> seat,
-                      Action<string> named, Func<Control> mind, Func<bool> connected)
+    public void Build(SettingsFile settings, Stool stool, Func<bool> connected)
     {
         Title = "Welcome";
         Visible = false;
         CloseRequested += Finish;
         _connected = connected;
-        _mind = mind;
+        _mind = () => stool.MindPage(brief: true);
+        Action<string> named = stool.CallMe;
 
         var sheet = new PanelContainer();
         sheet.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -61,22 +60,36 @@ public partial class Welcome : Window
         // who keeps them company: seated as chosen, so they see who it is
         var second = Form.Page(new VBoxContainer(), "Who keeps you company?");
         var group = new ButtonGroup();
-        foreach (var (id, who, about) in characters)
+        var manner = new VBoxContainer();
+        void HowTheySit(string id)
         {
-            var pick = new CheckBox { Text = who, ButtonGroup = group, ButtonPressed = id == seated };
+            foreach (var old in manner.GetChildren())
+            {
+                manner.RemoveChild(old);
+                old.QueueFree();
+            }
+            Form.Subheading(manner, "How they sit");
+            CharacterSettings.Manners(manner, stool.MannerOf(id), chosen => stool.SetManner(id, chosen), stool.ShowManner);
+        }
+        foreach (var (id, who, about) in stool.Meetable())
+        {
+            var pick = new CheckBox { Text = who, ButtonGroup = group, ButtonPressed = id == stool.Seated };
             pick.Toggled += on =>
             {
                 if (!on)
                     return;
-                seat(id);
+                stool.Seat(id);
+                HowTheySit(id);
                 _chosen = true;
             };
             second.AddChild(pick);
             if (about.Length > 0)
                 Form.Indented(second).AddChild(Form.Hint(about));
         }
-        Form.Hint(second, "They sit on the stool by the cabinet. You can change who it is, or add a character of your own, at any time: " +
-                          "Settings → Characters, or drop a 3D model on the cabinet.");
+        second.AddChild(manner);
+        HowTheySit(stool.Seated ?? "");
+        Form.Hint(second, "They sit on the stool by the cabinet, and move into a manner as you choose it. You can change who it is, how " +
+                          "they sit, or add a character of your own at any time: Settings → Characters, or drop a 3D model on the cabinet.");
         _pages.Add(second);
 
         // their mind (made as the page comes up, for whoever was chosen), and what waits for later
@@ -114,7 +127,7 @@ public partial class Welcome : Window
         Refresh();
     }
 
-    public void Open() => Paper.Open(this, new Vector2(640, 600));
+    public void Open() => Paper.Open(this, new Vector2(640, 640), besideCabinet: true);     // who is chosen is seen on the stool
 
     private void Go(int by)
     {

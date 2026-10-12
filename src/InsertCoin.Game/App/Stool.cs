@@ -1183,6 +1183,7 @@ public partial class Stool : Node2D
             try
             {
                 her.Build(_cabinet.Skin, character);
+                her.Manner = MannerOf(character.Id);
                 her.Spoken = () => _voice.Progress;
                 her.Subtitled = () => _chat.Speech is { Subtitled: true };
                 her.Answered = yes =>                       // "Yes?" or "Not now" clicked on her bubble while she waits on her call
@@ -1682,6 +1683,20 @@ public partial class Stool : Node2D
     /// <summary>Who sits on the stool now, by id.</summary>
     internal string? Seated => OnStool()?.Id;
 
+    /// <summary>How a character sits (see <see cref="Manner"/>): as the player chose, else neat.</summary>
+    internal Manner MannerOf(string id) => _settings.Now.Manners.GetValueOrDefault(id);
+
+    /// <summary>The player chose how a character sits: saved, and taken up at once if they are on the stool, so it is seen.</summary>
+    internal void SetManner(string id, Manner manner)
+    {
+        _settings.Save(_settings.Now with { Manners = new(_settings.Now.Manners) { [id] = manner } });
+        if (Her is not null && Seated == id)
+            Her.Manner = manner;
+    }
+
+    /// <summary>"Show me": a few seconds of how whoever is on the stool carries themselves.</summary>
+    internal void ShowManner() => Her?.ShowManner();
+
     /// <summary>Who can sit on the stool, with who they are in their persona's first sentence (the first run's choice).</summary>
     internal (string Id, string Name, string About)[] Meetable() =>
         [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name, FirstSentence(c.Persona(_characters, null).Description)))];
@@ -1719,11 +1734,14 @@ public partial class Stool : Node2D
             _meet.AddVoice += PickVoice;
             _meet.SetUpVoices += () => OpenSettings?.Invoke("voice");
             _meet.Named += CallMe;
+            _meet.MannerChosen += manner => SetManner(Seated ?? "", manner);
+            _meet.ShowManner += ShowManner;
         }
         var persona = character.CardIn(_characters) is not null ? "their character card"
             : character.Persona(_characters, null).Description == InsertCoin.Mind.Persona.Plain(character.Name).Description ? null
             : "their persona file";
-        _meet!.Fill(seated.Name, persona, _voice.Profile is not null, VoiceServer.Check(_settings.Now.VoiceEngine) is null, _settings.Now.CallMe);
+        _meet!.Fill(seated.Name, persona, _voice.Profile is not null, VoiceServer.Check(_settings.Now.VoiceEngine) is null, _settings.Now.CallMe,
+                    MannerOf(seated.Id));
         if (opening)
             _meet.Open();
     }
@@ -1842,7 +1860,8 @@ public partial class Stool : Node2D
     private Control CharactersPage()
     {
         var page = new CharacterSettings();
-        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, _settings.Now.CallMe);
+        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, _settings.Now.CallMe,
+                   MannerOf, SetManner, ShowManner);
         page.Named += CallMe;
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;
@@ -1996,6 +2015,8 @@ public partial class Stool : Node2D
                 Her?.DevPointer(new Vector2(float.Parse(at[0]), float.Parse(at[1])));
                 break;
             case "character": Seat(rest); break;            // character:id swaps who sits on the stool
+            case "manner": SetManner(Seated ?? "", Enum.Parse<Manner>(rest, ignoreCase: true)); break;     // manner:relaxed (or neat) for whoever is on the stool
+            case "showmanner": ShowManner(); break;          // "Show me" on how they sit
             case "add": Add([rest]); break;                 // add:path as if it had been dropped on the window
             case "meetdo":                                  // meetdo:label[:value] presses or types on "Meet …"
                 var meet = text.Split(':', 2);
