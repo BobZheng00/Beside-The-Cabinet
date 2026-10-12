@@ -109,16 +109,18 @@ public static class Log
     /// <summary>
     /// The request that observes <paramref name="lines"/> as they leave the window: one observation per thing worth
     /// keeping, with the day it was said and how much it matters. It sees this batch and her latest observations, never
-    /// the whole history, so it is the same small task however long the conversation has been.
+    /// the whole history, so it is the same small task however long the conversation has been. Its example shows the form
+    /// only: one with a story in it came back as the player's past ("his previously noted job interview at Acme", the
+    /// smoke test, 2026-10-11).
     /// </summary>
     public static List<ChatMessage> Observe(Persona persona, IReadOnlyList<Observation> latest, IReadOnlyList<Line> lines) =>
     [
         new(ChatRole.System, $$"""
             You keep {{persona.Name}}'s notes on her conversation with the player; she sits beside the player's arcade cabinet and chats with them. The lines below are leaving the part of the conversation she reads word for word, and your notes are what she will have of them. Answer with JSON only:
 
-            {"observations": [{"date": "2026-10-05", "priority": "high", "text": "The player has a job interview at Acme on Friday 9 October at 15:00 and is nervous about the system-design round."}]}
+            {"observations": [{"date": "YYYY-MM-DD", "priority": "high", "text": "The player …"}]}
 
-            One observation per thing worth keeping: what the player did, said, decided or plans; what they like, dislike or worry about; people, places, names, numbers and dates exactly as said; what {{persona.Name}} said (about herself too), suggested or promised; how the two of them got on. "date" is the day it was said, from the timestamps. In "text", write dates out in full ("Friday 9 October", "in March 2026"), never "tomorrow" or "last week": work them out from the timestamps. "priority": "high" for what will matter for weeks (plans, goals, people, strong likes and dislikes, promises, a change to something known before), "medium" for useful detail, "low" for something in passing. Leave out greetings, small talk and the cabinet's numbers; when nothing is worth keeping, answer {"observations": []}. Write in the third person ("The player…", "{{persona.Name}}…"), in the language the conversation is in.
+            One observation per thing worth keeping: what the player did, said, decided or plans; what they like, dislike or worry about; people, places, names, numbers and dates exactly as said; what {{persona.Name}} said (about herself too), suggested or promised; how the two of them got on. "date" is the day it was said, from the timestamps. In "text", write dates out in full ("Friday 9 October", "in March 2026"), never "tomorrow" or "last week": work them out from the timestamps. "priority": "high" for what will matter for weeks (plans, goals, people, strong likes and dislikes, promises, a change to something known before), "medium" for useful detail, "low" for something in passing. Leave out greetings, small talk and the cabinet's numbers; when nothing is worth keeping, answer {"observations": []}. Write in the third person ("The player…", "they", "{{persona.Name}}…"), in the language the conversation is in.
             """),
         new(ChatRole.User, (latest.Count > 0 ? $"Her latest notes, for what came just before (don't repeat them):\n{Laid(latest, null)}\n\n" : "") +
                            $"The lines:\n{Upkeep.Transcript(persona, lines)}"),
@@ -192,7 +194,7 @@ public static class Log
             new(ChatRole.System, $$"""
                 You keep {{persona.Name}}'s notes on her conversation with the player. Below are her notes from {{stretch.Period}}. Condense them into fewer notes for {{stretch.Period}} as a whole, at most {{words}} words in all. Keep every note marked "!" nearly word for word, with its names, dates and numbers; where a later note changes an earlier one, keep only what is true by the end; merge what repeats; drop what was only in passing. Answer with JSON only:
 
-                {"observations": [{"priority": "high", "text": "The player started at Acme on Monday 5 October and finds the team welcoming."}]}
+                {"observations": [{"priority": "high", "text": "The player …"}]}
 
                 "priority": "high" for what will matter for weeks, "medium" for useful detail, "low" for the rest. Third person, in the language of the notes.
                 """),

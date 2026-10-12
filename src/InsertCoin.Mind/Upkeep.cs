@@ -34,7 +34,8 @@ public sealed record Digestion(IReadOnlyList<FactChange> Changes)
 /// Her "sleep time" (Letta's term): after a conversation has gone quiet and she has noted it (see <see cref="Log"/>),
 /// a model reads her new notes and returns plain JSON: fact changes, reconciled against what she already knows (mem0's
 /// add / update / delete), and the agenda's. No tool calling, so any model that can write JSON will do; output that
-/// does not parse is simply tried again later.
+/// does not parse is simply tried again later. Its examples show the form only, with no story in them (see
+/// <see cref="Log.Observe"/>).
 /// </summary>
 public static class Upkeep
 {
@@ -65,17 +66,17 @@ public static class Upkeep
                 You maintain the long-term memory of {{persona.Name}}, a companion who sits beside the player's arcade cabinet and chats with them. Below are her new notes on their conversation, under the day each was said. Keep her facts and the player's agenda up to date with them, and answer with JSON only, in this form:
 
                 {"facts": [
-                  {"op": "add", "about": "player", "text": "The player is looking for a backend developer job.", "importance": 8},
+                  {"op": "add", "about": "player", "text": "The player …", "importance": 8},
                   {"op": "update", "id": 12, "text": "...", "importance": 6},
                   {"op": "delete", "id": 5}],
                  "plans": [
-                  {"op": "add", "when": "2026-10-06 15:00", "text": "Job interview at Acme", "remind": true, "before": "1 hour"},
-                  {"op": "add", "when": "2026-10-05 08:00", "text": "Take vitamins", "remind": true, "repeat": "daily"},
-                  {"op": "update", "id": 3, "when": "2026-10-12", "text": "Calculus exam"},
+                  {"op": "add", "when": "2026-10-06 15:00", "text": "a short title", "remind": true, "before": "1 hour"},
+                  {"op": "add", "when": "2026-10-05 08:00", "text": "a short title", "remind": true, "repeat": "daily"},
+                  {"op": "update", "id": 3, "when": "2026-10-12", "text": "a short title"},
                   {"op": "cancel", "id": 4}],
                  "threads": [
-                  {"op": "open", "text": "The player's cat is sick and at the vet."},
-                  {"op": "update", "id": 2, "text": "The player is still waiting to hear back from Acme."},
+                  {"op": "open", "text": "The player …"},
+                  {"op": "update", "id": 2, "text": "..."},
                   {"op": "close", "id": 1}]}
 
                 Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk; "her" for what {{persona.Name}} has told the player about herself: her past, likes, opinions and habits. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
