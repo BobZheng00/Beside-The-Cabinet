@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Versioning;
 using System.Text;
+using InsertCoin.Mind;
 
 namespace InsertCoin.Game.App;
 
@@ -35,18 +36,7 @@ public sealed class VoiceServer : IDisposable
     public bool Ready => _answered && Running;
 
     /// <summary>What is wrong with <paramref name="folder"/> as a GPT-SoVITS install, or null when it will do.</summary>
-    public static string? Check(string? folder)
-    {
-        if (string.IsNullOrWhiteSpace(folder))
-            return "Choose the folder GPT-SoVITS is in.";
-        if (!Directory.Exists(folder))
-            return "That folder doesn't exist.";
-        if (!File.Exists(Path.Combine(folder, "api_v2.py")))
-            return "No api_v2.py there: choose the GPT-SoVITS folder itself (the one with go-webui.bat).";
-        if (!File.Exists(Path.Combine(folder, "runtime", "python.exe")))
-            return "This isn't GPT-SoVITS's Windows package (no runtime\\python.exe).";
-        return null;
-    }
+    public static string? Check(string? folder) => EngineInstall.Problem(folder);
 
     /// <summary>
     /// Starts the server, or keeps waiting for one already starting, until it answers; false (with the reason in the

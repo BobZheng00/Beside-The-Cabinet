@@ -59,9 +59,20 @@ public partial class VoiceSettings : VBoxContainer
     public event Action? AddVoice, AddFolder, RemoveVoice;
     /// <summary>The user wants this voice trained (its changes written first), or the training stopped.</summary>
     public event Action? Train, StopTraining;
+    /// <summary>The user wants GPT-SoVITS installed inside this folder, from there; or the installing stopped.</summary>
+    public event Action<string, EngineSource>? InstallEngine;
+    public event Action? StopInstall;
 
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
+    private EngineInstaller _installer = null!;
+    private HBoxContainer _found = null!;
+    private VBoxContainer _install = null!;
+    private Label _foundAt = null!, _plan = null!, _installSays = null!;
+    private LineEdit _into = null!;
+    private OptionButton _source = null!;
+    private Button _installButton = null!, _stopInstall = null!;
+    private ProgressBar _installing = null!;
     private VoiceProfile? _profile;
     private LineEdit _engine = null!, _words = null!;
     private Label _status = null!, _result = null!;
@@ -77,10 +88,11 @@ public partial class VoiceSettings : VBoxContainer
     private AudioStreamPlayer _preview = null!;
     private bool _removing;
 
-    public void Build(Voice voice, VoiceTrainer trainer, string? engineFolder, string name, SettingsFile settings)
+    public void Build(Voice voice, VoiceTrainer trainer, EngineInstaller installer, string? engineFolder, string? installTo, string name, SettingsFile settings)
     {
         _voice = voice;
         _trainer = trainer;
+        _installer = installer;
         _profile = voice.Profile;
         _preview = new AudioStreamPlayer();
         AddChild(_preview);
@@ -100,13 +112,11 @@ public partial class VoiceSettings : VBoxContainer
         folderRow.AddThemeConstantOverride("separation", 8);
         _engine = new LineEdit { Text = engineFolder ?? "", PlaceholderText = @"C:\GPT-SoVITS-v2pro-20250604", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         folderRow.AddChild(_engine);
-        Form.Button(folderRow, "Browse…", Browse);
+        Form.Button(folderRow, "Browse…", () => Browse(_engine, "Where is GPT-SoVITS?"));
         Form.Row(engine, "GPT-SoVITS", folderRow);
         _status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         Form.Row(engine, "", _status);
-        var get = new Button { Text = "Get GPT-SoVITS…", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = SizeFlags.ShrinkBegin };
-        get.Pressed += () => OS.ShellOpen(GetEngine);
-        Form.Row(engine, "", get);
+        BuildInstall(installTo);
 
         AddChild(new HSeparator());
         if (_profile is null)
@@ -139,6 +149,7 @@ public partial class VoiceSettings : VBoxContainer
         _engine.TextChanged += text =>
         {
             ShowStatus();
+            ShowInstall();
             var folder = text.Trim();
             if (folder.Length == 0 || VoiceServer.Check(folder) is null)
                 EngineChosen?.Invoke(folder.Length > 0 ? folder : null);
@@ -360,26 +371,99 @@ public partial class VoiceSettings : VBoxContainer
         dialog.PopupCentered(new Vector2I(560, 560));
     }
 
-    private void Browse()
+    private void Browse(LineEdit field, string title)
     {
         var dialog = new FileDialog
         {
-            Title = "Where is GPT-SoVITS?",
+            Title = title,
             ModeOverridesTitle = false,
             FileMode = FileDialog.FileModeEnum.OpenDir,
             Access = FileDialog.AccessEnum.Filesystem,
             UseNativeDialog = true,
-            CurrentDir = Directory.Exists(_engine.Text) ? _engine.Text : "C:\\",
+            CurrentDir = Directory.Exists(field.Text) ? field.Text : "C:\\",
         };
-        dialog.DirSelected += folder =>
-        {
-            _engine.Text = folder;
-            _engine.EmitSignal(LineEdit.SignalName.TextChanged, folder);        // as if typed: used if it works
-            dialog.QueueFree();
-        };
+        dialog.DirSelected += folder => { Choose(field, folder); dialog.QueueFree(); };
         dialog.Canceled += dialog.QueueFree;
         AddChild(dialog);
         dialog.PopupCentered();
+    }
+
+    /// <summary>A folder put in a field as if typed (the GPT-SoVITS one is used if it works).</summary>
+    private static void Choose(LineEdit field, string folder)
+    {
+        field.Text = folder;
+        field.EmitSignal(LineEdit.SignalName.TextChanged, folder);
+    }
+
+    /// <summary>Under the GPT-SoVITS folder: one found on this PC to use, or having it installed.</summary>
+    private void BuildInstall(string? installTo)
+    {
+        _found = new HBoxContainer();
+        _found.AddThemeConstantOverride("separation", 8);
+        _foundAt = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _found.AddChild(_foundAt);
+        Form.Button(_found, "Use it", () => Choose(_engine, Found()!));
+        AddChild(_found);
+
+        _install = new VBoxContainer();
+        _install.AddThemeConstantOverride("separation", 6);
+        AddChild(_install);
+        _plan = Form.Hint(_install, "");
+        var grid = Form.Grid(_install);
+        var intoRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        intoRow.AddThemeConstantOverride("separation", 8);
+        _into = new LineEdit { Text = installTo ?? EngineInstaller.Suggested(), SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        intoRow.AddChild(_into);
+        Form.Button(intoRow, "Browse…", () => Browse(_into, "Install GPT-SoVITS inside which folder?"));
+        Form.Row(grid, "Into", intoRow);
+        _source = Form.Choice(grid, "From", ["Hugging Face, its makers' page", "HF-Mirror, for mainland China"], 0);
+        var buttons = Form.Buttons(_install);
+        _installButton = Form.Button(buttons, "Install it for me", () => InstallEngine?.Invoke(_into.Text.Trim(), (EngineSource)_source.Selected), quiet: false);
+        _stopInstall = Form.Button(buttons, "Stop installing", () => StopInstall?.Invoke());
+        Form.Button(buttons, "Its download page", () => OS.ShellOpen(GetEngine));
+        _installing = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _install.AddChild(_installing);
+        _installSays = Form.Result(_install);
+
+        _into.TextChanged += _ => ShowInstall();
+        _installer.Changed += ShowInstall;
+        TreeExiting += () => _installer.Changed -= ShowInstall;
+        _installer.Look();
+        ShowInstall();
+    }
+
+    /// <summary>A GPT-SoVITS install found on this PC other than the one in the field.</summary>
+    private string? Found() => _installer.Found?.FirstOrDefault(f => !string.Equals(f, _engine.Text.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The install section: shown until GPT-SoVITS works, with what installing it takes and how far it has got.</summary>
+    private void ShowInstall()
+    {
+        if (!IsInstanceValid(this))
+            return;
+        var works = VoiceServer.Check(_engine.Text.Trim()) is null;
+        var running = _installer.Running;
+        _found.Visible = !works && !running && Found() is not null;
+        _foundAt.Text = $"Found on this PC: {Found()}";
+        _install.Visible = !works || running;
+        _installButton.Visible = !running;
+        _stopInstall.Visible = _installing.Visible = running;
+        _into.Editable = !running;
+        _source.Disabled = running;
+        var (package, needs, free) = _installer.Plan(_into.Text.Trim());
+        _plan.Text = "Or have it installed: GPT-SoVITS v2pro of June 2025, the version her voice is tested with" +
+                     (package == EnginePackage.Blackwell ? ", in its build for RTX 50 cards" : "") +
+                     $". It downloads {EngineInstaller.Gb(package.Size)} GB and unpacks to about {EngineInstaller.Gb(package.Unpacked)} GB " +
+                     "(about a quarter of an hour in all on a fast connection), in a folder of its own inside the one below: about " +
+                     $"{EngineInstaller.Gb(needs)} GB needed" + (free is { } room ? $", {EngineInstaller.Gb(room)} GB free there." : ".") +
+                     (_installer.Found is not null && _installer.Card is null
+                         ? " No NVIDIA graphics card was found: without one GPT-SoVITS runs on the processor, much more slowly." : "");
+        if (running)
+        {
+            _installing.Value = _installer.Done;
+            Form.Say(_installSays, _installer.Saying + ". It carries on with this window closed.", Paper.Faint);
+        }
+        else
+            Form.Say(_installSays, _installer.Problem ?? "", Paper.Bad);
     }
 
     private void ShowStatus()

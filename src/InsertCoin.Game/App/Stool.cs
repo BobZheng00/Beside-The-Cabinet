@@ -30,6 +30,7 @@ public partial class Stool : Node2D
     private Music _music = null!;
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
+    private EngineInstaller _installer = null!;
     private MemoryBook? _memoryBook;
     private ChatHistory? _history;
     private bool _gameRunning;
@@ -233,6 +234,14 @@ public partial class Stool : Node2D
         AddChild(_trainer);
         _trainer.Build(Path.Combine(dataDir, "companion"), settings.Now.TrainingPace);
         _trainer.Finished += TrainingEnded;
+        _installer = new EngineInstaller();
+        AddChild(_installer);
+        _installer.Installed += engine =>                   // GPT-SoVITS installed for them: her voice runs on it
+        {
+            _settings.Save(_settings.Now with { VoiceEngine = engine });
+            _voice.UseEngine(engine);
+            SettingsChanged?.Invoke("voice");
+        };
 
         _listening = new Listening();
         AddChild(_listening);
@@ -1780,8 +1789,8 @@ public partial class Stool : Node2D
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.");
         yield return new("voice", "Her voice",
-            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: get it once (a few GB), then give her a voice from clips of it " +
-            "with their words. About 20 minutes; training a model of her voice takes longer.",
+            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk), " +
+            "then give her a voice from clips of it with their words. About 20 minutes; training a model of her voice takes longer.",
             Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
         if (Listening.HasEars)
             yield return new("listening", "Talking aloud",
@@ -1820,8 +1829,14 @@ public partial class Stool : Node2D
     {
         var folder = OnStool() is { } character ? VoiceFolder(character.Id) : _voice.Folder;
         var page = new VoiceSettings();
-        page.Build(_voice, _trainer, _settings.Now.VoiceEngine, HerName(), _settings);
+        page.Build(_voice, _trainer, _installer, _settings.Now.VoiceEngine, _settings.Now.EngineInstallTo, HerName(), _settings);
         page.Switched += SetVoice;
+        page.InstallEngine += (into, source) =>
+        {
+            _settings.Save(_settings.Now with { EngineInstallTo = into });
+            _installer.Start(into, source);
+        };
+        page.StopInstall += _installer.Stop;
         page.EngineChosen += engine =>
         {
             if (engine == _settings.Now.VoiceEngine)

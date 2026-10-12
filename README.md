@@ -147,8 +147,12 @@ character…" gives whoever is on the stool its personality, example dialogue an
 up when its keywords are mentioned); she greets you as the card says.
 
 She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
-graphics card starts each sentence in about a second). Settings → Her voice: point it at the GPT-SoVITS folder,
-then give her a voice: drop on the cabinet (or add on that page) a voice's folder or `.zip`, which replaces her
+graphics card starts each sentence in about a second). Settings → Her voice: point it at the GPT-SoVITS folder, or
+use the one it finds on the PC ("Found on this PC"), or press "Install it for me": it downloads the package her voice
+is tested with (v2pro of June 2025, 8.2 GB; the build for RTX 50 cards on those) from Hugging Face, or HF-Mirror for
+mainland China, checks it against its published SHA-256, and unpacks it (about 13 GB) in a folder of its own inside
+the one chosen, then uses it. It carries on with Settings closed, and a download stopped, or cut short by closing the
+cabinet, carries on from where it got to. Then give her a voice: drop on the cabinet (or add on that page) a voice's folder or `.zip`, which replaces her
 voice, or clips, which join it. A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
 trained on them (a `.ckpt` and a `.pth`; v2 to v4 all work). The words come from a training list (any `.list`,
 one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab` beside a clip, or the clip's file name
