@@ -133,6 +133,11 @@ public class MemoryTests
         Assert.Single(temp.Store.Facts("shino"));
         Assert.True(Recall.Same("玩家下周二有面试。", "玩家下周二有面试！"));
         Assert.False(Recall.Same("The player likes Hades.", "The player likes Celeste."));
+        // nearly the same words, but another name or number: another fact
+        Assert.False(Recall.Same("Shino has a dog named Luna who brings joy to her family.", "Shino has a dog named Oliver who brings joy to her family."));
+        Assert.False(Recall.Same("The player has 2 children.", "The player has 3 children."));
+        Assert.True(Recall.Same("The player has an interview on Tuesday 6 October.", "The player has an interview on Tuesday, 6 October!"));
+        Assert.True(Recall.Same("The player calls their Mom on Sundays.", "The player calls their mom on Sundays."));
     }
 
     // ---- Upkeep ----------------------------------------------------------------------------------------------------
@@ -206,6 +211,33 @@ public class MemoryTests
                         "- The player's exam is on Monday 12 October 2026. (Since 2 Oct; before: The player has an exam next week.)", system);
         Assert.Contains("You and the player:\n- The player calls Shino 'Coach'.", system);
         Assert.DoesNotContain("No longer so", system);                         // Rust ended, but it wasn't important enough to say so
+    }
+
+    [Fact]
+    public async Task A_new_name_is_another_fact_not_the_same_one_reworded()
+    {
+        // LoCoMo conversation 26 (2026-10-11): told of a new cat, upkeep rewrote her dog Luna as Oliver, in place, and Luna was gone
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var luna = store.AddFact(MindStore.Herself("shino"), "Shino has a dog named Luna who brings joy to her family.", 4, Friday.AddDays(-30));
+        store.AddFact(MindStore.Herself("shino"), "Shino has a cat named Oliver who brings joy to her family.", 4, Friday.AddDays(-30));
+        store.Add("shino", Speaker.User, "how are your pets?", Friday);
+        store.Add("shino", Speaker.Her, "Good! We got another cat, Bailey. Oliver hid his bone in my slipper once!", Friday);
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11)));
+        var model = new FakeModel();
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Shino has a dog named Oliver and got another cat, Bailey."}]}""");
+        model.Answers.Enqueue($$"""
+            {"facts": [
+              {"op": "update", "id": {{luna}}, "text": "Shino has a dog named Oliver who brings joy to her family."},
+              {"op": "add", "about": "her", "text": "Shino has a cat named Bailey who brings joy to her family.", "importance": 4}]}
+            """);
+
+        Assert.True(await conversation.Digest(model));
+
+        Assert.Equal(["Shino has a cat named Oliver who brings joy to her family.", "Shino has a dog named Oliver who brings joy to her family.",
+                      "Shino has a cat named Bailey who brings joy to her family."], store.Facts("shino").Select(f => f.Text));
+        Assert.Equal(("Shino has a dog named Luna who brings joy to her family.", "changed to: Shino has a dog named Oliver who brings joy to her family."),
+                     store.Retired("shino").Select(f => (f.Text, f.Why)).Single());     // what was written over is kept, to recall
     }
 
     [Fact]

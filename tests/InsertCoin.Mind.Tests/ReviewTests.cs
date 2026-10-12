@@ -107,4 +107,27 @@ public class ReviewTests
         Assert.Equal(["The player paints.", "The player volunteers at a youth center."], store.Facts("shino").Select(f => f.Text));
         Assert.Empty(store.Retired("shino"));
     }
+
+    [Fact]
+    public async Task A_merge_that_drops_a_name_or_number_is_not_taken()
+    {
+        // LongMemEval (2026-10-11): 35 of 499 merges dropped one, a 3.6 GPA folded into "graduated from UCLA" among them
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var degree = store.AddFact(MindStore.Shared, "The player graduated from UCLA in 2020.", 7, Friday.AddDays(-10));
+        var gpa = store.AddFact(MindStore.Shared, "The player earned a 3.6 GPA at UCLA.", 5, Friday.AddDays(-9));
+        var hades = store.AddFact(MindStore.Shared, "The player likes Hades.", 5, Friday.AddDays(-8));
+        var celeste = store.AddFact(MindStore.Shared, "The player likes Celeste.", 5, Friday.AddDays(-7));
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel($$"""
+            {"merge": [{"ids": [{{degree}}, {{gpa}}], "text": "The player graduated from UCLA in 2020.", "importance": 7},
+                       {"ids": [{{hades}}, {{celeste}}], "text": "The player likes the games Hades and Celeste.", "importance": 5}],
+             "retire": []}
+            """);
+
+        Assert.True(await conversation.Review(model));
+
+        Assert.Equal(["The player graduated from UCLA in 2020.", "The player earned a 3.6 GPA at UCLA.", "The player likes the games Hades and Celeste."],
+                     store.Facts("shino").Select(f => f.Text));
+    }
 }

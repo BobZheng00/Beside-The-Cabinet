@@ -828,9 +828,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return false;                                   // tried again next time, from the same place
 
         var mine = batch.Where(x => !x.Pinned).ToDictionary(x => x.Id);
-        // a merge is of what says the same thing: one that comes out long joined different things into a paragraph (M8)
+        // a merge is of what says the same thing: one that comes out long joined different things into a paragraph (M8), and
+        // one that drops a name or number lost a detail, which merged-away facts no longer bring back (M12)
         foreach (var merge in verdict.Merges.Where(m => m.Ids.Distinct().Count() == m.Ids.Count && m.Ids.All(mine.ContainsKey) && m.Ids.Select(id => mine[id].Scope).Distinct().Count() == 1
-                                                        && Prompt.Tokens(m.Text) <= MergedTokens))
+                                                        && Prompt.Tokens(m.Text) <= MergedTokens && (m.Ids.Count == 1 || m.Ids.All(id => Recall.Within(mine[id].Text, m.Text)))))
         {
             var merged = merge.Ids.Select(id => mine[id]).ToList();
             var importance = merge.Importance ?? merged.Max(x => x.Importance);

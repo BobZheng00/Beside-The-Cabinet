@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace InsertCoin.Mind;
 
@@ -117,14 +118,31 @@ public static class Recall
         return [.. core, .. related];
     }
 
-    /// <summary>Whether two facts say the same thing in nearly the same words (so a second telling is not kept twice).</summary>
+    /// <summary>
+    /// Whether two facts say the same thing in nearly the same words (so a second telling is not kept twice), with the
+    /// same names and numbers: "a dog named Luna" and "a dog named Oliver" share most of their words but are two facts,
+    /// and an update that turns one into the other is a change, kept with its history (LoCoMo, 2026-10-11: Luna was
+    /// written over, and a second cat dropped as a copy of the first).
+    /// </summary>
     public static bool Same(string a, string b)
     {
         var x = Terms(a).ToHashSet();
         var y = Terms(b).ToHashSet();
         if (x.Count == 0 || y.Count == 0)
             return string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
-        return x.Intersect(y).Count() / (double)x.Union(y).Count() >= 0.75;
+        return x.Intersect(y).Count() / (double)x.Union(y).Count() >= 0.75 && Within(a, b) && Within(b, a);
+    }
+
+    private static readonly HashSet<string> Counts = ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+
+    // shortcut: names are capitalised words, so Chinese and Japanese names aren't told apart here (numbers are); upgrade if facts in them get merged
+    /// <summary>Whether every name and number in <paramref name="a"/> is somewhere in <paramref name="b"/>, in any case.</summary>
+    public static bool Within(string a, string b)
+    {
+        var words = Regex.Matches(b, @"\p{L}+|\d+").Select(m => m.Value.ToLowerInvariant()).ToHashSet();
+        return Regex.Matches(a, @"\p{L}+|\d+").Select(m => m.Value)
+            .Where(w => char.IsUpper(w[0]) || char.IsDigit(w[0]) || Counts.Contains(w.ToLowerInvariant()))
+            .All(w => words.Contains(w.ToLowerInvariant()));
     }
 
     /// <summary>The words of a text, lower-cased: Latin-script words of three letters or more, and pairs of CJK characters.</summary>
