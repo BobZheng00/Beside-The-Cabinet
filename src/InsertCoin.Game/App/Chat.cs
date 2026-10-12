@@ -39,6 +39,7 @@ public sealed class Chat : IDisposable
     private Speech? _speech;                            // what her voice makes of the latest reply
     private CompanionView? _view;                       // where the reply under way is played
     private bool _folding, _upkeeping, _cutting;
+    private bool _usedTool;                             // a tool ran in the reply under way: done, even with no words
     private DateTimeOffset _upkeepAfter;
     private readonly Pages _pages = new(Pages.Web());
     private readonly LeetCodeProblems _leetCode = new(Http);
@@ -64,6 +65,7 @@ public sealed class Chat : IDisposable
         Tools.Using += tool =>
         {
             GD.Print($"Tools: she uses {tool.Name}");
+            _usedTool = true;
             _answering?.CancelAfter(AnswerTimeout);         // each step of a longer piece of work gets the reply's full time again
             if (tool.Name != "print_memo" && _view is { } view && GodotObject.IsInstanceValid(view))
                 view.Working();                             // a memo is sent instead (see PrintMemo)
@@ -410,6 +412,7 @@ public sealed class Chat : IDisposable
         _speech = speech;
         _view = view;
         var refused = Tools.Refused;
+        _usedTool = false;
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;
@@ -463,7 +466,16 @@ public sealed class Chat : IDisposable
                                       answering.Token, Tools, handed);
             GD.Print(shown is { } ms
                 ? $"Chat: her bubble showed its first words {ms} ms after asking, the whole reply after {clock.ElapsedMilliseconds} ms"
-                : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, {(texting ? "written as a text" : "held to be played after")}");
+                : text.Length == 0
+                    ? $"Chat: no words came back ({clock.ElapsedMilliseconds} ms after asking)"
+                    : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, {(texting ? "written as a text" : "held to be played after")}");
+            // the player's own message answered with nothing, even asked twice: said, as a failed request is, not left as
+            // silence with her thinking dots gone (2026-10-11, a provider's empty answers)
+            if (text.Length == 0 && !_usedTool && !fromCabinet && held is null && Here())
+            {
+                view.Play(Moment.Worry);
+                view.Continue(Trouble.Empty);
+            }
             if (handed is { Count: > 0 })
                 GD.Print($"Chat: handed {string.Join(", ", handed.Select(h => $"{h.Name} ({h.MediaType}, {h.Data.Length / 1024} KB)"))}");
             if (conversation.Unseeing && !CantSee(model))

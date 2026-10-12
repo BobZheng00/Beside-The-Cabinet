@@ -7,6 +7,9 @@ namespace InsertCoin.Mind;
 /// <summary>Why a request to the user's provider failed, in words she can say and the settings window can show.</summary>
 public static class Trouble
 {
+    /// <summary>What she says when the provider sent back nothing at all, asked twice (R1): not left as silence.</summary>
+    public const string Empty = "The provider sent back an empty answer. Try sending that again.";
+
     public static string Explain(Exception e) => Status(e) switch
     {
         HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → Her mind.",
