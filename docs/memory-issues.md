@@ -22,6 +22,7 @@ only with a re-run that shows it fixed, and say which.
 | M11 | Facts about her can be kept wrong, or from the player's life | checked: 87% of facts right, none about the wrong person; the dog was a name written over by a code check, fixed on `main` (da4f101; a test replays it, no benchmark re-run) |
 | M12 | The weekly review's merges dropped names and numbers | fixed on `main` (da4f101): such a merge is not taken (a test, no benchmark re-run) |
 | M13 | Things said in passing, with a date, often reach no note with it | open: most of the time questions still missed |
+| M14 | Her notes took her instructions' example for the player's past | fixed on `main` (f245bd4): the examples show the form only; five replays of the smoke test clean (no benchmark re-run) |
 
 ## M1. The summary is cut off at its newest end
 
@@ -250,3 +251,20 @@ only with a re-run that shows it fixed, and say which.
   Saturday 20 May, where its answer says Sunday.
 - **Notes:** the lines stay searchable word for word, so it is partly search: whether recall brings the line back.
   To do: count over more conversations how many dated events reach no note before deciding on a change.
+
+## M14. Her notes took her instructions' example for the player's past
+
+- **What the player would notice:** her diary tells of something they never said, close to something they did
+  say.
+- **Evidence** (2026-10-11 night, the smoke test's step 2): the player said they were moving to Toronto for a new
+  job at Acme, and her note read "a significant change from his previously noted job interview at Acme". No
+  interview was ever mentioned: the note-taker's instructions had one as their example ("a job interview at Acme on
+  Friday 9 October… nervous about the system-design round"). Upkeep's examples told of a sick cat at the vet and
+  of waiting to hear back from Acme, close to the smoke test's own messages too. Five replays of the same talk
+  through upkeep (`probe\upkeep_leak.cs` in `<tools>\memory-bench`) did not bring it back, so about one run in
+  six, and nothing in code could catch it.
+- **Fix** (f245bd4): the examples in the note-taker's, the condenser's and upkeep's instructions show the form only
+  ("The player …", "a short title"), as the weekly review's already did. Without a sentence to copy, the notes
+  called the player "he", guessed from the name, in 4 of 5 replays (1 in 6 before), so the note-taker is told to
+  say "they". Five replays after: no example words, no "he", and every note, fact, plan and thread kept in each;
+  the music and the weather were noted in all five (3 and 1 of the 4 earlier replays read in full).
