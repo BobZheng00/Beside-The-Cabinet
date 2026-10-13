@@ -15,19 +15,21 @@ updated. Nobody else should be able to sell it.
   the user can still sell the app, on Steam or anywhere, and relicense it; outside contributions too, through the CLA.
   The copyright line names Shenyan Zheng, with the repository at `github.com/BobZheng00/Beside-The-Cabinet` (the
   user's name and GitHub account, their choice for publishing).
-- [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
-  GitHub app). Needed with any non-commercial license, before the first outside pull request. Setting it up
-  (cla-assistant.io, run free by SAP): put the text of `CLA.md`, without its draft line once settled, in a gist at
+- [x] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too. Needed with any
+  non-commercial license, before the first outside pull request. The text: our short `CLA.md`, as it is (the user,
+  2026-10-12: "i'm good with the CLA text"), version 1. Signed, for now, by a comment on the contributor's first
+  pull request, "I have read CLA.md (version 1) and I agree to it." (`CONTRIBUTING.md` asks for it; nothing of theirs
+  is merged before it). A bot waits until pull requests come often (the user: "we may be far away from needing
+  this"). Then cla-assistant.io (run free by SAP): `CLA.md`'s text in a gist at
   gist.github.com; sign in at cla-assistant.io with GitHub, choose this repository and that gist, and link them.
   It then comments on every pull request and checks that its author has signed (one click, with their GitHub
   account), and asks again whenever the gist changes. Signatures are kept by the service (in Europe) and can be
-  exported as CSV. Its pages don't say whether it can see private repositories: set it up when the repository
-  goes public, before anyone else can open a pull request. The other way, the CLA Assistant Lite workflow (signing
-  by a comment, signatures kept in the repository), is archived and no longer maintained. The text first: our short
-  `CLA.md` with its draft line dropped, or a standard one from the chooser at contributoragreements.org (free,
-  made with lawyers, and where CLA Assistant's own pages send people), choosing a licence rather than an
-  assignment, and the outbound option that lets the project license contributions under any licence, so that
-  the paid build stays possible.
+  exported as CSV; `CONTRIBUTING.md` then says the bot asks instead of the comment. Its pages don't say whether it
+  can see private repositories. The other way, the CLA Assistant Lite workflow (signing by a comment, signatures
+  kept in the repository), is archived and no longer maintained. Should the text ever change: a new version (the
+  comment names it), or a standard one from the chooser at contributoragreements.org (free, made with lawyers),
+  choosing a licence rather than an assignment, and the outbound option that lets the project license
+  contributions under any licence, so that the paid build stays possible.
 - [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
   A title in another language waits for the Steam release. On Steam with a plain subtitle (Beside the Cabinet: A
   Desktop Companion). The cabinet's marquee keeps saying INSERT COIN in the game world. Still to check: the trademark
@@ -211,8 +213,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   150 strings no longer say she or her, nor, from the same day, do the READMEs: "your companion", then "they".
 - [x] **LICENSE, NOTICE and CONTRIBUTING with the CLA**, drafted 2026-10-12: `LICENSE.md` (PolyForm Noncommercial),
   `NOTICE.md` (what the licence doesn't cover: the name and icon, the cabinet's art and sounds, the built-in personas
-  and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (a draft for a lawyer to read; CLA Assistant points at
-  it). The owner's name and GitHub account filled in the same day, and the repository's address once the user had
+  and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (version 1, the user's as it is; signed by a
+  comment for now). The owner's name and GitHub account filled in the same day, and the repository's address once the user had
   made it (private for now).
 - [x] **A README front page for strangers**, drafted 2026-10-12: what it is, a picture (`docs/images`), what it needs,
   getting it running, what goes where, characters and voices, the licence. The manual below it moved the same day
@@ -236,8 +238,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
 - [ ] **Right after making it public** (Settings): Advanced Security → Private vulnerability reporting → Enable
   (`CONTRIBUTING.md` sends security reports there, and GitHub offers it on public repositories); Rules →
   Rulesets → a branch ruleset on `main` that restricts deletions and blocks force pushes (pushes go on as they
-  are; the published history can't be rewritten by mistake); and CLA Assistant (above), before anyone can open a
-  pull request.
+  are; the published history can't be rewritten by mistake). Outside pull requests wait for the CLA comment
+  (above).
 
 ## The personal-information review
 

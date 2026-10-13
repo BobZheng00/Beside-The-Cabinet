@@ -1,6 +1,6 @@
 # Contributor License Agreement
 
-*Draft, 2026-10-12: to be read by a lawyer before it is relied on.*
+*Version 1, 2026-10-12.*
 
 This agreement is between you and Shenyan Zheng ("the owner"), the copyright holder of Beside the Cabinet. It covers every
 contribution you submit to the project: code, documents, art, sound, or anything else ("your contributions").
@@ -18,5 +18,5 @@ contribution you submit to the project: code, documents, art, sound, or anything
    licence that conflicts with this one. If your employer has rights in your work, you have their permission.
 6. **No warranty.** Your contributions are given as they are; you aren't expected to support them.
 
-Signing this agreement through the pull request bot means you agree to it for all your contributions to the project,
-past and future.
+Agreeing to it in a pull request, with the comment `CONTRIBUTING.md` gives or through a bot if the project uses one,
+means you agree to it for all your contributions to the project, past and future.

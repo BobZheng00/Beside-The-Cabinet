@@ -12,8 +12,12 @@ Thank you for wanting to help with Beside the Cabinet. Bug reports, ideas and pu
 
 ## The contributor agreement
 
-Every pull request needs a signed contributor agreement ([CLA.md](CLA.md)). The bot asks for it on your first pull
-request, and signing takes one click with your GitHub account.
+To contribute, you accept the contributor agreement ([CLA.md](CLA.md)): on your first pull request, add this
+comment:
+
+> I have read CLA.md (version 1) and I agree to it.
+
+Nothing is merged before it, and once is enough: it covers all your contributions.
 
 Why: the code is licensed to everyone under the PolyForm Noncommercial License, and the copyright holder also publishes
 the app themselves, possibly as a paid build. The agreement lets your contribution go into every build of the app. You
