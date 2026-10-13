@@ -21,8 +21,8 @@ python tools/art/app_icon.py                             # regenerate the app ic
 python tools/models/fetch.py                             # local models -> src/InsertCoin.Game/models (not in git: 380 MB)
 ```
 
-The models are optional: without the memory models she recalls by shared words only, and without SenseVoice
-(`fetch.py listening`, 240 MB) she can't be talked to aloud. `build.cmd` fetches all three when the folder is
+The models are optional: without the memory models the companion recalls by shared words only, and without
+SenseVoice (`fetch.py listening`, 240 MB) they can't be talked to aloud. `build.cmd` fetches all three when the folder is
 missing; `python tools/models/fetch.py small` beforehand gives a lighter build with only the small memory model.
 
 ## Running it
@@ -57,24 +57,24 @@ Godot's exporter writes the app icon (`icon.ico`) and the product name into the 
 src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no clock
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
-                          store (SQLite), prompt, stage directions, her notes and upkeep, encrypted key; Tools/: her
-                          tools and their permissions (Toolbox) and the built-in ones (BuiltIn); memos (Memo);
+                          store (SQLite), prompt, stage directions, notes and upkeep, encrypted key; Tools/: the
+                          companion's tools and their permissions (Toolbox) and the built-in ones (BuiltIn); memos (Memo);
                           Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
                           (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python), hearing (SenseVoice
                           through sherpa-onnx)
 src/InsertCoin.Game       Godot 4.7 (.NET) app: Main (the cabinet's loop: ledger, screen, window, tray), App/Stool (whoever
-                          is on the stool: her figure, chat, voice and their windows), cabinet scene, companion,
+                          is on the stool: their figure, chat, voice and windows), cabinet scene, companion,
                           director, desktop window, tray, audio
 tests/                    xUnit: every rule with a fake clock; adapters with recorded responses; the mind with a fake model
 tools/art                 cozy_cabinet.py — the cabinet is a 3D model rendered to SVG, exported as skin layers;
                           app_icon.py — the app icon (.ico for the .exe, .png for the window)
 tools/sfx                 generate.py — chip-style synth that writes the sound effects
-tools/models              fetch.py — downloads the local models: her memory search's, her ears' (SenseVoice)
+tools/models              fetch.py — downloads the local models: memory search's, and the ears' (SenseVoice)
 tools/dev                 shoot.ps1 runs the app in a throwaway muted profile and screenshots it (-Window: one of its
                           own windows too; -Desk: all its windows where they sit together); clip.ps1 records a clip of
-                          her moving; sheet.ps1 makes contact sheets
-tools/bench               memory.cs — her memory on LongMemEval and LoCoMo, and staying in character (docs/research/2026-10-11-memory-benchmark.md):
+                          the companion moving; sheet.ps1 makes contact sheets
+tools/bench               memory.cs — the companion's memory on LongMemEval and LoCoMo, and staying in character (docs/research/2026-10-11-memory-benchmark.md):
                           `dotnet run tools/bench/memory.cs -- --data <json> --out <folder> [--set locomo|persona]`;
                           it runs on a profile's own provider and key (the demo's), billed to its owner
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)

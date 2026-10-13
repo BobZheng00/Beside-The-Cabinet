@@ -13,7 +13,7 @@ updated. Nobody else should be able to sell it.
   stricter (no sharing of builds) but not a standard one, contradicts itself, and has no contributor agreement behind
   it; PolyForm keeps the same aim (nobody else sells it) with a lawyer-written text. It binds everyone but its owner:
   the user can still sell the app, on Steam or anywhere, and relicense it; outside contributions too, through the CLA.
-  The copyright line names Shenyan Zheng, with the repository at `github.com/BobZheng00/beside-the-cabinet` (the
+  The copyright line names Shenyan Zheng, with the repository at `github.com/BobZheng00/Beside-The-Cabinet` (the
   user's name and GitHub account, their choice for publishing).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
@@ -192,12 +192,12 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   player's moves; the cabinet keeps INSERT COIN on its marquee and in her instructions.
 - [x] **Words that fit either character** (2026-10-12; the user: their name, and a neutral pronoun where one can't be
   avoided): the companion's group in Settings is headed by the character's name (Mind, Voice, … under it), and about
-  150 strings no longer say she or her. The guide (`docs/README.md`) still does, with a note that any character fits.
+  150 strings no longer say she or her, nor, from the same day, do the READMEs: "your companion", then "they".
 - [x] **LICENSE, NOTICE and CONTRIBUTING with the CLA**, drafted 2026-10-12: `LICENSE.md` (PolyForm Noncommercial),
   `NOTICE.md` (what the licence doesn't cover: the name and icon, the cabinet's art and sounds, the built-in personas
   and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (a draft for a lawyer to read; CLA Assistant points at
-  it). The owner's name and GitHub account filled in the same day; if the repository gets another name than
-  `beside-the-cabinet`, the link in their copyright lines follows it.
+  it). The owner's name and GitHub account filled in the same day, and the repository's address once the user had
+  made it (private for now).
 - [x] **A README front page for strangers**, drafted 2026-10-12: what it is, a picture (`docs/images`), what it needs,
   getting it running, what goes where, characters and voices, the licence. The manual below it moved the same day
   into READMEs beside what they describe (the user: "only leave essential things in the main readme"), linked
