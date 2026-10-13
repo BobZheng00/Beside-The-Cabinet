@@ -237,9 +237,16 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   the README says it is on its way.
 - [ ] **Right after making it public** (Settings): Advanced Security → Private vulnerability reporting → Enable
   (`CONTRIBUTING.md` sends security reports there, and GitHub offers it on public repositories); Rules →
-  Rulesets → a branch ruleset on `main` that restricts deletions and blocks force pushes (pushes go on as they
-  are; the published history can't be rewritten by mistake). Outside pull requests wait for the CLA comment
-  (above).
+  Rulesets → New ruleset → New branch ruleset (free on public repositories; private ones need GitHub Pro): name
+  it `main`, enforcement Active, bypass list empty, target "Include default branch"; rules: Restrict deletions,
+  Block force pushes, and Require a pull request before merging (the user, 2026-10-12: "only allow merge from PR"),
+  with 0 required approvals (GitHub never lets an author approve their own pull request, so 1 would lock the
+  owner out) and Rebase and Squash as the allowed merge methods (Rebase keeps each commit and its message as
+  written; Squash suits an outside pull request of many small commits). The rule binds the owner too, and with
+  that every change: a branch is pushed and merged through a pull request (CLAUDE.md, "Git"). Nobody else can
+  push in any case: a public repository can be read, cloned and forked by anyone, but only its owner and the
+  collaborators they invite can push, and outside changes come as pull requests from forks. Outside pull
+  requests wait for the CLA comment (above).
 
 ## The personal-information review
 

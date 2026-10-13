@@ -67,7 +67,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - **Third-party voices and character models** (the demo profile's) are for the user's personal testing only. Never commit them.
 - **Acting outside the app:** whatever she does there asks the player first. Downloads need the user's permission.
 - **Git:**
-  - Work on a branch, then fast-forward `main`.
+  - Work on a branch, then fast-forward `main`. Once the repository is public, `main` takes changes only through
+    pull requests (the user, 2026-10-12; the ruleset in `docs/publishing.md`): push the branch, and the user
+    merges its pull request on GitHub (Rebase and merge); then `main` here is brought up to GitHub's.
   - Commit message: a plain sentence saying what changed for the player, then details.
   - End commits with the `Co-Authored-By` line from the system reminder, without a `Claude-Session` link (the user, 2026-10-12: those links would show in the public history).
 - **Web research** results end with a "Sources:" list.
