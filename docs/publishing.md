@@ -225,9 +225,19 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   test scripts use the `_console.exe` beside it, and their throwaway profiles no longer carry a LeetCode name). Left as
   it was: the export preset's template path (`custom_template/release` in `export_presets.cfg`), which a builder sets
   to their own.
-- [ ] **The release zip:** a THIRD-PARTY-NOTICES file for the libraries and models in it (MIT, Apache and BSD ask for
-  their notices in binary copies), SenseVoice's attribution, and a credit for Kokoro-82M, which made the built-in
-  characters' voices. The build is about 700 MB (GitHub allows 2 GB a file).
+- [x] **The release zip** (2026-10-13, Preview 1, `0.1.0-preview.1`; the user: "name it some sort of preview", any
+  build of a work in progress being one): `python tools/export/release.py <version>` exports into
+  `builds/release/<version>/`, writes THIRD-PARTY-NOTICES.txt from what shipped (Godot's own notices from the engine,
+  the .NET runtime's, every NuGet package with its copyright and licence, the models, fonts, add-ons, characters and
+  Kokoro-82M's credit; MIT, Apache and BSD ask for their notices in binary copies), adds LICENSE.md, NOTICE.md and a
+  README.txt, and zips it (441 MB; GitHub allows 2 GB a file). It stops on any library its notices can't account for.
+  Found while making it: the NuGet build of sherpa-onnx links espeak-ng (GPL-3.0) for text-to-speech the app never
+  uses, which would have shipped GPL code with a noncommercial app; the script swaps in sherpa-onnx's own build
+  without it (pinned by SHA-256; the user's choice) and checks every shipped file for espeak-ng. Tried on a fresh
+  throwaway profile: the first run's Welcome, Shino's own voice given, memory search on the multilingual model,
+  SenseVoice hearing a recording through the swapped library, a reply from a stand-in provider, no errors. Not
+  signed: Windows SmartScreen warns until it is (More info → Run anyway, as the README says). ONNX Runtime needs
+  Microsoft's Visual C++ runtime, which most PCs have; the zip's README links Microsoft's installer.
 - [ ] **The GitHub page:** description, topics, a social preview image, the first release. Drafted 2026-10-12, for
   the About box (the gear beside it): "A desktop companion who sits beside a little arcade cabinet: talks, remembers
   your days, keeps your agenda, and balances work and play. Windows; bring your own AI." Topics:
