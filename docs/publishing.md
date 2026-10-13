@@ -173,15 +173,19 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   commit, the replacements made in every version of every file and in every commit message, the `Claude-Session:`
   links stripped (the user's choice), all commits and dates kept. Checked: `private/rewrite/check.py --history` finds
   nothing left; its newest files are the same as the working folder's (one tree); the author line is the user's own.
-- [ ] **The push**, by the user, from the clean clone: create the GitHub repository, then `git remote add origin
-  <its address>` and `git push -u origin main` there. GitHub shows the commits as the user's once their email is on
-  their account. The repository can start private and be made public once the rest of this list is done; pushing
-  early ends the carrying of each commit across (below).
+- [x] **The push** (2026-10-12): the user made the repository, private for now
+  (`github.com/BobZheng00/Beside-The-Cabinet`). Before it, every version of every file and every commit message was
+  searched for secrets (keys, tokens, webhooks, private calendar links), personal leftovers and files that must never
+  ship, and the largest files sized up (the two CC0 models, 20 and 15 MB); none found. `main` and the three art tags
+  went up from the clean clone (the other 31 branches are all merged into `main`). GitHub shows the commits as the
+  user's once their email is on their account. It is made public once the rest of this list is done.
 - [ ] **Then work from the clean history.** Its commits have new hashes, so the working folder takes them over:
   first a backup of the old history (`git bundle create <somewhere>/insert-coin-before-publishing.bundle --all`),
   then in the working folder `git fetch <the clean clone> main` and `git reset --hard FETCH_HEAD` (the same files, so
   nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay), then `git remote add origin
   <its address>` and `git push -u origin main` there too (nothing new to send; it links the working folder to GitHub).
+  The working folder's old branches go once the bundle is made: they hold the old history, and a `git push --all`
+  would send it.
   Anything committed in the working folder meanwhile is cherry-picked into the clean clone first, as this checklist's
   own update was.
 - [x] **What players see takes the new name** (2026-10-12): the README, the window and tray titles, the first run's
