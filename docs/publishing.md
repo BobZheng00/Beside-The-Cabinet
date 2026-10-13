@@ -16,7 +16,14 @@ updated. Nobody else should be able to sell it.
   The copyright line names Shenyan Zheng, with the repository at `github.com/BobZheng00/Beside-The-Cabinet` (the
   user's name and GitHub account, their choice for publishing).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
-  GitHub app). Needed with any non-commercial license, before the first outside pull request.
+  GitHub app). Needed with any non-commercial license, before the first outside pull request. Setting it up
+  (cla-assistant.io, run free by SAP): put the text of `CLA.md`, without its draft line once settled, in a gist at
+  gist.github.com; sign in at cla-assistant.io with GitHub, choose this repository and that gist, and link them.
+  It then comments on every pull request and checks that its author has signed (one click, with their GitHub
+  account), and asks again whenever the gist changes. Signatures are kept by the service (in Europe) and can be
+  exported as CSV. Its pages don't say whether it can see private repositories: set it up when the repository
+  goes public, before anyone else can open a pull request. The other way, the CLA Assistant Lite workflow (signing
+  by a comment, signatures kept in the repository), is archived and no longer maintained.
 - [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
   A title in another language waits for the Steam release. On Steam with a plain subtitle (Beside the Cabinet: A
   Desktop Companion). The cabinet's marquee keeps saying INSERT COIN in the game world. Still to check: the trademark
@@ -179,7 +186,7 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   ship, and the largest files sized up (the two CC0 models, 20 and 15 MB); none found. `main` and the three art tags
   went up from the clean clone (the other 31 branches are all merged into `main`). GitHub shows the commits as the
   user's once their email is on their account. It is made public once the rest of this list is done.
-- [ ] **Then work from the clean history.** Its commits have new hashes, so the working folder takes them over:
+- [x] **Then work from the clean history** (2026-10-12). Its commits have new hashes, so the working folder took them over:
   first a backup of the old history (`git bundle create <somewhere>/insert-coin-before-publishing.bundle --all`),
   then in the working folder `git fetch <the clean clone> main` and `git reset --hard FETCH_HEAD` (the same files, so
   nothing on disk changes; `private/`, the models and `.godot` are git-ignored and stay), then `git remote add origin
@@ -187,7 +194,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   The working folder's old branches go once the bundle is made: they hold the old history, and a `git push --all`
   would send it.
   Anything committed in the working folder meanwhile is cherry-picked into the clean clone first, as this checklist's
-  own update was.
+  own update was. Done that way: the bundle made and checked, the folder on the clean `main` with GitHub as its
+  `origin`, the old branches deleted, the art tags taken from GitHub; no file changed.
 - [x] **What players see takes the new name** (2026-10-12): the README, the window and tray titles, the first run's
   welcome, the name a webhook gives the app, a Telegram bot's description, Godot's application name (`config/name`,
   also the window title; Godot's own folder for its log moves with it, the player's profile doesn't), and the exe:
