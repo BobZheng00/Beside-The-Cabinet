@@ -23,7 +23,11 @@ updated. Nobody else should be able to sell it.
   account), and asks again whenever the gist changes. Signatures are kept by the service (in Europe) and can be
   exported as CSV. Its pages don't say whether it can see private repositories: set it up when the repository
   goes public, before anyone else can open a pull request. The other way, the CLA Assistant Lite workflow (signing
-  by a comment, signatures kept in the repository), is archived and no longer maintained.
+  by a comment, signatures kept in the repository), is archived and no longer maintained. The text first: our short
+  `CLA.md` with its draft line dropped, or a standard one from the chooser at contributoragreements.org (free,
+  made with lawyers, and where CLA Assistant's own pages send people), choosing a licence rather than an
+  assignment, and the outbound option that lets the project license contributions under any licence, so that
+  the paid build stays possible.
 - [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
   A title in another language waits for the Steam release. On Steam with a plain subtitle (Beside the Cabinet: A
   Desktop Companion). The cabinet's marquee keeps saying INSERT COIN in the game world. Still to check: the trademark
@@ -222,7 +226,18 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
 - [ ] **The release zip:** a THIRD-PARTY-NOTICES file for the libraries and models in it (MIT, Apache and BSD ask for
   their notices in binary copies), SenseVoice's attribution, and a credit for Kokoro-82M, which made the built-in
   characters' voices. The build is about 700 MB (GitHub allows 2 GB a file).
-- [ ] **The GitHub page:** description, topics, a social preview image, the first release.
+- [ ] **The GitHub page:** description, topics, a social preview image, the first release. Drafted 2026-10-12, for
+  the About box (the gear beside it): "A desktop companion who sits beside a little arcade cabinet: talks, remembers
+  your days, keeps your agenda, and balances work and play. Windows; bring your own AI." Topics:
+  `desktop-companion`, `ai-companion`, `vrm`, `godot`, `csharp`, `dotnet`, `windows`, `llm`, `chatbot`,
+  `text-to-speech`, `speech-recognition`, `gpt-sovits`, `pomodoro`, `productivity`. The social preview (Settings →
+  General) wants a wide picture, 1280×640 at best; the README's is tall. The first release can follow going public:
+  the README says it is on its way.
+- [ ] **Right after making it public** (Settings): Advanced Security → Private vulnerability reporting → Enable
+  (`CONTRIBUTING.md` sends security reports there, and GitHub offers it on public repositories); Rules →
+  Rulesets → a branch ruleset on `main` that restricts deletions and blocks force pushes (pushes go on as they
+  are; the published history can't be rewritten by mistake); and CLA Assistant (above), before anyone can open a
+  pull request.
 
 ## The personal-information review
 
