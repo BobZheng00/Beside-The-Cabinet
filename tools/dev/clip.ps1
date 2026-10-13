@@ -5,7 +5,7 @@
 #   tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer
 #   tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer -Crop "150:220:80:135" -Scale 3   # her upper body, three times the size
 #
-# -Script   dev actions "action@seconds,..." (see README); times count from app start
+# -Script   dev actions "action@seconds,..." (see README.md here); times count from app start
 # -Seconds  how long to record
 # -From     seconds to leave out at the start (the app settling) in the GIF
 # -Crop     "w:h:x:y" of the window to keep (default: all of her; "150:220:80:135" is her upper body; "" the whole window)

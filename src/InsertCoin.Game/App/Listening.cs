@@ -532,7 +532,7 @@ public partial class Listening : Node
 
     // ---- Dev -----------------------------------------------------------------------------------------------------------
 
-    /// <summary>Her listening dev actions (see the README); false when <paramref name="name"/> isn't one of them.</summary>
+    /// <summary>Her listening dev actions (see tools/dev/README.md); false when <paramref name="name"/> isn't one of them.</summary>
     public bool Dev(string name, string rest)
     {
         switch (name)

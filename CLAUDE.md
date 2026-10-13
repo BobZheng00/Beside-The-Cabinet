@@ -2,7 +2,7 @@
 
 A companion on a stool beside a little desktop arcade cabinet (Godot 4.7.2 .NET): they chat, remember, speak, listen, keep the player's agenda and reach them by text, and the cabinet keeps a balance of work, life and games (good work earns play time: focus, the player's own activities, LeetCode solves). Players see "Beside the Cabinet"; the code, folders and the cabinet's marquee keep INSERT COIN. These notes call the companion "she" for short; the app's own words use the character's name, or "they".
 
-The README is the manual: features, every dev action, build commands. `docs/specs` records what was decided and which parts are built. Read those rather than re-deriving them. This file is about how to work here, and where we are.
+The README is the front page for strangers; the manual is in READMEs beside what they describe: `docs/README.md` every feature and setting, `tools/dev/README.md` every dev key and dev action, `src/README.md` building and running, `src/InsertCoin.Game/README.md` how the app is put together, `src/InsertCoin.Game/characters/README.md` adding a character. Keep them current as things change. `docs/specs` records what was decided and which parts are built. Read those rather than re-deriving them. This file is about how to work here, and where we are.
 
 ## Where things are
 
@@ -53,7 +53,7 @@ The README is the manual: features, every dev action, build commands. `docs/spec
 
 - Test runs, clips and benchmarks are scripts with every option in their headers: `tools\dev\shoot.ps1` (a hidden,
   muted, throwaway profile; screenshots taken from the app's own windows), `tools\dev\clip.ps1` (motion is judged on
-  clips, not stills), `tools/bench/memory.cs` (her memory). Every dev action is in the README.
+  clips, not stills), `tools/bench/memory.cs` (her memory). Every dev action is in `tools/dev/README.md`.
 - The launch scripts and these read the Godot editor's path from `GODOT`, or from `private\local.cmd`.
 - **Never** open the real microphone in a test, launch the real profile unasked, send keystrokes or take focus, flip
   "Start with Windows" (Windows' own setting) or untick "Mute sounds" in a test. One copy of the app runs at a time.

@@ -5,7 +5,7 @@
 #   tools\dev\shoot.ps1 -Exe builds\BesideTheCabinet\BesideTheCabinet.exe -Shots 6            # the standalone build
 #   tools\dev\shoot.ps1 -Model C:\some\character.glb -Settings ', "Companion": "character"'
 #
-# -Script   dev actions "action@seconds,..." (see README); times count from app start, about 2 s after launch
+# -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
 # -Shots    seconds after launch at which to capture
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma (', "SetUp": false' for a first run)

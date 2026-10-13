@@ -2095,7 +2095,7 @@ public partial class Stool : Node2D
 
     // ---- Dev actions -----------------------------------------------------------------------------------------------------
 
-    /// <summary>Her dev actions (see the README); false when <paramref name="action"/> isn't one of hers.</summary>
+    /// <summary>Her dev actions (see tools/dev/README.md); false when <paramref name="action"/> isn't one of hers.</summary>
     public bool Dev(string action)
     {
         var (name, rest) = action.IndexOf(':') is var colon and >= 0 ? (action[..colon], action[(colon + 1)..]) : (action, "");

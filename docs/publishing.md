@@ -192,14 +192,16 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   player's moves; the cabinet keeps INSERT COIN on its marquee and in her instructions.
 - [x] **Words that fit either character** (2026-10-12; the user: their name, and a neutral pronoun where one can't be
   avoided): the companion's group in Settings is headed by the character's name (Mind, Voice, … under it), and about
-  150 strings no longer say she or her. The README's manual still does, with a note that any character fits.
+  150 strings no longer say she or her. The guide (`docs/README.md`) still does, with a note that any character fits.
 - [x] **LICENSE, NOTICE and CONTRIBUTING with the CLA**, drafted 2026-10-12: `LICENSE.md` (PolyForm Noncommercial),
   `NOTICE.md` (what the licence doesn't cover: the name and icon, the cabinet's art and sounds, the built-in personas
   and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (a draft for a lawyer to read; CLA Assistant points at
   it). The owner's name and GitHub account filled in the same day; if the repository gets another name than
   `beside-the-cabinet`, the link in their copyright lines follows it.
 - [x] **A README front page for strangers**, drafted 2026-10-12: what it is, a picture (`docs/images`), what it needs,
-  getting it running, what goes where, characters and voices, the licence; the manual below it. The built-in
+  getting it running, what goes where, characters and voices, the licence. The manual below it moved the same day
+  into READMEs beside what they describe (the user: "only leave essential things in the main readme"), linked
+  from "Learn more". The built-in
   personas no longer revolve around LeetCode (the user's yes).
 - [x] **The launch scripts** read the Godot editor's path from `GODOT`, or from `private\local.cmd` (2026-10-12; the
   test scripts use the `_console.exe` beside it, and their throwaway profiles no longer carry a LeetCode name). Left as

@@ -38,6 +38,6 @@ another project, and never commercially.
 
 Models fetched into `src/InsertCoin.Game/models/` (not in this repository; each folder carries its own `LICENSE.txt`):
 SenseVoice-Small (Tongyi Lab, Alibaba Group; FunASR Model Open Source License 1.1, which asks for its name and
-attribution to be kept), multilingual-e5-small and bge-small-zh-v1.5 (MIT), Silero VAD (MIT), Smart Turn v3.2 (BSD
+attribution to be kept), multilingual-e5-small (intfloat) and bge-small-zh-v1.5 (BAAI), both MIT, in Xenova's ONNX exports, Silero VAD (MIT), Smart Turn v3.2 (BSD
 2-Clause, Daily). GPT-SoVITS (MIT) isn't part of the app: it is installed on the player's PC from its makers' own
 download, when the player asks.

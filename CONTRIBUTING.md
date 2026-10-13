@@ -21,7 +21,8 @@ keep the copyright to your work.
 
 ## Building and testing
 
-The manual in the [README](README.md) has the details. In short:
+The details are in [src/README.md](src/README.md), and dev keys and test runs in
+[tools/dev/README.md](tools/dev/README.md). In short:
 
 - `dotnet test InsertCoin.slnx` runs the tests (Core, Adapters, Mind).
 - `dotnet build src/InsertCoin.Game/InsertCoin.Game.csproj` builds the game; set `GODOT` to your Godot 4.7.2 .NET
