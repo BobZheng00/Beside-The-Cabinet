@@ -51,6 +51,12 @@ yours. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
 (the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly.
 Godot's exporter writes the app icon (`icon.ico`) and the product name into the `.exe` itself; no `rcedit` needed.
 
+To share a build, make a release instead: `python tools/export/release.py 0.1.0-preview.1` exports into
+`builds/release/<version>/`, puts in sherpa-onnx's own build without text-to-speech (the NuGet one carries espeak-ng,
+GPL-3.0, for speech the app never uses), writes `THIRD-PARTY-NOTICES.txt` from what shipped, adds the licence, the
+notice and a README, and zips it. It stops on any library its notices can't account for. Set the version in
+`export_presets.cfg` first (`application/file_version` and `product_version`: 0.1.0-preview.1 is 0.1.0.1).
+
 ## Layout
 
 ```
