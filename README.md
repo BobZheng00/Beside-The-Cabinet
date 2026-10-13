@@ -162,7 +162,11 @@ down, in the background, for `.wav` clips of 16, 24 or 32 bits: every clip of a 
 mishear, so the page marks those clips "words to check", says so, and shows how to listen and correct them; changing
 a clip's words, or "They're right", clears the mark. Otherwise the window asks. "What goes in a voice folder?" in the
 window says the same, and where a voice can come from (your own recordings, a friend who agrees, a voice actor, an
-open licence; shared game or anime voices are for yourself only) and how to record one. For example:
+open licence; shared game or anime voices are for yourself only) and how to record one. Shino and Fumiriya come with
+voices of their own (`characters/<id>/voice.zip`: twelve English clips each, everyday, happy, sad and surprised, a
+minute in all, so they can be trained too), made with Kokoro-82M (Apache-2.0; its voices af_bella and am_fenrir,
+synthetic, not a real person's): given to them the first time they sit down without one, and only once, so a voice
+removed stays removed (`VoicesGiven`). For example:
 
 ```
 hana/

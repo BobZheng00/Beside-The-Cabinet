@@ -150,7 +150,9 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   `tools/models/fetch.py`, which writes each one's licence beside it.
 - Everything bundled is permissive: the fonts under OFL (their licence files ship with them), the VRM add-ons under
   MIT, Shino and Fumiriya under CC0, the NuGet packages under MIT or Apache-2.0; the cabinet's art and sounds are made
-  by our own scripts (`tools/art`, `tools/sfx`).
+  by our own scripts (`tools/art`, `tools/sfx`). Shino's and Fumiriya's voices (2026-10-12, the user's picks) were made
+  with Kokoro-82M (Apache-2.0; synthetic voices, its makers welcome commercial use; its model card says it learned
+  from public-domain and permissively licensed audio and from synthetic audio of large providers' closed models).
 - Sizes are fine: the largest file is 18.7 MB (GitHub refuses files over 100 MB).
 
 ## Before going public
@@ -194,7 +196,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   it was: the export preset's template path (`custom_template/release` in `export_presets.cfg`), which a builder sets
   to their own.
 - [ ] **The release zip:** a THIRD-PARTY-NOTICES file for the libraries and models in it (MIT, Apache and BSD ask for
-  their notices in binary copies), and SenseVoice's attribution. The build is about 700 MB (GitHub allows 2 GB a file).
+  their notices in binary copies), SenseVoice's attribution, and a credit for Kokoro-82M, which made the built-in
+  characters' voices. The build is about 700 MB (GitHub allows 2 GB a file).
 - [ ] **The GitHub page:** description, topics, a social preview image, the first release.
 
 ## The personal-information review

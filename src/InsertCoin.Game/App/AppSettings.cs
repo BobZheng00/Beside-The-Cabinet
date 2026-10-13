@@ -69,6 +69,7 @@ public sealed record AppSettings
     public string[] UnseeingModels { get; init; } = [];  // models found not to take pictures or PDFs: none is sent to them
     public string? VoiceEngine { get; init; }           // the folder of the player's GPT-SoVITS (its Windows package)
     public string? EngineInstallTo { get; init; }       // where they last chose to have GPT-SoVITS installed (a download there carries on)
+    public string[] VoicesGiven { get; init; } = [];     // built-in characters given their own voice, once: one the player removed stays removed
     public double? TrainingPace { get; init; }          // how this PC trained a voice against the estimate (see VoiceTraining.Pace)
     public int? WindowX { get; init; }
     public int? WindowY { get; init; }

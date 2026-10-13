@@ -430,6 +430,21 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_list_gives_the_words_and_a_bracketed_name_the_mood()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        dataset.File("clips/01.wav", Silence(6));
+        dataset.File("clips/[happy] 02.wav", Silence(5));
+        dataset.File("shino.list", Encoding.UTF8.GetBytes("clips/01.wav|shino|EN|Hey, you're back!\nclips/[happy] 02.wav|shino|EN|Yes! You did it!\n"));
+
+        var voice = VoiceProfile.Import(dataset.Path, System.IO.Path.Combine(home.Path, "shino.voice"));
+
+        Assert.Equal("Hey, you're back!", voice.ClipFor(null)!.Text);
+        Assert.Equal(("Yes! You did it!", "happy"), voice.ClipFor("happy") is { } happy ? (happy.Text, happy.Mood) : default);
+    }
+
+    [Fact]
     public void Without_her_ears_a_folder_of_clips_with_no_words_keeps_only_its_likeliest_few()
     {
         using var dataset = new TempFolder();

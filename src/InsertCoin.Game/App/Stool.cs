@@ -1206,6 +1206,7 @@ public partial class Stool : Node2D
                         _ = NotNow();
                 };
                 _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.CallMe));
+                GiveOwnVoice(character.Id, character.Name);
                 _voice.Seat(VoiceFolder(character.Id));
             }
             catch (Exception e)
@@ -1226,6 +1227,30 @@ public partial class Stool : Node2D
 
     /// <summary>Where a character's voice is kept: a folder beside them in the user's characters folder.</summary>
     private string VoiceFolder(string characterId) => Path.Combine(_characters, characterId + ".voice");
+
+    /// <summary>
+    /// A built-in character comes with a voice of their own (<c>res://characters/&lt;id&gt;/voice.zip</c>, made with
+    /// Kokoro-82M): given to them the first time they sit down without one, and only once, so one the player removed
+    /// stays removed.
+    /// </summary>
+    private void GiveOwnVoice(string id, string name)
+    {
+        var resource = $"res://characters/{id}/voice.zip";
+        if (_settings.Now.VoicesGiven.Contains(id) || !ModelFiles.Present(resource))
+            return;
+        _settings.Save(_settings.Now with { VoicesGiven = [.. _settings.Now.VoicesGiven, id] });
+        if (VoiceProfile.Load(VoiceFolder(id)) is not null)
+            return;                                         // they have one already
+        try
+        {
+            (VoiceProfile.Import(ModelFiles.OnDisk(resource, "voice-" + id), VoiceFolder(id)) with { Name = name }).Save(VoiceFolder(id));
+            GD.Print($"Voice: {name} given their own voice");
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            GD.PrintErr($"Voice: giving {name} their own voice: {e.Message}");
+        }
+    }
 
     /// <summary>Someone else takes the stool.</summary>
     public void Seat(string id)
@@ -1839,8 +1864,9 @@ public partial class Stool : Node2D
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.");
         yield return new("voice", "Her voice",
-            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk), " +
-            "then give her a voice from clips of it with their words. About 20 minutes; training a model of her voice takes longer.",
+            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
+            (_voice.Profile is null ? ", then give her a voice from clips of it with their words" : $"; {her} has a voice already, which you can change") +
+            ". About 20 minutes; training a model of her voice takes longer.",
             Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
         if (Listening.HasEars)
             yield return new("listening", "Talking aloud",

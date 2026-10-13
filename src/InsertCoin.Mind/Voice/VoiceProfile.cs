@@ -198,8 +198,11 @@ public sealed partial record VoiceProfile
         // no weights, only clips (a dataset, say): cloned with the engine's base model, and it can be trained
 
         var transcripts = Transcripts(files);
+        // words from a list or a .lab, the mood still from a "[happy] 03.wav" name
         (string Text, string? Language, string? Mood) Said(string clip) =>
-            transcripts.TryGetValue(Key(clip), out var said) || transcripts.TryGetValue(Number(clip), out said) ? said : FromName(clip);
+            transcripts.TryGetValue(Key(clip), out var said) || transcripts.TryGetValue(Number(clip), out said)
+                ? (said.Text, said.Language, said.Mood ?? FromName(clip).Mood)
+                : FromName(clip);
         // every clip with its words (training learns from them all), the best to speak with first; when none has its
         // words, the six likeliest, for the player to give one its words; every clip when her ears will write them down
         var heard = files.Where(IsAudio).Select(f => (File: f, Said: Said(f), Seconds: Wav.Seconds(f))).ToList();
