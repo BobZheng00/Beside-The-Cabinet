@@ -1,4 +1,4 @@
-Required Notice: Copyright 2026 [OWNER NAME] (https://github.com/[OWNER]/beside-the-cabinet)
+Required Notice: Copyright 2026 Shenyan Zheng (https://github.com/BobZheng00/beside-the-cabinet)
 
 # PolyForm Noncommercial License 1.0.0
 

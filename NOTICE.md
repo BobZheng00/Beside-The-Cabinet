@@ -2,7 +2,7 @@
 
 Beside the Cabinet
 
-Required Notice: Copyright 2026 [OWNER NAME] (https://github.com/[OWNER]/beside-the-cabinet)
+Required Notice: Copyright 2026 Shenyan Zheng (https://github.com/BobZheng00/beside-the-cabinet)
 
 ## What the licence covers
 

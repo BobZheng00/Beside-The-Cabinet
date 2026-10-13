@@ -2,7 +2,7 @@
 
 *Draft, 2026-10-12: to be read by a lawyer before it is relied on.*
 
-This agreement is between you and [OWNER NAME] ("the owner"), the copyright holder of Beside the Cabinet. It covers every
+This agreement is between you and Shenyan Zheng ("the owner"), the copyright holder of Beside the Cabinet. It covers every
 contribution you submit to the project: code, documents, art, sound, or anything else ("your contributions").
 
 1. **You keep your copyright.** Nothing here transfers ownership of your contributions.

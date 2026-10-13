@@ -8,11 +8,13 @@ updated. Nobody else should be able to sell it.
 
 ## Decisions waiting
 
-- [ ] **The license.** Recommended: **PolyForm Noncommercial 1.0.0** (see below). Alternative: the Functional Source
-  License (FSL-1.1-MIT). Drafted 2026-10-12 with PolyForm Noncommercial (`LICENSE.md`, the official text), after the
-  user asked how Mate Engine does it: its own licence, written by its author, is stricter (no sharing of builds) but not
-  a standard one, contradicts itself, and has no contributor agreement behind it; PolyForm keeps the same aim (nobody
-  else sells it) with a lawyer-written text. The user to confirm.
+- [x] **The license: PolyForm Noncommercial 1.0.0** (the user, 2026-10-12: "PolyForm Noncommercial is good"), in
+  `LICENSE.md` as published, after the user asked how Mate Engine does it: its own licence, written by its author, is
+  stricter (no sharing of builds) but not a standard one, contradicts itself, and has no contributor agreement behind
+  it; PolyForm keeps the same aim (nobody else sells it) with a lawyer-written text. It binds everyone but its owner:
+  the user can still sell the app, on Steam or anywhere, and relicense it; outside contributions too, through the CLA.
+  The copyright line names Shenyan Zheng, with the repository at `github.com/BobZheng00/beside-the-cabinet` (the
+  user's name and GitHub account, their choice for publishing).
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
 - [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
@@ -194,7 +196,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
 - [x] **LICENSE, NOTICE and CONTRIBUTING with the CLA**, drafted 2026-10-12: `LICENSE.md` (PolyForm Noncommercial),
   `NOTICE.md` (what the licence doesn't cover: the name and icon, the cabinet's art and sounds, the built-in personas
   and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (a draft for a lawyer to read; CLA Assistant points at
-  it). Still to fill in: `[OWNER NAME]` and `[OWNER]` in all three, once the user says which name and GitHub account.
+  it). The owner's name and GitHub account filled in the same day; if the repository gets another name than
+  `beside-the-cabinet`, the link in their copyright lines follows it.
 - [x] **A README front page for strangers**, drafted 2026-10-12: what it is, a picture (`docs/images`), what it needs,
   getting it running, what goes where, characters and voices, the licence; the manual below it. The built-in
   personas no longer revolve around LeetCode (the user's yes).
