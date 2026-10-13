@@ -38,7 +38,7 @@ hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge), `trayitems` (logs the tray menu's entries),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),
-`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, moments, forget, or retired), `memorybookdo:Apply`
+`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Apply`
 (presses that button in it, `+_Add` too), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `remind:some_text` (a reminder goes off now),
@@ -46,8 +46,8 @@ agenda items, retired facts and a note to try it on), `remind:some_text` (a remi
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (she asks about something past now), `presence` (logs do-not-disturb, call, idle),
 `later:now` (her plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
-again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in Telegram, such as
-`fake_telegram.py`), `paircode:CODE` (the next pairing code, for it to send back),
+again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
+Bot API), `paircode:CODE` (the next pairing code, for it to send back),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (her voice's

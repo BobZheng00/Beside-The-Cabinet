@@ -22,13 +22,15 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `App/Chat.cs` connects her to `InsertCoin.Mind`: sends what you type, acts out stage directions (`[cheer]`,
   `[wave]`, `[worry]`, `[plan: …]`…), logs cabinet events into the conversation, folds it when it grows, runs
   upkeep every minute, and lets her use her tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`; `PermissionCard`
-  is where she asks). `App/ChatSettings.cs` is the provider window, `App/MemoryBook.cs` the memory book. In
-  `InsertCoin.Mind`: `Recall` picks memories, `Upkeep` holds the digest and note-rewrite requests. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
-  memory: [docs/research/2026-10-02-companion-memory.md](../../docs/research/2026-10-02-companion-memory.md).
+  is where she asks). `App/MindSettings.cs` is the Mind page in Settings (her provider), `App/MemoryBook.cs` the memory book. In
+  `InsertCoin.Mind`: `Recall` picks memories, `Log` keeps her notes on your talks, a log by day, and `Upkeep`
+  turns new notes into changes to her facts and your agenda while the talk is quiet. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
+  memory: [docs/specs/2026-10-11-observational-memory.md](../../docs/specs/2026-10-11-observational-memory.md)
+  (the research before it: [docs/research/2026-10-02-companion-memory.md](../../docs/research/2026-10-02-companion-memory.md)).
 - `App/Voice.cs` is her voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
   with it), `Speech` (in `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` streams each sentence's
   audio, and her mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
-  run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its window. Measurements:
+  run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its page in Settings. Measurements:
   [docs/research/2026-10-02-companion-voice.md](../../docs/research/2026-10-02-companion-voice.md).
 - Her ears: `App/Ears.cs` opens the microphone while she listens (Godot records it into a muted bus of its own),
   `TalkKey` reads the talk key, and `Hearing` (in `InsertCoin.Mind`) turns what was said into words with

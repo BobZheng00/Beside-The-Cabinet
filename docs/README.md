@@ -10,9 +10,9 @@ character fits. Building, running and testing it: [src/README.md](../src/README.
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu: the
 cabinet, Settings…, Getting started… (until it is done), the memory book and chat history, a memo of your own, a
 LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). Settings is one window with a page
-for each thing, listed down its left side (getting started; her mind, voice, talking aloud, characters, abilities,
-privacy, add-ons; reminders, check-ins, your phone, calendars, balance; the cabinet, usage), each saved as you change
-it; only her provider waits for its Save. At first run a Welcome asks three things: your name (what she
+for each thing, listed down its left side: Getting started; under her name, Mind, Voice, Talking aloud, Characters,
+Abilities, Privacy and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance; under The
+cabinet, Cabinet and Usage. Each is saved as you change it; only her provider waits for its Save. At first run a Welcome asks three things: your name (what she
 calls you; your initials on the cabinet come from it), who keeps you company (seated on the stool as you pick), and
 her mind (provider, key, model, Test and Save; Skip for now leaves her unable to talk). Then she says hello. The rest
 is in Getting started, first in Settings and in the tray: her voice, talking aloud, your phone, a calendar and
@@ -82,7 +82,7 @@ it out. She knows the cabinet's numbers and remembers:
   overnight fade, the cap, an IOU) shows on its own screen, not in her bubble: a new day's fade counts the time down
   on the CRT;
 - what she has told you about herself (her past, what she likes), kept as hers and always in mind, so her stories stay
-  the same; the memory book marks those facts "her";
+  the same; the memory book marks those facts "me";
 - what is going on in your life with no date (a worry, a decision, something you're waiting for): a couple of days
   after it comes up she asks how it's going, once, at the PC or by text while you're out; the memory book's Agenda
   lists them, and Settled closes one;
@@ -116,7 +116,7 @@ it out. She knows the cabinet's numbers and remembers:
   longer; pinned and the most important ones never fade). About weekly,
   while quiet, she reviews her facts: what says the same thing is merged, and what is out of date (a plan already
   past, something since changed, trivia that never came up again) is retired. Retired is not deleted: the memory
-  book lists it under "Retired by her review", to bring back, and it comes back by itself if it comes up again.
+  book lists it under "Retired by the review", to bring back, and it comes back by itself if it comes up again.
 
 ## Away from the PC
 
@@ -138,7 +138,7 @@ texts of hers you haven't answered don't stop her. If you're back before one she
 
 ## Texting with her
 
-On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with her on
+On Telegram you can text her back, from anywhere (Settings → Your phone, "Text with … on
 Telegram": make a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). She
 answers by text, knowing you're out; her cards come as buttons, a memo as a message (it prints too), and photos and
 files you send reach her. What needs you at the PC (your screen, opening things) waits until you're back. What you
@@ -168,8 +168,8 @@ one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab
 dataset with its list goes in unchanged. When none says them, her ears (SenseVoice) listen to the clip and write them
 down, in the background, for `.wav` clips of 16, 24 or 32 bits: every clip of a folder is kept for it. Ears can
 mishear, so the page marks those clips "words to check", says so, and shows how to listen and correct them; changing
-a clip's words, or "They're right", clears the mark. Otherwise the window asks. "What goes in a voice folder?" in the
-window says the same, and where a voice can come from (your own recordings, a friend who agrees, a voice actor, an
+a clip's words, or "They're right", clears the mark. Without her ears, a folder keeps only its clips with words (six clips when none has any),
+and the page asks for the rest ("no words yet"). "What goes in a voice folder?" on the page says the same, and where a voice can come from (your own recordings, a friend who agrees, a voice actor, an
 open licence; shared game or anime voices are for yourself only) and how to record one. Shino and Fumiriya come with
 voices of their own (`characters/<id>/voice.zip`: twelve English clips each, everyday, happy, sad and surprised, a
 minute in all, so they can be trained too), made with Kokoro-82M (Apache-2.0; its voices af_bella and am_fenrir,
@@ -183,14 +183,14 @@ hana/
 ```
 
 Without a model she speaks as a clone: GPT-SoVITS's base model copies the tone of her speaking clip (the one nearest
-6 seconds, or the one chosen and listened to in the window). The base model is v4 (the clearest; it makes each
+6 seconds, or the one chosen and listened to on the Voice page). The base model is v4 (the clearest; it makes each
 sentence whole before she says it, 1.5–3.5 s) or v2ProPlus (streams, so she starts in about half a second; a little
 less sure of hard words), which also blends in the tone of her first four clips for about 0.1 s more per sentence.
 With a minute or more of clips (five sounds better), "Train a model on its clips" trains her own: v2ProPlus, the way
 GPT-SoVITS's web UI does it, about a second per second of speech plus a minute (Hana's five minutes took 5.4 on a
 laptop graphics card with 8 GB, which it all but fills; once it starts it tells the time left, and after one run the estimate is
 this PC's own); her voice rests meanwhile, and a game starting stops it. The model
-(about 0.3 GB) goes into the voice's folder, and the window swaps between it and the clones. A voice speaks one language
+(about 0.3 GB) goes into the voice's folder, and the Voice page chooses between it and the clones. A voice speaks one language
 (Japanese, English or Chinese): when you write in another, she speaks her own and the bubble shows your language,
 like a subtitled anime (the model writes `[say: …]` before each sentence, told the two must say the same and reminded
 at the end of each turn; a Japanese voice gets names in katakana, since it reads Latin letters as English, and calls
@@ -221,8 +221,8 @@ last one after her voice has finished (`docs/specs/2026-10-09-a-word-first.md`).
 
 ## Talking to her aloud
 
-You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Chat
-settings says otherwise), say it, and let go: she leans in to listen, nodding in your pauses, and answers what she
+You can talk to her aloud as well. Hold the mouse on her, or hold the talk key in any app (Right Ctrl unless Settings →
+Talking aloud says otherwise), say it, and let go: she leans in to listen, nodding in your pauses, and answers what she
 heard as if you had typed it. The microphone at the end of the slip writes what you say into the slip instead, to change before you send it.
 She hears on this PC, on the processor, with SenseVoice-Small (Chinese, English, Japanese, Korean, Cantonese, told
 apart by itself): about a tenth of a second for a sentence. The microphone is open only while she listens, and
@@ -250,7 +250,7 @@ Start menu, read a page, search the web, look up a LeetCode problem, check the c
 says what she's about to do in her own words, and anything acting outside the app asks first: a card by her stool
 shows what and where (the real address, whatever she said about it), with Allow once, Always (for that site or app) and No.
 Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there to forget. Auto lets her
-go ahead without asking (what's switched off stays off), except for what's on the Privacy tab, and for the rest of a
+go ahead without asking (what's switched off stays off), except for what's on the Privacy page, and for the rest of a
 reply once she has read a page or search results: a page could try to talk her into things. A model that
 can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](specs/2026-10-05-tools-and-abilities.md).
@@ -284,7 +284,7 @@ phone and sends it, and it prints out of the cabinet's slot. Click it to read it
 copy it, pin it on the cabinet's side (five fit), or tear it off. Every memo is kept in the memory book's Memos tab,
 where you can write your own too: click the cabinet's screen and open MEMOS (NEW; an app lifts the screen out to face
 you, readable at any cabinet size, and a click away settles it back), or tray → "Write a memo…".
-They print the same way, and she reads them unless you untick "Let her read it": if one needs something from her (a
+They print the same way, and she reads them unless you untick "Let … read it": if one needs something from her (a
 reminder, a date), she does it and says so; if not, she says nothing. Point at a memo on the cabinet to read it there.
 Click one and it flies out onto your desktop as a sheet beside the cabinet, to read and write on: drag it anywhere,
 open several side by side, and its × (or Esc) sends it back.

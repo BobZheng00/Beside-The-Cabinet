@@ -57,7 +57,7 @@ Godot's exporter writes the app icon (`icon.ico`) and the product name into the 
 src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no clock
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
-                          store (SQLite), prompt, stage directions, auto-compaction, encrypted key; Tools/: her
+                          store (SQLite), prompt, stage directions, her notes and upkeep, encrypted key; Tools/: her
                           tools and their permissions (Toolbox) and the built-in ones (BuiltIn); memos (Memo);
                           Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
