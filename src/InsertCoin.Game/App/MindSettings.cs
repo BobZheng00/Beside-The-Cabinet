@@ -48,7 +48,7 @@ public partial class MindSettings : VBoxContainer
         _chat = chat;
         _saved = current;
         _name = name;
-        Form.Page(this, "Her mind");
+        Form.Page(this, $"{name}'s mind");
         Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                         "Your key stays on this PC, encrypted for your Windows account.");
         _now = Form.Result(this);
@@ -101,10 +101,10 @@ public partial class MindSettings : VBoxContainer
                     index => SearchChosen?.Invoke(searches[index].Name), wide: true);
         Form.Choice(memory, "Word for word", Windows.Select(w => w.Label), Math.Max(0, Array.FindIndex(Windows, w => w.Tokens == window)),
                     index => WindowChosen?.Invoke(Windows[index].Tokens), wide: true);
-        var cached = chat.Cached is { } c ? $" Her last {c.Replies} {(c.Replies == 1 ? "reply" : "replies")}: {c.Share:P0} of what she read came from the provider's cache." : "";
-        Form.Hint(this, "How she finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
+        var cached = chat.Cached is { } c ? $" The last {c.Replies} {(c.Replies == 1 ? "reply" : "replies")}: {c.Share:P0} of what was read came from the provider's cache." : "";
+        Form.Hint(this, $"How {_name} finds what to remember: by meaning with a model that runs on this PC, or by shared words. " +
                         "The multilingual model understands the most languages; the small one uses less memory. " +
-                        "Word for word: the newest part of your conversation, which she reads in full every time; older talk is summarised " +
+                        $"Word for word: the newest part of your conversation, which {_name} reads in full every time; older talk is summarised " +
                         "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached);
     }
 
@@ -164,10 +164,10 @@ public partial class MindSettings : VBoxContainer
             if (IsInstanceValid(this))
                 Form.Say(_result, connected + " " + (searches, provider.Protocol) switch
                 {
-                    (true, Protocol.Anthropic) => "Web search: she can use your provider's own.",
-                    (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, which she doesn't use yet. " +
-                                 "Until she does, the SearXNG add-on (Add-ons) gives her web search.",
-                    _ => "Web search: your provider has none for this model. The SearXNG add-on (Add-ons) gives her web search.",
+                    (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
+                    (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
+                                 "Until it is, the SearXNG add-on (Add-ons) gives web search.",
+                    _ => "Web search: your provider has none for this model. The SearXNG add-on (Add-ons) gives web search.",
                 }, Paper.Good);
         }
         catch (Exception e)

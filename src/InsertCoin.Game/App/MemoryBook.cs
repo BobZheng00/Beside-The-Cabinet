@@ -78,8 +78,8 @@ public partial class MemoryBook : Window
         outer.AddChild(_tabs);
 
         var notes = Tab("Notes");
-        notes.AddChild(Hint("Yours to write: she keeps these in mind as you wrote them and never rewrites them. What she learns " +
-                            "herself is on Facts, and the most important of it is always in mind too."));
+        notes.AddChild(Hint($"Yours to write: {characterName} keeps these in mind as you wrote them and never rewrites them. What {characterName} learns " +
+                            "is on Facts, and the most important of it is always in mind too."));
         _about = Note(notes, "About you (every character knows this)", "What to call you, what you're working towards…",
                       store.Note(MindStore.Shared, MindStore.AboutUser));
         _us = Note(notes, $"You and {characterName}", "How you two get along, running jokes…", store.Note(characterId, MindStore.Us));
@@ -90,7 +90,7 @@ public partial class MemoryBook : Window
         var top = new HBoxContainer();
         top.AddChild(new Label
         {
-            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in her bubble (Settings → Reminders for more).",
+            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in the speech bubble (Settings → Reminders for more).",
             ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
         var add = new Button { Text = "+ Add", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, TooltipText = "Something on your agenda, or a reminder" };
@@ -108,7 +108,7 @@ public partial class MemoryBook : Window
         ShowFacts();
         // what her review moved to the background: kept, out of mind, and the player can bring it back
         _retiredToggle = new Button { ThemeTypeVariation = "Quiet", ToggleMode = true, Alignment = HorizontalAlignment.Left,
-                                      TooltipText = Words.Wrap("Facts her weekly review retired: past plans, things since replaced, trivia long unmentioned. She no longer recalls them.") };
+                                      TooltipText = Words.Wrap("Facts the weekly review retired: past plans, things since replaced, trivia long unmentioned. No longer recalled.") };
         facts.AddChild(_retiredToggle);
         var retiredScroll = new ScrollContainer { Visible = false, CustomMinimumSize = new Vector2(0, 180), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
         _retiredList = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -119,8 +119,8 @@ public partial class MemoryBook : Window
         ShowRetired();
 
         var moments = Tab("Diary");
-        moments.AddChild(Hint("What she noted from your talks, day by day (\"!\" for what matters most). As they get older, a week of days is " +
-                              "condensed into notes for the week, and weeks into months and years; the originals stay with her, out of sight."));
+        moments.AddChild(Hint($"What {characterName} noted from your talks, day by day (\"!\" for what matters most). As they get older, a week of days is " +
+                              "condensed into notes for the week, and weeks into months and years; the originals are kept, out of sight."));
         _noteList = List(moments);
         ShowNotes();
 
@@ -129,7 +129,7 @@ public partial class MemoryBook : Window
         var memoTop = new HBoxContainer();
         memoTop.AddChild(new Label
         {
-            Text = "What she printed for you, and your own notes, newest first. They're yours: forgetting leaves them be.",
+            Text = $"What {_name} printed for you, and your own notes, newest first. They're yours: forgetting leaves them be.",
             ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
         var write = new Button { Text = "+ Write a memo", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
@@ -151,7 +151,7 @@ public partial class MemoryBook : Window
             forget.AddChild(Hint(explained));
             forget.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8) });
         }
-        Forget("chat", "Clear the chat", $"Starts the conversation with {characterName} afresh. What she remembers (notes, agenda, facts, moments) stays.",
+        Forget("chat", "Clear the chat", $"Starts the conversation with {characterName} afresh. What's remembered (notes, agenda, facts, moments) stays.",
                () => _store.ForgetConversation(_character));
         Forget("all", $"Forget all with {characterName}", "The conversation and everything about the two of you.", () =>
         {
@@ -269,14 +269,14 @@ public partial class MemoryBook : Window
     {
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 6);
-        var whose = new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "her" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) };
+        var whose = new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "me" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) };
         var text = new LineEdit { Text = fact.Text, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, TooltipText = $"Learned {Day(fact.Learned)}, importance {fact.Importance}/10" };
         var pin = new CheckBox { Text = "pin", ButtonPressed = fact.Pinned, TooltipText = "Always in mind, and upkeep leaves it alone" };
         if (fact.Faded(DateTimeOffset.Now))
         {
             // forgotten for now: it has not come up in a long time; pinning brings it back
             text.Modulate = new Color(1, 1, 1, 0.5f);
-            text.TooltipText = Words.Wrap(text.TooltipText + ". Faded: it has not come up in a long time, so she no longer recalls it. Pin it to keep it.");
+            text.TooltipText = Words.Wrap(text.TooltipText + ". Faded: it has not come up in a long time, so it is no longer recalled. Pin it to keep it.");
         }
         var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this" };
         delete.Pressed += () => { _deletedFacts.Add(fact.Id); row.QueueFree(); _touched = true; };
@@ -306,7 +306,7 @@ public partial class MemoryBook : Window
     {
         var retired = _store.Retired(_character).OrderByDescending(f => f.Retired).ToList();
         _retiredToggle.Visible = retired.Count > 0;
-        _retiredToggle.Text = $"{(_retiredToggle.ButtonPressed ? "▾" : "▸")} Retired by her review ({retired.Count})";
+        _retiredToggle.Text = $"{(_retiredToggle.ButtonPressed ? "▾" : "▸")} Retired by the review ({retired.Count})";
         foreach (var child in _retiredList.GetChildren())
             child.QueueFree();
         if (!_retiredToggle.ButtonPressed)
@@ -315,12 +315,12 @@ public partial class MemoryBook : Window
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
-            row.AddChild(new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "her" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) });
+            row.AddChild(new Label { Text = fact.Scope == MindStore.Shared ? "you" : MindStore.IsHerself(fact.Scope) ? "me" : "us", ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(26, 0) });
             var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, Modulate = new Color(1, 1, 1, 0.6f) };
             text.AddChild(new Label { Text = fact.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart });
             text.AddChild(new Label { Text = $"{Day(fact.Retired!.Value)}: {fact.Why}", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });
             row.AddChild(text);
-            var back = new Button { Text = "Bring back", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin, TooltipText = "She keeps it in mind again" };
+            var back = new Button { Text = "Bring back", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin, TooltipText = "Kept in mind again" };
             back.Pressed += () =>
             {
                 _store.Restore(fact.Id, DateTimeOffset.Now);
@@ -346,14 +346,14 @@ public partial class MemoryBook : Window
             child.QueueFree();
         var threads = _store.Threads();
         if (threads.Count > 0)
-            _threadList.AddChild(Hint("Going on: she asks how it is going a couple of days after it comes up, once."));
+            _threadList.AddChild(Hint($"Going on: {_name} asks how it is going a couple of days after it comes up, once."));
         foreach (var thread in threads)
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 6);
             row.AddChild(new Label { Text = $"{thread.Text} (since {Day(thread.Opened)})", AutowrapMode = TextServer.AutowrapMode.WordSmart,
                                      SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-            var settled = new Button { Text = "Settled", ThemeTypeVariation = "Quiet", TooltipText = "It's over: she won't ask about it" };
+            var settled = new Button { Text = "Settled", ThemeTypeVariation = "Quiet", TooltipText = "It's over: no more asking about it" };
             settled.Pressed += () => { _store.CloseThread(thread.Id, "settled in the memory book", DateTimeOffset.Now); row.QueueFree(); };
             row.AddChild(settled);
             _threadList.AddChild(row);
@@ -368,7 +368,7 @@ public partial class MemoryBook : Window
         _deletedPlans.Clear();
         var plans = _store.Agenda();
         if (plans.Count == 0)
-            _planList.AddChild(Hint("Nothing yet. Tell her about plans and dates, or ask her to remind you of something."));
+            _planList.AddChild(Hint($"Nothing yet. Tell {_name} about plans and dates, or ask for a reminder."));
         foreach (var plan in plans)
             AddPlanRow(plan);
     }
@@ -442,7 +442,7 @@ public partial class MemoryBook : Window
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)
         {
             text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
-            text.TooltipText = Words.Wrap("Just past: she may ask how it went. It leaves the agenda two days after.");
+            text.TooltipText = Words.Wrap($"Just past: {_name} may ask how it went. It leaves the agenda two days after.");
             second.AddChild(new Label { Text = "just past", ThemeTypeVariation = "Hint" });
         }
         item.AddChild(second);
@@ -508,7 +508,7 @@ public partial class MemoryBook : Window
             child.QueueFree();
         var memos = _memos.All;
         if (memos.Count == 0)
-            _memoList.AddChild(Hint("None yet. Ask her to write something down for you, or write one yourself."));
+            _memoList.AddChild(Hint($"None yet. Ask {_name} to write something down for you, or write one yourself."));
         foreach (var memo in memos)
         {
             var row = new HBoxContainer();

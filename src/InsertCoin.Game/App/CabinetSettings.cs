@@ -31,7 +31,7 @@ public partial class CabinetSettings : VBoxContainer
         void Sync() => muted.SetPressedNoSignal(settings.Now.Muted);        // the tray's Mute flipped meanwhile
         settings.Changed += Sync;
         TreeExiting += () => settings.Changed -= Sync;
-        Form.Hint(this, "The cabinet's sounds and her voice. A reminder's chime can still ring (see Reminders).");
+        Form.Hint(this, "The cabinet's sounds and your companion's voice. A reminder's chime can still ring (see Reminders).");
         Form.Tick(this, "Tickets while you play", now.InGameTickets, on => Tickets?.Invoke(on));
         Form.Hint(this, "A ticket at the corner of the screen during a game: five minutes left, one minute left, out of time, time owed, past " +
                         "your bedtime.");

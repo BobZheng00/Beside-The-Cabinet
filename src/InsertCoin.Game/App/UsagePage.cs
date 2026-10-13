@@ -33,7 +33,7 @@ public sealed class UsagePage
             return $"{currency}{cost.ToString(cost < 1 ? "0.000" : "0.00", Invariant)}{(priced.Count < list.Count ? "+" : "")}";
         }
 
-        page.AddChild(Hint("As your provider reports it, request by request. Replies are her answers to you; upkeep is her memory work while you are away " +
+        page.AddChild(Hint("As your provider reports it, request by request. Replies are the answers to you; upkeep is memory work while you are away " +
                            "(summaries, facts, reviews). Nothing here is sent anywhere."));
         var thisMonth = rows.Where(r => r.Day >= month).ToList();
         page.AddChild(new Label { Text = $"This month ({month.ToString("MMMM", Invariant)})", ThemeTypeVariation = "Subheading" });

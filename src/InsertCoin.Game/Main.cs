@@ -400,8 +400,8 @@ public partial class Main : Node2D
         var mood = shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
         var streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules);
         _tray.Set(mood, mood == TrayMood.Debt
-            ? $"INSERT COIN — {shownDebt / 60_000} min owed ({s.IouTickets(_rules)} IOU)"
-            : $"INSERT COIN — {shownLeft / 60_000} min left · {s.Credits} credits" + (streak > 0 ? $" · combo x{streak}" : ""));
+            ? $"Beside the Cabinet — {shownDebt / 60_000} min owed ({s.IouTickets(_rules)} IOU)"
+            : $"Beside the Cabinet — {shownLeft / 60_000} min left · {s.Credits} credits" + (streak > 0 ? $" · combo x{streak}" : ""));
         var power = s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f;
         _cabinet.SetScreenPower(power);
         _stool.Her?.SetScreenLight(power);
@@ -749,7 +749,7 @@ public partial class Main : Node2D
         }
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
-        _settingsWindow.Build([.. SettingsPages(page), .. _stool.SettingsPages()], page);
+        _settingsWindow.Build([.. SettingsPages(page), .. _stool.SettingsPages()], page, _stool.HerName());
         _settingsWindow.Open();
     }
 
@@ -802,11 +802,11 @@ public partial class Main : Node2D
         [
             .. _stool.StartSteps(),
             new("phone", "Your phone",
-                "Reminders, and her texts while you are away from the PC; with Telegram you can text her back. Needs Telegram on your phone " +
+                $"Reminders, and {_stool.HerName()}'s texts while you are away from the PC; with Telegram you can text back. Needs Telegram on your phone " +
                 "(or ntfy, Discord, any webhook). About 5 minutes.",
                 Needed: false, Done: places.Count > 0, places.Count > 0 ? $"They reach you by {string.Join(", ", places)}." : "Not set up."),
             new("calendars", "Calendars",
-                "Your calendar's next two weeks join her agenda, so she knows what is coming up. Needs its secret iCal address (Google or " +
+                $"Your calendar's next two weeks join the agenda, so {_stool.HerName()} knows what is coming up. Needs its secret iCal address (Google or " +
                 "Outlook). About 2 minutes.",
                 Needed: false, Done: linked > 0, linked > 0 ? $"{linked} linked." : "Not set up."),
             new("balance", "LeetCode",
@@ -866,7 +866,7 @@ public partial class Main : Node2D
         _reminders.Try(text, DateTimeOffset.Now, chime: _settings.ReminderSound);      // in the cabinet; sent on from here, to say how it went
         var now = DateTimeOffset.Now;
         var notice = Reminders.NoticeFor([new Plan(0, text, now, false, TimeSpan.Zero, null, now, null)], now);
-        var said = new List<string> { "On the ticket and in her bubble" };
+        var said = new List<string> { "On the ticket and in the speech bubble" };
         var fine = true;
         if (_settings.ReminderWindows)
         {

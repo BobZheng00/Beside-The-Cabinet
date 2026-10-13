@@ -25,8 +25,8 @@ public partial class CalendarSettings : VBoxContainer
         TreeExiting += () => calendars.Changed -= Refresh;
 
         Form.Page(this, "Calendars");
-        Form.Hint(this, "Link your calendar and its next two weeks join your agenda, read again every 15 minutes: she knows what is coming up, " +
-                        "and your reminder before things on your agenda (see Reminders) covers them too. She only reads it.");
+        Form.Hint(this, "Link your calendar and its next two weeks join your agenda, read again every 15 minutes: your companion knows what is coming up, " +
+                        "and your reminder before things on your agenda (see Reminders) covers them too. It is only read, never changed.");
 
         _list = new VBoxContainer();
         _list.AddThemeConstantOverride("separation", 6);
@@ -45,7 +45,7 @@ public partial class CalendarSettings : VBoxContainer
         var add = Form.Buttons(this);
         Form.Button(add, "Link it", Link);
         _result = Form.Result(add);
-        Form.Hint(this, "Signing in with Google or Microsoft (read live, and later let her add events, asking you first) can come later; " +
+        Form.Hint(this, "Signing in with Google or Microsoft (read live, and later adding events, asking you first) can come later; " +
                         "a linked calendar keeps working alongside it.");
         Refresh();
     }

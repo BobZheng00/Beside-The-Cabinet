@@ -31,7 +31,7 @@ public partial class GettingStarted : VBoxContainer
     public void Build(string her, string? name, IReadOnlyList<StartStep> steps, IReadOnlyCollection<string> later, string balance)
     {
         Form.Page(this, "Getting started");
-        Form.Hint(this, $"A few things to set up, each when you like. Only her mind is needed for {her} to talk with you; the rest can " +
+        Form.Hint(this, $"A few things to set up, each when you like. {her} only needs a mind to talk with you; the rest can " +
                         "wait, and each stays on its own page, listed on the left.");
 
         var named = Heading("Your name", name is { Length: > 0 } ? Done : Needed);

@@ -190,7 +190,7 @@ public sealed partial record VoiceProfile
         if (gpt is null != sovits is null)
         {
             if (sovits is not null && files.Any(f => f.EndsWith(".index", StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidDataException("this is an RVC voice model; she speaks with GPT-SoVITS voices (a .ckpt and a .pth)");
+                throw new InvalidDataException("this is an RVC voice model; voices here are GPT-SoVITS ones (a .ckpt and a .pth)");
             throw new InvalidDataException("a GPT-SoVITS voice needs both its .ckpt (GPT) and .pth (SoVITS) files");
         }
         if (gpt is null && !files.Any(IsAudio))

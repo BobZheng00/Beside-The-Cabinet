@@ -32,13 +32,13 @@ public partial class VoiceSettings : VBoxContainer
         "Where a voice can come from: your own recordings, a friend who agrees to it, a voice actor you commission, or " +
         "recordings whose licence allows it. Voices shared online are often cut from games and anime: fine for yourself, " +
         "never to share on.\n\n" +
-        "Recording it: a quiet room, close to the microphone, one person at a time. Natural sentences in the tone she " +
+        "Recording it: a quiet room, close to the microphone, one person at a time. Natural sentences in the tone the voice " +
         "should have, 3 to 10 seconds each: a question, something cheerful, something calm. Ten or so are plenty to clone " +
         "from; a few minutes in all to train a model.\n\n" +
         "Clips: .wav, .mp3, .ogg or .flac files, one speaker, no music or noise. 3 to 10 seconds each is best; " +
-        "the clip she speaks with must be 3 to 10 seconds.\n\n" +
+        "the clip the voice speaks with must be 3 to 10 seconds.\n\n" +
         "Their words, in any of four ways:\n" +
-        "  • her ears write them down: .wav clips added without their words are listened to. Ears can mishear, so " +
+        "  • your companion's ears write them down: .wav clips added without their words are listened to. Ears can mishear, so " +
         "listen to each and correct its words (Clip, then Words in it); wrong words make the voice worse\n" +
         "  • a training list (any .list file), one line per clip:\n" +
         "        clips/001.wav|hana|JA|今日も頑張ろうね。\n" +
@@ -52,11 +52,11 @@ public partial class VoiceSettings : VBoxContainer
         "    hana/\n" +
         "        hana.list\n" +
         "        clips/hana_001.wav, hana_002.wav, …\n\n" +
-        "To clone her voice, one clip with its words is enough; she speaks with the clip nearest 6 seconds, or the one " +
+        "To clone a voice, one clip with its words is enough; it speaks with the clip nearest 6 seconds, or the one " +
         "you choose. More clips help a v2ProPlus clone, which blends in the tone of four of them, and training needs " +
         "them: at least a minute in all, five or more sounds better.\n\n" +
         "A folder (or a .zip of it) is a whole voice: dropped on the cabinet or added with Add a folder…, it replaces " +
-        "her voice. Clips dropped or added with Add clips… join it.";
+        "the voice there was. Clips dropped or added with Add clips… join it.";
 
     /// <summary>She speaks aloud, or not (the tray's Voice).</summary>
     public event Action<bool>? Switched;
@@ -83,6 +83,7 @@ public partial class VoiceSettings : VBoxContainer
     private Button _installButton = null!, _stopInstall = null!;
     private ProgressBar _installing = null!;
     private bool _hearing;
+    private string _name = "";
     private VoiceProfile? _profile;
     private LineEdit _engine = null!, _words = null!;
     private Label _status = null!, _result = null!;
@@ -103,6 +104,7 @@ public partial class VoiceSettings : VBoxContainer
                       bool hearing = false)
     {
         _hearing = hearing;
+        _name = name;
         _voice = voice;
         _trainer = trainer;
         _installer = installer;
@@ -110,14 +112,14 @@ public partial class VoiceSettings : VBoxContainer
         _preview = new AudioStreamPlayer();
         AddChild(_preview);
 
-        Form.Page(this, "Her voice");
-        var on = Form.Tick(this, "She speaks aloud", settings.Now.Voice, ticked => Switched?.Invoke(ticked));
+        Form.Page(this, $"{name}'s voice");
+        var on = Form.Tick(this, $"{name} speaks aloud", settings.Now.Voice, ticked => Switched?.Invoke(ticked));
         void Sync() => on.SetPressedNoSignal(settings.Now.Voice);          // the tray's Voice flipped meanwhile
         settings.Changed += Sync;
         TreeExiting += () => settings.Changed -= Sync;
-        Form.Hint(this, $"{name} speaks with GPT-SoVITS, running on this PC: with a model trained on her voice, or cloning it from clips " +
-                        "with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a game runs she rests her " +
-                        "voice, to leave the game the graphics card.");
+        Form.Hint(this, $"{name} speaks with GPT-SoVITS, running on this PC: with a model trained on the voice, or cloning it from clips " +
+                        "with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a game runs the voice rests, " +
+                        "to leave the game the graphics card.");
         Form.Button(this, "What goes in a voice folder?", ShowGuide).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
 
         var engine = Form.Grid(this);
@@ -209,7 +211,7 @@ public partial class VoiceSettings : VBoxContainer
         var model = _model = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true, FitToLongestItem = false };   // a long label never widens the page
         if (profile.Trained)
         {
-            model.AddItem($"Its trained model ({profile.Version ?? "GPT-SoVITS"}): sounds most like her");
+            model.AddItem($"Its trained model ({profile.Version ?? "GPT-SoVITS"}): the closest to the voice");
             _models.Add(null);
         }
         foreach (var version in VoiceProfile.CloneVersions)
@@ -260,7 +262,7 @@ public partial class VoiceSettings : VBoxContainer
             PlaceholderText = "exactly what is said in the clip",
         };
         Form.Row(grid, "Words in it", _words);
-        var heardHint = Form.Hint("Written down by her ears: listen (▶) and correct it if they misheard.");
+        var heardHint = Form.Hint($"Written down by {_name}'s ears: listen (▶) and correct it if they misheard.");
         var heardRow = Form.Row(grid, "", heardHint);
         void ShowHeard() => heardRow.Visible = heardHint.Visible =
             _shown is not null && !_edited.ContainsKey(_shown) && _profile?.Clips.FirstOrDefault(c => c.File == _shown)?.Heard == true;
@@ -306,15 +308,15 @@ public partial class VoiceSettings : VBoxContainer
         _stop.Pressed += () => StopTraining?.Invoke();
 
         if (_hearing)
-            AddChild(Note("Her ears are listening to its clips, to write down the words in them…", Paper.Faint));
+            AddChild(Note($"{_name}'s ears are listening to its clips, to write down the words in them…", Paper.Faint));
         else if (profile.Missing is { } missing)
             AddChild(Note($"It still needs {missing}.", Paper.Bad));
         if (!_hearing && profile.Clips.Count(c => c.Heard) is > 0 and var heard)
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 8);
-            var note = Note($"Her ears wrote down the words of {heard} of its clips (\"words to check\" under Clip). Ears can mishear, and wrong " +
-                            "words make her voice speak and train worse: listen to each and correct its words.", Paper.Bad);
+            var note = Note($"{_name}'s ears wrote down the words of {heard} of its clips (\"words to check\" under Clip). Ears can mishear, and wrong " +
+                            "words make the voice speak and train worse: listen to each and correct its words.", Paper.Bad);
             note.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             row.AddChild(note);
             Form.Button(row, "They're right", () =>
@@ -325,7 +327,7 @@ public partial class VoiceSettings : VBoxContainer
             AddChild(row);
         }
         if (speaking?.Seconds is < 3 or > 10)
-            AddChild(Note("The clip she speaks with should be 3 to 10 seconds; this one may not work.", Paper.Bad));
+            AddChild(Note("The clip the voice speaks with should be 3 to 10 seconds; this one may not work.", Paper.Bad));
         if (profile.About is { Length: > 0 } about)
         {
             var line = System.Text.RegularExpressions.Regex.Replace(about, @"\s+", " ");
@@ -383,7 +385,7 @@ public partial class VoiceSettings : VBoxContainer
     private async Task Test()
     {
         KeepWords();                                        // test what is on the page now
-        Form.Say(_result, "Getting her voice ready…", Paper.Faint);
+        Form.Say(_result, $"Getting {_name}'s voice ready…", Paper.Faint);
         var problem = await _voice.Test();
         if (IsInstanceValid(this))
             Form.Say(_result, problem ?? "Listen…", problem is null ? Paper.Good : Paper.Bad);
@@ -508,7 +510,7 @@ public partial class VoiceSettings : VBoxContainer
         _into.Editable = !running;
         _source.Disabled = running;
         var (package, needs, free) = _installer.Plan(_into.Text.Trim());
-        _plan.Text = "Or have it installed: GPT-SoVITS v2pro of June 2025, the version her voice is tested with" +
+        _plan.Text = "Or have it installed: GPT-SoVITS v2pro of June 2025, the version the voices are tested with" +
                      (package == EnginePackage.Blackwell ? ", in its build for RTX 50 cards" : "") +
                      $". It downloads {EngineInstaller.Gb(package.Size)} GB and unpacks to about {EngineInstaller.Gb(package.Unpacked)} GB " +
                      "(about a quarter of an hour in all on a fast connection), in a folder of its own inside the one below: about " +
@@ -551,7 +553,7 @@ public partial class VoiceSettings : VBoxContainer
         {
             _progress.Value = _trainer.Done;
             var left = _trainer.Left is { } time ? $", about {Minutes(time)} left" : "";
-            Form.Say(_training, mine ? $"Now: {_trainer.Stage}{left}. Her voice rests until it is done; you can close this window." +
+            Form.Say(_training, mine ? $"Now: {_trainer.Stage}{left}. The voice rests until it is done; you can close this window." +
                                        (_trainer.Crowded ? " Other apps are using much of the graphics card, so it will be slow: closing them helps." : "")
                                      : "Training another voice: one at a time.", Paper.Faint);
             return;
@@ -566,14 +568,14 @@ public partial class VoiceSettings : VBoxContainer
         if (VoiceTraining.Needs(_profile) is { } needs)
         {
             _train.Disabled = true;
-            Form.Say(_training, $"Training needs {needs}. Add a folder of her clips with their words (What goes in a voice folder?).", Paper.Faint);
+            Form.Say(_training, $"Training needs {needs}. Add a folder of the voice's clips with their words (What goes in a voice folder?).", Paper.Faint);
             return;
         }
         _train.Disabled = false;
         var (estimate, measured) = _trainer.Estimate(_profile);
         Form.Say(_training, $"On {clips} clips, {seconds / 60:0.0} minutes of speech: about {Minutes(estimate)} " +
                             (measured ? "on this PC. " : "with an 8 GB laptop graphics card (once it starts, it tells the time left on yours). ") +
-                            "It takes the whole graphics card, so her voice rests meanwhile, and a game starting stops it." +
+                            "It takes the whole graphics card, so the voice rests meanwhile, and a game starting stops it." +
                             (_profile.Trained ? "" : " Then you can swap between the trained model and a clone under Model.") +
                             (seconds < VoiceTraining.GoodSeconds ? " Five minutes of speech or more sounds better." : ""), Paper.Faint);
     }

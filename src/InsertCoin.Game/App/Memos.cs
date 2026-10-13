@@ -50,7 +50,7 @@ public partial class Memos : Node
         var scale = Mathf.Max(_board.WindowScale(), 0.82f);
         var window = new Window
         {
-            Title = "INSERT COIN memo", Borderless = true, Transparent = true, TransparentBg = true, Transient = true, Visible = false,
+            Title = "Beside the Cabinet memo", Borderless = true, Transparent = true, TransparentBg = true, Transient = true, Visible = false,
             Unfocusable = Paper.OffScreen,                  // a test run never takes focus
             ContentScaleFactor = scale, Size = (Vector2I)(MemoSheet.Outer * scale).Ceil(),
         };

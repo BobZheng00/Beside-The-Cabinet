@@ -18,8 +18,8 @@ public sealed record SettingsPage(string Id, string Group, string Name, Func<Con
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    public const string First = "", Her = "Her", Day = "Your day", Cabinet = "The cabinet";
-    private static readonly string[] Groups = [First, Her, Day, Cabinet];
+    public const string First = "", Companion = "Companion", Day = "Your day", Cabinet = "The cabinet";
+    private static readonly string[] Groups = [First, Companion, Day, Cabinet];
 
     private readonly Dictionary<string, SettingsPage> _pages = [];
     private readonly Dictionary<string, Button> _entries = [];
@@ -28,7 +28,8 @@ public partial class SettingsWindow : Window
     private string? _showing;
 
     /// <param name="open">The page to show first, or null for the first one.</param>
-    public void Build(IEnumerable<SettingsPage> pages, string? open)
+    /// <param name="companion">Who is on the stool: their name heads the companion's pages.</param>
+    public void Build(IEnumerable<SettingsPage> pages, string? open, string companion = "Your companion")
     {
         Title = "Settings";
         Visible = false;
@@ -57,7 +58,7 @@ public partial class SettingsWindow : Window
                     list.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
                 group = page.Group;
                 if (group != First)
-                    list.AddChild(new Label { Text = group.ToUpperInvariant(), ThemeTypeVariation = "Group" });
+                    list.AddChild(new Label { Text = (group == Companion ? companion : group).ToUpperInvariant(), ThemeTypeVariation = "Group" });
             }
             var entry = new Button { Text = page.Name, ThemeTypeVariation = "Side", ToggleMode = true, ButtonGroup = chosen, Alignment = HorizontalAlignment.Left };
             entry.Pressed += () => ShowPage(page.Id);

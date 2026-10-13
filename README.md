@@ -11,7 +11,7 @@ balance: [docs/specs/2026-10-07-balance.md](docs/specs/2026-10-07-balance.md)
 
 | | |
 |---|---|
-| `builds\InsertCoin\InsertCoin.exe` | The standalone app (after `build.cmd`). Real profile in `%APPDATA%\InsertCoin`, real Steam detection. No dev keys. |
+| `builds\BesideTheCabinet\BesideTheCabinet.exe` | The standalone app (after `build.cmd`). Real profile in `%APPDATA%\InsertCoin`, real Steam detection. No dev keys. |
 | `run.cmd` | Same as the app, but run from source through the Godot editor binary (debug build, dev keys on). |
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 | `firstrun.cmd` | A first run, as a new player sees it: a fresh profile every time (`%APPDATA%\InsertCoin-firstrun`, emptied at each start), Steam ignored. Quit the demo first. |
@@ -52,13 +52,13 @@ It also sets how each character sits, whoever they are: neat (knees together, ha
 legs still, a nod to a tune instead of a sway); they move into it as it is chosen, and "Show me"
 plays a few seconds of it. Fumiriya starts relaxed, the others neat; the first run and "Meet …" ask it too.
 
-She can also talk. In Settings → Her mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
+She can also talk. In Settings → Mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a local
 Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
 provider's page for one), name a model, Test and Save. Then clicking
 her opens a slip at the foot of the stool: type, press Enter, and her answer streams into the bubble while she acts
 it out. She knows the cabinet's numbers and remembers:
 
-- the conversation itself, one continuous thread per character. The newest part (Settings → Her mind, "Word for word":
+- the conversation itself, one continuous thread per character. The newest part (Settings → Mind, "Word for word":
   32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
   providers serve it from their cache at a tenth of the price (Claude is asked to cache it). Each turn tells her
   the time and how long since you last talked;
@@ -110,7 +110,7 @@ it out. She knows the cabinet's numbers and remembers:
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
-  Settings → Her mind, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
+  Settings → Mind, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
   chatting), the small one (Chinese and English, about 50 MB) or shared words only;
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
   longer; pinned and the most important ones never fade). About weekly,
@@ -127,7 +127,7 @@ stored encrypted, "Send a test" to check): reminders, a focus session's turns, a
 reminder never waits more than 30 seconds for her words: then the plain line goes). Asleep, only reminders. What only
 makes sense at the PC (bedtime words, a break from a long game) waits for you while it still matters; a suggestion
 to stand up is dropped. In between, when she isn't sure, she calls you first, and texts if you turn out to have gone. "Also while
-I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to. "She reaches out" sets how
+I'm at the PC" sends reminders to your phone at the PC too, as a plain line, as they used to. "… reaches out" sets how
 much reaches your phone: only what you set (reminders, focus turns), like a roommate (that, and asking how things
 went: the default), or keeps in touch, when she also texts you things of her own while you're out, when she plans to:
 she can plan one in her goodbye when you tell her you're heading out, or gets a first chance half an hour after you
@@ -147,7 +147,7 @@ character…" gives whoever is on the stool its personality, example dialogue an
 up when its keywords are mentioned); she greets you as the card says.
 
 She can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a laptop
-graphics card starts each sentence in about a second). Settings → Her voice: point it at the GPT-SoVITS folder, or
+graphics card starts each sentence in about a second). Settings → Voice: point it at the GPT-SoVITS folder, or
 use the one it finds on the PC ("Found on this PC"), or press "Install it for me": it downloads the package her voice
 is tested with (v2pro of June 2025, 8.2 GB; the build for RTX 50 cards on those) from Hugging Face, or HF-Mirror for
 mainland China, checks it against its published SHA-256, and unpacks it (about 13 GB) in a folder of its own inside
@@ -188,7 +188,7 @@ like a subtitled anime (the model writes `[say: …]` before each sentence, told
 at the end of each turn; a Japanese voice gets names in katakana, since it reads Latin letters as English, and calls
 you by name with さん unless her character or you say otherwise). A sentence left without a `[say]` is silent, and
 the log counts them ("went unheard"). While a game runs she rests her voice:
-the server is stopped so the game has the graphics card, and started again after. The tray's Voice (or "She speaks aloud" in Settings) switches it off;
+the server is stopped so the game has the graphics card, and started again after. The tray's Voice (or "… speaks aloud" in Settings) switches it off;
 "Mute sounds" mutes her too. Clicking her stops her mid-sentence, and so does talking over her with the talk key
 or asking something new; while she is still thinking, before any of her reply is out, a click only opens the slip,
 and only something new sent stops her. She then remembers only what you heard, ending where she stopped, plus what she hadn't said
@@ -454,7 +454,7 @@ missing; `python tools/models/fetch.py small` beforehand gives a lighter build w
 
 ```
 python tools/export/fetch_template.py --get <folder>/templates/4.7.2-stable-mono          # once: 40 MB instead of the 1.2 GB archive
-build.cmd                                                                                  # -> builds\InsertCoin\InsertCoin.exe + data folder
+build.cmd                                                                                  # -> builds\BesideTheCabinet\BesideTheCabinet.exe + data folder
 ```
 
 The export preset (`custom_template/release` in `src/InsertCoin.Game/export_presets.cfg`) names that template: set it to

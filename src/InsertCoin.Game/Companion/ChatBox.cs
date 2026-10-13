@@ -79,7 +79,7 @@ public partial class ChatBox : Node2D
         _field.GuiInput += Paste;
         AddChild(_field);
 
-        _clip = IconButton(new ClipIcon(), Width - MicSize - ClipSize - 8, ClipSize, "Hand her something with what you say: a picture or a file, your screen, a photo from your phone");
+        _clip = IconButton(new ClipIcon(), Width - MicSize - ClipSize - 8, ClipSize, "Hand something over with what you say: a picture or a file, your screen, a photo from your phone");
         _clip.Pressed += () => ShowWays(!_ways.Visible);
         _mic = IconButton(_icon = new MicIcon(), Width - MicSize - 6, MicSize, "Talk: click, say it, click again. What you say is written here, to change before sending.");
         _mic.Pressed += () => MicPressed?.Invoke();

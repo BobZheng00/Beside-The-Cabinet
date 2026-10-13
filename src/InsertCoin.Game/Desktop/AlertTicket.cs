@@ -44,7 +44,7 @@ public partial class AlertTicket : Node
             AlwaysOnTop = true,
             Unfocusable = true,
             Size = size,
-            Title = "INSERT COIN ticket",
+            Title = "Beside the Cabinet ticket",
         };
         var panel = new PanelContainer();
         panel.AddThemeStyleboxOverride("panel", Box(Paper, 4, 12, 14, 8));

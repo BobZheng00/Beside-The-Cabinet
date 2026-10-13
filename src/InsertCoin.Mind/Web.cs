@@ -134,8 +134,8 @@ public sealed class Pages(HttpMessageHandler handler, Func<string, CancellationT
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } next)
             {
                 if (hop >= Redirects)
-                    throw new InvalidOperationException("the page sent her round in circles (too many redirects)");
-                page = BuiltIn.Page(new Uri(page, next).AbsoluteUri) ?? throw new InvalidOperationException("the page sent her somewhere that isn't a web page");
+                    throw new InvalidOperationException("the page went round in circles (too many redirects)");
+                page = BuiltIn.Page(new Uri(page, next).AbsoluteUri) ?? throw new InvalidOperationException("the page led somewhere that isn't a web page");
                 continue;
             }
             if (!response.IsSuccessStatusCode)

@@ -28,11 +28,11 @@ public partial class CharacterSettings : VBoxContainer
                       Func<string, Manner> mannerOf, Action<string, Manner> setManner, Action showMe)
     {
         Form.Page(this, "Characters");
-        Form.Field(Form.Grid(this), "Your name", callMe, "what she calls you", typed: text => Named?.Invoke(text));
+        Form.Field(Form.Grid(this), "Your name", callMe, "what the characters call you", typed: text => Named?.Invoke(text));
         Form.Tick(this, "Someone on the stool", shown, on => ShownChosen?.Invoke(on));
-        Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without her.");
+        Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without anyone on it.");
         Form.Tick(this, "Speech bubbles", bubbles, on => BubblesChosen?.Invoke(on));
-        Form.Hint(this, "Without them she still reacts to what happens, but says nothing unless you talk to her.");
+        Form.Hint(this, "Without them, whoever is on the stool still reacts to what happens, but says nothing unless you talk to them.");
 
         Form.Subheading(this, "On the stool");
         var group = new ButtonGroup();
@@ -66,7 +66,7 @@ public partial class CharacterSettings : VBoxContainer
         Form.Button(buttons, "Add a character…", () => Add?.Invoke());
         Form.Button(buttons, "Open characters folder", () => OpenFolder?.Invoke());
         Form.Hint(this, "A 3D character (.vrm, .glb, .gltf, or a .zip holding one) takes the stool. A character card (.png or .json, " +
-                        "SillyTavern style) gives whoever is on the stool a persona; a voice's clips or .zip give her a voice. Dropping " +
+                        "SillyTavern style) gives whoever is on the stool a persona; a voice's clips or .zip give them a voice. Dropping " +
                         "any of them on the cabinet does the same. Files put in the folder by hand show up after a restart.");
     }
 

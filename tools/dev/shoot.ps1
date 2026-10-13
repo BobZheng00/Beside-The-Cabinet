@@ -2,7 +2,7 @@
 # Never touches the real profile. Only one copy of the app runs at a time, so quit any running one first.
 #
 #   tools\dev\shoot.ps1 -Script "hard@3,moment:greet@8" -Shots 5,10 -Tag solve
-#   tools\dev\shoot.ps1 -Exe builds\InsertCoin\InsertCoin.exe -Shots 6            # the standalone build
+#   tools\dev\shoot.ps1 -Exe builds\BesideTheCabinet\BesideTheCabinet.exe -Shots 6            # the standalone build
 #   tools\dev\shoot.ps1 -Model C:\some\character.glb -Settings ', "Companion": "character"'
 #
 # -Script   dev actions "action@seconds,..." (see README); times count from app start, about 2 s after launch

@@ -22,11 +22,11 @@ public partial class CheckInSettings : VBoxContainer
     {
         Form.Page(this, "Check-ins");
         Form.Subheading(this, "How did it go?");
-        Form.Hint(this, "After something you told her about (not a reminder, not your calendar's entries), she asks how it went, once you are " +
+        Form.Hint(this, "After something you mentioned (not a reminder, not your calendar's entries), your companion asks how it went, once you are " +
                         "back at the PC and free: not in a call, not in a full-screen game or presentation, not when Windows is holding " +
-                        "notifications back. A meeting that runs over keeps the call going, so she waits.");
+                        "notifications back. A meeting that runs over keeps the call going, so the question waits.");
         var asking = Form.Grid(this);
-        _mode = Form.Choice(asking, "She asks", Modes.Select(m => m.Label), Array.FindIndex(Modes, m => m.Mode == choices.CheckIns), _ => Changed());
+        _mode = Form.Choice(asking, "Asking", Modes.Select(m => m.Label), Array.FindIndex(Modes, m => m.Mode == choices.CheckIns), _ => Changed());
         var quiet = new HBoxContainer();
         quiet.AddThemeConstantOverride("separation", 8);
         _quietFrom = new OptionButton();
@@ -46,10 +46,10 @@ public partial class CheckInSettings : VBoxContainer
         Form.Row(asking, "Not from", quiet);
 
         Form.Subheading(this, "Stand up, have some water");
-        Form.Hint(this, "After a long stretch at the PC with no real break (five minutes away resets it), she suggests standing up and some " +
+        Form.Hint(this, "After a long stretch at the PC with no real break (five minutes away resets it), your companion suggests standing up and some " +
                         "water. Never in a call or the quiet hours; in a full-screen game only a ticket; in a focus session, at its breaks.");
         var known = Array.FindIndex(StandUps, s => s.Minutes == choices.StandUpMinutes);
-        _standUp = Form.Choice(Form.Grid(this), "She suggests it", StandUps.Select(s => s.Label), known >= 0 ? known : 3, _ => Changed());
+        _standUp = Form.Choice(Form.Grid(this), "Suggested", StandUps.Select(s => s.Label), known >= 0 ? known : 3, _ => Changed());
     }
 
     private void Changed() => Chosen?.Invoke(new CheckInChoices(Modes[_mode.Selected].Mode, _quietFrom.Selected, _quietUntil.Selected, StandUps[_standUp.Selected].Minutes));

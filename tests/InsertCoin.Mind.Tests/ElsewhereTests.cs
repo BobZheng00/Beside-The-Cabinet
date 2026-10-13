@@ -38,7 +38,7 @@ public class ElsewhereTests
         Assert.Contains("\"allowed_mentions\":{\"parse\":[]}", parcels["Discord"].BodyJson);       // never pings anyone
         Assert.Equal("https://api.telegram.org/bot123:ABC/sendMessage", parcels["Telegram"].Url);
         Assert.Contains("\"chat_id\":\"42\"", parcels["Telegram"].BodyJson);
-        Assert.Contains("\"app\":\"INSERT COIN\"", parcels["webhook"].BodyJson);
+        Assert.Contains("\"app\":\"Beside the Cabinet\"", parcels["webhook"].BodyJson);
     }
 
     [Fact]

@@ -49,7 +49,7 @@ public partial class ChatHistory : Window
             var seen = Log.Newest(log, Log.Budget(window));
             column.AddChild(new Label
             {
-                Text = seen.Count < log.Count ? $"Her notes from earlier: what she works from, the newest {seen.Count} of {log.Count}" : "Her notes from earlier (what she works from)",
+                Text = seen.Count < log.Count ? $"Notes from earlier: what replies work from, the newest {seen.Count} of {log.Count}" : "Notes from earlier (what replies work from)",
                 ThemeTypeVariation = "Subheading",
             });
             // a few lines high: the conversation below is what the window is for

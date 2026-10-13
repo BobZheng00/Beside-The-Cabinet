@@ -161,7 +161,7 @@ public class AttachmentTests
 
         Assert.Equal(Permission.Ask, tool.Standard);
         Assert.True(tool.Private);
-        Assert.Equal(("Look at this window?", "A screenshot of solution.py - Visual Studio Code, for her to see", "screen"), window);
+        Assert.Equal(("Look at this window?", "A screenshot of solution.py - Visual Studio Code, for your companion to see", "screen"), window);
         Assert.Equal(("Look at your screen?", "screen"), (screen.What, screen.Scope));
         Assert.Equal([false, true], whole);                 // the window they were working in unless she asks for the whole screen
         Assert.Equal("Look at your screen?", BuiltIn.LookAtScreen(_ => "", () => null).Ask!(new AIFunctionArguments())!.Value.What);

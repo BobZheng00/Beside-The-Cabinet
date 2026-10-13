@@ -47,7 +47,7 @@ public partial class AgendaApp(MindStore store, Action openAgenda) : CrtApp
         if (_ahead.Count == 0)
         {
             Centred("NOTHING AHEAD", Pixel, 17, Ink, new Rect2(0, 90, Size.X, 40));
-            Centred("Tell her your plans", Round, 22, Ink with { A = 0.7f }, new Rect2(0, 140, Size.X, 40));
+            Centred("Share your plans", Round, 22, Ink with { A = 0.7f }, new Rect2(0, 140, Size.X, 40));
             return;
         }
         var today = DateTimeOffset.Now.Date;

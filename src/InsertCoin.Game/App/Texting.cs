@@ -186,7 +186,7 @@ public partial class Texting : Node
                     if (thing is not null)
                         handed.Add(thing);
                     else
-                        await Send($"That one didn't reach her: {why!.ToLowerInvariant()}.");
+                        await Send($"That one didn't get through: {why!.ToLowerInvariant()}.");
                 }
                 catch (Exception e) when (e is TelegramException or HttpRequestException or TaskCanceledException)
                 {

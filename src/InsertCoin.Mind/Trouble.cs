@@ -12,8 +12,8 @@ public static class Trouble
 
     public static string Explain(Exception e) => Status(e) switch
     {
-        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → Her mind.",
-        HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → Her mind.",
+        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → Mind.",
+        HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → Mind.",
         HttpStatusCode.PaymentRequired => "The provider says the account needs credit.",
         HttpStatusCode.TooManyRequests => "The provider says to slow down. Try again in a minute.",
         >= HttpStatusCode.InternalServerError => "The provider is having trouble. Try again later.",

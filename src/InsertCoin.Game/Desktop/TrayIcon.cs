@@ -41,17 +41,17 @@ public partial class TrayIcon : Node
         _menu.AddSeparator();
         _menu.AddCheckItem("Mute sounds", MuteId);
         _menu.AddCheckItem("Voice", VoiceId);
-        _menu.AddCheckItem("Conversation (she keeps listening)", ConversationId);
+        _menu.AddCheckItem("Conversation (keeps listening)", ConversationId);
         _menu.AddSeparator();
         _menu.AddItem("Quit", QuitId);
         Sync(muted, voice);
 
         foreach (var (mood, tint) in Tint)
             _icons[mood] = CoinIcon(tint);
-        _indicator = new StatusIndicator { Tooltip = "INSERT COIN" };
+        _indicator = new StatusIndicator { Tooltip = "Beside the Cabinet" };
         AddChild(_indicator);
         _indicator.Menu = _indicator.GetPathTo(_menu);
-        Set(TrayMood.Fine, "INSERT COIN");
+        Set(TrayMood.Fine, "Beside the Cabinet");
     }
 
     /// <summary>Dev: opens the menu at this screen point, as a right click on the icon would.</summary>

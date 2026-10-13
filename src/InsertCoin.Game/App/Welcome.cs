@@ -44,7 +44,7 @@ public partial class Welcome : Window
         column.AddChild(area);
 
         // the name she calls them
-        var first = Form.Page(new VBoxContainer(), "Welcome to INSERT COIN");
+        var first = Form.Page(new VBoxContainer(), "Welcome to Beside the Cabinet");
         Form.Hint(first, "A desktop arcade cabinet for a balance of work, life and games, with a companion on the stool beside it, who " +
                          "chats, remembers and keeps your day. Three things and it's yours: about five minutes.");
         var name = Form.Field(Form.Grid(first), "Your name", settings.Now.CallMe, "your name, or what you like to be called", typed: text =>

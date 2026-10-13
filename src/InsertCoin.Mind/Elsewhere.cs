@@ -86,7 +86,7 @@ public static class Couriers
             yield return new Parcel("Telegram", $"{Telegram.Server}/bot{bot.Trim()}/sendMessage",
                                     new { chat_id = chat.Trim(), text = notice.Hers ? notice.Text : $"{mark}{notice.Title}: {notice.Text}" });
         if (where.Webhook && secrets.WebhookUrl is { Length: > 0 } hook)
-            yield return new Parcel("webhook", hook.Trim(), new { app = "INSERT COIN", title = notice.Title, message = notice.Text });
+            yield return new Parcel("webhook", hook.Trim(), new { app = "Beside the Cabinet", title = notice.Title, message = notice.Text });
     }
 
     /// <summary>Sends to every place that is on; returns each place's name and its error, or null when it got there.</summary>

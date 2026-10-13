@@ -68,8 +68,8 @@ public partial class DoneApp(Activities activities, Func<string, double> paidTod
         if (known.Count == 0)
         {
             Centred("NOTHING YET", Pixel, 15, Ink with { A = 0.75f }, new Rect2(0, 60, Size.X, 26));
-            Centred("Tell her what you did:", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 100, Size.X, 30));
-            Centred("she sizes it, and it shows here", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 130, Size.X, 30));
+            Centred("Say what you did:", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 100, Size.X, 30));
+            Centred("it's sized, and shows here", Round, 21, Ink with { A = 0.7f }, new Rect2(0, 130, Size.X, 30));
             return;
         }
         var waiting = activities.Waiting;
@@ -115,7 +115,7 @@ public partial class DoneApp(Activities activities, Func<string, double> paidTod
     {
         var said = await log(name);
         _note = said.StartsWith("Counted", StringComparison.Ordinal) ? "COUNTED!"
-            : said.Contains("judge_proof", StringComparison.Ordinal) ? "SHOW HER A PHOTO OF IT"
+            : said.Contains("judge_proof", StringComparison.Ordinal) ? "SHOW A PHOTO OF IT"
             : said.Contains("already", StringComparison.Ordinal) ? "ALREADY COUNTED TODAY" : "NOT COUNTED";
         _noteUntil = Time.GetTicksMsec() + 4000;
         QueueRedraw();

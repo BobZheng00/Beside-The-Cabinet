@@ -20,7 +20,7 @@ public static class TalkKey
         ("Backquote", "` ~ (also types ` in the app in front, over and over while held)", 0xC0),
         ("MouseBack", "Mouse side button (back)", 0x05),
         ("MouseForward", "Mouse side button (forward)", 0x06),
-        (Off, "None: only by holding on her", 0),
+        (Off, "None: only by holding the mouse on your companion", 0),
     ];
 
     /// <summary>Whether <paramref name="name"/> (one of <see cref="Keys"/>) is held down now.</summary>

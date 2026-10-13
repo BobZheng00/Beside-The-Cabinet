@@ -253,7 +253,7 @@ public partial class Listening : Node
         if (!_stool.CanAnswer || !HasEars)
         {
             if (how != Talk.Key)                            // a key held for something else in another app says nothing
-                _stool.Say(!_stool.CanAnswer ? "I can only answer once I'm connected: tray → Settings → Her mind." : "I can't hear in this build (no speech model).");
+                _stool.Say(!_stool.CanAnswer ? "I can only answer once I'm connected: tray → Settings → Mind." : "I can't hear in this build (no speech model).");
             return;
         }
         if (_talking == Talk.Open)

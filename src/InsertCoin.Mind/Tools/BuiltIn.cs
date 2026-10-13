@@ -109,8 +109,8 @@ public static class BuiltIn
         "Look at your screen",
         OutsideApp: true,
         arguments => Whole(Text(arguments, "part")) || working() is not { } title
-            ? ("Look at your screen?", "A screenshot of the screen you're working on, for her to see", "screen")
-            : ("Look at this window?", $"A screenshot of {title}, for her to see", "screen"))
+            ? ("Look at your screen?", "A screenshot of the screen you're working on, for your companion to see", "screen")
+            : ("Look at this window?", $"A screenshot of {title}, for your companion to see", "screen"))
     {
         Private = true,
         AtThePc = true,

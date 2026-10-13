@@ -782,7 +782,7 @@ public partial class Stool : Node2D
             return;
         if (!_chat.Ready)
         {
-            await phone.Send("(She can't answer yet: connect her mind on the PC, in Settings → Her mind.)");
+            await phone.Send($"({HerName()} can't answer yet: connect a mind on the PC, in Settings → Mind.)");
             return;
         }
         _announcing = _texting = _chat.Tools.Away = true;
@@ -961,7 +961,7 @@ public partial class Stool : Node2D
                 else if (Ticket is { } corner)
                 {
                     GD.Print("Word first: no answer; a ticket shows it");
-                    ticket = corner.Show((_chat.Conversation?.Persona.Name ?? "Her").ToUpperInvariant(), whole, seconds: 0,
+                    ticket = corner.Show((_chat.Conversation?.Persona.Name ?? "Your companion").ToUpperInvariant(), whole, seconds: 0,
                                          buttons: [("Listen", () => answer.TrySetResult(true)), ("OK", () => answer.TrySetResult(false))]);
                 }
                 if (await Task.WhenAny(answer.Task, Task.Delay(GiveUp - Unanswered, cancel)) != answer.Task)
@@ -1284,7 +1284,7 @@ public partial class Stool : Node2D
 
     /// <summary>Asks for clips to add to her voice, or a voice's .zip to replace it.</summary>
     private void PickVoice() => Pick("Add clips or a voice", FileDialog.FileModeEnum.OpenFiles,
-        ["*.zip, *.wav, *.mp3, *.ogg, *.flac ; Clips of her voice (3-10 seconds each), or a voice's .zip"], Add);
+        ["*.zip, *.wav, *.mp3, *.ogg, *.flac ; Clips of the voice (3-10 seconds each), or a voice's .zip"], Add);
 
     /// <summary>Asks for a voice's folder (clips with their words, maybe a model; see <see cref="VoiceSettings.FolderGuide"/>), then adds it.</summary>
     private void PickVoiceFolder() => Pick("Add a voice's folder", FileDialog.FileModeEnum.OpenDir, [], paths =>
@@ -1325,7 +1325,7 @@ public partial class Stool : Node2D
     // ---- Handing her things ------------------------------------------------------------------------------------------
 
     /// <summary>Asks for pictures or files to hand her with the next message.</summary>
-    private void PickFiles() => Pick("Hand her a picture or a file", FileDialog.FileModeEnum.OpenFiles,
+    private void PickFiles() => Pick($"Hand {HerName()} a picture or a file", FileDialog.FileModeEnum.OpenFiles,
         ["*.png, *.jpg, *.jpeg, *.webp, *.gif, *.pdf, *.txt, *.md, *.csv, *.json, *.log, *.py, *.cs, *.js, *.ts, *.java, *.cpp, *.c, *.h, *.go, *.rs, *.sql, *.html, *.css ; Pictures, PDFs and text",
          "* ; Any file"], Hand);
 
@@ -1383,7 +1383,7 @@ public partial class Stool : Node2D
         }
         _phone = new PhoneCard();
         AddChild(_phone);
-        _phone.Build(_chat.Conversation?.Persona.Name ?? "her", thisPcOnly: Paper.OffScreen);
+        _phone.Build(_chat.Conversation?.Persona.Name ?? "your companion", thisPcOnly: Paper.OffScreen);
         _phone.Received += (name, data) =>
         {
             Hand(Handing.From(name, data));
@@ -1414,7 +1414,7 @@ public partial class Stool : Node2D
     {
         if (_chat.Ready && Her is not null)
             return true;
-        _cabinet.Screen.Flash("HER MIND", "CONNECT IT IN CHAT SETTINGS", 3.0);
+        _cabinet.Screen.Flash("MIND", "CONNECT IT IN SETTINGS", 3.0);
         return false;
     }
 
@@ -1538,7 +1538,7 @@ public partial class Stool : Node2D
         }
         if (voice.Missing is not null || VoiceServer.Check(_settings.Now.VoiceEngine) is not null)
         {
-            _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE SETTINGS, HER VOICE", 4.0);
+            _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE SETTINGS, VOICE", 4.0);
             OpenSettings?.Invoke("voice");
             return;
         }
@@ -1748,13 +1748,13 @@ public partial class Stool : Node2D
     /// </summary>
     public IEnumerable<SettingsPage> SettingsPages() =>
     [
-        new("mind", SettingsWindow.Her, "Her mind", () => MindPage()),
-        new("voice", SettingsWindow.Her, "Her voice", VoicePage),
-        new("listening", SettingsWindow.Her, "Talking aloud", ListeningPage),
-        new("characters", SettingsWindow.Her, "Characters", CharactersPage),
-        new("abilities", SettingsWindow.Her, "Abilities", AbilitiesPage),
-        new("privacy", SettingsWindow.Her, "Privacy", PrivacyPage),
-        new("addons", SettingsWindow.Her, "Add-ons", AddOnsPage),
+        new("mind", SettingsWindow.Companion, "Mind", () => MindPage()),
+        new("voice", SettingsWindow.Companion, "Voice", VoicePage),
+        new("listening", SettingsWindow.Companion, "Talking aloud", ListeningPage),
+        new("characters", SettingsWindow.Companion, "Characters", CharactersPage),
+        new("abilities", SettingsWindow.Companion, "Abilities", AbilitiesPage),
+        new("privacy", SettingsWindow.Companion, "Privacy", PrivacyPage),
+        new("addons", SettingsWindow.Companion, "Add-ons", AddOnsPage),
         new("usage", SettingsWindow.Cabinet, "Usage", UsedPage),
     ];
 
@@ -1857,20 +1857,20 @@ public partial class Stool : Node2D
     {
         var her = HerName();
         var provider = ChatProvider();
-        yield return new("mind", "Her mind",
+        yield return new("mind", $"{her}'s mind",
             $"{her} talks through your own AI provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, or a server on this PC): pick one, get a key " +
             "on its site, name a model, Test and Save. Providers charge a little for each reply; one on this PC is free. About 5 minutes.",
             Needed: true, Done: provider is not null,
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.");
-        yield return new("voice", "Her voice",
+        yield return new("voice", $"{her}'s voice",
             $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
-            (_voice.Profile is null ? ", then give her a voice from clips of it with their words" : $"; {her} has a voice already, which you can change") +
-            ". About 20 minutes; training a model of her voice takes longer.",
+            (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
+            ". About 20 minutes; training a model of the voice takes longer.",
             Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
         if (Listening.HasEars)
             yield return new("listening", "Talking aloud",
-                $"Talk to {her} through your microphone: what you say is made into words on this PC, and only the words go to her provider. " +
+                $"Talk to {her} through your microphone: what you say is made into words on this PC, and only the words go to your provider. " +
                 "Nothing to install.",
                 Needed: false, Done: true,
                 _settings.Now.TalkKey == TalkKey.Off ? $"Ready: hold the mouse on {her} and speak."
@@ -2071,7 +2071,7 @@ public partial class Stool : Node2D
         _voice.Training = true;
         _trainer.Start(_settings.Now.VoiceEngine!, _voice.Folder, _voice.Profile!);
         if (_trainer.Running)
-            _cabinet.Screen.Flash("VOICE", "TRAINING - SHE RESTS HER VOICE", 4.0);
+            _cabinet.Screen.Flash("VOICE", "TRAINING - THE VOICE RESTS", 4.0);
     }
 
     /// <summary>Training ended: her voice comes back, with its new model when it worked.</summary>
@@ -2080,7 +2080,7 @@ public partial class Stool : Node2D
         _voice.Training = false;
         if (trained is null)
         {
-            _cabinet.Screen.Flash("VOICE", "TRAINING STOPPED: SEE SETTINGS, HER VOICE", 4.0);
+            _cabinet.Screen.Flash("VOICE", "TRAINING STOPPED: SEE SETTINGS, VOICE", 4.0);
             return;
         }
         _settings.Save(_settings.Now with { TrainingPace = _trainer.Pace });     // the next estimate is this PC's own

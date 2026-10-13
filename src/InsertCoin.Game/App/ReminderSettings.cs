@@ -29,14 +29,14 @@ public partial class ReminderSettings : VBoxContainer
     public void Build(ReminderChoices choices)
     {
         Form.Page(this, "Reminders");
-        Form.Hint(this, "Ask her to remind you of something and it goes off at that time, always on a ticket at the corner of the screen, " +
+        Form.Hint(this, "Ask for a reminder and it goes off at that time, always on a ticket at the corner of the screen, " +
                         "with Snooze and OK. While you're away from the PC, it reaches your phone instead (see Your phone).");
         var ticket = Form.Grid(this);
         _stays = Form.Choice(ticket, "Ticket stays", Stays.Select(s => s.Label), Array.FindIndex(Stays, s => s.Seconds == choices.TicketSeconds), _ => Changed());
         _snooze = Form.Choice(ticket, "Snooze for", Snoozes.Select(m => $"{m} minutes"), Array.IndexOf(Snoozes, choices.SnoozeMinutes), _ => Changed());
 
-        _spoken = Tick("She tells you, in her own words", choices.Spoken,
-                       "Once she has finished what she is saying, and in your language, when her mind is connected. Otherwise a plain line in her bubble.");
+        _spoken = Tick("Told in your companion's own words", choices.Spoken,
+                       "Once your companion has finished speaking, and in your language, when the mind is connected. Otherwise a plain line in the speech bubble.");
         _sound = Tick("Chime", choices.Sound, "A soft two-note chime, like a doorbell.");
         _evenMuted = Form.Tick(Form.Indented(this), "Even when the cabinet's sounds are muted", choices.ChimeWhenMuted, _ => Changed());
         Form.ShowWhile(_sound, _evenMuted.GetParent<Control>());

@@ -3,7 +3,7 @@ config_version=5
 
 [application]
 
-config/name="INSERT COIN"
+config/name="Beside the Cabinet"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#")
 run/low_processor_mode=true

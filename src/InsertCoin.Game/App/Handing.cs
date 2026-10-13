@@ -33,7 +33,7 @@ public static class Handing
             return (null, null, "TOO BIG: 20 MB AT MOST");
         var type = Attachment.TypeOf(name, data.AsSpan(0, Math.Min(data.Length, 8192)));
         if (type is null)
-            return (null, null, $"SHE CAN'T TAKE {Path.GetExtension(name).TrimStart('.').ToUpperInvariant()} FILES");
+            return (null, null, $"CAN'T TAKE {Path.GetExtension(name).TrimStart('.').ToUpperInvariant()} FILES");
         if (type == "application/pdf")
             return data.Length <= MaxPdfBytes ? (new Attachment(name, type, data), null, null) : (null, null, "PDF TOO BIG: 10 MB AT MOST");
         if (!type.StartsWith("image/", StringComparison.Ordinal))

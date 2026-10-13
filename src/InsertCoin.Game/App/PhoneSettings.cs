@@ -45,17 +45,17 @@ public partial class PhoneSettings : VBoxContainer
         _elsewhere = elsewhere;
         _secrets = secrets;
         Form.Page(this, "Your phone");
-        Form.Hint(this, "At the PC she tells you herself. When you're away from it, what matters reaches you here instead, in her words: " +
+        Form.Hint(this, $"At the PC {name} tells you in person. When you're away from it, what matters reaches you here instead, in {name}'s words: " +
                         "reminders, a focus session's turns, and asking how something went. What only makes sense at the PC waits for you.");
         Form.Slider(Form.Grid(this), "Away after", Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes, awayMinutes,
                     minutes => $"{minutes} minutes", minutes => AwayChosen?.Invoke(minutes));
-        Form.Hint(this, "Without the mouse or keys; away at once when the screen is locked, or when you tell her you're heading out. In " +
-                        "between she isn't sure: she calls you first, and texts if you don't come back.");
-        Form.Choice(Form.Grid(this), "She reaches out", Reaches.Select(r => r.Label), Array.FindIndex(Reaches, r => r.Reach == reach),
+        Form.Hint(this, $"Without the mouse or keys; away at once when the screen is locked, or when you tell {name} you're heading out. In " +
+                        $"between it isn't sure: {name} calls you first, and texts if you don't come back.");
+        Form.Choice(Form.Grid(this), $"{name} reaches out", Reaches.Select(r => r.Label), Array.FindIndex(Reaches, r => r.Reach == reach),
                     index => ReachChosen?.Invoke(Reaches[index].Reach));
-        Form.Hint(this, $"Only what you set: reminders and a focus session's turns. Like a roommate: those, and what of hers matters, such as " +
-                        $"asking how something went. Keeps in touch: also texts of {name}'s own while you're out, when she plans them: in her " +
-                        "goodbye, or half an hour after you leave without one. Never at night. If you're back before one she planned, she " +
+        Form.Hint(this, $"Only what you set: reminders and a focus session's turns. Like a roommate: those, and what of {name}'s own matters, such as " +
+                        $"asking how something went. Keeps in touch: also texts of {name}'s own while you're out, when planned: in a " +
+                        $"goodbye, or half an hour after you leave without one. Never at night. If you're back before a planned one, {name} " +
                         "brings it up in person.");
         Form.Tick(this, "Also while I'm at the PC", alsoAtThePc, on => AtThePcChosen?.Invoke(on));
         Form.Hint(this, "Reminders reach your phone even when you're at the PC, as a plain line, as they used to.");
@@ -63,7 +63,7 @@ public partial class PhoneSettings : VBoxContainer
         BuildTelegram(texting, name, paired: elsewhere.Telegram && secrets.TelegramToken is not null && secrets.TelegramChat is not null);
 
         Form.Subheading(this, "Notifications only");
-        Form.Hint(this, "Her texts can also go where you can read but not answer. Tick where, and fill in what it asks. Addresses and tokens " +
+        Form.Hint(this, $"{name}'s texts can also go where you can read but not answer. Tick where, and fill in what it asks. Addresses and tokens " +
                         "stay on this PC, encrypted.");
         _ntfy = Channel("ntfy", elsewhere.Ntfy, "Free phone notifications, no account: install the ntfy app and subscribe to a topic name only you know.",
                         grid =>
@@ -88,7 +88,7 @@ public partial class PhoneSettings : VBoxContainer
     /// </summary>
     private void BuildTelegram(Texting texting, string name, bool paired)
     {
-        Form.Subheading(this, "Text with her on Telegram");
+        Form.Subheading(this, $"Text with {name} on Telegram");
         var done = Form.Buttons(this);
         var steps = new VBoxContainer();
         steps.AddThemeConstantOverride("separation", 10);
@@ -157,7 +157,7 @@ public partial class PhoneSettings : VBoxContainer
             }
             try
             {
-                await bot.Name(name, $"{name}, from your INSERT COIN cabinet. She talks with one chat only: the one that pairs with her.");
+                await bot.Name(name, $"{name}, from Beside the Cabinet. {name} talks with one chat only: the one that pairs.");
             }
             catch (Exception e) when (e is TelegramException or HttpRequestException or TaskCanceledException)
             {
@@ -175,8 +175,8 @@ public partial class PhoneSettings : VBoxContainer
         }).SizeFlagsVertical = SizeFlags.ShrinkCenter;
         check.MoveChild(found, -1);
         Form.Hint(steps, "Each profile needs a bot of its own: the demo too.");
-        Form.Hint(this, "Her chat goes through Telegram's servers and isn't end-to-end encrypted: bots can't use Telegram's secret chats. " +
-                        "What she texts can include what she knows of you: your agenda, how you've slept, what you told her.");
+        Form.Hint(this, "The chat goes through Telegram's servers and isn't end-to-end encrypted: bots can't use Telegram's secret chats. " +
+                        $"What {name} texts can include anything known about you: your agenda, how you've slept, what you've said.");
     }
 
     /// <summary>A place reminders can go: its tick, what it is, and its fields (shown while it is ticked).</summary>

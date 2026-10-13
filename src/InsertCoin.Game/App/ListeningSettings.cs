@@ -27,8 +27,8 @@ public partial class ListeningSettings : VBoxContainer
                               index => KeyChosen?.Invoke(TalkKey.Keys[index].Name), wide: true);
         key.Disabled = !hears;
         Form.Hint(this, hears
-            ? $"Talk to {name} aloud: hold the mouse on her, or hold this key in any app, and let go when you're done; she " +
-              "answers what she heard. The microphone on the slip writes what you say into it instead, to change before sending. " +
+            ? $"Talk to {name} aloud: hold the mouse on {name}, or hold this key in any app, and let go when you're done; {name} " +
+              "answers what was heard. The microphone on the slip writes what you say into it instead, to change before sending. " +
               "Heard on this PC; nothing is recorded. The cabinet's screen shows MIC while the microphone is open."
             : "Talking aloud needs the speech model, which this build doesn't have (python tools/models/fetch.py listening).");
 
@@ -36,9 +36,9 @@ public partial class ListeningSettings : VBoxContainer
         Form.Subheading(this, "Without the key");
         var h = _handsFree;
         _conversationKey = Form.Tick(this, "Double-tap the talk key to start or end a conversation", h.ConversationKey, _ => Chosen());
-        Form.Hint(this, $"In a conversation {name} listens after everything she says, so you can answer without the key, until you've " +
+        Form.Hint(this, $"In a conversation {name} listens after every reply, so you can answer without the key, until you've " +
                         $"been quiet for {HandsFree.ConversationSeconds:0} seconds. The tray's Conversation switch does the same.");
-        _followUp = Form.Tick(this, "Listen for a moment after she speaks", h.FollowUp, _ => Chosen());
+        _followUp = Form.Tick(this, $"Listen for a moment after {name} speaks", h.FollowUp, _ => Chosen());
         var seconds = Form.Indented(this);
         seconds.AddChild(new Label { Text = "for" });
         _followUpSeconds = new SpinBox
@@ -48,13 +48,13 @@ public partial class ListeningSettings : VBoxContainer
         };
         _followUpSeconds.ValueChanged += _ => Chosen();
         seconds.AddChild(_followUpSeconds);
-        _afterAnswers = Form.Tick(Form.Indented(this), "after she answers you", h.AfterAnswers, _ => Chosen());
-        _afterQuestions = Form.Tick(Form.Indented(this), "after she asks you something on her own", h.AfterQuestions, _ => Chosen());
-        _afterRemarks = Form.Tick(Form.Indented(this), "after anything else she says on her own", h.AfterRemarks, _ => Chosen());
-        Form.Hint(this, "If you start talking within those seconds, she hears it as your answer; if not, the microphone closes. " +
-                        "She never listens while she is speaking: talking over her still needs the key or a click.");
+        _afterAnswers = Form.Tick(Form.Indented(this), "after an answer to you", h.AfterAnswers, _ => Chosen());
+        _afterQuestions = Form.Tick(Form.Indented(this), "after a question of their own", h.AfterQuestions, _ => Chosen());
+        _afterRemarks = Form.Tick(Form.Indented(this), "after anything else they say on their own", h.AfterRemarks, _ => Chosen());
+        Form.Hint(this, "If you start talking within those seconds, it counts as your answer; if not, the microphone closes. " +
+                        $"{name} never listens while speaking: talking over {name} still needs the key or a click.");
 
-        AddChild(new Label { Text = "She may listen on her own…" });
+        AddChild(new Label { Text = $"{name} may listen without being asked…" });
         _inCalls = Form.Tick(Form.Indented(this), "during a call", h.InCalls, _ => Chosen());
         _inFullScreen = Form.Tick(Form.Indented(this), "in full screen or Windows' quiet time", h.InFullScreen, _ => Chosen());
         _whilePlaying = Form.Tick(Form.Indented(this), "while a game runs", h.WhilePlaying, _ => Chosen());

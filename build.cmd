@@ -10,4 +10,4 @@ if not defined GODOT (
 if not exist "%~dp0builds\InsertCoin" mkdir "%~dp0builds\InsertCoin"
 rem her local models: memory search and ears (all by default; "python tools\models\fetch.py small" beforehand makes a lighter build)
 if not exist "%~dp0src\InsertCoin.Game\models" python "%~dp0tools\models\fetch.py"
-"%GODOT:.exe=_console.exe%" --headless --path "%~dp0src\InsertCoin.Game" --export-release "Windows Desktop" "%~dp0builds\InsertCoin\InsertCoin.exe"
+"%GODOT:.exe=_console.exe%" --headless --path "%~dp0src\InsertCoin.Game" --export-release "Windows Desktop" "%~dp0builds\BesideTheCabinet\BesideTheCabinet.exe"

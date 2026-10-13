@@ -216,7 +216,7 @@ public partial class MemoSheet : Node2D
         _memo = memo;
         _colour = memo.Colour;
         _sticker = memo.Sticker;
-        _window.Title = $"{memo.Title} - INSERT COIN memo";
+        _window.Title = $"{memo.Title} - Beside the Cabinet memo";
         _title.Text = memo.Title;
         _byline.Text = $"{from} · {memo.At.ToLocalTime().ToString("ddd d MMM, HH:mm", CultureInfo.InvariantCulture)}";
         _text.Text = Memo.ToBbcode(memo.Text);
@@ -228,7 +228,7 @@ public partial class MemoSheet : Node2D
     public void Write(Draft? draft, Vector2 slot)
     {
         _memo = null;
-        _window.Title = "New memo - INSERT COIN memo";
+        _window.Title = "New memo - Beside the Cabinet memo";
         _colour = draft?.Colour ?? Memo.Yellow;
         _sticker = draft?.Sticker;
         _titleField.Text = draft?.Title ?? "";
@@ -330,7 +330,7 @@ public partial class MemoSheet : Node2D
         _print.Visible = editing && _memo is null;
         _tell.Visible = editing && _memo is null && _memos.HerName is not null;
         _tell.Text = $"Let {_memos.HerName} read it";
-        _tell.TooltipText = Words.Wrap("She reads it and may act on it (a reminder, a date on the agenda), or let it be. Untick to keep it to yourself.");
+        _tell.TooltipText = Words.Wrap("Your companion reads it and may act on it (a reminder, a date on the agenda), or let it be. Untick to keep it to yourself.");
         _deleting = false;
         _delete.Warn = false;
         Say(editing && _memo is null ? "Print it, and it comes out of the cabinet's slot." : "");
