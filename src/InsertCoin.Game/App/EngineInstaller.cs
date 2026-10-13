@@ -39,6 +39,8 @@ public partial class EngineInstaller : Node
     public Step Now { get; private set; }
     /// <summary>Why the last try ended without installing it (stopped by the player, too little room, …).</summary>
     public string? Problem { get; private set; }
+    /// <summary>The last try was stopped by the player, not a failure.</summary>
+    public bool Stopped { get; private set; }
     /// <summary>GPT-SoVITS installs already on this PC, once <see cref="Look"/> has looked.</summary>
     public IReadOnlyList<string>? Found { get; private set; }
     /// <summary>The NVIDIA graphics card, as its driver names it, once <see cref="Look"/> has asked (null: none found).</summary>
@@ -137,7 +139,7 @@ public partial class EngineInstaller : Node
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
-            End(Now == Step.Downloading ? "Stopped. Install carries on from where it got to." : "Stopped. Install takes it up again.");
+            End(Now == Step.Downloading ? "Stopped. Install carries on from where it got to." : "Stopped. Install takes it up again.", stopped: true);
         }
         catch (Exception e)
         {
@@ -148,8 +150,9 @@ public partial class EngineInstaller : Node
 
     public void Stop() => _cancel?.Cancel();
 
-    private void End(string? problem)
+    private void End(string? problem, bool stopped = false)
     {
+        Stopped = stopped;
         _cancel?.Dispose();
         _cancel = null;
         Problem = problem;

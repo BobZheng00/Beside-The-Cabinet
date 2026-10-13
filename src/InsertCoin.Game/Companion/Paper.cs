@@ -23,6 +23,7 @@ public static class Paper
     {
         var theme = new Theme { DefaultFont = Font(450), DefaultFontSize = 15 };
         theme.SetStylebox("panel", "PanelContainer", Box(Sheet, Sheet, 0, 0, 22, 18));
+        theme.SetStylebox("panel", "AcceptDialog", Box(Sheet, Sheet, 0, 0, 22, 18));     // else Godot's dark grey under the paper's ink
         theme.SetColor("font_color", "Label", Letters);
 
         theme.SetTypeVariation("Heading", "Label");

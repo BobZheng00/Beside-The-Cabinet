@@ -61,6 +61,9 @@ public partial class Listening : Node
     /// <summary>Whether she has ears in this build (SenseVoice, fetched by tools/models/fetch.py).</summary>
     public static bool HasEars => ModelFiles.Present(EarsModel + Hearing.ModelFile);
 
+    /// <summary>Her ears, loaded once and shared (also for writing down the words in a voice's clips); null when they won't load.</summary>
+    public Task<Hearing?> SharedEars() => _hearing ??= Task.Run(LoadHearing);
+
     /// <summary>Whether she can listen hands-free in this build (the turn-taking models, fetched the same way).</summary>
     public static bool HasTurns => ModelFiles.Present(TurnModels + VoiceDetector.ModelFile) && ModelFiles.Present(TurnModels + SmartTurn.ModelFile);
 

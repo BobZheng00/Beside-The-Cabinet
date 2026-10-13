@@ -156,8 +156,13 @@ cabinet, carries on from where it got to. Then give her a voice: drop on the cab
 voice, or clips, which join it. A voice is clips of one person, 3 to 10 seconds each, with the words said in them, and maybe a model someone
 trained on them (a `.ckpt` and a `.pth`; v2 to v4 all work). The words come from a training list (any `.list`,
 one line per clip: `clips/001.wav|hana|JA|今日も頑張ろうね。`), a `.lab` beside a clip, or the clip's file name
-("【开心】今天也要加油哦.wav", the mood in brackets picking it for that mood); if none says them the window asks.
-"What goes in a voice folder?" in the window says the same. For example:
+("【开心】今天也要加油哦.wav", the mood in brackets picking it for that mood), and are used as they are, so a whole
+dataset with its list goes in unchanged. When none says them, her ears (SenseVoice) listen to the clip and write them
+down, in the background, for `.wav` clips of 16, 24 or 32 bits: every clip of a folder is kept for it. Ears can
+mishear, so the page marks those clips "words to check", says so, and shows how to listen and correct them; changing
+a clip's words, or "They're right", clears the mark. Otherwise the window asks. "What goes in a voice folder?" in the
+window says the same, and where a voice can come from (your own recordings, a friend who agrees, a voice actor, an
+open licence; shared game or anime voices are for yourself only) and how to record one. For example:
 
 ```
 hana/

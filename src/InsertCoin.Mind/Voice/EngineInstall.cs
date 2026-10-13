@@ -180,7 +180,9 @@ public static class EngineInstall
                     continue;
                 }
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                using (var file = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, Chunk))
+                var before = done;
+                using (var file = new Counted(new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, Chunk),
+                                              written => progress.Report((double)(before + written) / total)))
                     reader.WriteEntryTo(file);
                 progress.Report((double)(done += entry.Size) / total);
             }
@@ -193,6 +195,44 @@ public static class EngineInstall
         if (Directory.Exists(staging))
             Directory.Delete(staging, recursive: true);
         return folder;
+    }
+
+    /// <summary>A file being written that says how much has gone in, every megabyte or so: the package's models are a
+    /// gigabyte or two each, minutes of unpacking that would otherwise show no progress.</summary>
+    private sealed class Counted(Stream inner, Action<long> written) : Stream
+    {
+        private long _count, _told;
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            inner.Write(buffer, offset, count);
+            if ((_count += count) - _told >= Chunk)
+                written(_told = _count);
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            inner.Write(buffer);
+            if ((_count += buffer.Length) - _told >= Chunk)
+                written(_told = _count);
+        }
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => _count;
+        public override long Position { get => _count; set => throw new NotSupportedException(); }
+        public override void Flush() => inner.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                inner.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
     // Windows' own folders and others never holding it, not looked in.

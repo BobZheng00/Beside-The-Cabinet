@@ -29,15 +29,24 @@ public partial class VoiceSettings : VBoxContainer
     /// <summary>What a voice folder holds, for the "What goes in a voice folder?" button.</summary>
     public const string FolderGuide =
         "A voice is clips of one person speaking, each with the words said in it.\n\n" +
+        "Where a voice can come from: your own recordings, a friend who agrees to it, a voice actor you commission, or " +
+        "recordings whose licence allows it. Voices shared online are often cut from games and anime: fine for yourself, " +
+        "never to share on.\n\n" +
+        "Recording it: a quiet room, close to the microphone, one person at a time. Natural sentences in the tone she " +
+        "should have, 3 to 10 seconds each: a question, something cheerful, something calm. Ten or so are plenty to clone " +
+        "from; a few minutes in all to train a model.\n\n" +
         "Clips: .wav, .mp3, .ogg or .flac files, one speaker, no music or noise. 3 to 10 seconds each is best; " +
         "the clip she speaks with must be 3 to 10 seconds.\n\n" +
-        "Their words, in any of three ways:\n" +
+        "Their words, in any of four ways:\n" +
+        "  • her ears write them down: .wav clips added without their words are listened to. Ears can mishear, so " +
+        "listen to each and correct its words (Clip, then Words in it); wrong words make the voice worse\n" +
         "  • a training list (any .list file), one line per clip:\n" +
         "        clips/001.wav|hana|JA|今日も頑張ろうね。\n" +
         "    (the language: JA, ZH, EN, KO or YUE)\n" +
         "  • a text file beside each clip with the same name: 001.wav and 001.lab\n" +
-        "  • the words as the clip's file name: 今日も頑張ろうね.wav, with a mood in front for a clip\n" +
-        "    to use for that mood: [happy] やった！.wav\n\n" +
+        "  • the words as the clip's file name: 今日も頑張ろうね.wav, with a mood in front for a clip to use for that " +
+        "mood: [happy] やった！.wav\n" +
+        "Words that come with the clips are used as they are: a whole dataset with its list goes in unchanged.\n\n" +
         "Maybe a model someone trained on the voice: a .ckpt and a .pth file (GPT-SoVITS v2 to v4).\n\n" +
         "For example:\n" +
         "    hana/\n" +
@@ -73,6 +82,7 @@ public partial class VoiceSettings : VBoxContainer
     private OptionButton _source = null!;
     private Button _installButton = null!, _stopInstall = null!;
     private ProgressBar _installing = null!;
+    private bool _hearing;
     private VoiceProfile? _profile;
     private LineEdit _engine = null!, _words = null!;
     private Label _status = null!, _result = null!;
@@ -88,8 +98,11 @@ public partial class VoiceSettings : VBoxContainer
     private AudioStreamPlayer _preview = null!;
     private bool _removing;
 
-    public void Build(Voice voice, VoiceTrainer trainer, EngineInstaller installer, string? engineFolder, string? installTo, string name, SettingsFile settings)
+    /// <param name="hearing">Her ears are writing down the words in this voice's clips just now.</param>
+    public void Build(Voice voice, VoiceTrainer trainer, EngineInstaller installer, string? engineFolder, string? installTo, string name, SettingsFile settings,
+                      bool hearing = false)
     {
+        _hearing = hearing;
         _voice = voice;
         _trainer = trainer;
         _installer = installer;
@@ -128,7 +141,8 @@ public partial class VoiceSettings : VBoxContainer
         var addFile = Form.Button(actions, "Add clips…", () => AddVoice?.Invoke());
         addFile.TooltipText = "Clips join this voice; a voice's .zip replaces it";
         var addFolder = Form.Button(actions, "Add a folder…", () => AddFolder?.Invoke());
-        addFolder.TooltipText = Words.Wrap("A voice's folder (clips with their words, maybe a model): it replaces this voice");
+        addFolder.TooltipText = Words.Wrap("A voice's folder or a whole dataset (clips, their words in a .list or .lab files, maybe a model): " +
+                                           "it replaces this voice, and words that come with it are used as they are");
         if (_profile is not null)
         {
             Form.Button(actions, "Test", () => _ = Test());
@@ -231,7 +245,7 @@ public partial class VoiceSettings : VBoxContainer
         {
             _clipFiles.Add(c.File);
             clip.AddItem(Path.GetFileName(c.File) + (c.Seconds is { } s ? $" · {s:0.0} s" : "") + (c.Mood is { } mood ? $" · {mood}" : "") +
-                         (c.Text.Trim().Length == 0 ? " · no words yet" : ""));
+                         (c.Text.Trim().Length == 0 ? " · no words yet" : c.Heard ? " · words to check" : ""));
         }
         if (speaking is not null)
             clip.Select(profile.Clips.ToList().IndexOf(speaking));
@@ -245,20 +259,27 @@ public partial class VoiceSettings : VBoxContainer
             Text = speaking?.Text ?? "", Editable = speaking is not null, SizeFlagsHorizontal = SizeFlags.ExpandFill,
             PlaceholderText = "exactly what is said in the clip",
         };
+        Form.Row(grid, "Words in it", _words);
+        var heardHint = Form.Hint("Written down by her ears: listen (▶) and correct it if they misheard.");
+        var heardRow = Form.Row(grid, "", heardHint);
+        void ShowHeard() => heardRow.Visible = heardHint.Visible =
+            _shown is not null && !_edited.ContainsKey(_shown) && _profile?.Clips.FirstOrDefault(c => c.File == _shown)?.Heard == true;
         _words.TextChanged += words =>
         {
             if (_shown is not null)
                 _edited[_shown] = words;
+            ShowHeard();                                    // corrected (or looked over and changed): no longer only heard
         };
         _words.TextSubmitted += _ => KeepWords();
         _words.FocusExited += KeepWords;
-        Form.Row(grid, "Words in it", _words);
+        ShowHeard();
         clip.ItemSelected += index =>
         {
             _shown = _clipFiles[(int)index];
             _words.Text = _edited.TryGetValue(_shown, out var words) ? words : _profile!.Clips.FirstOrDefault(c => c.File == _shown)?.Text ?? "";
             _preview.Stop();
             Apply();                                        // she speaks with this one from now on
+            ShowHeard();
         };
         play.Pressed += () => Preview(_shown);
 
@@ -284,8 +305,25 @@ public partial class VoiceSettings : VBoxContainer
         };
         _stop.Pressed += () => StopTraining?.Invoke();
 
-        if (profile.Missing is { } missing)
+        if (_hearing)
+            AddChild(Note("Her ears are listening to its clips, to write down the words in them…", Paper.Faint));
+        else if (profile.Missing is { } missing)
             AddChild(Note($"It still needs {missing}.", Paper.Bad));
+        if (!_hearing && profile.Clips.Count(c => c.Heard) is > 0 and var heard)
+        {
+            var row = new HBoxContainer();
+            row.AddThemeConstantOverride("separation", 8);
+            var note = Note($"Her ears wrote down the words of {heard} of its clips (\"words to check\" under Clip). Ears can mishear, and wrong " +
+                            "words make her voice speak and train worse: listen to each and correct its words.", Paper.Bad);
+            note.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(note);
+            Form.Button(row, "They're right", () =>
+            {
+                Checked();
+                row.Visible = false;
+            });
+            AddChild(row);
+        }
         if (speaking?.Seconds is < 3 or > 10)
             AddChild(Note("The clip she speaks with should be 3 to 10 seconds; this one may not work.", Paper.Bad));
         if (profile.About is { Length: > 0 } about)
@@ -315,7 +353,7 @@ public partial class VoiceSettings : VBoxContainer
             return;
         var language = _language is null ? profile.Language : _languages[_language.Selected];
         var clips = profile.Clips.Select(c => _edited.TryGetValue(c.File, out var words)
-            ? c with { Text = words.Trim(), Language = c.Language.Length > 0 ? c.Language : language }
+            ? c with { Text = words.Trim(), Language = c.Language.Length > 0 ? c.Language : language, Heard = false }     // the player's own words now
             : c).ToList();
         if (clips.FindIndex(c => c.File == _shown) is > 0 and var chosen)
         {
@@ -328,6 +366,17 @@ public partial class VoiceSettings : VBoxContainer
         (profile with { Language = language, Clips = clips, Steps = steps, CloneWith = cloneWith }).Save(_voice.Folder);
         _profile = VoiceProfile.Load(_voice.Folder) ?? profile;
         _edited.Clear();
+        VoiceChanged?.Invoke();
+    }
+
+    /// <summary>The player has checked the words her ears wrote down: they count as the voice's own now.</summary>
+    private void Checked()
+    {
+        KeepWords();
+        if (_profile is not { } profile)
+            return;
+        (profile with { Clips = [.. profile.Clips.Select(c => c with { Heard = false })] }).Save(_voice.Folder);
+        _profile = VoiceProfile.Load(_voice.Folder) ?? profile;
         VoiceChanged?.Invoke();
     }
 
@@ -362,13 +411,22 @@ public partial class VoiceSettings : VBoxContainer
         _preview.Play();
     }
 
+    /// <summary>The guide in a dialog of a fixed size that scrolls: grown to fit, it was taller than a 1080p screen.</summary>
     private void ShowGuide()
     {
-        var dialog = new AcceptDialog { Title = "What goes in a voice folder?", DialogText = FolderGuide, DialogAutowrap = true, Transient = true };
+        var scroll = new ScrollContainer { CustomMinimumSize = new Vector2(660, 540), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        scroll.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+        scroll.AddChild(new Label
+        {
+            Text = FolderGuide, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(630, 0),
+        });
+        var dialog = new AcceptDialog { Title = "What goes in a voice folder?", Transient = true };
+        dialog.AddChild(scroll);
         AddChild(dialog);
         dialog.Confirmed += dialog.QueueFree;
         dialog.Canceled += dialog.QueueFree;
-        dialog.PopupCentered(new Vector2I(560, 560));
+        dialog.PopupCentered();
     }
 
     private void Browse(LineEdit field, string title)
@@ -463,7 +521,7 @@ public partial class VoiceSettings : VBoxContainer
             Form.Say(_installSays, _installer.Saying + ". It carries on with this window closed.", Paper.Faint);
         }
         else
-            Form.Say(_installSays, _installer.Problem ?? "", Paper.Bad);
+            Form.Say(_installSays, _installer.Problem ?? "", _installer.Stopped ? Paper.Faint : Paper.Bad);
     }
 
     private void ShowStatus()

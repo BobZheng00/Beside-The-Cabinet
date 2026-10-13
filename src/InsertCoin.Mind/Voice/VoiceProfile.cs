@@ -9,8 +9,11 @@ namespace InsertCoin.Mind;
 /// <summary>
 /// A clip of the voice and the words spoken in it: GPT-SoVITS takes the voice's tone from it. <see cref="Mood"/> says
 /// which stage direction it suits (happy for [cheer], sad for [worry]…); null for her everyday voice.
+/// <see cref="Heard"/>: its words were written down by her ears, not given with it, and nobody has checked them yet
+/// (her ears can mishear, and a voice speaks and trains worse on wrong words).
 /// </summary>
-public sealed record VoiceClip(string File, string Text, string Language, string? Mood = null, double? Seconds = null);
+public sealed record VoiceClip(string File, string Text, string Language, string? Mood = null, double? Seconds = null,
+                               [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Heard = false);
 
 /// <summary>
 /// A character's voice, kept as <c>voice.json</c> in a folder of its own beside the character: clips of the voice with
@@ -153,9 +156,11 @@ public sealed partial record VoiceProfile
     /// speak with first (see <see cref="IdealClipSeconds"/>). Clips without weights (a dataset) make a voice cloned
     /// from them, which can be trained. A clip on its own joins the voice there, keeping its model and clips (she
     /// speaks with it if it is 3 to 10 seconds long), or starts a voice cloned from it. What is still missing (the
-    /// words, the language) is listed in <see cref="Missing"/> for the player to fill in.
+    /// words, the language) is listed in <see cref="Missing"/> for the player to fill in. With
+    /// <paramref name="hearLater"/>, her ears will write down the words of clips without any (<see cref="Hear"/>), so
+    /// every clip of a folder is kept; without, only those with words, or the likeliest few when none has any.
     /// </summary>
-    public static VoiceProfile Import(string source, string folder)
+    public static VoiceProfile Import(string source, string folder, bool hearLater = false)
     {
         if (Path.GetExtension(source).Equals(".zip", StringComparison.OrdinalIgnoreCase))
         {
@@ -163,7 +168,7 @@ public sealed partial record VoiceProfile
             ZipFile.ExtractToDirectory(source, unpacked);
             try
             {
-                return FromFolder(unpacked, folder, Path.GetFileNameWithoutExtension(source));
+                return FromFolder(unpacked, folder, Path.GetFileNameWithoutExtension(source), hearLater);
             }
             finally
             {
@@ -171,13 +176,13 @@ public sealed partial record VoiceProfile
             }
         }
         if (Directory.Exists(source))
-            return FromFolder(source, folder, Path.GetFileName(Path.GetFullPath(source).TrimEnd('\\', '/')));
+            return FromFolder(source, folder, Path.GetFileName(Path.GetFullPath(source).TrimEnd('\\', '/')), hearLater);
         if (IsAudio(source))
             return FromClip(source, folder);
         throw new InvalidDataException("not a voice: drop a GPT-SoVITS model (a folder or .zip with .ckpt and .pth files) or a clip");
     }
 
-    private static VoiceProfile FromFolder(string from, string folder, string name)
+    private static VoiceProfile FromFolder(string from, string folder, string name, bool hearLater)
     {
         var files = Directory.EnumerateFiles(from, "*.*", SearchOption.AllDirectories).ToList();
         var gpt = Latest(files.Where(f => Path.GetExtension(f).Equals(".ckpt", StringComparison.OrdinalIgnoreCase)));
@@ -196,13 +201,13 @@ public sealed partial record VoiceProfile
         (string Text, string? Language, string? Mood) Said(string clip) =>
             transcripts.TryGetValue(Key(clip), out var said) || transcripts.TryGetValue(Number(clip), out said) ? said : FromName(clip);
         // every clip with its words (training learns from them all), the best to speak with first; when none has its
-        // words, the six likeliest, for the player to give one its words
+        // words, the six likeliest, for the player to give one its words; every clip when her ears will write them down
         var heard = files.Where(IsAudio).Select(f => (File: f, Said: Said(f), Seconds: Wav.Seconds(f))).ToList();
         var worded = heard.Where(c => c.Said.Text.Length > 0).ToList();
-        var clips = (worded.Count > 0 ? worded : heard)
+        var clips = (worded.Count > 0 && !hearLater ? worded : heard)
             .OrderByDescending(c => c.Seconds is >= 3 and <= 10)
             .ThenBy(c => Math.Abs((c.Seconds ?? IdealClipSeconds) - IdealClipSeconds))
-            .Take(worded.Count > 0 ? int.MaxValue : 6)
+            .Take(worded.Count > 0 || hearLater ? int.MaxValue : 6)
             .ToList();
 
         Clear(folder);
@@ -267,6 +272,34 @@ public sealed partial record VoiceProfile
             };
         profile.Save(folder);
         return profile;
+    }
+
+    /// <summary>
+    /// Writes down the words of the voice's clips that have none, with <paramref name="hear"/> (her ears: the words
+    /// spoken in a clip, or null when it can't tell), marking them <see cref="VoiceClip.Heard"/>; the voice's language,
+    /// when unknown, becomes the one most of them are in. The voice is read again before it is written, so what the
+    /// player changed meanwhile stays. Returns how many clips it wrote down.
+    /// </summary>
+    public static int Hear(string folder, Func<string, string?> hear)
+    {
+        if (Load(folder) is not { } before)
+            return 0;
+        var said = new Dictionary<string, string>();
+        foreach (var clip in before.Clips.Where(c => c.Text.Trim().Length == 0))
+            if (hear(Path.Combine(folder, clip.File))?.Trim() is { Length: > 0 } words)
+                said[clip.File] = words;
+        if (said.Count == 0 || Load(folder) is not { } profile)
+            return 0;
+        var written = 0;
+        var clips = profile.Clips.Select(clip =>
+        {
+            if (clip.Text.Trim().Length > 0 || !said.TryGetValue(clip.File, out var words))
+                return clip;
+            written++;
+            return clip with { Text = words, Language = clip.Language.Length > 0 ? clip.Language : SpokenLanguage.Of(words) ?? "", Heard = true };
+        }).ToList();
+        (profile with { Clips = clips, Language = profile.Language.Length > 0 ? profile.Language : Majority(clips.Select(c => c.Language)) ?? "" }).Save(folder);
+        return written;
     }
 
     private static bool IsAudio(string path) => AudioFormats.Contains(Path.GetExtension(path).ToLowerInvariant());

@@ -3,12 +3,15 @@ using System.Text;
 
 namespace InsertCoin.Mind;
 
-/// <summary>Just enough WAV: a file's length, and samples out of a WAV that arrives in pieces (a streamed answer).</summary>
+/// <summary>
+/// Just enough WAV: a file's length, and samples out of a WAV that arrives in pieces (a streamed answer). 16, 24 or
+/// 32-bit, whole numbers or (32-bit) floating point, as GPT-SoVITS and the tools that cut voice clips write them.
+/// </summary>
 public sealed class Wav
 {
     private readonly List<byte> _header = [];
-    private bool _inData;
-    private byte? _odd;
+    private bool _inData, _float;
+    private byte[] _carry = [];                     // the start of a frame the last piece cut off
     private int _channels = 1, _bits = 16;
 
     /// <summary>Samples per second, once the header has been read.</summary>
@@ -32,26 +35,28 @@ public sealed class Wav
 
     private float[] Samples(ReadOnlySpan<byte> bytes)
     {
-        if (_bits != 16)
-            throw new InvalidDataException($"only 16-bit WAV is supported, not {_bits}-bit");
-        var data = bytes.ToArray();
-        if (_odd is { } carried)
-        {
-            data = [carried, .. data];
-            _odd = null;
-        }
-        if (data.Length % 2 == 1)
-        {
-            _odd = data[^1];
-            data = data[..^1];
-        }
-        var frames = data.Length / 2 / _channels;
+        var width = _bits / 8;
+        if (_float ? width != 4 : width is not (2 or 3 or 4))
+            throw new InvalidDataException($"{_bits}-bit {(_float ? "floating-point " : "")}WAV is not supported");
+        byte[] data = _carry.Length > 0 ? [.. _carry, .. bytes] : bytes.ToArray();
+        var frame = width * _channels;
+        var frames = data.Length / frame;
+        _carry = data[(frames * frame)..];
         var samples = new float[frames];
         for (var f = 0; f < frames; f++)
         {
             float sum = 0;
             for (var c = 0; c < _channels; c++)
-                sum += BinaryPrimitives.ReadInt16LittleEndian(data.AsSpan((f * _channels + c) * 2)) / 32768f;
+            {
+                var at = data.AsSpan((f * _channels + c) * width);
+                sum += width switch
+                {
+                    2 => BinaryPrimitives.ReadInt16LittleEndian(at) / 32768f,
+                    3 => ((at[0] | at[1] << 8 | at[2] << 16) << 8 >> 8) / 8388608f,       // sign from the top byte
+                    _ when _float => BinaryPrimitives.ReadSingleLittleEndian(at),
+                    _ => BinaryPrimitives.ReadInt32LittleEndian(at) / 2147483648f,
+                };
+            }
             samples[f] = sum / _channels;
         }
         return samples;
@@ -75,6 +80,10 @@ public sealed class Wav
                 return null;
             if (id == "fmt ")
             {
+                var format = BinaryPrimitives.ReadUInt16LittleEndian(header.AsSpan(at + 8));
+                if (format == 0xFFFE && size >= 40)         // WAVE_FORMAT_EXTENSIBLE: the real format leads its sub-format
+                    format = BinaryPrimitives.ReadUInt16LittleEndian(header.AsSpan(at + 8 + 24));
+                _float = format == 3;
                 _channels = BinaryPrimitives.ReadInt16LittleEndian(header.AsSpan(at + 10));
                 SampleRate = BinaryPrimitives.ReadInt32LittleEndian(header.AsSpan(at + 12));
                 _bits = BinaryPrimitives.ReadInt16LittleEndian(header.AsSpan(at + 22));

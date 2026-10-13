@@ -171,6 +171,22 @@ public class EngineInstallTests : IDisposable
     }
 
     [Fact]
+    public void Unpacking_a_big_file_says_how_far_it_has_got_on_the_way()
+    {
+        // big/model.bin: 3 MB of zeros, packed the same way
+        const string big = "N3q8ryccAAMmREvhkAIAAAAAAAAcAAAAAAAAADRnO9///xEBbF0AAG/9//+jt/9HPkgVcjlhUbiSKOajhgf57uQegtMvxTo8AUuxfsmKik0vow3Zf6bjjCMRU+BZGMV1iuJ3+LaUfwxqwN50SWTi6VxTsgTY90QMq18NbUbp5cN2iLeWV6y2TeFpHW/7S4gQbELLiD9cAI/QTq8mKJRxHz2PJOFwnqcjX+woy4XRlZiKfiqR8id19xnABphNmP3Yr9WQD8QlU/j1kTYxBaWw7m/BcE1HDNGREaqtYB26zrEnGFxZhulmUli+6XasWeTlWwUI+cfarfz7Uit0zR5bIEL53VM9+ClkCTuAyyps37U78MS9Ll+qDz5LZkKQEw7/EJP4cXhZ+AvN/5UoRg+p/Hze+5owLlbAj4Xzg4HAZcQlU/j1kTYxBaWw7m/BcE1HDNGREaqtYB26zrEnGFxZhulmUli+6XasWeTlWwUI+cfarfz7Uit0zR5bIEL53VM9+ClkCTuAyyps37U78MS8SCfmWJAA7QCZAOxzU6f9vq58MRqft40xbnCepyNf7CjLhdGVmIp+KpHyJ3X3GcAGmE2Y/div1ZAPxCVT+PWRNjEFpbDub8FwTUcM0ZERqq1gHbrOsScYXFmG6WZSWL7pdqxZ5OVbBQj5x9qt/PtSK3TNHlsgQvndUz34KWQJO4DLKmzftTvwxL0uX6oPPktmQpATDv8Qk/hxeFn4C8yw4tkAAADgAJYAdV0AAIEzB64P1UM+GfnGZtqN8+3Q7hxv9NNJ/InwPGZJ5TmeMD4a08rYRsYjn/zbBtWNGMrtVBkqpGQC6yIcMI3+fHkrbcjxoS+HMwVVvK/Jcl25hbkUWPhAGTTUAjh6fYUcsIS3/7JMMr+hHiHB6PQ7vhggAAAAABcGghMBCX0ABwsBAAEhIQEWDICXCgFu+iGmAAA=";
+        var archive = Path.Combine(_dir, "package.7z");
+        File.WriteAllBytes(archive, Convert.FromBase64String(big));
+        var heard = new List<double>();
+
+        var folder = EngineInstall.Unpack(archive, _dir, "pkg", new Listener<double>(heard.Add), CancellationToken.None);
+
+        Assert.Equal(3 << 20, new FileInfo(Path.Combine(folder, "model.bin")).Length);
+        Assert.Contains(heard, share => share is > 0.2 and < 0.9);      // partway through the one file, not only at its end
+        Assert.Equal(1, heard[^1], 3);
+    }
+
+    [Fact]
     public void A_package_without_a_top_folder_unpacks_into_one_named_for_it()
     {
         var archive = Path.Combine(_dir, "package.7z");

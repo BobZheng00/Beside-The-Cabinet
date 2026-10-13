@@ -185,6 +185,54 @@ public class VoiceTests
         return stream.ToArray();
     }
 
+    /// <summary>A WAV of other kinds: 24 or 32-bit whole numbers, or 32-bit floating point, stereo, as clip tools write them.</summary>
+    private static byte[] WavBytes(int bits, bool floating, int channels, params double[] frames)
+    {
+        using var stream = new MemoryStream();
+        using var w = new BinaryWriter(stream);
+        var width = bits / 8;
+        var data = frames.Length * channels * width;
+        w.Write("RIFF"u8);
+        w.Write(36 + data);
+        w.Write("WAVEfmt "u8);
+        w.Write(16);
+        w.Write((short)(floating ? 3 : 1));
+        w.Write((short)channels);
+        w.Write(16000);
+        w.Write(16000 * channels * width);
+        w.Write((short)(channels * width));
+        w.Write((short)bits);
+        w.Write("data"u8);
+        w.Write(data);
+        foreach (var value in frames)
+            for (var c = 0; c < channels; c++)
+                if (floating)
+                    w.Write((float)value);
+                else if (bits == 24)
+                    w.Write(BitConverter.GetBytes((int)(value * 8388607))[..3]);
+                else
+                    w.Write((int)(value * 2147483647));
+        return stream.ToArray();
+    }
+
+    [Fact]
+    public void Clips_in_24_or_32_bit_and_in_stereo_give_back_their_samples_even_in_pieces()
+    {
+        double[] frames = [0.5, -0.25, 0, 1, -1];
+        foreach (var (bits, floating) in new[] { (24, false), (32, false), (32, true) })
+        {
+            var bytes = WavBytes(bits, floating, channels: 2, frames);
+            var wav = new Wav();
+            var heard = new List<float>();
+            for (var i = 0; i < bytes.Length; i += 7)                   // pieces that cut frames in two
+                heard.AddRange(wav.Feed(bytes.AsSpan(i, Math.Min(7, bytes.Length - i))));
+            Assert.Equal(frames.Length, heard.Count);
+            Assert.All(frames.Zip(heard), pair => Assert.Equal(pair.First, pair.Second, 4));
+            using var folder = new TempFolder();
+            Assert.Equal(frames.Length / 16000.0, Wav.Seconds(folder.File("clip.wav", bytes))!.Value, 6);
+        }
+    }
+
     [Fact]
     public void A_wav_arriving_in_odd_pieces_gives_back_its_samples()
     {
@@ -326,6 +374,71 @@ public class VoiceTests
         Assert.Equal(3, voice.Clips.Count);
         Assert.True(voice.Slow);
         Assert.Null(voice.Missing);
+    }
+
+    [Fact]
+    public void Her_ears_write_down_the_words_of_clips_without_any_and_say_so()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        for (var i = 1; i <= 8; i++)
+            dataset.File($"clips/take{i}.wav", Silence(4 + i % 3));
+        dataset.File("clips/given.wav", Silence(5));
+        dataset.File("clips/given.lab", Encoding.UTF8.GetBytes("Hello there."));
+        var folder = System.IO.Path.Combine(home.Path, "kai.voice");
+
+        var voice = VoiceProfile.Import(dataset.Path, folder, hearLater: true);
+        Assert.Equal(9, voice.Clips.Count);                 // every clip kept, not only the one with its words
+        var heard = VoiceProfile.Hear(folder, clip => System.IO.Path.GetFileName(clip) switch
+        {
+            "take1.wav" => " See you tomorrow. ",
+            "take2.wav" => null,                            // nothing it could make out
+            var name => $"Take {name[4]}.",
+        });
+
+        voice = VoiceProfile.Load(folder)!;
+        Assert.Equal(7, heard);
+        Assert.Equal("See you tomorrow.", voice.Clips.Single(c => c.File.EndsWith("take1.wav")).Text);
+        Assert.True(voice.Clips.Single(c => c.File.EndsWith("take1.wav")).Heard);
+        Assert.Equal(("Hello there.", false), voice.Clips.Single(c => c.File.EndsWith("given.wav")) is var given ? (given.Text, given.Heard) : default);
+        Assert.Equal("", voice.Clips.Single(c => c.File.EndsWith("take2.wav")).Text);
+        Assert.Equal("en", voice.Language);
+        Assert.DoesNotContain("heard", File.ReadAllText(System.IO.Path.Combine(folder, VoiceProfile.FileName)).Split("given.wav")[1].Split('}')[0]);
+    }
+
+    [Fact]
+    public void Words_heard_go_only_to_clips_still_without_any_when_they_are_written()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        dataset.File("clips/a.wav", Silence(5));
+        dataset.File("clips/b.wav", Silence(6));
+        var folder = System.IO.Path.Combine(home.Path, "kai.voice");
+        VoiceProfile.Import(dataset.Path, folder, hearLater: true);
+
+        VoiceProfile.Hear(folder, clip =>
+        {
+            // meanwhile the player types b's words on the page
+            var now = VoiceProfile.Load(folder)!;
+            (now with { Clips = [.. now.Clips.Select(c => c.File.EndsWith("b.wav") ? c with { Text = "Typed in." } : c)] }).Save(folder);
+            return "Heard.";
+        });
+
+        var voice = VoiceProfile.Load(folder)!;
+        Assert.Equal(("Heard.", true), voice.Clips.Single(c => c.File.EndsWith("a.wav")) is var a ? (a.Text, a.Heard) : default);
+        Assert.Equal(("Typed in.", false), voice.Clips.Single(c => c.File.EndsWith("b.wav")) is var b ? (b.Text, b.Heard) : default);
+    }
+
+    [Fact]
+    public void Without_her_ears_a_folder_of_clips_with_no_words_keeps_only_its_likeliest_few()
+    {
+        using var dataset = new TempFolder();
+        using var home = new TempFolder();
+        for (var i = 1; i <= 9; i++)
+            dataset.File($"clips/take{i}.wav", Silence(5));
+
+        Assert.Equal(6, VoiceProfile.Import(dataset.Path, System.IO.Path.Combine(home.Path, "a.voice")).Clips.Count);
+        Assert.Equal(9, VoiceProfile.Import(dataset.Path, System.IO.Path.Combine(home.Path, "b.voice"), hearLater: true).Clips.Count);
     }
 
     [Fact]

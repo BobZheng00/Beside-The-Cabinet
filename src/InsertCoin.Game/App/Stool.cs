@@ -31,6 +31,7 @@ public partial class Stool : Node2D
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
     private EngineInstaller _installer = null!;
+    private string? _hearingVoice;                          // the voice whose clips her ears are writing down
     private MemoryBook? _memoryBook;
     private ChatHistory? _history;
     private bool _gameRunning;
@@ -1433,7 +1434,7 @@ public partial class Stool : Node2D
                 else if (!CharacterFiles.HoldsModel(path) && VoiceProfile.LooksLikeVoice(path))
                 {
                     if ((added.FirstOrDefault() ?? OnStool()?.Id) is { } who)
-                        voice = VoiceProfile.Import(path, VoiceFolder(who));
+                        voice = VoiceProfile.Import(path, VoiceFolder(who), hearLater: Listening.HasEars);
                 }
                 else if (CharacterFiles.Import(path, _characters) is { } id)
                     added.Add(id);
@@ -1500,10 +1501,16 @@ public partial class Stool : Node2D
     }
 
     /// <summary>A voice was just given to whoever is on the stool: she tries it out, or says what it still needs.</summary>
-    private void AddedVoice(VoiceProfile voice)
+    private void AddedVoice(VoiceProfile voice, bool listened = false)
     {
         _voice.Seat(_voice.Folder);
         SettingsChanged?.Invoke("voice");
+        if (!listened && Listening.HasEars && voice.Clips.Any(c => c.Text.Trim().Length == 0))
+        {
+            _cabinet.Screen.Flash("VOICE", "LISTENING TO ITS CLIPS", 4.0);
+            _ = HearVoice(_voice.Folder);
+            return;
+        }
         if (voice.Missing is not null || VoiceServer.Check(_settings.Now.VoiceEngine) is not null)
         {
             _cabinet.Screen.Flash("VOICE", "ALMOST THERE: SEE SETTINGS, HER VOICE", 4.0);
@@ -1513,6 +1520,49 @@ public partial class Stool : Node2D
         _cabinet.Screen.Flash("VOICE", $"{voice.Name} - WARMING UP".ToUpperInvariant(), 4.0);
         _lively(20);
         _ = _voice.Test();
+    }
+
+    /// <summary>
+    /// Her ears write down the words of the voice's clips that came without any (see <see cref="VoiceProfile.Hear"/>),
+    /// off the cabinet's thread; then the voice is taken up as just added. The voice page says so meanwhile.
+    /// </summary>
+    private async Task HearVoice(string folder)
+    {
+        _hearingVoice = folder;
+        SettingsChanged?.Invoke("voice");
+        var written = 0;
+        try
+        {
+            if (await _listening.SharedEars() is { } ears)
+                written = await Task.Run(() => VoiceProfile.Hear(folder, clip => HeardIn(ears, clip)));
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Voice: writing down its clips' words: {e.Message}");
+        }
+        _hearingVoice = null;
+        GD.Print($"Voice: her ears wrote down the words of {written} clips");
+        if (folder == _voice.Folder && VoiceProfile.Load(folder) is { } voice)
+            AddedVoice(voice, listened: true);
+        else
+            SettingsChanged?.Invoke("voice");
+    }
+
+    /// <summary>The words her ears make out in a clip, or null when it isn't a WAV they can read.</summary>
+    private static string? HeardIn(Hearing ears, string clip)
+    {
+        if (!Path.GetExtension(clip).Equals(".wav", StringComparison.OrdinalIgnoreCase))
+            return null;
+        try
+        {
+            var wav = new Wav();
+            var samples = wav.Feed(File.ReadAllBytes(clip));
+            return wav.SampleRate > 0 && samples.Length > 0 ? ears.Hear(Hearing.To16k(samples, wav.SampleRate)) : null;
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException)
+        {
+            return null;
+        }
     }
 
     // ---- Talking with her ------------------------------------------------------------------------------------------------
@@ -1829,7 +1879,8 @@ public partial class Stool : Node2D
     {
         var folder = OnStool() is { } character ? VoiceFolder(character.Id) : _voice.Folder;
         var page = new VoiceSettings();
-        page.Build(_voice, _trainer, _installer, _settings.Now.VoiceEngine, _settings.Now.EngineInstallTo, HerName(), _settings);
+        page.Build(_voice, _trainer, _installer, _settings.Now.VoiceEngine, _settings.Now.EngineInstallTo, HerName(), _settings,
+                   hearing: _hearingVoice == folder);
         page.Switched += SetVoice;
         page.InstallEngine += (into, source) =>
         {
