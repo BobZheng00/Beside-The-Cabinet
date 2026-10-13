@@ -9,7 +9,10 @@ updated. Nobody else should be able to sell it.
 ## Decisions waiting
 
 - [ ] **The license.** Recommended: **PolyForm Noncommercial 1.0.0** (see below). Alternative: the Functional Source
-  License (FSL-1.1-MIT).
+  License (FSL-1.1-MIT). Drafted 2026-10-12 with PolyForm Noncommercial (`LICENSE.md`, the official text), after the
+  user asked how Mate Engine does it: its own licence, written by its author, is stricter (no sharing of builds) but not
+  a standard one, contradicts itself, and has no contributor agreement behind it; PolyForm keeps the same aim (nobody
+  else sells it) with a lawyer-written text. The user to confirm.
 - [ ] **A contributor agreement (CLA)** so outside contributions can go into the Steam build too (CLA Assistant, a free
   GitHub app). Needed with any non-commercial license, before the first outside pull request.
 - [x] **The name** (the user, 2026-10-12): **Beside the Cabinet**.
@@ -33,7 +36,7 @@ The license only says what everyone else may do.
 |---|---|---|---|
 | [Aseprite](https://aseprite.org/faq/) | pixel art editor | its own EULA: the source is public, you may compile it for yourself, never redistribute builds | paid |
 | [Barotrauma](https://barotraumagame.com/ufaqs/public-source-code/) | game | its own EULA: the source is public, no standalone copies; art and sounds not in the repository; contributions may be used commercially | paid |
-| [Mate Engine](https://github.com/shinyflvre/Mate-Engine) | desktop VRM companion (the closest to ours) | AGPL-3.0 with its own "MateProv2" terms; the default avatar all rights reserved | $3.99, free on GitHub; Steam adds accessories, Workshop, automatic updates |
+| [Mate Engine](https://github.com/shinyflvre/Mate-Engine) | desktop VRM companion (the closest to ours) | its own "MateEngine Pro License v2.1" (not AGPL, as first noted here: rechecked 2026-10-12): private use and changes, changed source only on non-commercial hosts under the same terms, no builds on Steam or any store, no commercial use; its art and sounds copyrighted apart (non-commercial, with credit), the default avatar all rights reserved; its NOTICE lists Qwen's licence only, its CONTRIBUTING has no contributor agreement; the licence contradicts itself about Steam Workshop | $3.99, free on GitHub; Steam adds accessories, Workshop, automatic updates |
 | [VPet Simulator](https://github.com/LorisYounger/VPet) | desktop pet | Apache-2.0 code; its animations and images under separate terms (commercial use needs the authors' permission) | free |
 | [Krita](https://krita.org/en/about/license/) | painting app | GPL-3.0, the Steam build too | paid, free elsewhere |
 | [Mindustry](https://gamingonlinux.com/2019/09/mindustry-the-factorio-like-tower-defense-game-is-now-on-steam/page=1) | game | GPL-3.0 | paid, free on itch.io; Steam adds achievements, cloud saves, Workshop |
@@ -179,18 +182,22 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   <its address>` and `git push -u origin main` there too (nothing new to send; it links the working folder to GitHub).
   Anything committed in the working folder meanwhile is cherry-picked into the clean clone first, as this checklist's
   own update was.
-- [ ] **What players see takes the new name**: the README, the window and tray titles, the first run's welcome, the
-  name a webhook gives the app, and Godot's application name (`config/name`, which is also the window title; Godot's
-  own folder for its logs moves with it, the player's profile doesn't). The code, the profile folder
-  (`%APPDATA%\InsertCoin`) and the one-copy lock keep InsertCoin, so nothing of a player's moves; the cabinet keeps
-  INSERT COIN on its marquee and in her instructions. The exe's name is the user's call (a new one means ticking
-  "Start with Windows" again).
-- [ ] **Words that fit either character**: the pages "Her mind" and "Her voice" and the hints that say "she" read wrong
-  with Fumiriya, who is a he; at least what the first run and Getting started show.
-- [ ] **LICENSE**, a NOTICE for the name and art, and CONTRIBUTING with the CLA.
-- [ ] **A README front page for strangers:** what it is, a screenshot or GIF, what it needs (Windows 10 or 11, x64; a
-  graphics card only for her voice), downloading a release, building from source, bringing your own AI key and what
-  is sent where. The developer manual moves below it or into `docs/`.
+- [x] **What players see takes the new name** (2026-10-12): the README, the window and tray titles, the first run's
+  welcome, the name a webhook gives the app, a Telegram bot's description, Godot's application name (`config/name`,
+  also the window title; Godot's own folder for its log moves with it, the player's profile doesn't), and the exe:
+  `BesideTheCabinet.exe` (the user's call; "Start with Windows" needs ticking again in it). The code, the profile folder
+  (`%APPDATA%\InsertCoin`), the one-copy lock and the Start-with-Windows entry keep InsertCoin, so nothing of a
+  player's moves; the cabinet keeps INSERT COIN on its marquee and in her instructions.
+- [x] **Words that fit either character** (2026-10-12; the user: their name, and a neutral pronoun where one can't be
+  avoided): the companion's group in Settings is headed by the character's name (Mind, Voice, … under it), and about
+  150 strings no longer say she or her. The README's manual still does, with a note that any character fits.
+- [x] **LICENSE, NOTICE and CONTRIBUTING with the CLA**, drafted 2026-10-12: `LICENSE.md` (PolyForm Noncommercial),
+  `NOTICE.md` (what the licence doesn't cover: the name and icon, the cabinet's art and sounds, the built-in personas
+  and voices; others' work in it), `CONTRIBUTING.md`, `CLA.md` (a draft for a lawyer to read; CLA Assistant points at
+  it). Still to fill in: `[OWNER NAME]` and `[OWNER]` in all three, once the user says which name and GitHub account.
+- [x] **A README front page for strangers**, drafted 2026-10-12: what it is, a picture (`docs/images`), what it needs,
+  getting it running, what goes where, characters and voices, the licence; the manual below it. The built-in
+  personas no longer revolve around LeetCode (the user's yes).
 - [x] **The launch scripts** read the Godot editor's path from `GODOT`, or from `private\local.cmd` (2026-10-12; the
   test scripts use the `_console.exe` beside it, and their throwaway profiles no longer carry a LeetCode name). Left as
   it was: the export preset's template path (`custom_template/release` in `export_presets.cfg`), which a builder sets
