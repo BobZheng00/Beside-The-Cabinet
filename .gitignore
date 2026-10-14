@@ -11,6 +11,12 @@ __pycache__/
 builds/
 __pycache__/
 /src/InsertCoin.Game/models/
+/src/InsertCoin.Game/models
 
 # your own notes: never published (docs/publishing.md)
 /private/
+
+# check and smoke results, agents' worktrees, personal Claude settings
+.qa/
+.claude/worktrees/
+.claude/settings.local.json

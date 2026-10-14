@@ -105,3 +105,24 @@ every monitor; `tools\dev\shoot.ps1 -Hidden` uses it to test without anything ap
 (`-Script "moment:cheer@3" -Seconds 6`), and ffmpeg makes a GIF and an MP4 of the companion.
 
 Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
+
+## Checks and the smoke suite
+
+What a commit must pass before its pull request is marked ready, run the same way by the agents and by hand:
+
+- `tools\dev\check.ps1`: the solution and the game built with no warnings, the unit tests and the smoke suite,
+  recorded against the commit in `<main checkout>\.qa\results\<sha>.checks.json`. `-NoSmoke` for a quick pass,
+  `-Status` for what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` for QA's verdict on it. The gate hook
+  (`.claude/hooks/gate.ps1`) wants both before a pull request is marked ready.
+- `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
+  `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. The report and shots go to
+  `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; a running copy of the app (the demo, say)
+  blocks it and is never stopped. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
+  it borrows the main checkout's `GODOT` and models.
+- `tools\dev\mock_mind.py <port>`: an OpenAI-compatible stand-in for the companion's mind with a fixed reply, logging
+  each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
+  "ChatModel": "mock"`, and needs no key.
+- A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a
+  window to capture, the desk, the mock mind, and log patterns it expects, forbids or ignores (the file's own
+  `about` says how each works). Calibrate `expect` and `ignore` from real runs; never loosen `forbid` to make a run
+  pass.

@@ -1,0 +1,71 @@
+{
+  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass.",
+  "ignore": [],
+  "scenarios": [
+    {
+      "name": "boot",
+      "about": "A fresh profile: the cabinet and the companion come up and nothing in the log goes wrong.",
+      "shots": [6, 10],
+      "desk": true
+    },
+    {
+      "name": "firstrun",
+      "about": "A new player's first run: the Welcome opens beside the cabinet.",
+      "settings": ", \"SetUp\": false",
+      "shots": [7],
+      "window": "Welcome",
+      "desk": true
+    },
+    {
+      "name": "settings",
+      "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
+      "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settingswidths@17",
+      "shots": [6, 11, 16, 21],
+      "window": "Settings",
+      "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
+    },
+    {
+      "name": "chat",
+      "about": "Saying something to the companion reaches their mind (the mock), and their reply shows in their bubble.",
+      "mind": true,
+      "mindReply": "Hi! It's good to see you. How did today go?",
+      "mindRequests": 1,
+      "script": "nocall@1,chat:hello_there@3",
+      "shots": [8, 12],
+      "desk": true
+    },
+    {
+      "name": "memory",
+      "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items.",
+      "script": "memoryseed@2,memorybook@4,memorybook:agenda@6,memorybook:facts@8",
+      "shots": [7, 9, 11],
+      "window": "remembers"
+    },
+    {
+      "name": "crt",
+      "about": "The CRT's small system opens, then its MEMOS app.",
+      "script": "crt@3,crt:memos@6",
+      "shots": [6, 10]
+    },
+    {
+      "name": "reminder",
+      "about": "A reminder set a few seconds ahead goes off, with its ticket.",
+      "script": "nocall@1,remindin:4:stretch_your_legs@2",
+      "shots": [5, 11],
+      "desk": true
+    },
+    {
+      "name": "focus",
+      "about": "A focus session starts from the screen and counts down on it.",
+      "script": "focus@3",
+      "shots": [7, 10]
+    },
+    {
+      "name": "memos",
+      "about": "Memos hang and pin on the cabinet's side, and the hanging one opens as a sheet.",
+      "script": "memoseed@2,memoopen@4",
+      "shots": [8],
+      "desk": true
+    }
+  ]
+}
