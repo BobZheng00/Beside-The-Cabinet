@@ -41,9 +41,15 @@ $userArgs = "--data=`"$profile`" --no-steam --offscreen"
 if ($Script -ne "") { $userArgs += " --script=$Script" }
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 $count = [int]($Seconds * $Fps)
+# One test run at a time on this PC: smoke.ps1, shoot.ps1 and clip.ps1 take the same lock, so parallel agents take turns
+# (smoke.ps1 already holds it when it calls this; the lock lets the same thread in again).
+$runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
+try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
+catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
 $p = Start-Process $Godot -ArgumentList "--path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count -- $userArgs" `
   -PassThru -WindowStyle Minimized -RedirectStandardOutput $log -RedirectStandardError $err
 $p.WaitForExit()
+$runLock.ReleaseMutex(); $runLock.Dispose()
 
 $first = [int]($From * $Fps)
 # the window is transparent: she is laid over a desktop colour, as she is usually seen

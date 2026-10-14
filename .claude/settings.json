@@ -1,0 +1,122 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(gh pr merge *)",
+      "PowerShell(gh pr merge *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh pr *)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 60,
+            "statusMessage": "Checking the gate",
+            "onFailure": "block"
+          },
+          {
+            "type": "command",
+            "if": "Bash(git push*)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "if": "Bash(git -C*)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "PowerShell(gh pr *)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 60,
+            "statusMessage": "Checking the gate",
+            "onFailure": "block"
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(git push*)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(git -C*)",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/gate.ps1"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-Command",
+              "Get-Content -Raw -LiteralPath '${CLAUDE_PROJECT_DIR}/.claude/hooks/after-compact.md'"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

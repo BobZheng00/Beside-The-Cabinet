@@ -1,0 +1,56 @@
+# Builds and tests every pull request, and every push to main, on Windows as the app needs: the solution with no
+# warnings, the unit tests (Core, Adapters, Mind), and the game, also with no warnings (Godot.NET.Sdk comes from
+# NuGet, so no Godot editor is needed here). The smoke suite needs a desktop, a copy of Godot and the models, so it
+# runs on the user's PC through tools/dev/check.ps1 instead.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # NuGet's audit is reported in a step of its own below, so a new advisory for a package doesn't turn main red.
+      - name: Build the solution, with no warnings
+        run: dotnet build InsertCoin.slnx -warnaserror -p:NuGetAudit=false
+
+      - name: Unit tests
+        run: dotnet test InsertCoin.slnx --no-build --logger "trx;LogFilePrefix=results" --results-directory TestResults
+
+      - name: Build the game, with no warnings
+        run: dotnet build src/InsertCoin.Game/InsertCoin.Game.csproj -warnaserror -p:NuGetAudit=false
+
+      - name: Vulnerable packages (reported, not failing)
+        continue-on-error: true
+        run: dotnet list InsertCoin.slnx package --vulnerable --include-transitive
+
+      - name: Keep the test results when something failed
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults
+          if-no-files-found: ignore

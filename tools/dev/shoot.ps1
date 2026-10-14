@@ -86,6 +86,11 @@ $userArgs = "--data=`"$profile`" --no-steam"
 if ($Hidden) { $userArgs += " --offscreen" }
 if ($Script -ne "") { $userArgs += " --script=$Script" }
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
+# One test run at a time on this PC: smoke.ps1, shoot.ps1 and clip.ps1 take the same lock, so parallel agents take turns
+# (smoke.ps1 already holds it when it calls this; the lock lets the same thread in again).
+$runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
+try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
+catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
 if ($Exe -ne "") {
   $p = Start-Process (Resolve-Path $Exe) -ArgumentList "-- $userArgs" -PassThru
 } else {
@@ -142,6 +147,7 @@ foreach ($s in $Shots) {
 Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
 if ($form) { $form.Close() }
+$runLock.ReleaseMutex(); $runLock.Dispose()
 Start-Sleep -Milliseconds 500
 if ($KeyFrom -ne "") { Remove-Item (Join-Path $profile "companion\key.bin") -Force -ErrorAction SilentlyContinue }
 if ($Exe -eq "") {

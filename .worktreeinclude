@@ -1,0 +1,4 @@
+# Git-ignored files Claude Code copies into each new worktree (an agent's, or a parallel session's):
+# where Godot is, and this PC's notes that CLAUDE.md imports. The models are linked in by tools/dev/smoke.ps1.
+private/local.cmd
+private/notes.md
