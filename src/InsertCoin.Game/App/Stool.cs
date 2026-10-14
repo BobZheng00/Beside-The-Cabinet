@@ -2209,7 +2209,7 @@ public partial class Stool : Node2D
                     _memoryBook?.ShowTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
-            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:From, Forget:words, Edit:words:new_words, Close
+            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Close
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
             case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Apply presses that button in the memory book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on

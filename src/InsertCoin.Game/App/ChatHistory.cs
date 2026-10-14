@@ -9,8 +9,8 @@ namespace InsertCoin.Game.App;
 /// The conversation with whoever is on the stool, as it is stored: what the player said, what she said (her
 /// replies and her remarks), and what happened at the cabinet, by day, newest at the bottom. The part that has left
 /// her window is still here in full; the notes she works from instead (her log, see <see cref="Log"/>) are above it,
-/// the part she sees of them. The talk itself is read only; under each of her replies, what she had in mind for it (her
-/// lists and what recall brought, see <see cref="MindStore.InMind"/>), each to forget, and facts to edit.
+/// the part she sees of them. The talk itself is read only; a click on one of her replies opens what she had in mind for
+/// it (her lists and what recall brought, see <see cref="MindStore.InMind"/>), each to forget, and facts to edit.
 /// </summary>
 public partial class ChatHistory : Window
 {
@@ -24,6 +24,7 @@ public partial class ChatHistory : Window
     private long _oldestShown = long.MaxValue;
     private DateOnly? _topDay;
     private Label? _topHeading;                         // the heading of the oldest day shown
+    private Label _howTo = null!;
 
     /// <param name="window">Her window now, in tokens: how much of her log she sees (see <see cref="Log.Budget"/>).</param>
     public void Build(MindStore store, string characterId, string characterName, int window)
@@ -43,6 +44,10 @@ public partial class ChatHistory : Window
         column.AddThemeConstantOverride("separation", 8);
         page.AddChild(column);
         column.AddChild(new Label { Text = $"Chat with {characterName}", ThemeTypeVariation = "Heading" });
+        // shown once a reply that kept something is
+        _howTo = Text($"Click one of {characterName}'s replies to see what {characterName} had in mind for it.", Paper.Faint, hint: true);
+        _howTo.Visible = false;
+        column.AddChild(_howTo);
 
         var log = Log.Left(store.Observations(characterId), store.Folded(characterId));
         if (log.Count > 0)
@@ -109,9 +114,13 @@ public partial class ChatHistory : Window
                 first ??= heading;
                 Insert(ref at, heading);
             }
-            Insert(ref at, Row(line));
+            var row = Row(line, _name);
+            Insert(ref at, row);
             if (minded.Contains(line.Id))
-                Insert(ref at, InMind(line.Id));
+            {
+                Insert(ref at, InMind(line, row));
+                _howTo.Visible = true;
+            }
         }
         // the block shown before began on the day this one ends with: that day continues, without a second heading
         if (_topDay == day && IsInstanceValid(_topHeading))
@@ -131,96 +140,147 @@ public partial class ChatHistory : Window
         _lines.MoveChild(item, at++);
     }
 
-    private Control Row(Line line)
+    private static PanelContainer Row(Line line, string name)
     {
-        var row = new HBoxContainer();
+        var frame = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        frame.AddThemeStyleboxOverride("panel", Plain);
+        var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddThemeConstantOverride("separation", 8);
         row.AddChild(new Label { Text = line.At.ToString("HH:mm", CultureInfo.InvariantCulture), ThemeTypeVariation = "Hint", CustomMinimumSize = new Vector2(40, 0),
                                  SizeFlagsVertical = Control.SizeFlags.ShrinkBegin });
         var (who, colour) = line.Speaker switch
         {
             Speaker.User => ("You", Paper.Letters),
-            Speaker.Her => (_name, Paper.Ink),
+            Speaker.Her => (name, Paper.Ink),
             _ => ("Cabinet", Paper.Faint),
         };
         row.AddChild(new Label { Text = who, CustomMinimumSize = new Vector2(70, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
                                  ThemeTypeVariation = line.Speaker == Speaker.Her ? "Subheading" : "Hint" });
         row.AddChild(Text(line.Text, colour, hint: line.Speaker == Speaker.Cabinet));
-        return row;
+        frame.AddChild(row);
+        return frame;
     }
 
-    // what the panels showing have, for the dev actions: each memory's words and its row's buttons
+    // what the panel showing has, for the dev actions: each memory's words and its row's buttons
     private readonly List<(string Text, Button Forget, Button? Edit, LineEdit? Field)> _shownInMind = [];
+    // her replies that kept something, oldest first, for the dev actions: their words and what a click does
+    private readonly List<(string Text, Action Click)> _replies = [];
+    private Action? _closeOpen;                         // closes the one panel open
+
+    private static readonly StyleBoxFlat Plain = Paper.Box(Colors.Transparent, Colors.Transparent, 0, 6, 4, 2),
+        Hovered = Paper.Box(new Color("F4EFFC"), new Color("F4EFFC"), 0, 6, 4, 2), Opened = Paper.Box(Paper.Wash, Paper.Wash, 0, 6, 4, 2);
 
     /// <summary>
-    /// Under one of her replies: a button that opens what she had in mind for it, read afresh each time, her lists first,
-    /// then what recall brought, each with its kind and date. Forget acts at once; Edit changes a fact still true. What
-    /// was said stays as it was: forgetting old talk only stops it being recalled.
+    /// Under one of her replies, hidden until the reply is clicked (it lights under the mouse): what she had in mind
+    /// for it, read afresh each time, in two groups, her lists then what recall brought, each memory with its kind and
+    /// date. One open at a time. Forget acts at once; Edit changes a fact still true. What was said stays as it was:
+    /// forgetting old talk only stops it being recalled.
     /// </summary>
-    private Control InMind(long line)
+    private Control InMind(Line said, PanelContainer reply)
     {
-        var column = new VBoxContainer();
-        column.AddThemeConstantOverride("separation", 4);
-        var open = new Button { Text = $"From {_name}'s memory", ThemeTypeVariation = "Quiet", ToggleMode = true, SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
-                                TooltipText = Words.Wrap($"What {_name} had in mind for this reply: forget any of it, or correct a fact.") };
-        var panel = new VBoxContainer { Visible = false };
-        panel.AddThemeConstantOverride("separation", 6);
-        column.AddChild(open);
-        column.AddChild(panel);
-        // drawn afresh on opening and after each Forget, so no heading stays with nothing under it
+        var line = said.Id;
+        var holder = new MarginContainer { Visible = false };
+        holder.AddThemeConstantOverride("margin_left", 52);            // under the name, past the time
+        var frame = new PanelContainer();
+        frame.AddThemeStyleboxOverride("panel", Paper.Box(new Color("FBF6EE"), new Color("C9BFE6"), 1, 8, 12, 10));
+        var panel = new VBoxContainer();
+        panel.AddThemeConstantOverride("separation", 12);
+        frame.AddChild(panel);
+        holder.AddChild(frame);
+
+        var hovered = false;
+        void Look() => reply.AddThemeStyleboxOverride("panel", holder.Visible ? Opened : hovered ? Hovered : Plain);
+        // drawn afresh on opening and after each Forget, so a group shows what is left
         void Fill(bool on)
         {
-            panel.Visible = on;
+            if (on && !holder.Visible)
+            {
+                _closeOpen?.Invoke();
+                _closeOpen = () => Fill(false);
+            }
+            else if (!on)
+                _closeOpen = null;
+            holder.Visible = on;
+            Look();
             foreach (var child in panel.GetChildren())
                 child.QueueFree();
             if (!on)
                 return;
             var kept = _store.InMind(line);
-            GD.Print($"Chat history: {kept.Count} in mind for line {line} ({string.Join(", ", kept.Select(k => (k.Listed ? "listed " : "") + Kind(k.Kind)))})");
-            if (kept.Count == 0)
-                panel.AddChild(Text("Nothing left: all of it was forgotten since.", Paper.Faint, hint: true));
-            foreach (var (heading, listed) in new[] { ("Always in mind", true), ("Recalled for this reply", false) })
+            GD.Print($"Chat history: {kept.Count} in mind for line {line} ({kept.Count(k => k.Listed)} for every reply, {kept.Count(k => !k.Listed)} recalled)");
+            var top = new HBoxContainer();
+            top.AddChild(new Label { Text = $"What {_name} had in mind for this reply", ThemeTypeVariation = "Subheading", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                                     AutowrapMode = TextServer.AutowrapMode.WordSmart });
+            var close = new Button { Text = "Close", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
+            close.Pressed += () => Fill(false);
+            top.AddChild(close);
+            panel.AddChild(top);
+            foreach (var (heading, what, listed) in new[]
+            {
+                ("Kept in mind for every reply", $"{_name}'s most important facts, there for every reply.", true),
+                ("Recalled for this reply", "Brought back by what was just said.", false),
+            })
             {
                 var some = kept.Where(k => k.Listed == listed).ToList();
+                var group = new VBoxContainer();
+                group.AddThemeConstantOverride("separation", 4);
+                group.AddChild(new Label { Text = $"{heading} ({some.Count})", ThemeTypeVariation = "Subheading" });
+                group.AddChild(Text(what, Paper.Faint, hint: true));
+                var indent = new MarginContainer();
+                indent.AddThemeConstantOverride("margin_left", 14);
+                indent.AddThemeConstantOverride("margin_top", 4);
+                var items = new VBoxContainer();
+                items.AddThemeConstantOverride("separation", 10);
+                indent.AddChild(items);
+                group.AddChild(indent);
                 if (some.Count == 0)
-                    continue;
-                panel.AddChild(new Label { Text = heading, ThemeTypeVariation = "Hint" });
+                    items.AddChild(Text("Nothing here now.", Paper.Faint, hint: true));
                 foreach (var memory in some)
-                    panel.AddChild(Remembered(line, memory, () => Fill(true)));
+                    items.AddChild(Remembered(line, memory, () => Fill(true)));
+                panel.AddChild(group);
             }
         }
-        open.Toggled += Fill;
-        // under her words, past the time and the name
-        var indent = new HBoxContainer();
-        indent.AddChild(new Control { CustomMinimumSize = new Vector2(126, 0) });
-        column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        indent.AddChild(column);
-        return indent;
+        void Click() => Fill(!holder.Visible);
+
+        reply.MouseFilter = Control.MouseFilterEnum.Pass;              // the wheel still scrolls the history
+        reply.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+        reply.MouseEntered += () => { hovered = true; Look(); };
+        reply.MouseExited += () => { hovered = false; Look(); };
+        reply.GuiInput += input =>
+        {
+            if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+            {
+                Click();
+                reply.AcceptEvent();
+            }
+        };
+        _replies.Add((said.Text, Click));
+        return holder;
     }
 
-    private static string Kind(Minded kind) => kind switch
+    /// <summary>What one memory is, in words, with its date: whose fact and when it was noted, until when one was true, or where it is from.</summary>
+    private string Kind(InMind memory)
     {
-        Minded.You => "you", Minded.Us => "us", Minded.Me => "me", Minded.Was => "until", Minded.Note => "diary", _ => "chat",
-    };
+        var date = memory.At.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+        return memory.Kind switch
+        {
+            Minded.You => $"About you · noted {date}",
+            Minded.Us => $"About you two · noted {date}",
+            Minded.Me => $"About {_name} · noted {date}",
+            Minded.Was => $"No longer true · until {date}",
+            Minded.Note => $"{_name}'s diary · {date}",
+            _ => $"From an earlier talk · {date}",
+        };
+    }
 
-    /// <summary>One thing she had in mind: whose or what it is and its date, then its words, with Edit (a fact) and Forget (then <paramref name="forgotten"/>).</summary>
+    /// <summary>One thing she had in mind: what it is and its date, then its words, with Edit (a fact) and Forget (then <paramref name="forgotten"/>).</summary>
     private Control Remembered(long line, InMind memory, Action forgotten)
     {
         var item = new VBoxContainer();
         item.AddThemeConstantOverride("separation", 2);
         var top = new HBoxContainer();
         top.AddThemeConstantOverride("separation", 6);
-        var about = memory.Kind switch
-        {
-            Minded.You => "A fact about you",
-            Minded.Us => "About the two of you",
-            Minded.Me => $"From {_name}'s own story, as told to you",
-            Minded.Was => "No longer true since this date",
-            Minded.Note => $"A note from {_name}'s diary",
-            _ => $"Said then, recalled word for word. It stays in the chat as it was: Forget only stops {_name} recalling it.",
-        };
-        top.AddChild(new Label { Text = $"{Kind(memory.Kind)} · {memory.At.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}", ThemeTypeVariation = "Hint",
-                                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Pass, TooltipText = Words.Wrap(about) });
+        top.AddChild(new Label { Text = Kind(memory), ThemeTypeVariation = "Hint", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         var words = Text(memory.Text, Paper.Letters);
         var field = memory.Editable ? new LineEdit { Text = memory.Text, Visible = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill } : null;
         // still what that reply had: a forgotten fact's id can be taken by a new one, which this row must leave alone
@@ -249,12 +309,16 @@ public partial class ChatHistory : Window
             field.TextSubmitted += _ => edit.EmitSignal(BaseButton.SignalName.Pressed);
             top.AddChild(edit);
         }
-        var forget = new Button { Text = "Forget", ThemeTypeVariation = "Quiet", TooltipText = $"{_name} forgets this, from every conversation after" };
+        var forget = new Button
+        {
+            Text = "Forget", ThemeTypeVariation = "Quiet",
+            TooltipText = Words.Wrap(memory.Kind == Minded.Said ? $"{_name} stops recalling this. It stays in the chat as it was." : $"{_name} forgets this, from every conversation after"),
+        };
         forget.Pressed += () =>
         {
             if (Still())
                 _store.ForgetInMind(memory);
-            GD.Print($"Chat history: {Kind(memory.Kind)} {memory.Id} forgotten");
+            GD.Print($"Chat history: {memory.Kind} {memory.Id} forgotten");
             forgotten();
         };
         top.AddChild(forget);
@@ -268,8 +332,9 @@ public partial class ChatHistory : Window
     }
 
     /// <summary>
-    /// Dev: "From" opens what she had in mind for her newest reply shown; "Forget:words" and "Edit:words:new words" act
-    /// on the memory showing whose words have those in them, as the buttons would; "Close" closes the window.
+    /// Dev: "Reply" clicks her newest reply shown that kept something ("Reply:words", the newest with those words in
+    /// it), opening or closing what she had in mind; "Forget:words" and "Edit:words:new words" act on the memory
+    /// showing whose words have those in them, as the buttons would; "Close" closes the window.
     /// </summary>
     public void DevPress(string what)
     {
@@ -279,12 +344,13 @@ public partial class ChatHistory : Window
             QueueFree();
             return;
         }
-        if (parts[0] == "From")
+        if (parts[0] == "Reply")
         {
-            if (FindChildren("*", nameof(Button), recursive: true, owned: false).OfType<Button>().LastOrDefault(b => b.Text.StartsWith("From ")) is { } from)
-                from.ButtonPressed = !from.ButtonPressed;
+            var words = parts.Length > 1 ? parts[1] : "";
+            if (_replies.LastOrDefault(r => r.Text.Contains(words, StringComparison.OrdinalIgnoreCase)) is { Click: not null } reply)
+                reply.Click();
             else
-                GD.PrintErr("Chat history: no reply with what was in mind");
+                GD.PrintErr($"Chat history: no reply with what was in mind{(words.Length > 0 ? $" saying \"{words}\"" : "")}");
             return;
         }
         if (parts.Length < 2 || _shownInMind.FirstOrDefault(s => s.Text.Contains(parts[1], StringComparison.OrdinalIgnoreCase)) is not { Forget: not null } shown)
