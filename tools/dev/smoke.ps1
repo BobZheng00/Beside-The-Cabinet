@@ -14,7 +14,7 @@
 # -NoBuild   skip building the game first (check.ps1 has just built it)
 # -Out       where shots, logs and the report go (default: <main checkout>\.qa\smoke\<branch>)
 # -Wait      minutes to wait for another smoke run before giving up as BLOCKED (default 20)
-# -Port      the mock mind's port (default 8797; the PC's other mock servers use 8765 to 8893)
+# -Port      the mock mind's port (default: a free one for each scenario, so another agent's mock on 8797 can't answer)
 # -Prepare   in a worktree, before shoot.ps1 or clip.ps1 runs of your own: copies the main checkout's private\local.cmd
 #            (where Godot is), links its models, imports the project and builds the game; then stops
 # Test runs take turns: shoot.ps1 and clip.ps1 take the same lock (Local\InsertCoinSmoke), so an agent's own run waits
@@ -25,7 +25,7 @@
 # Output: <Out>\report.md and report.json, <scenario>-<n>.png per shot (-window, -desk as shoot.ps1 makes them),
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
 # Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another run, or a copy of the app running).
-param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 8797, [switch]$List,
+param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
       [switch]$Prepare)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
@@ -232,11 +232,17 @@ try {
       if (-not $py) { Add-Result $s "FAIL" @("python is not on PATH, and this scenario needs the mock mind") @() @() 0; continue }
       $reply = if ($s.mindReply) { "" + $s.mindReply } else { "Hi! It's good to see you. How did today go?" }
       $quit = [int](($s.shots | Measure-Object -Maximum).Maximum) + 60          # gone by itself if this run is killed
-      $mockArgs = @("`"$(Join-Path $PSScriptRoot 'mock_mind.py')`"", "$Port", "--log", "`"$mindLog`"", "--reply", "`"$reply`"",
+      $mindPort = $Port
+      if ($mindPort -eq 0) {                                                    # a port nothing else listens on
+        $probe = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
+        $probe.Start(); $mindPort = $probe.LocalEndpoint.Port; $probe.Stop()
+      }
+      $mockArgs = @("`"$(Join-Path $PSScriptRoot 'mock_mind.py')`"", "$mindPort", "--log", "`"$mindLog`"", "--reply", "`"$reply`"",
                     "--quit-after", "$quit")
       $mock = Start-Process $py.Source -ArgumentList $mockArgs -PassThru -WindowStyle Hidden
       Start-Sleep -Milliseconds 800
-      $settings += ', "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:' + $Port + '/v1", "ChatModel": "mock"'
+      if ($mock.HasExited) { Add-Result $s "FAIL" @("the mock mind didn't start on port $mindPort (taken?)") @() @() 0; continue }
+      $settings += ', "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:' + $mindPort + '/v1", "ChatModel": "mock"'
     }
 
     $shots = @($s.shots | ForEach-Object { [double]$_ })
