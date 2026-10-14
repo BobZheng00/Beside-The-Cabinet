@@ -197,7 +197,7 @@ public partial class SettingsWindow : Window
 
     /// <summary>
     /// Dev: logs any page wider than the room it has (a row of buttons that doesn't fit, say: it would run off the
-    /// window's right edge), with the widest parts in it.
+    /// window's right edge), with the widest parts in it; then how many of the pages it measured (those made so far).
     /// </summary>
     public void DevWidths()
     {
@@ -211,6 +211,7 @@ public partial class SettingsWindow : Window
             foreach (var part in Within(page).Where(c => c.IsVisibleInTree() && c.GetCombinedMinimumSize().X > room * 0.8f))
                 GD.PrintErr($"  {part.GetType().Name} {part.GetCombinedMinimumSize().X:0} px {(part as Label)?.Text ?? (part as Button)?.Text}");
         }
+        GD.Print($"Settings: {_made.Count} of {_pages.Count} pages measured");
     }
 
     private static IEnumerable<Control> Within(Node node) =>

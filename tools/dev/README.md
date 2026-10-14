@@ -35,7 +35,7 @@ menu at that screen point), `chat:some_text` (say something to them), `chatbox` 
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
 from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
-than its room, which would run off the window's right edge), `trayitems` (logs the tray menu's entries),
+than its room, which would run off the window's right edge, then how many of the pages it measured), `trayitems` (logs the tray menu's entries),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Apply`
