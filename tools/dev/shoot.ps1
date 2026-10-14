@@ -98,6 +98,17 @@ if ($Exe -ne "") {
     -RedirectStandardOutput $log -RedirectStandardError $err
 }
 
+# The cabinet's own window, by its title (the project's name; " (DEBUG)" added in a run from the editor): Windows' idea of
+# the main window can be another of the app's (a ticket, once one shows).
+$appName = (Select-String -Path "$repo\src\InsertCoin.Game\project.godot" -Pattern '^config/name="([^"]+)"').Matches[0].Groups[1].Value
+function Cabinet-Window($app) {
+  foreach ($h in [Shoot]::All([uint32]$app.Id)) {
+    $t = New-Object System.Text.StringBuilder 256; [Shoot]::GetWindowText($h, $t, 256) | Out-Null
+    if ($t.ToString() -eq $appName -or $t.ToString() -eq "$appName (DEBUG)") { return $h }
+  }
+  return $app.MainWindowHandle
+}
+
 $t0 = Get-Date; $i = 0
 foreach ($s in $Shots) {
   while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
@@ -107,12 +118,13 @@ foreach ($s in $Shots) {
     if ($child) { Get-Process -Id $child.ProcessId } else { $null }
   }
   if (-not $app) { "no app process at ${s}s (is another copy running?)"; continue }
-  $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($app.MainWindowHandle, [ref]$r) | Out-Null
+  $main = Cabinet-Window $app
+  $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($main, [ref]$r) | Out-Null
   $w = $r.R - $r.L; $h = $r.B - $r.T
   if ($w -le 0) { "no window yet at ${s}s"; continue }
   $bmp = New-Object System.Drawing.Bitmap $w, $h; $g = [System.Drawing.Graphics]::FromImage($bmp)
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
-  if ($Hidden) { $dc = $g.GetHdc(); [Shoot]::PrintWindow($app.MainWindowHandle, $dc, 2) | Out-Null; $g.ReleaseHdc($dc) }
+  if ($Hidden) { $dc = $g.GetHdc(); [Shoot]::PrintWindow($main, $dc, 2) | Out-Null; $g.ReleaseHdc($dc) }
   else { $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size) }
   $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
   "$file  at ${s}s: ${w}x$h, working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"

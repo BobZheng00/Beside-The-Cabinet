@@ -1,0 +1,2 @@
+# Godot rewrites .import files with LF when it imports a fresh checkout: checked out with LF too, they stay unchanged.
+*.import text eol=lf

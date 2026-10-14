@@ -158,6 +158,7 @@ def main():
     p.add_argument("--log", default="", help="a .jsonl file each request is written to")
     p.add_argument("--quit-after", type=float, default=0.0, help="stop after this many seconds (0: never)")
     ARGS = p.parse_args()
+    ThreadingHTTPServer.allow_reuse_address = False  # on Windows reuse lets a second server share a taken port: fail instead
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)
     server.daemon_threads = True
     if ARGS.quit_after > 0:

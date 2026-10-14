@@ -6,7 +6,8 @@
       "name": "boot",
       "about": "A fresh profile: the cabinet and the companion come up and nothing in the log goes wrong.",
       "shots": [6, 10],
-      "desk": true
+      "desk": true,
+      "expect": ["^Reaching: the player is here"]
     },
     {
       "name": "firstrun",
@@ -22,6 +23,7 @@
       "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settingswidths@17",
       "shots": [6, 11, 16, 21],
       "window": "Settings",
+      "expect": ["^Settings: (\\d+) of \\1 pages measured"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
@@ -32,7 +34,8 @@
       "mindRequests": 1,
       "script": "nocall@1,chat:hello_there@3",
       "shots": [8, 12],
-      "desk": true
+      "desk": true,
+      "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
       "name": "memory",
@@ -51,20 +54,23 @@
       "name": "reminder",
       "about": "A reminder set a few seconds ahead goes off, with its ticket.",
       "script": "nocall@1,remindin:4:stretch_your_legs@2",
-      "shots": [5, 11],
-      "desk": true
+      "shots": [5, 16],
+      "desk": true,
+      "expect": ["^Reminders: 1 going off"]
     },
     {
       "name": "focus",
       "about": "A focus session starts from the screen and counts down on it.",
       "script": "focus@3",
-      "shots": [7, 10]
+      "shots": [7, 10],
+      "expect": ["^Focus: a session starts"]
     },
     {
       "name": "memos",
       "about": "Memos hang and pin on the cabinet's side, and the hanging one opens as a sheet.",
       "script": "memoseed@2,memoopen@4",
       "shots": [8],
+      "window": " - Beside the Cabinet memo",
       "desk": true
     }
   ]
