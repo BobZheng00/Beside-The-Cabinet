@@ -167,7 +167,8 @@ public partial class ChatHistory : Window
         panel.AddThemeConstantOverride("separation", 6);
         column.AddChild(open);
         column.AddChild(panel);
-        open.Toggled += on =>
+        // drawn afresh on opening and after each Forget, so no heading stays with nothing under it
+        void Fill(bool on)
         {
             panel.Visible = on;
             foreach (var child in panel.GetChildren())
@@ -185,9 +186,10 @@ public partial class ChatHistory : Window
                     continue;
                 panel.AddChild(new Label { Text = heading, ThemeTypeVariation = "Hint" });
                 foreach (var memory in some)
-                    panel.AddChild(Remembered(line, memory));
+                    panel.AddChild(Remembered(line, memory, () => Fill(true)));
             }
-        };
+        }
+        open.Toggled += Fill;
         // under her words, past the time and the name
         var indent = new HBoxContainer();
         indent.AddChild(new Control { CustomMinimumSize = new Vector2(126, 0) });
@@ -201,8 +203,8 @@ public partial class ChatHistory : Window
         Minded.You => "you", Minded.Us => "us", Minded.Me => "me", Minded.Was => "until", Minded.Note => "diary", _ => "chat",
     };
 
-    /// <summary>One thing she had in mind: whose or what it is and its date, then its words, with Edit (a fact) and Forget.</summary>
-    private Control Remembered(long line, InMind memory)
+    /// <summary>One thing she had in mind: whose or what it is and its date, then its words, with Edit (a fact) and Forget (then <paramref name="forgotten"/>).</summary>
+    private Control Remembered(long line, InMind memory, Action forgotten)
     {
         var item = new VBoxContainer();
         item.AddThemeConstantOverride("separation", 2);
@@ -253,7 +255,7 @@ public partial class ChatHistory : Window
             if (Still())
                 _store.ForgetInMind(memory);
             GD.Print($"Chat history: {Kind(memory.Kind)} {memory.Id} forgotten");
-            item.QueueFree();
+            forgotten();
         };
         top.AddChild(forget);
         item.AddChild(top);
