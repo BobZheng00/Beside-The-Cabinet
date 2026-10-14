@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GAME = ROOT / 'src' / 'InsertCoin.Game'
 HERE = Path(__file__).resolve().parent
-NUGET = Path.home() / '.nuget' / 'packages'
+NUGET = Path(os.environ.get('NUGET_PACKAGES') or Path.home() / '.nuget' / 'packages')   # where dotnet restores to
 REPO = 'https://github.com/BobZheng00/Beside-The-Cabinet'
 
 # sherpa-onnx's build without text-to-speech, from its own release, for the version the game's NuGet package has
