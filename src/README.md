@@ -57,6 +57,12 @@ GPL-3.0, for speech the app never uses), writes `THIRD-PARTY-NOTICES.txt` from w
 notice and a README, and zips it. It stops on any library its notices can't account for. Set the version in
 `export_presets.cfg` first (`application/file_version` and `product_version`: 0.1.0-preview.1 is 0.1.0.1).
 
+A version tag does the same on GitHub (`.github/workflows/release.yml`): pushing `v0.1.0-preview.2` sets up Godot and
+its template (pinned by SHA-256) and the models on a Windows runner, runs `release.py 0.1.0-preview.2`, and leaves a
+draft release (a pre-release for a version with a hyphen) with the zip and its SHA-256, for you to write the notes and
+publish. A pull request that changes the workflow, `tools/export`, `tools/models` or the export preset gets a dry run:
+the same build, versioned `0.1.0-dryrun.1` from the preset, kept only as the run's artifact for 7 days.
+
 ## Layout
 
 ```

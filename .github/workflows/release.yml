@@ -1,0 +1,131 @@
+# Makes a release from a version tag (v0.1.0-preview.2, v0.1.0): on a Windows runner, Godot 4.7.2 .NET and its
+# Windows export template (pinned by SHA-256), the models (tools/models/fetch.py), then tools/export/release.py, whose
+# own checks stop it on a library its notices can't account for or any trace of espeak-ng. The zip and its SHA-256 go
+# to a draft release (a pre-release for a version with a hyphen) for the user to write the notes and publish; nothing
+# here publishes it. Set the version in export_presets.cfg before tagging: release.py stops if they differ.
+#
+# A pull request that changes what a release is made with gets a dry run instead: the same build, versioned
+# <a.b.c>-dryrun.<d> from the export preset, kept only as a workflow artifact, and no release.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - tools/export/**
+      - tools/models/**
+      - src/InsertCoin.Game/export_presets.cfg
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GODOT_VERSION: 4.7.2-stable   # the same as tools/export/fetch_template.py's
+  GODOT_ZIP_SHA256: a2a48473a7414c5f19fab690518caebb738c09ef9601f6bd2388676a7f53b3c0
+  TEMPLATE_SHA256: 16e0ec3cfd398b938f514de95ff2474b532b5061ada78f92226dba3f7584d55d
+
+jobs:
+  build:
+    name: Build the release zip (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_UI_LANGUAGE: en
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME.Substring(1) }
+          else {
+            $found = [regex]::Match((Get-Content src/InsertCoin.Game/export_presets.cfg -Raw), 'application/file_version="(\d+\.\d+\.\d+)\.(\d+)"')
+            if (-not $found.Success) { throw 'no application/file_version in export_presets.cfg' }
+            $version = "$($found.Groups[1].Value)-dryrun.$($found.Groups[2].Value)"
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "Version: $version"
+
+      - name: Godot .NET and its Windows export template
+        run: |
+          $zip = "$env:RUNNER_TEMP\godot.zip"
+          curl.exe -sSfL -o $zip "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_mono_win64.zip"
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $env:GODOT_ZIP_SHA256) { throw 'the Godot download is not the one pinned' }
+          Expand-Archive $zip "$env:RUNNER_TEMP\godot"
+          "GODOT=$env:RUNNER_TEMP\godot\Godot_v$($env:GODOT_VERSION)_mono_win64\Godot_v$($env:GODOT_VERSION)_mono_win64.exe" >> $env:GITHUB_ENV
+
+          python tools/export/fetch_template.py --get "$env:RUNNER_TEMP\templates"
+          $template = "$env:RUNNER_TEMP\templates\windows_release_x86_64.exe"
+          if ((Get-FileHash $template -Algorithm SHA256).Hash -ne $env:TEMPLATE_SHA256) { throw 'the export template is not the one pinned' }
+          # The preset names this PC's template: here, in this checkout only, it names the runner's.
+          $preset = 'src/InsertCoin.Game/export_presets.cfg'
+          (Get-Content $preset -Raw) -replace 'custom_template/release="[^"]*"', "custom_template/release=`"$($template -replace '\\', '/')`"" |
+            Set-Content $preset -NoNewline -Encoding utf8
+          Select-String 'custom_template/release=' $preset
+
+      - name: Models
+        run: python tools/models/fetch.py
+
+      - name: Build the game and import its resources
+        run: |
+          dotnet build src/InsertCoin.Game/InsertCoin.Game.csproj -p:NuGetAudit=false
+          & ($env:GODOT -replace '\.exe$', '_console.exe') --headless --path src/InsertCoin.Game --import
+
+      - name: Make the release (tools/export/release.py)
+        run: |
+          python tools/export/release.py $env:VERSION
+          $zip = Get-Item "builds/release/$env:VERSION/BesideTheCabinet-$env:VERSION-windows-x64.zip"
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          [IO.File]::WriteAllText("$zip.sha256", "$hash  $($zip.Name)`n")
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ env.VERSION }}
+          path: builds/release/${{ env.VERSION }}/BesideTheCabinet-*
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+  draft:
+    name: Draft the release
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+
+      - name: A draft release with the zip and its SHA-256, for the user to publish
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          zip="BesideTheCabinet-$version-windows-x64.zip"
+          sha256sum -c "$zip.sha256"
+          hash=$(cut -d' ' -f1 "$zip.sha256")
+          title="$version"; prerelease=
+          if [[ $version =~ -preview\.([0-9]+)$ ]]; then title="Preview ${BASH_REMATCH[1]} ($version)"; fi
+          if [[ $version == *-* ]]; then prerelease=--prerelease; fi
+          gh release create "$GITHUB_REF_NAME" "$zip" "$zip.sha256" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            $prerelease --title "$title" --generate-notes --notes "$(printf '%s\n\n%s' \
+            "Draft: write the notes before publishing (what it is, getting it running, good to know; Preview 1's are the model). The changes since the last release are below." \
+            "SHA-256 of the zip: \`$hash\`")"
