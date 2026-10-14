@@ -100,8 +100,14 @@ provider cut at its length limit is asked again with twice the room, and a batch
    *Built 2026-10-11, open threads:* what is going on with no date (`Threads`, its own table, the player's): upkeep
    opens, updates and closes them beside the plans; two days after one last came up she asks how it is going, once,
    as a check-in (at the PC when settled and free, by text while out); news of it allows one more question later;
-   three weeks unmentioned, it lapses. The memory book's Agenda lists them with a Settled button. Not built yet: which
-   memories a reply used.
+   three weeks unmentioned, it lapses. The memory book's Agenda lists them with a Settled button.
+   *Built 2026-10-13, which memories a reply used:* each reply keeps what it had in mind (`MindStore.InMind`, version
+   16): the facts listed for it (`Prompt.Known`'s `listed`) and what recall brought (`Memory.From`), by reference, so
+   they read as they are now and what is forgotten is gone. Chat history shows them under each of her replies ("From
+   …'s memory", the character's name): her lists, then what was recalled, each with its kind (you, us, me, until,
+   diary, chat) and date; Forget deletes a fact or a note, and old talk is only no longer recalled (`Passage.Forgotten`),
+   so the talk stays word for word; Edit changes a fact still true. Her log in view, which every reply has, is shown
+   above the chat as before, not under each reply.
 
 **Her profile from her facts** (proposed and chosen 2026-10-11; M8, M9). The two always-present notes are a
 copy of her facts that the model rewrites, so they lag behind the facts and each rewrite can drop or bend something;

@@ -27,6 +27,26 @@ public sealed record Fact(long Id, string Scope, string Text, int Importance, Da
     public bool Faded(DateTimeOffset now) => Retention(now) < 0.1;
 }
 
+/// <summary>
+/// Where something she had in mind for a reply came from (see <see cref="MindStore.InMind"/>): a fact, a note of hers or a
+/// passage of old talk, and which; listed when it was in a list she always has in mind (see <see cref="Prompt.Known"/>)
+/// rather than recalled for that reply.
+/// </summary>
+public sealed record Origin(string Kind, long Id, bool Listed = false)
+{
+    public const string Fact = "fact", Note = "note", Passage = "passage";
+}
+
+/// <summary>What a memory she had in mind was: a fact about the player, the two of them or herself, one no longer true, a note of hers, or old talk.</summary>
+public enum Minded { You, Us, Me, Was, Note, Said }
+
+/// <summary>Something she had in mind for one of her replies, as it is now (a fact edited since reads as edited), with the date it is from.</summary>
+public sealed record InMind(Minded Kind, long Id, DateTimeOffset At, string Text, bool Listed)
+{
+    /// <summary>A fact that is still true, which the player can edit; the rest they can only have her forget.</summary>
+    public bool Editable => Kind is Minded.You or Minded.Us or Minded.Me;
+}
+
 /// <summary>The stretch of time a note of hers covers: a day's talk, or older notes condensed (see <see cref="Conversation.Condense"/>).</summary>
 public enum Span { Day, Week, Month, Year }
 
@@ -181,6 +201,107 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('observations') WHERE name = 'source'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE observations ADD COLUMN source TEXT; PRAGMA user_version = 15;");
+        // version 16: what she had in mind for each of her replies (see InMind), and passages of old talk the player had her forget
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('passages') WHERE name = 'forgotten'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE passages ADD COLUMN forgotten INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 16;");
+        Run("""
+            CREATE TABLE IF NOT EXISTS in_mind (line INTEGER NOT NULL, kind TEXT NOT NULL, id INTEGER NOT NULL, listed INTEGER NOT NULL, PRIMARY KEY (line, kind, id));
+            CREATE INDEX IF NOT EXISTS in_mind_by_source ON in_mind (kind, id);
+            """);
+    }
+
+    // ---- What she had in mind for each reply -----------------------------------------------------------------------
+
+    /// <summary>Keeps what she had in mind for her reply <paramref name="line"/>: listed first, so what was both listed and recalled counts as listed.</summary>
+    public void KeepInMind(long line, IEnumerable<Origin> origins)
+    {
+        using var transaction = _db.BeginTransaction();
+        foreach (var o in origins.OrderByDescending(o => o.Listed))
+        {
+            using var add = Command("INSERT OR IGNORE INTO in_mind (line, kind, id, listed) VALUES ($l, $k, $i, $s)",
+                ("$l", line), ("$k", o.Kind), ("$i", o.Id), ("$s", o.Listed ? 1 : 0));
+            add.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    /// <summary>What she had in mind for her reply <paramref name="line"/>, as it is now, in the order it was kept; what was forgotten since is gone.</summary>
+    public IReadOnlyList<InMind> InMind(long line)
+    {
+        using var command = Command("""
+            SELECT m.kind, m.id, m.listed, f.scope, f.text, f.learned, f.retired, o.text, o.at, p.text, p.at FROM in_mind m
+                LEFT JOIN facts f ON m.kind = 'fact' AND f.id = m.id
+                LEFT JOIN observations o ON m.kind = 'note' AND o.id = m.id
+                LEFT JOIN passages p ON m.kind = 'passage' AND p.id = m.id AND p.forgotten = 0
+            WHERE m.line = $l ORDER BY m.rowid
+            """, ("$l", line));
+        using var reader = command.ExecuteReader();
+        var kept = new List<InMind>();
+        while (reader.Read())
+        {
+            var (id, listed) = (reader.GetInt64(1), reader.GetInt32(2) != 0);
+            if (!reader.IsDBNull(4))
+            {
+                var scope = reader.GetString(3);
+                var kind = !reader.IsDBNull(6) ? Minded.Was : scope == Shared ? Minded.You : IsHerself(scope) ? Minded.Me : Minded.Us;
+                kept.Add(new InMind(kind, id, Parse(reader.GetString(kind == Minded.Was ? 6 : 5)), reader.GetString(4), listed));
+            }
+            else if (!reader.IsDBNull(7))
+                kept.Add(new InMind(Minded.Note, id, Parse(reader.GetString(8)), reader.GetString(7), listed));
+            else if (!reader.IsDBNull(9))
+                kept.Add(new InMind(Minded.Said, id, Parse(reader.GetString(10)), reader.GetString(9), listed));
+        }
+        return kept;
+    }
+
+    /// <summary>Which of the lines from <paramref name="first"/> to <paramref name="last"/> have anything kept of what she had in mind.</summary>
+    public IReadOnlySet<long> WithInMind(long first, long last)
+    {
+        using var command = Command("SELECT DISTINCT line FROM in_mind WHERE line >= $f AND line <= $l", ("$f", first), ("$l", last));
+        using var reader = command.ExecuteReader();
+        var lines = new HashSet<long>();
+        while (reader.Read())
+            lines.Add(reader.GetInt64(0));
+        return lines;
+    }
+
+    /// <summary>
+    /// The player had her forget something she had in mind: a fact or a note is deleted; old talk is no longer recalled,
+    /// and stays in the conversation word for word.
+    /// </summary>
+    public void ForgetInMind(InMind memory)
+    {
+        switch (memory.Kind)
+        {
+            case Minded.Note:
+                DeleteObservation(memory.Id);
+                break;
+            case Minded.Said:
+                using (var command = Command("UPDATE passages SET forgotten = 1 WHERE id = $i", ("$i", memory.Id)))
+                    command.ExecuteNonQuery();
+                Changes++;                                  // History reads its passages again
+                break;
+            default:
+                DeleteFact(memory.Id);
+                break;
+        }
+    }
+
+    /// <summary>What replies had in mind that is gone: the reply, or what it had in mind (ids are reused once the newest row is gone).</summary>
+    private void DropInMind()
+    {
+        Run("""
+            DELETE FROM in_mind WHERE line NOT IN (SELECT id FROM lines)
+                OR (kind = 'fact' AND id NOT IN (SELECT id FROM facts)) OR (kind = 'note' AND id NOT IN (SELECT id FROM observations))
+                OR (kind = 'passage' AND id NOT IN (SELECT id FROM passages));
+            """);
+    }
+
+    private void DropInMind(string kind, long id)
+    {
+        using var command = Command("DELETE FROM in_mind WHERE kind = $k AND id = $i", ("$k", kind), ("$i", id));
+        command.ExecuteNonQuery();
     }
 
     // ---- Vectors (what facts, notes and old lines mean, for search by meaning) -------------------------------------
@@ -257,6 +378,7 @@ public sealed class MindStore : IDisposable
         using var command = Command("DELETE FROM facts WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
         DropVectors(FactKind, id);
+        DropInMind(Origin.Fact, id);
     }
 
     /// <summary>What this character knows: facts about the player and about the two of them.</summary>
@@ -635,11 +757,12 @@ public sealed class MindStore : IDisposable
 
     public IReadOnlyList<Passage> Passages(string character)
     {
-        using var command = Command("SELECT id, first, last, at, text FROM passages WHERE character = $c ORDER BY last", ("$c", character));
+        using var command = Command("SELECT id, first, last, at, text, forgotten FROM passages WHERE character = $c ORDER BY last", ("$c", character));
         using var reader = command.ExecuteReader();
         var passages = new List<Passage>();
         while (reader.Read())
-            passages.Add(new Passage(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), Parse(reader.GetString(3)), reader.GetString(4)));
+            passages.Add(new Passage(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), Parse(reader.GetString(3)), reader.GetString(4),
+                                     reader.GetInt32(5) != 0));
         return passages;
     }
 
@@ -692,7 +815,7 @@ public sealed class MindStore : IDisposable
     /// <summary>A line taken back: something the cabinet asked her to say that she never answered.</summary>
     public void RemoveLine(long id)
     {
-        using var command = Command("DELETE FROM lines WHERE id = $i", ("$i", id));
+        using var command = Command("DELETE FROM lines WHERE id = $i; DELETE FROM in_mind WHERE line = $i", ("$i", id));
         command.ExecuteNonQuery();
     }
 
@@ -829,6 +952,7 @@ public sealed class MindStore : IDisposable
         using var command = Command("DELETE FROM observations WHERE id = $id", ("$id", id));
         command.ExecuteNonQuery();
         DropVectors(ObservationKind, id);
+        DropInMind(Origin.Note, id);
     }
 
     /// <summary>
@@ -899,6 +1023,7 @@ public sealed class MindStore : IDisposable
         DropVectors(FactKind);
         DropVectors(PassageKind);
         DropVectors(ObservationKind);
+        DropInMind();
         Changes++;
     }
 
@@ -917,6 +1042,7 @@ public sealed class MindStore : IDisposable
             """, ("$c", character));
         command.ExecuteNonQuery();
         DropVectors(PassageKind);
+        DropInMind();
         Changes++;
     }
 
@@ -927,6 +1053,7 @@ public sealed class MindStore : IDisposable
                                     "DELETE FROM activities; DELETE FROM proofs; DELETE FROM claims;", ("$s", Shared));
         command.ExecuteNonQuery();
         DropVectors(FactKind);
+        DropInMind();
     }
 
     public void Dispose() => _db.Dispose();

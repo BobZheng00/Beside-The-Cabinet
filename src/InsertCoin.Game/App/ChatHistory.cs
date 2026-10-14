@@ -9,7 +9,8 @@ namespace InsertCoin.Game.App;
 /// The conversation with whoever is on the stool, as it is stored: what the player said, what she said (her
 /// replies and her remarks), and what happened at the cabinet, by day, newest at the bottom. The part that has left
 /// her window is still here in full; the notes she works from instead (her log, see <see cref="Log"/>) are above it,
-/// the part she sees of them. Read only.
+/// the part she sees of them. The talk itself is read only; under each of her replies, what she had in mind for it (her
+/// lists and what recall brought, see <see cref="MindStore.InMind"/>), each to forget, and facts to edit.
 /// </summary>
 public partial class ChatHistory : Window
 {
@@ -93,6 +94,7 @@ public partial class ChatHistory : Window
             return;
         }
         _oldestShown = lines[0].Id;
+        var minded = _store.WithInMind(lines[0].Id, lines[^1].Id);
         var height = _scroll.GetVScrollBar().MaxValue;
         var at = 1;                                         // after the "Show earlier" button
         var day = (DateOnly?)null;
@@ -108,6 +110,8 @@ public partial class ChatHistory : Window
                 Insert(ref at, heading);
             }
             Insert(ref at, Row(line));
+            if (minded.Contains(line.Id))
+                Insert(ref at, InMind(line.Id));
         }
         // the block shown before began on the day this one ends with: that day continues, without a second heading
         if (_topDay == day && IsInstanceValid(_topHeading))
@@ -143,6 +147,159 @@ public partial class ChatHistory : Window
                                  ThemeTypeVariation = line.Speaker == Speaker.Her ? "Subheading" : "Hint" });
         row.AddChild(Text(line.Text, colour, hint: line.Speaker == Speaker.Cabinet));
         return row;
+    }
+
+    // what the panels showing have, for the dev actions: each memory's words and its row's buttons
+    private readonly List<(string Text, Button Forget, Button? Edit, LineEdit? Field)> _shownInMind = [];
+
+    /// <summary>
+    /// Under one of her replies: a button that opens what she had in mind for it, read afresh each time, her lists first,
+    /// then what recall brought, each with its kind and date. Forget acts at once; Edit changes a fact still true. What
+    /// was said stays as it was: forgetting old talk only stops it being recalled.
+    /// </summary>
+    private Control InMind(long line)
+    {
+        var column = new VBoxContainer();
+        column.AddThemeConstantOverride("separation", 4);
+        var open = new Button { Text = $"From {_name}'s memory", ThemeTypeVariation = "Quiet", ToggleMode = true, SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
+                                TooltipText = Words.Wrap($"What {_name} had in mind for this reply: forget any of it, or correct a fact.") };
+        var panel = new VBoxContainer { Visible = false };
+        panel.AddThemeConstantOverride("separation", 6);
+        column.AddChild(open);
+        column.AddChild(panel);
+        open.Toggled += on =>
+        {
+            panel.Visible = on;
+            foreach (var child in panel.GetChildren())
+                child.QueueFree();
+            if (!on)
+                return;
+            var kept = _store.InMind(line);
+            GD.Print($"Chat history: {kept.Count} in mind for line {line} ({string.Join(", ", kept.Select(k => (k.Listed ? "listed " : "") + Kind(k.Kind)))})");
+            if (kept.Count == 0)
+                panel.AddChild(Text("Nothing left: all of it was forgotten since.", Paper.Faint, hint: true));
+            foreach (var (heading, listed) in new[] { ("Always in mind", true), ("Recalled for this reply", false) })
+            {
+                var some = kept.Where(k => k.Listed == listed).ToList();
+                if (some.Count == 0)
+                    continue;
+                panel.AddChild(new Label { Text = heading, ThemeTypeVariation = "Hint" });
+                foreach (var memory in some)
+                    panel.AddChild(Remembered(line, memory));
+            }
+        };
+        // under her words, past the time and the name
+        var indent = new HBoxContainer();
+        indent.AddChild(new Control { CustomMinimumSize = new Vector2(126, 0) });
+        column.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        indent.AddChild(column);
+        return indent;
+    }
+
+    private static string Kind(Minded kind) => kind switch
+    {
+        Minded.You => "you", Minded.Us => "us", Minded.Me => "me", Minded.Was => "until", Minded.Note => "diary", _ => "chat",
+    };
+
+    /// <summary>One thing she had in mind: whose or what it is and its date, then its words, with Edit (a fact) and Forget.</summary>
+    private Control Remembered(long line, InMind memory)
+    {
+        var item = new VBoxContainer();
+        item.AddThemeConstantOverride("separation", 2);
+        var top = new HBoxContainer();
+        top.AddThemeConstantOverride("separation", 6);
+        var about = memory.Kind switch
+        {
+            Minded.You => "A fact about you",
+            Minded.Us => "About the two of you",
+            Minded.Me => $"From {_name}'s own story, as told to you",
+            Minded.Was => "No longer true since this date",
+            Minded.Note => $"A note from {_name}'s diary",
+            _ => $"Said then, recalled word for word. It stays in the chat as it was: Forget only stops {_name} recalling it.",
+        };
+        top.AddChild(new Label { Text = $"{Kind(memory.Kind)} · {memory.At.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}", ThemeTypeVariation = "Hint",
+                                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Pass, TooltipText = Words.Wrap(about) });
+        var words = Text(memory.Text, Paper.Letters);
+        var field = memory.Editable ? new LineEdit { Text = memory.Text, Visible = false, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill } : null;
+        // still what that reply had: a forgotten fact's id can be taken by a new one, which this row must leave alone
+        bool Still() => _store.InMind(line).Any(m => m.Kind == memory.Kind && m.Id == memory.Id && m.At == memory.At);
+        Button? editing = null;
+        if (field is not null)
+        {
+            var edit = editing = new Button { Text = "Edit", ThemeTypeVariation = "Quiet", TooltipText = "Correct this fact" };
+            edit.Pressed += () =>
+            {
+                if (!field.Visible)
+                {
+                    (field.Visible, words.Visible, edit.Text) = (true, false, "Save");
+                    field.GrabFocus();
+                    return;
+                }
+                var text = field.Text.Trim();
+                if (text.Length > 0 && text != words.Text && Still())
+                {
+                    _store.UpdateFact(memory.Id, text);
+                    words.Text = text;
+                    GD.Print($"Chat history: fact {memory.Id} edited");
+                }
+                (field.Visible, words.Visible, edit.Text) = (false, true, "Edit");
+            };
+            field.TextSubmitted += _ => edit.EmitSignal(BaseButton.SignalName.Pressed);
+            top.AddChild(edit);
+        }
+        var forget = new Button { Text = "Forget", ThemeTypeVariation = "Quiet", TooltipText = $"{_name} forgets this, from every conversation after" };
+        forget.Pressed += () =>
+        {
+            if (Still())
+                _store.ForgetInMind(memory);
+            GD.Print($"Chat history: {Kind(memory.Kind)} {memory.Id} forgotten");
+            item.QueueFree();
+        };
+        top.AddChild(forget);
+        item.AddChild(top);
+        item.AddChild(words);
+        if (field is not null)
+            item.AddChild(field);
+        _shownInMind.Add((memory.Text, forget, editing, field));
+        item.TreeExiting += () => _shownInMind.RemoveAll(s => s.Forget == forget);
+        return item;
+    }
+
+    /// <summary>
+    /// Dev: "From" opens what she had in mind for her newest reply shown; "Forget:words" and "Edit:words:new words" act
+    /// on the memory showing whose words have those in them, as the buttons would; "Close" closes the window.
+    /// </summary>
+    public void DevPress(string what)
+    {
+        var parts = what.Split(':', 3);
+        if (parts[0] == "Close")
+        {
+            QueueFree();
+            return;
+        }
+        if (parts[0] == "From")
+        {
+            if (FindChildren("*", nameof(Button), recursive: true, owned: false).OfType<Button>().LastOrDefault(b => b.Text.StartsWith("From ")) is { } from)
+                from.ButtonPressed = !from.ButtonPressed;
+            else
+                GD.PrintErr("Chat history: no reply with what was in mind");
+            return;
+        }
+        if (parts.Length < 2 || _shownInMind.FirstOrDefault(s => s.Text.Contains(parts[1], StringComparison.OrdinalIgnoreCase)) is not { Forget: not null } shown)
+        {
+            GD.PrintErr($"Chat history: nothing showing for \"{what}\"");
+            return;
+        }
+        if (parts[0] == "Forget")
+            shown.Forget.EmitSignal(BaseButton.SignalName.Pressed);
+        else if (parts[0] == "Edit" && shown is { Edit: { } edit, Field: { } field } && parts.Length == 3)
+        {
+            edit.EmitSignal(BaseButton.SignalName.Pressed);
+            field.Text = parts[2];
+            edit.EmitSignal(BaseButton.SignalName.Pressed);
+        }
+        else
+            GD.PrintErr($"Chat history: can't \"{what}\"");
     }
 
     private static Label Text(string text, Color colour, bool hint = false)
