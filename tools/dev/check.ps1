@@ -1,8 +1,8 @@
 # Every check a commit must pass before its pull request is marked ready, in one go, with the result recorded against
 # the commit: the solution built with no warnings, the unit tests, the game built with no warnings, and the smoke
 # suite (tools\dev\smoke.ps1; skipped when the branch changes only Markdown). The result goes to
-# <main checkout>\.qa\results\<sha>.checks.json. QA's verdict on the same commit goes beside it (-Verdict), and the
-# gate hook (.claude\hooks\gate.ps1) wants both before `gh pr ready`.
+# <main checkout>\.qa\results\<sha>.checks.json, in the pm plugin's format. QA's verdict on the same commit goes beside
+# it (-Verdict), and the plugin's gate wants both before `gh pr ready`.
 #
 #   tools\dev\check.ps1                      # everything, on this checkout's HEAD
 #   tools\dev\check.ps1 -NoSmoke             # without the smoke suite (a quick pass while working; not enough for the gate)

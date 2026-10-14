@@ -238,14 +238,17 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   SenseVoice hearing a recording through the swapped library, a reply from a stand-in provider, no errors. Not
   signed: Windows SmartScreen warns until it is (More info → Run anyway, as the README says). ONNX Runtime needs
   Microsoft's Visual C++ runtime, which most PCs have; the zip's README links Microsoft's installer.
-- [ ] **The GitHub page:** description, topics, a social preview image, the first release. Drafted 2026-10-12, for
+- [ ] **The GitHub page:** description, topics, a social preview image, the first release. The description and
+  topics are in (the user), and the first release is Preview 1, a pre-release (2026-10-13:
+  https://github.com/BobZheng00/Beside-The-Cabinet/releases/tag/v0.1.0-preview.1); the social preview is left.
+  Drafted 2026-10-12, for
   the About box (the gear beside it): "A desktop companion who sits beside a little arcade cabinet: talks, remembers
   your days, keeps your agenda, and balances work and play. Windows; bring your own AI." Topics:
   `desktop-companion`, `ai-companion`, `vrm`, `godot`, `csharp`, `dotnet`, `windows`, `llm`, `chatbot`,
   `text-to-speech`, `speech-recognition`, `gpt-sovits`, `pomodoro`, `productivity`. The social preview (Settings →
   General) wants a wide picture, 1280×640 at best; the README's is tall. The first release can follow going public:
   the README says it is on its way.
-- [ ] **Right after making it public** (Settings): Advanced Security → Private vulnerability reporting → Enable
+- [x] **Right after making it public** (Settings; done by the user, 2026-10-13): Advanced Security → Private vulnerability reporting → Enable
   (`CONTRIBUTING.md` sends security reports there, and GitHub offers it on public repositories); Rules →
   Rulesets → New ruleset → New branch ruleset (free on public repositories; private ones need GitHub Pro): name
   it `main`, enforcement Active, bypass list empty, target "Include default branch"; rules: Restrict deletions,

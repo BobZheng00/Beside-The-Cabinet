@@ -112,8 +112,8 @@ What a commit must pass before its pull request is marked ready, run the same wa
 
 - `tools\dev\check.ps1`: the solution and the game built with no warnings, the unit tests and the smoke suite,
   recorded against the commit in `<main checkout>\.qa\results\<sha>.checks.json`. `-NoSmoke` for a quick pass,
-  `-Status` for what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` for QA's verdict on it. The gate hook
-  (`.claude/hooks/gate.ps1`) wants both before a pull request is marked ready.
+  `-Status` for what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` for QA's verdict on it. The pm
+  plugin's gate wants both before a pull request is marked ready.
 - `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
   `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. The report and shots go to
   `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; a running copy of the app (the demo, say)
