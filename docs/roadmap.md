@@ -1,7 +1,7 @@
 # Where we are
 
 What's built, what was decided and when, and the order of work. Until 2026-10-13 this was the last section of
-CLAUDE.md; it moved here so it isn't loaded into every session. What's open is tracked as GitHub issues (`/pm status`
+CLAUDE.md; it moved here so it isn't loaded into every session. What's open is tracked as GitHub issues (`/pm:run status`
 says where things stand today); this page keeps the story. Update it at each milestone.
 
 **Built and on `main`:**
@@ -128,3 +128,35 @@ says where things stand today); this page keeps the story. Update it at each mil
 **Parked:** a motion-file layer (VRMA, or Kimodo- or Mixamo-sourced clips) for hand gestures while she speaks. Survey in agent note §7.
 
 **After the agent phase:** character import (community cards, your own 3D model and voice), mini-games on the CRT. Steam last: the app should be mature before it goes public.
+
+## Not yet filed as issues
+
+Drafted for the backlog on 2026-10-13; the user had only the ready, p1 and p2 ones filed, the rest later. Each comes
+from the place in brackets; file it (`/pm:park`, or the PM's triage) when its turn comes.
+
+| Title | Labels |
+|---|---|
+| Things said in passing with a date reach a note with it (M13, `docs/memory-issues.md`) | bug p3 |
+| Upkeep costs less on long conversations (M3; "Left on the memory topic" above) | chore p3 |
+| A fact that holds one value (home, job) is updated, not added again ("Left on the memory topic") | enhancement p3 brainstorm |
+| Her texts are in the day's entry ("Left on the memory topic") | enhancement p3 |
+| She mentions something not set up yet, once (settings and setup spec, "Not built") | enhancement p3 |
+| The GitHub page gets a social preview image (`docs/publishing.md`; a wide picture, uploaded by the user) | chore p3 |
+| Finish or drop the old memory's LongMemEval sample, paused at 22 of 44 ("In flight"; billed to the user) | chore p3 decision |
+| Try GPT-SoVITS v5 for her voice (her voice, above; an 11 GB download) | chore p3 decision |
+| The app is signed, so Windows stops warning (Preview 1: SmartScreen; a certificate costs money) | enhancement p3 decision |
+| Her own web search through the provider, OpenAI's Responses API ("Waiting on the user's call") | enhancement decision |
+| "Sign in with ChatGPT" instead of an API key ("Waiting on the user's call") | enhancement decision |
+| The player can ask her to say her last line again (open questions: "we can ask her to reexplain") | enhancement decision |
+| Real-use checks from the user's list: reminders, check-ins, phones, calls, calendars, her body, listening, conversations, balance ("Waiting on the user"; details in `private/to-try.md`) | manual-check |
+| The phone's QR code works with a real phone (balance, "Next step") | manual-check |
+| Answering her card by voice works with the real microphone ("On the plate" 3) | manual-check |
+| Her thinking sounds sound right ("On the plate" 2) | manual-check |
+| A Chinese recording for Smart Turn ("Answered 2026-10-09") | manual-check p3 |
+| Memos: her phone and paper on other skins ("On the plate" 6) | enhancement p3 brainstorm |
+| Later abilities as add-ons: the clipboard (asking first), weather, writing to the calendar, local MCP servers ("On the plate" 8) | enhancement p3 brainstorm |
+| Reaching the player, later: voice notes, Discord, a private route, a channel for mainland China (reaching-the-player spec, step 5) | enhancement p3 brainstorm |
+| A gesture per sentence: motion files ("Parked") | enhancement p3 brainstorm |
+| Character import: community cards, your own 3D model and voice (the next phase) | enhancement brainstorm |
+| Mini-games on the CRT (the next phase) | enhancement brainstorm |
+| Steam: the checklist in `docs/publishing.md`, "Steam, later" | chore p3 brainstorm |

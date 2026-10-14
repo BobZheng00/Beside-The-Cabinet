@@ -36,8 +36,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - `tools/bench/memory.cs`: the memory benchmark (LongMemEval, LoCoMo, staying in character, the free retrieval score).
 - `docs/roadmap.md`: where we are: what's built, what was decided and when, the order of work (this file's last
   section until 2026-10-13). Update it at each milestone.
-- `.claude/`: how the work runs: the skills `/pm`, `/park`, `/brainstorm` and `/smoke`, the agents (`implementer`,
-  `qa`, `reviewer`), and the gate hook (`hooks/gate.ps1`). `.github/workflows/ci.yml`: CI on every pull request.
+- `.claude/pm.md`: this project's settings and notes for the pm plugin, which runs the work (`/pm:run`, `/pm:park`,
+  `/pm:brainstorm`; its agents and gate come with it). `.claude/skills/smoke`: `/smoke`.
+  `.github/workflows/ci.yml`: CI on every pull request.
 
 ## Build and test
 
@@ -90,19 +91,20 @@ The README is the front page for strangers; the manual is in READMEs beside what
 
 - **The backlog is GitHub issues**, not this file or the conversation: what's open, its priority (`p1` to `p3`) and
   its state (`ready`, `in-progress`, `decision`, `brainstorm`, `manual-check`, `blocked`). Read it with
-  `gh issue list` or `/pm status`. A session can be compacted or ended at any point without losing anything.
-- **`/pm` runs it** (`.claude/skills/pm`): ready issues go to `implementer` agents, each in a worktree of its own;
-  each result goes to `qa` and `reviewer` in fresh contexts; a pull request is marked ready only when both pass.
-  The user merges every pull request (their choice, 2026-10-13).
-- **Something new mid-task**, found by you or raised by the user, is parked as an issue (`/park`) and the task goes
+  `gh issue list` or `/pm:run status`. A session can be compacted or ended at any point without losing anything.
+- **`/pm:run` runs it** (the pm plugin; this project's settings and notes are in `.claude/pm.md`, in the iterate
+  phase since 2026-10-13): ready issues go to implementer agents, each in a worktree of its own; each result goes
+  to QA and a reviewer in fresh contexts; a pull request is marked ready only when both pass. The user merges
+  every pull request (their choice, 2026-10-13).
+- **Something new mid-task**, found by you or raised by the user, is parked as an issue (`/pm:park`) and the task goes
   on, unless the user says to switch now.
-- **Done** means committed, `tools/dev/check.ps1` passed on that commit in a clean checkout, and QA's verdict PASS
-  (`check.ps1 -Verdict`). The gate hook (`.claude/hooks/gate.ps1`) holds `gh pr ready` to that, and refuses
-  `gh pr merge`, `gh pr create` without `--draft`, and pushes to main.
+- **Done** means committed, `tools/dev/check.ps1` passed on that commit in a clean checkout, and QA's verdict PASS.
+  The plugin's gate holds `gh pr ready` and merging to that, and refuses pushes to `main`; `gh pr merge` is denied
+  outright here (`.claude/settings.json`). The gate needs `gh` on PATH.
 - **The user is brought in** for: a choice the player would notice that the specs don't settle, or one that touches
   a rule above; what only they can unblock (their keys, real profile, microphone, money, downloads, GitHub
   settings); something serious (CI red on main, a crash or lost data, three failed rounds); a design to talk
-  through (`/brainstorm`); anything irreversible or public beyond a draft pull request. Everything else goes in the
+  through (`/pm:brainstorm`); anything irreversible or public beyond a draft pull request. Everything else goes in the
   PM's digest, on the pinned "PM log" issue.
 - **What only the user can check** (their microphone and provider, a voice's sound, motion's feel, their phone) is
   an issue labelled `manual-check`, batched for when they next use the app. Never wait on it.
@@ -120,3 +122,6 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - **Godot gotchas:**
   - An `Unfocusable` window still takes mouse clicks.
   - Measure text on a hidden label, never on the one shown (the speech-bubble bug of 2026-10-05).
+  - Every script and shader has a `.uid` file beside it (Godot 4.4+: its lasting id); commit it with the script. One
+    made outside the editor gets it when Godot next opens the project (the editor, an export): 41 were missing
+    until Preview 1's export wrote them (2026-10-13).

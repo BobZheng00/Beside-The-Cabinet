@@ -13,7 +13,7 @@ Then:
 
 - Read `report.md` from the folder it names.
 - For each FAIL, Read its screenshots and log lines, and say in a sentence what went wrong for the player. Where it
-  looks like a real bug and not the suite, offer to park it (`/park`).
+  looks like a real bug and not the suite, offer to park it (`/pm:park`).
 - Read one screenshot of each passing scenario too: a run can pass its checks and still look wrong (clipped text, a
   window in the wrong place). Mention only what a player would notice.
 - `tools/dev/smoke.ps1 -List` says what each scenario checks.
