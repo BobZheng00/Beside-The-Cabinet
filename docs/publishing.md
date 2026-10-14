@@ -238,6 +238,8 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   SenseVoice hearing a recording through the swapped library, a reply from a stand-in provider, no errors. Not
   signed: Windows SmartScreen warns until it is (More info → Run anyway, as the README says). ONNX Runtime needs
   Microsoft's Visual C++ runtime, which most PCs have; the zip's README links Microsoft's installer.
+  Since 2026-10-13 a version tag makes it on GitHub too (`.github/workflows/release.yml`, issue #8): the same script
+  on a Windows runner, then a draft release with the zip and its SHA-256; the user writes the notes and publishes.
 - [ ] **The GitHub page:** description, topics, a social preview image, the first release. The description and
   topics are in (the user), and the first release is Preview 1, a pre-release (2026-10-13:
   https://github.com/BobZheng00/Beside-The-Cabinet/releases/tag/v0.1.0-preview.1); the social preview is left.
