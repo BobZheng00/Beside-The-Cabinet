@@ -163,8 +163,8 @@ public partial class ChatHistory : Window
 
     // what the panel showing has, for the dev actions: each memory's words and its row's buttons
     private readonly List<(string Text, Button Forget, Button? Edit, LineEdit? Field)> _shownInMind = [];
-    // her replies that kept something, oldest first, for the dev actions: their words and what a click does
-    private readonly List<(string Text, Action Click)> _replies = [];
+    // her replies shown that kept something, for the dev actions: their line, words and what a click does
+    private readonly List<(long Id, string Text, Action Click)> _replies = [];
     private Action? _closeOpen;                         // closes the one panel open
 
     private static readonly StyleBoxFlat Plain = Paper.Box(Colors.Transparent, Colors.Transparent, 0, 6, 4, 2),
@@ -197,6 +197,9 @@ public partial class ChatHistory : Window
             {
                 _closeOpen?.Invoke();
                 _closeOpen = () => Fill(false);
+                // the panel in view (the newest reply sits at the bottom edge), then the reply itself, which moves up
+                // when a tall panel above it closes, and wins when both don't fit
+                Reveal(holder, reply);
             }
             else if (!on)
                 _closeOpen = null;
@@ -254,7 +257,7 @@ public partial class ChatHistory : Window
                 reply.AcceptEvent();
             }
         };
-        _replies.Add((said.Text, Click));
+        _replies.Add((said.Id, said.Text, Click));
         return holder;
     }
 
@@ -303,6 +306,7 @@ public partial class ChatHistory : Window
                     _store.UpdateFact(memory.Id, text);
                     words.Text = text;
                     GD.Print($"Chat history: fact {memory.Id} edited");
+                    Reveal(item);                                   // a longer fact can wrap past the bottom edge
                 }
                 (field.Visible, words.Visible, edit.Text) = (false, true, "Edit");
             };
@@ -331,9 +335,18 @@ public partial class ChatHistory : Window
         return item;
     }
 
+    /// <summary>Scrolls the history so that each of <paramref name="controls"/> is in view, in turn, once laid out.</summary>
+    private async void Reveal(params Control[] controls)
+    {
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        foreach (var control in controls)
+            if (IsInstanceValid(control) && control.IsVisibleInTree())
+                _scroll.EnsureControlVisible(control);
+    }
+
     /// <summary>
     /// Dev: "Reply" clicks her newest reply shown that kept something ("Reply:words", the newest with those words in
-    /// it), opening or closing what she had in mind; "Forget:words" and "Edit:words:new words" act on the memory
+    /// it; "Reply:2", the second newest), opening or closing what she had in mind; "Forget:words" and "Edit:words:new words" act on the memory
     /// showing whose words have those in them, as the buttons would; "Close" closes the window.
     /// </summary>
     public void DevPress(string what)
@@ -347,7 +360,10 @@ public partial class ChatHistory : Window
         if (parts[0] == "Reply")
         {
             var words = parts.Length > 1 ? parts[1] : "";
-            if (_replies.LastOrDefault(r => r.Text.Contains(words, StringComparison.OrdinalIgnoreCase)) is { Click: not null } reply)
+            var newestFirst = _replies.OrderByDescending(r => r.Id).ToList();
+            var pick = int.TryParse(words, out var back) ? newestFirst.ElementAtOrDefault(back - 1)
+                : newestFirst.FirstOrDefault(r => r.Text.Contains(words, StringComparison.OrdinalIgnoreCase));
+            if (pick is { Click: not null } reply)
                 reply.Click();
             else
                 GD.PrintErr($"Chat history: no reply with what was in mind{(words.Length > 0 ? $" saying \"{words}\"" : "")}");
