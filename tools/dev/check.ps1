@@ -1,10 +1,13 @@
 # Every check a commit must pass before its pull request is marked ready, in one go, with the result recorded against
 # the commit: the solution built with no warnings, the unit tests, the game built with no warnings, and the smoke
-# suite (tools\dev\smoke.ps1; skipped when the branch changes only Markdown). The result goes to
+# suite (tools\dev\smoke.ps1 -Changed: the scenarios what the branch changed since origin/main needs, by the rule in
+# tools\dev\smoke\scenarios.json, checked first by smoke\pick-check.ps1; none when only tests or docs changed; the
+# record says which ran and why each other one didn't). The result goes to
 # <main checkout>\.qa\results\<sha>.checks.json, in the pm plugin's format. QA's verdict on the same commit goes beside
 # it (-Verdict), and the plugin's gate wants both before `gh pr ready`.
 #
 #   tools\dev\check.ps1                      # everything, on this checkout's HEAD
+#   tools\dev\check.ps1 -All                 # every smoke scenario, whatever changed
 #   tools\dev\check.ps1 -NoSmoke             # without the smoke suite (a quick pass while working; not enough for the gate)
 #   tools\dev\check.ps1 -Only chat,settings  # the smoke suite cut to those scenarios (not enough for the gate either)
 #   tools\dev\check.ps1 -Verdict PASS -Because "what QA looked at, and why it passes"     # QA's verdict on HEAD
@@ -13,7 +16,7 @@
 # Commit first: a result belongs to HEAD, and one taken with uncommitted changes is recorded as not clean, which the
 # gate refuses. The smoke suite takes a few minutes and waits its turn: run this in the background.
 # Exit code: 0 passed, 1 failed, 3 the smoke suite was blocked (another run, or a copy of the app running).
-param([switch]$NoSmoke, [string]$Only = "", [string]$Verdict = "", [string]$Because = "", [switch]$Status)
+param([switch]$NoSmoke, [switch]$All, [string]$Only = "", [string]$Verdict = "", [string]$Because = "", [switch]$Status)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
 function GitOut([string[]]$GitArgs) {
@@ -83,17 +86,24 @@ try {
   if ($ok) { $ok = (Run-Step "unit-tests" { dotnet test InsertCoin.slnx --no-build -nologo -v:q }) -eq "PASS" }
   if ($ok) { $ok = (Run-Step "build-game" { dotnet build src\InsertCoin.Game\InsertCoin.Game.csproj @buildFlags }) -eq "PASS" }
 
+  if ($ok) { $ok = (Run-Step "smoke-picks" { & (Join-Path $PSScriptRoot "smoke\pick-check.ps1") }) -eq "PASS" }
+
   $partial = ""
-  $changed = @((GitOut @("diff", "--name-only", "origin/main...HEAD")) -split "`n" | Where-Object { $_ -ne "" })
-  $docsOnly = $changed.Count -gt 0 -and -not ($changed | Where-Object { $_ -notmatch '\.md$' })
   if ($ok) {
     if ($NoSmoke) { $partial = "smoke skipped (-NoSmoke)" }
-    elseif ($docsOnly) {
-      [void]$steps.Add([ordered]@{ name = "smoke"; result = "SKIPPED"; seconds = 0; tail = @("only Markdown changed since origin/main") })
-      "== smoke`n   SKIPPED: only Markdown changed since origin/main"
-    } else {
+    else {
+      # the scenarios what changed since origin/main needs (smoke.ps1 -Changed), or every one with -All
       if ($Only -ne "") { $partial = "smoke cut to: $Only" }
-      $smoke = Run-Step "smoke" { & (Join-Path $PSScriptRoot "smoke.ps1") -NoBuild -Only $Only }
+      $smoke = Run-Step "smoke" {
+        if ($Only -ne "") { & (Join-Path $PSScriptRoot "smoke.ps1") -NoBuild -Only $Only }
+        elseif ($All) { & (Join-Path $PSScriptRoot "smoke.ps1") -NoBuild }
+        else { & (Join-Path $PSScriptRoot "smoke.ps1") -NoBuild -Changed }
+      }
+      $report = Join-Path $main (".qa\smoke\" + ($branch -replace "[^A-Za-z0-9._-]", "-") + "\report.json")
+      $ran = if (Test-Path $report) { Get-Content -Raw -Encoding UTF8 $report | ConvertFrom-Json } else { $null }
+      if ($ran -and $ran.sha -eq $sha) {                             # which scenarios ran, and why each other one didn't
+        $steps[$steps.Count - 1].scenarios = @($ran.scenarios | ForEach-Object { [ordered]@{ name = $_.name; result = $_.result; picked = $_.picked } })
+      }
       if ($smoke -eq "BLOCKED") { $blocked = $true; $ok = $false }
       elseif ($smoke -ne "PASS") { $ok = $false }
     }

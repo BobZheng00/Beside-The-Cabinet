@@ -1,5 +1,6 @@
 # Runs the smoke suite: every scenario in tools\dev\smoke\scenarios.json, one after another, through shoot.ps1 -Hidden
-# (a throwaway muted profile, Steam ignored, nothing on screen, the real profile never touched), and says PASS, FAIL or
+# (a throwaway muted profile, Steam ignored, the real profile never touched; on a Windows desktop of its own, so nothing
+# reaches the player's screen, taskbar or focus, and a scenario that showed them anything fails), and says PASS, FAIL or
 # BLOCKED for each, with the screenshots and log lines that show why.
 # One smoke run at a time on this PC: a second run waits for the first. A copy of the app already running (the demo,
 # say) blocks the run instead of being stopped: this script never stops anything of the user's.
@@ -9,8 +10,13 @@
 #   tools\dev\smoke.ps1 -Only boot,chat      # some of them (from bash: -Only "boot,chat")
 #   tools\dev\smoke.ps1 -List                # the scenarios and what each one checks
 #   tools\dev\smoke.ps1 -Prepare             # only make this checkout ready for test runs (GODOT, models, import, build)
+#   tools\dev\smoke.ps1 -Changed             # only those the branch's changes since origin/main need (check.ps1 runs this)
+#   tools\dev\smoke.ps1 -Changed -Explain    # which those are, and why each other one is skipped, without running any
 #
 # -Only      scenario names, comma-separated
+# -Changed   pick the scenarios by what changed (scenarios.json's "about" has the rule): the others are recorded as
+#            SKIPPED with the reason; none picked, nothing is run (no build, no lock)
+# -Files     with -Changed: these changed paths (from the checkout's root) instead of git's origin/main...HEAD
 # -NoBuild   skip building the game first (check.ps1 has just built it)
 # -Out       where shots, logs and the report go (default: <main checkout>\.qa\smoke\<branch>)
 # -Wait      minutes to wait for another smoke run before giving up as BLOCKED (default 20)
@@ -26,7 +32,7 @@
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
 # Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another run, or a copy of the app running).
 param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
-      [switch]$Prepare)
+      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
 $game = Join-Path $repo "src\InsertCoin.Game"
@@ -35,6 +41,23 @@ $suite = Get-Content -Raw -Encoding UTF8 (Join-Path (Join-Path $PSScriptRoot "sm
 if ($List) {
   foreach ($s in $suite.scenarios) { "{0,-10} {1}" -f $s.name, $s.about }
   exit 0
+}
+
+# Which scenarios a change needs, each with why it runs or is skipped: all of them when shared code or the harness
+# changed (the suite's "all"), each whose "covers" match a changed file, and boot whenever anything the app runs changed
+# (the suite's "app"). Markdown never counts. Patterns are wildcards (-like) on paths with forward slashes.
+function Pick([string[]]$changed) {
+  $changed = @($changed | ForEach-Object { $_.Trim().Replace('\', '/') } | Where-Object { $_ -ne "" -and $_ -notlike "*.md" })
+  function Matching($patterns) { @($changed | Where-Object { $f = $_; @($patterns | Where-Object { $_ -and $f -like $_ }).Count -gt 0 }) }
+  $shared = @(Matching $suite.all)
+  $app = @(Matching $suite.app)
+  foreach ($s in $suite.scenarios) {
+    $hit = @(Matching $s.covers)
+    $why = if ($shared.Count) { "shared code or the harness changed: $($shared[0])" } elseif ($hit.Count) { "it covers $($hit[0])" }
+           elseif ($s.name -eq "boot" -and $app.Count) { "the app changed: $($app[0])" } else { "" }
+    $skip = if ($app.Count) { "nothing it covers changed" } else { "nothing the app runs changed" }
+    [pscustomobject]@{ name = $s.name; run = $why -ne ""; why = $(if ($why -ne "") { $why } else { $skip }) }
+  }
 }
 
 # --- where things are -------------------------------------------------------------------------------------------
@@ -57,14 +80,26 @@ foreach ($n in $names) { if (-not ($suite.scenarios | Where-Object { $_.name -eq
 
 $results = New-Object System.Collections.ArrayList
 $started = Get-Date
+$picks = @()
+if ($Changed) {
+  if ($null -eq $Files) { $Files = @(& git -C $repo diff --name-only origin/main...HEAD) }
+  $picks = @(Pick @($Files | ForEach-Object { $_ -split "," }))
+  if ($Explain) {
+    foreach ($p in $picks) { "{0,-4} {1,-10} {2}" -f $(if ($p.run) { "run" } else { "skip" }), $p.name, $p.why }
+    exit 0
+  }
+  $scenarios = @($scenarios | Where-Object { $n = $_.name; ($picks | Where-Object { $_.name -eq $n }).run })
+}
 
 function Finish([int]$code) {
   $passed = @($results | Where-Object { $_.result -eq "PASS" }).Count
   $failed = @($results | Where-Object { $_.result -eq "FAIL" }).Count
   $blocked = @($results | Where-Object { $_.result -eq "BLOCKED" }).Count
+  $skipped = @($results | Where-Object { $_.result -eq "SKIPPED" }).Count
   $report = [ordered]@{
     sha = $sha; branch = $branch; checkout = $repo; when = (Get-Date).ToString("o")
     seconds = [int]((Get-Date) - $started).TotalSeconds; passed = $passed; failed = $failed; blocked = $blocked
+    skipped = $skipped; picked = $(if ($Changed) { "by what changed since origin/main" } else { "all asked for" })
     out = $Out; scenarios = @($results)
   }
   $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -74,11 +109,11 @@ function Finish([int]$code) {
   $short = if ($sha.Length -ge 7) { $sha.Substring(0, 7) } else { $sha }
   [void]$md.Add("# Smoke run: $branch at $short")
   [void]$md.Add("")
-  [void]$md.Add("$passed passed, $failed failed, $blocked blocked, in $($report.seconds) s ($((Get-Date).ToString('yyyy-MM-dd HH:mm'))). Shots and logs: ``$Out``")
+  [void]$md.Add("$passed passed, $failed failed, $blocked blocked, $skipped skipped, in $($report.seconds) s ($((Get-Date).ToString('yyyy-MM-dd HH:mm'))). Scenarios: $($report.picked). Shots and logs: ``$Out``")
   [void]$md.Add("")
-  [void]$md.Add("| Scenario | Result | Seconds | Why |")
-  [void]$md.Add("|---|---|---|---|")
-  foreach ($r in $results) { [void]$md.Add("| $($r.name) | $($r.result) | $($r.seconds) | $((@($r.problems) | Select-Object -First 1) -replace '\|', '/') |") }
+  [void]$md.Add("| Scenario | Result | Seconds | Why | Picked |")
+  [void]$md.Add("|---|---|---|---|---|")
+  foreach ($r in $results) { [void]$md.Add("| $($r.name) | $($r.result) | $($r.seconds) | $((@($r.problems) | Select-Object -First 1) -replace '\|', '/') | $($r.picked -replace '\|', '/') |") }
   foreach ($r in $results) {
     [void]$md.Add("")
     [void]$md.Add("## $($r.name): $($r.result)")
@@ -96,8 +131,8 @@ function Finish([int]$code) {
   [System.IO.File]::WriteAllText((Join-Path $Out "report.md"), ($md -join "`r`n") + "`r`n", $utf8)
 
   ""
-  "Smoke: $passed passed, $failed failed, $blocked blocked ($branch at $short)"
-  foreach ($r in $results) { "  {0,-8} {1,-10} {2}" -f $r.result, $r.name, ((@($r.problems) | Select-Object -First 1)) }
+  "Smoke: $passed passed, $failed failed, $blocked blocked, $skipped skipped ($branch at $short; scenarios $($report.picked))"
+  foreach ($r in $results) { "  {0,-8} {1,-10} {2}" -f $r.result, $r.name, $(if (@($r.problems).Count) { @($r.problems)[0] } else { $r.picked }) }
   "Report: $(Join-Path $Out 'report.md')"
   exit $code
 }
@@ -105,6 +140,7 @@ function Finish([int]$code) {
 function Add-Result($s, [string]$result, $problems, $shots, $logLines, [double]$seconds) {
   [void]$results.Add([ordered]@{
     name = $s.name; about = $s.about; script = $s.script; result = $result; seconds = [int]$seconds
+    picked = $(if ($Changed) { "" + ($picks | Where-Object { $_.name -eq $s.name }).why } else { "" })
     problems = @($problems); shots = @($shots); logLines = @($logLines | Select-Object -First 30)
   })
 }
@@ -113,6 +149,11 @@ function Block-All([string]$why) {
   foreach ($s in $scenarios) { Add-Result $s "BLOCKED" @($why) @() @() 0 }
   Finish 3
 }
+
+foreach ($s in $suite.scenarios) {
+  if ($Changed -and -not ($scenarios | Where-Object { $_.name -eq $s.name })) { Add-Result $s "SKIPPED" @() @() @() 0 }
+}
+if ($Changed -and $scenarios.Count -eq 0) { Finish 0 }               # nothing to run: no build, no lock, no app
 
 # --- GODOT, models and Godot's import, borrowed from the main checkout in a worktree -----------------------------
 function Read-Godot([string]$checkout) {
@@ -260,7 +301,7 @@ try {
 
     $problems = New-Object System.Collections.ArrayList
     foreach ($line in $said) {
-      if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled") { [void]$problems.Add($line.Trim()) }
+      if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player") { [void]$problems.Add($line.Trim()) }
     }
 
     $pngs = @(Get-ChildItem $Out -File | Where-Object { $_.Name -match ("^" + [regex]::Escape($s.name) + "-\d+\.png$") } | Sort-Object Name)

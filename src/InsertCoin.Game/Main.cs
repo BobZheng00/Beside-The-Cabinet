@@ -276,6 +276,8 @@ public partial class Main : Node2D
                          $"viewport={GetViewport().GetVisibleRect().Size} contentScale={GetWindow().ContentScaleFactor} " +
                          $"stretch={GetViewport().GetStretchTransform().Scale}");
             });
+        if (Paper.OffScreen && args.TryGetValue("shots", out var shots))
+            AddChild(new TestShots { Folder = shots });
         if (args.TryGetValue("script", out var script))
             foreach (var step in script.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('@')))
                 GetTree().CreateTimer(double.Parse(step[1], System.Globalization.CultureInfo.InvariantCulture)).Timeout += () => Dev(step[0]);

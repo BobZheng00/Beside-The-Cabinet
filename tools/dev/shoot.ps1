@@ -15,8 +15,11 @@
 #           copied (not reminders.bin), so texts still go only where the script sends them
 # -Window   also capture the app's own window with this title (a settings window, a dialog) at each shot, from the
 #           window itself (PrintWindow), so nothing else on screen is ever captured
-# -Hidden   keep the app off every monitor (and not on top) and capture it from the window itself: nothing appears on
-#           screen, so it is safe while the user is busy (in a game, say); transparent parts come out black
+# -Hidden   run the app on a Windows desktop of its own (tools\dev\hidden.cs), off every monitor there too: nothing of it
+#           ever reaches the player's screen, taskbar, tray or focus (no console, no window, not for a moment), so it is
+#           safe while they are busy (in a game, say). The app pictures its own windows there, as Windows draws nothing
+#           on a desktop no one looks at: transparent parts come out black, and a window's title bar isn't in its
+#           picture. Anything a run showed the player after all is said in a "seen by the player:" line
 # -Desk     also put every one of the app's windows (the cabinet, memo sheets…) together where they are relative to each
 #           other, on a light backdrop, as <Tag>-<n>-desk.png: how they sit on the desktop, without showing anything
 # -Godot    the console build of Godot to run (default: the _console.exe beside GODOT, or the one private\local.cmd names)
@@ -72,6 +75,7 @@ public static class Shoot { [StructLayout(LayoutKind.Sequential)] public struct 
     return all; } }
 "@
 [Shoot]::SetThreadDpiAwarenessContext([IntPtr](-4)) | Out-Null       # true pixels on every monitor
+if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
 
 $form = $null
 if ($Bg -ne "none") {
@@ -83,7 +87,12 @@ if ($Bg -ne "none") {
 }
 
 $userArgs = "--data=`"$profile`" --no-steam"
-if ($Hidden) { $userArgs += " --offscreen" }
+$shotDir = Join-Path $profile "shots"                                  # hidden, the app pictures its windows here when asked
+if ($Hidden) {
+  if (Test-Path $shotDir) { Remove-Item $shotDir -Recurse -Force }
+  New-Item -ItemType Directory $shotDir | Out-Null
+  $userArgs += " --offscreen --shots=`"$shotDir`""
+}
 if ($Script -ne "") { $userArgs += " --script=$Script" }
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 # One test run at a time on this PC: smoke.ps1, shoot.ps1 and clip.ps1 take the same lock, so parallel agents take turns
@@ -91,7 +100,12 @@ $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 $runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
 try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
-if ($Exe -ne "") {
+$watch = $null
+if ($Hidden) {
+  $command = if ($Exe -ne "") { "`"$(Resolve-Path $Exe)`" -- $userArgs" } else { "`"$Godot`" --path `"$repo\src\InsertCoin.Game`" -- $userArgs" }
+  $p = [Backstage]::Start($command, $log, $err)
+  $watch = New-Object Unseen $p.Id
+} elseif ($Exe -ne "") {
   $p = Start-Process (Resolve-Path $Exe) -ArgumentList "-- $userArgs" -PassThru
 } else {
   $p = Start-Process $Godot -ArgumentList "--path `"$repo\src\InsertCoin.Game`" -- $userArgs" -PassThru -WindowStyle Minimized `
@@ -109,6 +123,36 @@ function Cabinet-Window($app) {
   return $app.MainWindowHandle
 }
 
+# A window's picture from the window itself (PrintWindow), so nothing else on screen is ever captured, and where it is.
+function Print-Window($h) {
+  $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($h, [ref]$r) | Out-Null
+  if ($r.R -le $r.L) { return $null }
+  $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $dc = $g.GetHdc()
+  [Shoot]::PrintWindow($h, $dc, 2) | Out-Null; $g.ReleaseHdc($dc); $g.Dispose()
+  [pscustomobject]@{ L = $r.L; T = $r.T; Picture = $bmp }
+}
+
+# Hidden, the app's windows as it pictures them itself (TestShots), the one on top first, each put on black as PrintWindow
+# leaves a window's transparent parts. None when the app doesn't answer.
+function App-Windows([int]$n) {
+  $want = Join-Path $shotDir "$n.want"
+  New-Item -ItemType File $want -Force | Out-Null
+  $until = (Get-Date).AddSeconds(15)
+  while (Test-Path $want) {
+    if ((Get-Date) -gt $until) { Remove-Item $want -ErrorAction SilentlyContinue; return @() }
+    Start-Sleep -Milliseconds 50
+  }
+  $order = [Backstage]::Windows()
+  $wins = foreach ($line in Get-Content -Encoding UTF8 (Join-Path $shotDir "$n.txt")) {
+    $f = $line -split "`t"
+    $own = [System.Drawing.Image]::FromFile($f[6]); $bmp = New-Object System.Drawing.Bitmap $own.Width, $own.Height
+    $g = [System.Drawing.Graphics]::FromImage($bmp); $g.Clear([System.Drawing.Color]::Black); $g.DrawImage($own, 0, 0, $own.Width, $own.Height)
+    $g.Dispose(); $own.Dispose()
+    [pscustomobject]@{ Main = $f[0] -eq "0"; L = [int]$f[2]; T = [int]$f[3]; Picture = $bmp; Title = $f[7]; Z = [array]::IndexOf($order, [IntPtr][long]$f[1]) }
+  }
+  @($wins | Sort-Object Z)
+}
+
 $t0 = Get-Date; $i = 0
 foreach ($s in $Shots) {
   while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
@@ -118,46 +162,51 @@ foreach ($s in $Shots) {
     if ($child) { Get-Process -Id $child.ProcessId } else { $null }
   }
   if (-not $app) { "no app process at ${s}s (is another copy running?)"; continue }
-  $main = Cabinet-Window $app
-  $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($main, [ref]$r) | Out-Null
-  $w = $r.R - $r.L; $h = $r.B - $r.T
-  if ($w -le 0) { "no window yet at ${s}s"; continue }
-  $bmp = New-Object System.Drawing.Bitmap $w, $h; $g = [System.Drawing.Graphics]::FromImage($bmp)
+  $wins = @()
+  if ($Hidden) {
+    $wins = @(App-Windows $i)
+    $cabinet = $wins | Where-Object { $_.Main } | Select-Object -First 1
+    if (-not $cabinet) { "no window yet at ${s}s"; continue }
+    $bmp = $cabinet.Picture
+  } else {
+    $main = Cabinet-Window $app
+    $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($main, [ref]$r) | Out-Null
+    if ($r.R -le $r.L) { "no window yet at ${s}s"; continue }
+    $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $g.Dispose()
+  }
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
-  if ($Hidden) { $dc = $g.GetHdc(); [Shoot]::PrintWindow($main, $dc, 2) | Out-Null; $g.ReleaseHdc($dc) }
-  else { $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size) }
-  $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
-  "$file  at ${s}s: ${w}x$h, working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"
+  $bmp.Save($file)
+  "$file  at ${s}s: $($bmp.Width)x$($bmp.Height), working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"
+  if (-not $Hidden) { $bmp.Dispose() }
   if ($Window -ne "") {
-    $h2 = [Shoot]::Find([uint32]$app.Id, $Window)
-    if ($h2 -eq [IntPtr]::Zero) { "  no window titled '$Window' at ${s}s" } else {
-      $r2 = New-Object Shoot+RECT; [Shoot]::GetWindowRect($h2, [ref]$r2) | Out-Null
-      $bmp = New-Object System.Drawing.Bitmap ($r2.R - $r2.L), ($r2.B - $r2.T); $g = [System.Drawing.Graphics]::FromImage($bmp); $dc = $g.GetHdc()
-      [Shoot]::PrintWindow($h2, $dc, 2) | Out-Null; $g.ReleaseHdc($dc)
-      $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $bmp.Save($file2); $g.Dispose(); $bmp.Dispose(); "  $file2"
+    $one = if ($Hidden) { $wins | Where-Object { $_.Title.Contains($Window) } | Select-Object -First 1 } else {
+      $h2 = [Shoot]::Find([uint32]$app.Id, $Window); if ($h2 -ne [IntPtr]::Zero) { Print-Window $h2 } }
+    if (-not $one) { "  no window titled '$Window' at ${s}s" } else {
+      $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $one.Picture.Save($file2); "  $file2"
+      if (-not $Hidden) { $one.Picture.Dispose() }
     }
   }
   if ($Desk) {
-    $wins = [Shoot]::All([uint32]$app.Id); $wins.Reverse()          # bottom first, so those on top are drawn over
-    $rects = New-Object System.Collections.ArrayList                  # a list: PowerShell would flatten a single pair
-    foreach ($h3 in $wins) { $r3 = New-Object Shoot+RECT; [Shoot]::GetWindowRect($h3, [ref]$r3) | Out-Null; if ($r3.R -gt $r3.L) { [void]$rects.Add(@($h3, $r3)) } }
-    $minX = ($rects | ForEach-Object { $_[1].L } | Measure-Object -Minimum).Minimum; $minY = ($rects | ForEach-Object { $_[1].T } | Measure-Object -Minimum).Minimum
-    $maxX = ($rects | ForEach-Object { $_[1].R } | Measure-Object -Maximum).Maximum; $maxY = ($rects | ForEach-Object { $_[1].B } | Measure-Object -Maximum).Maximum
+    if (-not $Hidden) { $wins = @([Shoot]::All([uint32]$app.Id) | ForEach-Object { Print-Window $_ } | Where-Object { $_ }) }
+    $minX = ($wins | ForEach-Object { $_.L } | Measure-Object -Minimum).Minimum; $minY = ($wins | ForEach-Object { $_.T } | Measure-Object -Minimum).Minimum
+    $maxX = ($wins | ForEach-Object { $_.L + $_.Picture.Width } | Measure-Object -Maximum).Maximum; $maxY = ($wins | ForEach-Object { $_.T + $_.Picture.Height } | Measure-Object -Maximum).Maximum
     $deskBmp = New-Object System.Drawing.Bitmap ([int]($maxX - $minX + 40)), ([int]($maxY - $minY + 40)); $dg = [System.Drawing.Graphics]::FromImage($deskBmp)
     $dg.Clear([System.Drawing.ColorTranslator]::FromHtml("#F2EFF7"))
-    foreach ($pair in $rects) {
-      $r3 = $pair[1]; $one = New-Object System.Drawing.Bitmap ($r3.R - $r3.L), ($r3.B - $r3.T); $og = [System.Drawing.Graphics]::FromImage($one); $dc = $og.GetHdc()
-      [Shoot]::PrintWindow($pair[0], $dc, 2) | Out-Null; $og.ReleaseHdc($dc); $og.Dispose()
+    for ($k = $wins.Count - 1; $k -ge 0; $k--) {                       # bottom first, so those on top are drawn over
+      $one = $wins[$k].Picture
       $one.MakeTransparent([System.Drawing.Color]::Black)              # what PrintWindow leaves black is the window's transparent part
-      $dg.DrawImage($one, [int]($r3.L - $minX + 20), [int]($r3.T - $minY + 20)); $one.Dispose()
+      $dg.DrawImage($one, [int]($wins[$k].L - $minX + 20), [int]($wins[$k].T - $minY + 20), $one.Width, $one.Height)
     }
-    $file3 = Join-Path $Out ("{0}-{1}-desk.png" -f $Tag, $i); $deskBmp.Save($file3); $dg.Dispose(); $deskBmp.Dispose(); "  $file3 ($($rects.Count) windows)"
+    $file3 = Join-Path $Out ("{0}-{1}-desk.png" -f $Tag, $i); $deskBmp.Save($file3); $dg.Dispose(); $deskBmp.Dispose(); "  $file3 ($($wins.Count) windows)"
   }
+  foreach ($one in $wins) { $one.Picture.Dispose() }
   $i++
 }
 
 Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+if ($watch) { $watch.Stop() }
 if ($form) { $form.Close() }
 $runLock.ReleaseMutex(); $runLock.Dispose()
 Start-Sleep -Milliseconds 500

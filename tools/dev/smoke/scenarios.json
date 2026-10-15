@@ -1,10 +1,13 @@
 {
-  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass.",
+  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass. Which run in a check (smoke.ps1 -Changed, as check.ps1 runs it): every scenario when a file matching one of all changed (shared code and the harness itself); each scenario whose covers match a changed file; and boot whenever a file matching app changed (anything the app runs). Patterns are wildcards on paths from the checkout's root, with forward slashes. Markdown never counts, so a change to tests or docs alone runs none.",
+  "all": ["src/InsertCoin.Game/Main.cs", "src/InsertCoin.Game/Main.tscn", "src/InsertCoin.Game/App/Stool.cs", "src/InsertCoin.Game/Companion/Paper.cs", "src/InsertCoin.Game/project.godot", "src/InsertCoin.Game/InsertCoin.Game.csproj", "src/InsertCoin.Game/Desktop/TestShots.cs", "src/InsertCoin.Core/*", "tools/dev/smoke.ps1", "tools/dev/shoot.ps1", "tools/dev/hidden.cs", "tools/dev/mock_mind.py", "tools/dev/smoke/*"],
+  "app": ["src/*"],
   "ignore": [],
   "scenarios": [
     {
       "name": "boot",
       "about": "A fresh profile: the cabinet and the companion come up and nothing in the log goes wrong.",
+      "covers": ["src/InsertCoin.Game/Companion/*", "src/InsertCoin.Game/Cabinet/*", "src/InsertCoin.Game/skins/*", "src/InsertCoin.Game/characters/*", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],
       "shots": [6, 10],
       "desk": true,
       "expect": ["^Reaching: the player is here"]
@@ -12,6 +15,7 @@
     {
       "name": "firstrun",
       "about": "A new player's first run: the Welcome opens beside the cabinet.",
+      "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/Onboarding.cs", "src/InsertCoin.Game/App/MeetSheet.cs", "src/InsertCoin.Game/App/Form.cs"],
       "settings": ", \"SetUp\": false",
       "shots": [7],
       "window": "Welcome",
@@ -20,6 +24,7 @@
     {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
+      "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
       "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settingswidths@17",
       "shots": [6, 11, 16, 21],
       "window": "Settings",
@@ -29,6 +34,7 @@
     {
       "name": "chat",
       "about": "Saying something to the companion reaches their mind (the mock), and their reply shows in their bubble.",
+      "covers": ["src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/App/Lines.cs", "src/InsertCoin.Game/Companion/SpeechBubble.cs", "src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Mind/*"],
       "mind": true,
       "mindReply": "Hi! It's good to see you. How did today go?",
       "mindRequests": 1,
@@ -40,6 +46,7 @@
     {
       "name": "memory",
       "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items.",
+      "covers": ["src/InsertCoin.Game/App/MemoryBook.cs", "src/InsertCoin.Mind/*"],
       "script": "memoryseed@2,memorybook@4,memorybook:agenda@6,memorybook:facts@8",
       "shots": [7, 9, 11],
       "window": "remembers"
@@ -47,12 +54,14 @@
     {
       "name": "crt",
       "about": "The CRT's small system opens, then its MEMOS app.",
+      "covers": ["src/InsertCoin.Game/App/Crt/*", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/Cabinet/screen_quad.gdshader"],
       "script": "crt@3,crt:memos@6",
       "shots": [6, 10]
     },
     {
       "name": "reminder",
       "about": "A reminder set a few seconds ahead goes off, with its ticket.",
+      "covers": ["src/InsertCoin.Game/App/Reminders.cs", "src/InsertCoin.Game/Desktop/AlertTicket.cs", "src/InsertCoin.Mind/*"],
       "script": "nocall@1,remindin:4:stretch_your_legs@2",
       "shots": [5, 16],
       "desk": true,
@@ -61,6 +70,7 @@
     {
       "name": "focus",
       "about": "A focus session starts from the screen and counts down on it.",
+      "covers": ["src/InsertCoin.Game/App/Focus.cs", "src/InsertCoin.Game/App/Crt/FocusApp.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs"],
       "script": "focus@3",
       "shots": [7, 10],
       "expect": ["^Focus: a session starts"]
@@ -68,6 +78,7 @@
     {
       "name": "memos",
       "about": "Memos hang and pin on the cabinet's side, and the hanging one opens as a sheet.",
+      "covers": ["src/InsertCoin.Game/App/Memos.cs", "src/InsertCoin.Game/App/MemoSheet.cs", "src/InsertCoin.Game/App/Crt/MemosApp.cs", "src/InsertCoin.Game/Cabinet/Memo*", "src/InsertCoin.Game/Cabinet/memo_quad.gdshader", "src/InsertCoin.Game/Cabinet/Printer.cs", "src/InsertCoin.Game/Cabinet/Receipt.cs", "src/InsertCoin.Game/Cabinet/receipt_quad.gdshader"],
       "script": "memoseed@2,memoopen@4",
       "shots": [8],
       "window": " - Beside the Cabinet memo",
