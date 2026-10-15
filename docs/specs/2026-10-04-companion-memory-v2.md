@@ -215,3 +215,19 @@ chunked one). Checked against a local receiver; the Windows notification was see
 - **Dates in the player's zone.** Times she writes down take the offset of their own date, and repeats keep their
   time of day across a clock change (this PC is on US Eastern time; the tests found an hour's slip after 1 November).
 
+### 12. The memory book saves as you go (decided 2026-10-14, built)
+
+The book had Apply and "Save and close", and saving wrote both notes and every fact back whole, so an Apply could put
+back what upkeep had changed meanwhile, and a book left open showed old lists (issue #18). The user chose to save as
+you go, as Settings does: each field is saved when the player leaves it (Enter, or a click elsewhere, the book losing
+focus included), a tick, a choice or a delete at once; the forget buttons still ask twice; only Close is left.
+*Built 2026-10-14* (`MemoryEdits`, tests):
+- **Only what was edited is written**, onto the item as it is now (an agenda item's other parts as she left them),
+  and only if it is still what the book showed when the player began. Otherwise she changed it meanwhile: the row
+  shows hers and asks which to keep ("Keep yours", "Keep <name>'s"); a fact she retired or merged meanwhile says why,
+  with "Keep yours" (brought back, in the player's words) and "Let it go". Closing the book or the app keeps the
+  player's.
+- **It follows her memory in place** every two seconds: agenda, threads, facts (new ones on top while it is open),
+  retired facts, diary, memos and the two notes, except a field the player has changed and not left.
+- The line beside Close says what was saved last, and when.
+

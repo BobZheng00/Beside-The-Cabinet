@@ -24,8 +24,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   runs upkeep every minute, and lets them use their tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`;
   `PermissionCard` is where they ask). `App/MindSettings.cs` is the Mind page in Settings (the provider),
   `App/MemoryBook.cs` the memory book. In `InsertCoin.Mind`: `Recall` picks memories, `Log` keeps their notes on your
-  talks, a log by day, and `Upkeep` turns new notes into changes to their facts and your agenda while the talk is
-  quiet. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
+  talks, a log by day, `Upkeep` turns new notes into changes to their facts and your agenda while the talk is
+  quiet, and `MemoryEdits` saves an edit made in the memory book without writing over a change of theirs. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/specs/2026-10-11-observational-memory.md](../../docs/specs/2026-10-11-observational-memory.md)
   (the research before it: [docs/research/2026-10-02-companion-memory.md](../../docs/research/2026-10-02-companion-memory.md)).
 - `App/Voice.cs` is the voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
