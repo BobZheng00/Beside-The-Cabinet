@@ -1,6 +1,7 @@
 # Records a short clip of the app in a throwaway, muted profile (Steam ignored), for judging motion: Godot's movie
-# writer renders every frame at a fixed rate (game time, so dev actions land on the frame they name), off screen.
-# Never touches the real profile. Only one copy of the app runs at a time, so quit any running one first.
+# writer renders every frame at a fixed rate (game time, so dev actions land on the frame they name), off screen, on a
+# Windows desktop of its own (as shoot.ps1 -Hidden): nothing reaches the player's screen, taskbar or focus, and a
+# "seen by the player:" line says what did after all. Never touches the real profile. Only one copy of the app runs at a time, so quit any running one first.
 #
 #   tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer
 #   tools\dev\clip.ps1 -Script "moment:cheer@3" -Seconds 6 -Tag cheer -Crop "150:220:80:135" -Scale 3   # her upper body, three times the size
@@ -46,9 +47,13 @@ $count = [int]($Seconds * $Fps)
 $runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
 try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
-$p = Start-Process $Godot -ArgumentList "--path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count -- $userArgs" `
-  -PassThru -WindowStyle Minimized -RedirectStandardOutput $log -RedirectStandardError $err
+# on a Windows desktop of its own, as shoot.ps1 -Hidden runs it: nothing reaches the player's screen, taskbar or focus
+if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
+$p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count -- $userArgs", $log, $err)
+$watch = New-Object Unseen $p.Id
 $p.WaitForExit()
+[Backstage]::EndAll()
+$watch.Stop()
 $runLock.ReleaseMutex(); $runLock.Dispose()
 
 $first = [int]($From * $Fps)
