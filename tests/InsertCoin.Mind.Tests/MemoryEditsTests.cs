@@ -58,7 +58,7 @@ public class MemoryEditsTests
         Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", shown, "The player's exam is on Tuesday."));
         Assert.Equal(["The player's exam is on Monday 5 October."], store.Facts("shino").Select(f => f.Text));       // nothing written
 
-        Assert.Equal(exam, MemoryEdits.KeepFact(store, "shino", shown, "The player's exam is on Tuesday.", clock.Now).Id);
+        Assert.Equal(exam, MemoryEdits.KeepFact(store, "shino", shown, "The player's exam is on Tuesday.", clock.Now)!.Id);
         Assert.Equal(["The player's exam is on Tuesday.", "The player's exam is on Monday 5 October."], store.Facts("shino").Select(f => f.Text));
     }
 
@@ -81,7 +81,7 @@ public class MemoryEditsTests
         Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", shown, "The player loves Hades."));
         var back = MemoryEdits.KeepFact(store, "shino", shown, "The player loves Hades.", Friday);
         Assert.Equal(back, store.Facts("shino").Single());
-        Assert.Equal("The player loves Hades.", back.Text);
+        Assert.Equal("The player loves Hades.", back!.Text);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class MemoryEditsTests
         Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", shown, "The player loves Hades."));
         var kept = MemoryEdits.KeepFact(store, "shino", shown, "The player loves Hades.", Friday.AddHours(1), keepHers: true);
 
-        Assert.Equal((hades, "The player loves Hades."), (kept.Id, kept.Text));
+        Assert.Equal((hades, "The player loves Hades."), (kept!.Id, kept.Text));
         var hers = Assert.Single(store.Retired("shino"));
         Assert.Equal(("The player enjoys Hades a lot.", "changed to: The player loves Hades."), (hers.Text, hers.Why));
     }
