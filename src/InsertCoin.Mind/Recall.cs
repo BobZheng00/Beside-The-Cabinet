@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 
 namespace InsertCoin.Mind;
 
-/// <summary>Something remembered for the moment, as it is put in front of her.</summary>
-public sealed record Memory(string Text, long? FactId = null);
+/// <summary>Something remembered for the moment, as it is put in front of her, and where it came from (for her reply to keep).</summary>
+public sealed record Memory(string Text, long? FactId = null, Origin? From = null);
 
 /// <summary>What the player said and what her facts and notes mean, as vectors from one embedding model.</summary>
 public sealed record Meaning(float[] Query, EmbeddingModel Model, IReadOnlyDictionary<long, float[]> Facts, IReadOnlyDictionary<long, float[]>? Observations = null);
@@ -43,16 +43,17 @@ public static class Recall
         query.ExceptWith(Terms(name));                      // her own name says nothing about what to remember
         var candidates = new List<(Memory Memory, HashSet<string> Terms, float[]? Vector, double Retention, int Importance, bool Old, bool Pinned)>();
         foreach (var fact in facts.Where(f => !f.Faded(now)))
-            candidates.Add((new Memory(Prompt.Dated(fact), fact.Id), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
+            candidates.Add((new Memory(Prompt.Dated(fact), fact.Id, new(Origin.Fact, fact.Id)), Terms(fact.Text).ToHashSet(), meaning?.Facts.GetValueOrDefault(fact.Id),
                             fact.Retention(now), fact.Importance, false, fact.Pinned));
         foreach (var fact in formerly ?? [])
-            candidates.Add((new Memory($"Until {fact.Retired?.ToString("d MMM yyyy", English)}: {fact.Text}"), Terms(fact.Text).ToHashSet(),
+            candidates.Add((new Memory($"Until {fact.Retired?.ToString("d MMM yyyy", English)}: {fact.Text}", From: new(Origin.Fact, fact.Id)), Terms(fact.Text).ToHashSet(),
                             meaning?.Facts.GetValueOrDefault(fact.Id), Math.Exp(-(now - (fact.Retired ?? now)).TotalDays / 60), fact.Importance / 2, false, false));
         foreach (var excerpt in excerpts)
-            candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}"),
+            candidates.Add((new Memory($"Said on {excerpt.At.ToString("ddd d MMM", English)} ({When.Ago(excerpt.At, now)}): {excerpt.Text.Replace('\n', ' ')}",
+                                       From: excerpt.Passage > 0 ? new(Origin.Passage, excerpt.Passage) : null),
                             Terms(excerpt.Text).ToHashSet(), excerpt.Vector, 1.0, 3, true, false));        // old talk comes back by relevance, whatever its age
         foreach (var o in observations ?? [])
-            candidates.Add((new Memory($"{o.At.ToString("ddd d MMM yyyy", English)} ({When.Ago(o.At, now)}): {o.Text}"), Terms(o.Text).ToHashSet(),
+            candidates.Add((new Memory($"{o.At.ToString("ddd d MMM yyyy", English)} ({When.Ago(o.At, now)}): {o.Text}", From: new(Origin.Note, o.Id)), Terms(o.Text).ToHashSet(),
                             meaning?.Observations?.GetValueOrDefault(o.Id), Math.Exp(-(now - o.At).TotalDays / 60),
                             o.Priority switch { Priority.High => 8, Priority.Medium => 5, _ => 3 }, false, false));
         if (candidates.Count == 0)

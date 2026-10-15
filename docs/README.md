@@ -355,7 +355,13 @@ tokens read, the share served from the provider's cache, cache writes and output
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes they work from above
-it). Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: their log, memos,
+it). Click one of your companion's replies (it lights up under the mouse) to see what they had in mind for it, and
+click it again or press Close to put it away. It comes in two groups: "Kept in mind for every reply" (their most
+important facts) and "Recalled for this reply" (what came back with what was just said: smaller facts, what used to be
+true, notes from their diary, old talk). Each says what it is in words ("About you", "About you two", "About" them,
+"No longer true", their diary, "From an earlier talk") with its date. Forget there and they forget it from then on;
+Edit corrects a fact. The talk itself can't be changed: forgetting old talk only stops them recalling it, and the line
+stays in the chat. Replies from before this version kept nothing, and don't react to a click. Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: their log, memos,
 forget): edit, pin (always in mind, upkeep leaves it alone) or delete anything. Apply saves and keeps it open, Save
 and close saves and closes; while it is open it follows what upkeep and their replies change, unless you have changes
 not yet applied (a line says so then). "Clear the chat" starts the conversation afresh and keeps what they remember;

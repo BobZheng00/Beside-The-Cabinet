@@ -40,7 +40,9 @@ than its room, which would run off the window's right edge, then how many of the
 the Welcome and on "Meet …"),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Apply`
 (presses that button in it, `+_Add` too), `ticketpress:0`
-(the showing ticket's Snooze; 1: OK), `chathistory`, `memoryseed` (a few notes, facts,
+(the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
+something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
+on the memory showing with those words in it; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test

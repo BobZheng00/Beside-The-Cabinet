@@ -217,28 +217,30 @@ public static class Prompt
     /// then by importance and the newest, while they fit; for a couple of weeks a fact that changed says what it was, and
     /// an important one that ended says so, so she knows what is news.
     /// </summary>
-    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now)
+    /// <param name="listed">Gets each fact that went in, for her reply to keep (see <see cref="MindStore.InMind"/>).</param>
+    public static string Known(string own, IReadOnlyList<Fact> facts, IReadOnlyList<Fact> retired, DateTimeOffset now, ICollection<Fact>? listed = null)
     {
         var lines = new List<string>();
         if (own.Trim() is { Length: > 0 } words)
             lines.Add($"In the player's own words: {words}");
         var room = KnownLimit;
-        void Add(string line)
+        void Add(Fact fact, string line)
         {
             if (line.Length + 1 > room)
                 return;                                     // a shorter one further down may still fit
             lines.Add(line);
+            listed?.Add(fact);
             room -= line.Length + 1;
         }
         var recent = retired.Where(f => f.Retired is { } at && now - at <= ChangeShown).ToList();
         string Day(Fact f) => f.Retired!.Value.ToString("d MMM", English);
         foreach (var fact in facts.Where(f => f.Pinned || f.Importance >= KnownFrom)
                                   .OrderByDescending(f => f.Pinned).ThenByDescending(f => f.Importance).ThenByDescending(f => f.Learned))
-            Add(recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
+            Add(fact, recent.FirstOrDefault(r => r.Why == $"{Conversation.Changed} {fact.Text}") is { } before
                 ? $"- {Dated(fact)} (Since {Day(before)}; before: {before.Text})"
                 : $"- {Dated(fact)}");
         foreach (var ended in recent.Where(r => r.Why == Conversation.Ended && r.Importance >= KnownFrom))
-            Add($"- No longer so since {Day(ended)}: {ended.Text}");
+            Add(ended, $"- No longer so since {Day(ended)}: {ended.Text}");
         return string.Join("\n", lines);
     }
 

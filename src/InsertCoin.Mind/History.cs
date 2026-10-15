@@ -1,10 +1,13 @@
 namespace InsertCoin.Mind;
 
-/// <summary>A stretch of the conversation from one sitting, kept for searching (see <see cref="History"/>).</summary>
-public sealed record Passage(long Id, long First, long Last, DateTimeOffset At, string Text);
+/// <summary>
+/// A stretch of the conversation from one sitting, kept for searching (see <see cref="History"/>). Forgotten: the
+/// player had her forget it, so it is never recalled again; the lines themselves stay in the conversation.
+/// </summary>
+public sealed record Passage(long Id, long First, long Last, DateTimeOffset At, string Text, bool Forgotten = false);
 
-/// <summary>A few lines from an old passage that relate to what the player just said, with the passage's vector.</summary>
-public sealed record Excerpt(string Text, DateTimeOffset At, float[]? Vector);
+/// <summary>A few lines from an old passage that relate to what the player just said, with the passage's vector and id.</summary>
+public sealed record Excerpt(string Text, DateTimeOffset At, float[]? Vector, long Passage = 0);
 
 /// <summary>
 /// The whole conversation, searchable (what Letta, once MemGPT, calls recall memory). Lines before the window are
@@ -99,7 +102,7 @@ public sealed class History(MindStore store, string character, string name)
     /// </summary>
     public IReadOnlyList<Excerpt> Search(string said, long through, float[]? query = null, EmbeddingModel? model = null, int count = 10)
     {
-        var candidates = Passages.Where(p => p.Last <= through).ToList();
+        var candidates = Passages.Where(p => p.Last <= through && !p.Forgotten).ToList();
         if (candidates.Count == 0)
             return [];
         if (model is not null)
@@ -133,7 +136,7 @@ public sealed class History(MindStore store, string character, string name)
     {
         var lines = store.Between(character, passage.First, passage.Last).Where(l => l.Speaker != Speaker.Cabinet).ToList();
         if (lines.Count == 0)
-            return new Excerpt(passage.Text.Length > 400 ? passage.Text[..400] + "…" : passage.Text, passage.At, _vectors.GetValueOrDefault(passage.Id));
+            return new Excerpt(passage.Text.Length > 400 ? passage.Text[..400] + "…" : passage.Text, passage.At, _vectors.GetValueOrDefault(passage.Id), passage.Id);
         var kept = new List<Line>();
         var length = 0;
         foreach (var line in lines)
@@ -143,7 +146,7 @@ public sealed class History(MindStore store, string character, string name)
             kept.Add(line);
             length += Said(line).Length + 1;
         }
-        return new Excerpt(string.Join("\n", kept.Select(Said)), kept[0].At, _vectors.GetValueOrDefault(passage.Id));
+        return new Excerpt(string.Join("\n", kept.Select(Said)), kept[0].At, _vectors.GetValueOrDefault(passage.Id), passage.Id);
     }
 
     private string Said(Line line) => $"{(line.Speaker == Speaker.User ? "Player" : name)}: {line.Text}";

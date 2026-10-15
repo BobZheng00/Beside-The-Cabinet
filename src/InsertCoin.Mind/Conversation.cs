@@ -174,13 +174,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var offered = tools?.Offered;
+        // what she always has in mind, and what of it went in, kept with her reply beside what recall brought (see MindStore.InMind)
+        var listed = new List<Fact>();
+        var (aboutPlayer, aboutUs, aboutHer) = (Known(MindStore.Shared, listed), Known(character, listed), Known(MindStore.Herself(character), listed));
+        Origin[] inMind = [.. listed.Select(f => new Origin(Origin.Fact, f.Id, Listed: true)), .. memories.Select(m => m.From).OfType<Origin>()];
         // what is handed over goes with this turn only: pictures and PDFs as they are (when the model takes them), a text file's words
         List<ChatMessage> Messages(bool withTools, bool seeing)
         {
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
-            var built = Prompt.Build(persona, Known(MindStore.Shared), Known(character),
+            var built = Prompt.Build(persona, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known);
+                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -303,7 +307,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         }
         catch (OperationCanceledException) when (reply.Length > 0)
         {
-            Keep(reply.ToString());                         // stopped part-way (cut off, or out of time): what she had written is hers
+            Keep(reply.ToString(), inMind);                 // stopped part-way (cut off, or out of time): what she had written is hers
             throw;
         }
         catch (Exception) when (fromCabinet && !wrote && !acted)
@@ -322,7 +326,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // to stretch" with the weather, then "the stretch reminder came and went" with the music)
         if (fromCabinet && !wrote && !acted)
             store.RemoveLine(line);
-        return Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole);
+        return Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole, inMind);
     }
 
     /// <summary>
@@ -428,11 +432,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     private (long Line, string Streamed)? _lastReply;      // her latest reply as it streamed in (untrimmed), and its line
 
-    private string Keep(string streamed)
+    /// <summary>Her reply, kept as her line, with what she had in mind for it (see <see cref="MindStore.InMind"/>).</summary>
+    private string Keep(string streamed, IEnumerable<Origin> inMind)
     {
         var answer = streamed.Trim();
         if (answer.Length > 0)
+        {
             _lastReply = (store.Add(character, Speaker.Her, answer, _clock.GetLocalNow()), streamed);
+            store.KeepInMind(_lastReply.Value.Line, inMind);
+        }
         return answer;
     }
 
@@ -914,9 +922,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// the important facts, the same for each. Listing all of hers, small ones too, put trivia kept wrong ahead of the
     /// conversation itself ("a dog named Oliver", a cat in fact): answers fell from 84% to 80% on LoCoMo (2026-10-11).
     /// </summary>
-    private string Known(string scope) =>
+    private string Known(string scope, ICollection<Fact>? listed = null) =>
         Prompt.Known(MindStore.IsHerself(scope) ? "" : store.Note(scope, scope == MindStore.Shared ? MindStore.AboutUser : MindStore.Us),
-                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow());
+                     [.. store.Facts(character).Where(f => f.Scope == scope)], [.. store.Retired(character).Where(f => f.Scope == scope)], _clock.GetLocalNow(), listed);
 
     private IReadOnlyList<Line> Unfolded() => store.After(character, store.Folded(character));
 }
