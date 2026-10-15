@@ -197,9 +197,9 @@ public partial class ChatHistory : Window
             {
                 _closeOpen?.Invoke();
                 _closeOpen = () => Fill(false);
-                // the panel in view (the newest reply sits at the bottom edge), then the reply itself, which moves up
-                // when a tall panel above it closes, and wins when both don't fit
-                Reveal(holder, reply);
+                // the panel in view (the newest reply sits at the bottom edge), and the reply above it too, which moves
+                // up when a tall panel above it closes, and wins when both don't fit
+                Reveal(holder, top: reply);
             }
             else if (!on)
                 _closeOpen = null;
@@ -335,13 +335,16 @@ public partial class ChatHistory : Window
         return item;
     }
 
-    /// <summary>Scrolls the history so that each of <paramref name="controls"/> is in view, in turn, once laid out.</summary>
-    private async void Reveal(params Control[] controls)
+    /// <summary>Once laid out, scrolls the history so that <paramref name="control"/> is in view, never past the top of <paramref name="top"/>.</summary>
+    private async void Reveal(Control control, Control? top = null)
     {
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        foreach (var control in controls)
-            if (IsInstanceValid(control) && control.IsVisibleInTree())
-                _scroll.EnsureControlVisible(control);
+        if (!IsInstanceValid(control) || !control.IsVisibleInTree())
+            return;
+        _scroll.EnsureControlVisible(control);
+        // the lines only move a frame after a scroll, so top is read by its place among them, not on screen
+        if (top is not null)
+            _scroll.ScrollVertical = Math.Min(_scroll.ScrollVertical, (int)top.Position.Y);
     }
 
     /// <summary>
