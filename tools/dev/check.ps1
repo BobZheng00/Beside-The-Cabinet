@@ -103,6 +103,9 @@ try {
       $ran = if (Test-Path $report) { Get-Content -Raw -Encoding UTF8 $report | ConvertFrom-Json } else { $null }
       if ($ran -and $ran.sha -eq $sha) {                             # which scenarios ran, and why each other one didn't
         $steps[$steps.Count - 1].scenarios = @($ran.scenarios | ForEach-Object { [ordered]@{ name = $_.name; result = $_.result; picked = $_.picked } })
+        # on the console too, pass or fail, so a record made from this output (the pm plugin's) says it as well
+        Write-Host "   scenarios $($ran.picked):"
+        foreach ($s in $ran.scenarios) { Write-Host ("   {0,-8} {1,-10} {2}" -f $s.result, $s.name, $(if ($s.picked) { $s.picked } else { "asked for" })) }
       }
       if ($smoke -eq "BLOCKED") { $blocked = $true; $ok = $false }
       elseif ($smoke -ne "PASS") { $ok = $false }

@@ -52,6 +52,7 @@ if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hi
 $p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count -- $userArgs", $log, $err)
 $watch = New-Object Unseen $p.Id
 $p.WaitForExit()
+[Backstage]::EndAll()
 $watch.Stop()
 $runLock.ReleaseMutex(); $runLock.Dispose()
 

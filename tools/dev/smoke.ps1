@@ -15,8 +15,10 @@
 #
 # -Only      scenario names, comma-separated
 # -Changed   pick the scenarios by what changed (scenarios.json's "about" has the rule): the others are recorded as
-#            SKIPPED with the reason; none picked, nothing is run (no build, no lock)
-# -Files     with -Changed: these changed paths (from the checkout's root) instead of git's origin/main...HEAD
+#            SKIPPED with the reason; none picked, nothing is run (no build, no lock). When git can't say what
+#            changed, or nothing did, every scenario runs
+# -Files     with -Changed: these changed paths (from the checkout's root) instead of git's <Base>...HEAD
+# -Base      with -Changed: what the branch is compared with (default origin/main)
 # -NoBuild   skip building the game first (check.ps1 has just built it)
 # -Out       where shots, logs and the report go (default: <main checkout>\.qa\smoke\<branch>)
 # -Wait      minutes to wait for another smoke run before giving up as BLOCKED (default 20)
@@ -32,7 +34,7 @@
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
 # Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another run, or a copy of the app running).
 param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
-      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain)
+      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main")
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
 $game = Join-Path $repo "src\InsertCoin.Game"
@@ -45,9 +47,15 @@ if ($List) {
 
 # Which scenarios a change needs, each with why it runs or is skipped: all of them when shared code or the harness
 # changed (the suite's "all"), each whose "covers" match a changed file, and boot whenever anything the app runs changed
-# (the suite's "app"). Markdown never counts. Patterns are wildcards (-like) on paths with forward slashes.
+# (the suite's "app"). READMEs never count (a character's persona.md does: the app reads it). Patterns are wildcards
+# (-like) on paths with forward slashes. With nothing listed (git couldn't say, or on main itself), every one runs.
 function Pick([string[]]$changed) {
-  $changed = @($changed | ForEach-Object { $_.Trim().Replace('\', '/') } | Where-Object { $_ -ne "" -and $_ -notlike "*.md" })
+  $changed = @($changed | ForEach-Object { $_.Trim().Replace('\', '/') } | Where-Object { $_ -ne "" })
+  if ($changed.Count -eq 0) {
+    foreach ($s in $suite.scenarios) { [pscustomobject]@{ name = $s.name; run = $true; why = "no list of what changed: every scenario runs" } }
+    return
+  }
+  $changed = @($changed | Where-Object { $_ -notmatch '(^|/)README[^/]*\.md$' })
   function Matching($patterns) { @($changed | Where-Object { $f = $_; @($patterns | Where-Object { $_ -and $f -like $_ }).Count -gt 0 }) }
   $shared = @(Matching $suite.all)
   $app = @(Matching $suite.app)
@@ -82,7 +90,12 @@ $results = New-Object System.Collections.ArrayList
 $started = Get-Date
 $picks = @()
 if ($Changed) {
-  if ($null -eq $Files) { $Files = @(& git -C $repo diff --name-only origin/main...HEAD) }
+  $pickedBy = "by the files given (-Files)"
+  if ($null -eq $Files) {
+    $Files = @(& git -C $repo diff --name-only "$Base...HEAD" 2>$null)
+    if ($LASTEXITCODE -ne 0) { $Files = @() }                        # git couldn't say: every scenario runs
+    $pickedBy = "by what changed since $Base"
+  }
   $picks = @(Pick @($Files | ForEach-Object { $_ -split "," }))
   if ($Explain) {
     foreach ($p in $picks) { "{0,-4} {1,-10} {2}" -f $(if ($p.run) { "run" } else { "skip" }), $p.name, $p.why }
@@ -99,7 +112,7 @@ function Finish([int]$code) {
   $report = [ordered]@{
     sha = $sha; branch = $branch; checkout = $repo; when = (Get-Date).ToString("o")
     seconds = [int]((Get-Date) - $started).TotalSeconds; passed = $passed; failed = $failed; blocked = $blocked
-    skipped = $skipped; picked = $(if ($Changed) { "by what changed since origin/main" } else { "all asked for" })
+    skipped = $skipped; picked = $(if ($Changed) { $pickedBy } else { "all asked for" })
     out = $Out; scenarios = @($results)
   }
   $utf8 = New-Object System.Text.UTF8Encoding($false)

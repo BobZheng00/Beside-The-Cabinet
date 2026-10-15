@@ -206,7 +206,7 @@ foreach ($s in $Shots) {
 
 Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-if ($watch) { $watch.Stop() }
+if ($watch) { [Backstage]::EndAll(); $watch.Stop() }
 if ($form) { $form.Close() }
 $runLock.ReleaseMutex(); $runLock.Dispose()
 Start-Sleep -Milliseconds 500

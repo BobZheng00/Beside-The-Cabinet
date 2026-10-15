@@ -111,7 +111,9 @@ tray icon or Windows notice, and the window in front stays theirs. The app runs 
 app's code runs. Windows draws nothing on a desktop no one looks at, so the app pictures its own windows there (`--shots`):
 the screenshots are the same as before, except that a window's title bar isn't in its picture. Meanwhile the run watches
 the player's desktop: a window of the run's on any monitor or on the taskbar, or in front, is said in a
-`seen by the player:` line, which fails a smoke scenario. A run without `-Hidden` shows the app as before.
+`seen by the player:` line, which fails a smoke scenario. The app and everything it starts live in a job that ends
+with the script: a run killed halfway leaves no unseen copy behind holding the app's lock. A run without `-Hidden`
+shows the app as before.
 
 Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
 
@@ -132,7 +134,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
 - Which scenarios a check runs (`smoke.ps1 -Changed`, from `git diff origin/main...HEAD`): every one when shared code
   or the harness changed (the file's `all`: `Main.cs`, `Stool.cs`, `project.godot`, Core, `smoke.ps1`, `shoot.ps1`,
   `mock_mind.py`, the scenarios…), each one whose `covers` match a changed file, and `boot` whenever anything the app
-  runs changed; none when only tests or docs did. The others are reported as SKIPPED, with the reason.
+  runs changed (a character's `persona.md` too; READMEs never count); none when only tests or docs did; every one
+  when git can't say what changed, or nothing did. The others are reported as SKIPPED, with the reason, and
+  `check.ps1` prints each scenario's result and reason.
   `-Changed -Explain` says what a change would run without running it (`-Files a,b` for a list of your own), and
   `tools\dev\smoke\pick-check.ps1`, which `check.ps1` runs first, checks the rule on a few lists. Main's baseline
   (`smoke.ps1` with no options) runs everything.

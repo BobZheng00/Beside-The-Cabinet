@@ -4,7 +4,8 @@
 // Backstage starts the app on a Windows desktop of its own. Nothing there ever reaches the player's screen, taskbar
 // (its button, its tray icon, its notices) or focus: Godot shows its window, and asks for the focus, before any of the
 // app's code runs, so keeping it off the player's desktop is the only way to keep that from them. Windows draws nothing
-// on a desktop no one looks at, so the app pictures its own windows there (TestShots, --shots).
+// on a desktop no one looks at, so the app pictures its own windows there (TestShots, --shots). The run lives in a job
+// that ends with the script, so a run killed halfway leaves nothing behind.
 //
 // Unseen watches the player's desktop meanwhile, and says each thing a run showed them as a "seen by the player:" line,
 // which fails a smoke scenario: a window of the run's processes (the one started and everything it starts) on any
@@ -21,8 +22,13 @@ public static class Backstage
 {
     const string Name = "InsertCoinTests";
     static IntPtr desk;
+    static readonly List<IntPtr> jobs = new List<IntPtr>();
 
-    /// <summary>Starts a command line on the test desktop, with no console, its output and errors going to files.</summary>
+    /// <summary>
+    /// Starts a command line on the test desktop, with no console, its output and errors going to files. It and
+    /// everything it starts live in a job that ends with this process: a run killed halfway leaves no copy of the app
+    /// running unseen (holding the app's single-instance lock, so the player's own copy wouldn't start).
+    /// </summary>
     public static Process Start(string commandLine, string output, string errors)
     {
         if (desk == IntPtr.Zero)
@@ -37,14 +43,36 @@ public static class Backstage
             if (o == new IntPtr(-1) || e == new IntPtr(-1))
                 throw new InvalidOperationException("Can't write " + output + " or " + errors);
             var si = new STARTUPINFO { cb = Marshal.SizeOf(typeof(STARTUPINFO)), lpDesktop = Name, dwFlags = 0x100, hStdOutput = o, hStdError = e };   // STARTF_USESTDHANDLES
+            var job = CreateJobObjectW(IntPtr.Zero, null);
+            var limits = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+            limits.BasicLimitInformation.LimitFlags = 0x2000;                                          // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if (job == IntPtr.Zero || !SetInformationJobObject(job, 9, ref limits, Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION))))
+                throw new InvalidOperationException("Can't make a job: " + Marshal.GetLastWin32Error());
+            jobs.Add(job);                                  // never closed until EndAll or this process ends
             PROCESS_INFORMATION pi;
-            if (!CreateProcessW(null, commandLine, IntPtr.Zero, IntPtr.Zero, true, 0x08000000, IntPtr.Zero, null, ref si, out pi))   // CREATE_NO_WINDOW
+            if (!CreateProcessW(null, commandLine, IntPtr.Zero, IntPtr.Zero, true, 0x08000004, IntPtr.Zero, null, ref si, out pi))   // CREATE_NO_WINDOW, CREATE_SUSPENDED
                 throw new InvalidOperationException("CreateProcess failed: " + Marshal.GetLastWin32Error());
-            CloseHandle(pi.hThread);
-            try { return Process.GetProcessById(pi.dwProcessId); }
-            finally { CloseHandle(pi.hProcess); }
+            try
+            {
+                if (!AssignProcessToJobObject(job, pi.hProcess))
+                {
+                    TerminateProcess(pi.hProcess, 1);
+                    throw new InvalidOperationException("Can't put the run in its job: " + Marshal.GetLastWin32Error());
+                }
+                ResumeThread(pi.hThread);                   // in the job before it starts anything
+                return Process.GetProcessById(pi.dwProcessId);
+            }
+            finally { CloseHandle(pi.hThread); CloseHandle(pi.hProcess); }
         }
         finally { CloseHandle(o); CloseHandle(e); }
+    }
+
+    /// <summary>Ends everything started here that is still running.</summary>
+    public static void EndAll()
+    {
+        foreach (var job in jobs)
+            CloseHandle(job);
+        jobs.Clear();
     }
 
     /// <summary>The windows showing on the test desktop, the one on top first.</summary>
@@ -63,6 +91,24 @@ public static class Backstage
         public short wShowWindow, cbReserved2; public IntPtr lpReserved2, hStdInput, hStdOutput, hStdError;
     }
     [StructLayout(LayoutKind.Sequential)] struct PROCESS_INFORMATION { public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+    {
+        public long PerProcessUserTimeLimit, PerJobUserTimeLimit; public uint LimitFlags; public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize;
+        public uint ActiveProcessLimit; public UIntPtr Affinity; public uint PriorityClass, SchedulingClass;
+    }
+    [StructLayout(LayoutKind.Sequential)] struct IO_COUNTERS { public ulong Reads, Writes, Others, ReadBytes, WriteBytes, OtherBytes; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+    {
+        public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation; public IO_COUNTERS IoInfo;
+        public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+    }
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr CreateJobObjectW(IntPtr sa, string name);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref JOBOBJECT_EXTENDED_LIMIT_INFORMATION info, int size);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+    [DllImport("kernel32.dll")] static extern uint ResumeThread(IntPtr thread);
+    [DllImport("kernel32.dll")] static extern bool TerminateProcess(IntPtr process, uint code);
     delegate bool EnumProc(IntPtr h, IntPtr p);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr mode, uint flags, uint access, IntPtr sa);
     [DllImport("user32.dll")] static extern bool EnumDesktopWindows(IntPtr desk, EnumProc f, IntPtr p);
@@ -74,7 +120,7 @@ public static class Backstage
 
 public sealed class Unseen : IDisposable
 {
-    readonly HashSet<uint> ours = new HashSet<uint>();
+    readonly HashSet<uint> ours = new HashSet<uint>(), others = new HashSet<uint>();     // only the watching thread uses these
     readonly HashSet<IntPtr> before = new HashSet<IntPtr>();
     readonly List<string> seen = new List<string>();
     readonly HashSet<string> said = new HashSet<string>();
@@ -82,16 +128,12 @@ public sealed class Unseen : IDisposable
     readonly Thread thread;
     volatile bool stop;
 
-    /// <summary>The window in front when the watch began, by its process and title.</summary>
-    public string FrontBefore;
-
     /// <summary>Starts watching the windows of <paramref name="root"/> and every process it starts.</summary>
     public Unseen(int root)
     {
         ours.Add((uint)root);
         EnumWindows((h, p) => { before.Add(h); return true; }, IntPtr.Zero);
-        FrontBefore = Describe(GetForegroundWindow());
-        thread = new Thread(Watch) { IsBackground = true };
+        thread = new Thread(Watch) { IsBackground = true, Priority = ThreadPriority.BelowNormal };
         thread.Start();
     }
 
@@ -107,9 +149,10 @@ public sealed class Unseen : IDisposable
 
     void Watch()
     {
+        // every 20 ms: light (a few hundred windows looked at, the process list read only for a window not seen before),
+        // and short enough to catch a window that shows for a moment
         while (!stop)
         {
-            Grow();
             var front = GetForegroundWindow();
             if (Counts(front))
                 Saw(front, "in front (it took the focus)");
@@ -126,7 +169,7 @@ public sealed class Unseen : IDisposable
                     Saw(h, "on the taskbar");
                 return true;
             }, IntPtr.Zero);
-            Thread.Sleep(5);
+            Thread.Sleep(20);
         }
     }
 
@@ -136,7 +179,15 @@ public sealed class Unseen : IDisposable
             return false;
         uint pid;
         GetWindowThreadProcessId(h, out pid);
-        lock (ours) return ours.Contains(pid);
+        if (ours.Contains(pid))
+            return true;
+        if (others.Contains(pid))
+            return false;
+        Grow();                                     // a new window of a process not met yet: did the run start it?
+        if (ours.Contains(pid))
+            return true;
+        others.Add(pid);
+        return false;
     }
 
     void Saw(IntPtr h, string what)
