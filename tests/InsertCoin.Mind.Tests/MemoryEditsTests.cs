@@ -176,4 +176,37 @@ public class MemoryEditsTests
         var hers = Assert.Single(store.Retired("shino"));
         Assert.Equal(("The player enjoys Hades a lot.", "changed to: The player loves Hades."), (hers.Text, hers.Why));
     }
+
+    [Fact]
+    public void An_edit_kept_after_a_clash_on_an_item_that_has_since_gone_is_put_back_not_lost()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+
+        // an agenda item she changed, then cancelled, while the question showed
+        var gym = store.AddPlan("Gym", Friday.AddHours(20), false, TimeSpan.Zero, Friday, null);
+        var plan = store.Agenda().Single();
+        store.UpdatePlan(gym, "Gym at eight", plan.At, false, plan.Before, plan.Repeat);
+        Assert.Equal(Kept.Clash, MemoryEdits.PlanText(store, plan, "Gym with Sam"));
+        store.DeletePlan(gym);
+        Assert.Equal(Kept.Gone, MemoryEdits.PlanChoice(store, plan, p => p with { Text = "Gym with Sam" }));     // keeping theirs onto it writes nothing...
+        MemoryEdits.KeepPlan(store, plan, "Gym with Sam", plan.At, false, plan.Before, plan.Repeat, Friday.AddHours(1));   // ...so it is put back
+        Assert.Equal(("Gym with Sam", plan.At, (TimeSpan?)TimeSpan.Zero), (store.Agenda().Single().Text, store.Agenda().Single().At, store.Agenda().Single().Before));
+
+        // a fact she reworded, then retired, while the question showed
+        var hades = store.AddFact(MindStore.Shared, "The player likes Hades.", 5, Friday);
+        var fact = store.Facts("shino").Single();
+        store.UpdateFact(hades, "The player enjoys Hades.");
+        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", fact, "The player loves Hades."));
+        store.Retire(hades, Conversation.Ended, Friday.AddHours(1));
+        var kept = MemoryEdits.KeepFact(store, "shino", fact, "The player loves Hades.", Friday.AddHours(2), keepHers: true);
+        Assert.Equal((hades, "The player loves Hades."), (kept!.Id, kept.Text));
+        Assert.Equal([kept], store.Facts("shino"));
+        Assert.Empty(store.Retired("shino"));
+
+        // and emptied, keeping theirs is forgetting it, theirs kept as what used to be true
+        Assert.Null(MemoryEdits.KeepFact(store, "shino", kept with { Text = "something else" }, "", Friday.AddHours(3), keepHers: true));
+        Assert.Empty(store.Facts("shino"));
+        Assert.Equal(("The player loves Hades.", Conversation.Ended), (store.Retired("shino").Single().Text, store.Retired("shino").Single().Why));
+    }
 }

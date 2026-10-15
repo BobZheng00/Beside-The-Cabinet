@@ -2218,9 +2218,10 @@ public partial class Stool : Node2D
                 _memoryBook!.DevType(words, typed);
                 break;
             case "memorybookleave": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevLeave(); break;    // leaves the field typed in last, as a click elsewhere
-            case "memorychange" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var reworded]:   // memorychange:words:new_words: her fact reworded under the book
+            case "memorychange" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var reworded]:   // memorychange:words:new_words: her fact (or agenda item) reworded under the book
                 _memoryBook!.DevChange(words, reworded);
                 break;
+            case "memorycancel": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment

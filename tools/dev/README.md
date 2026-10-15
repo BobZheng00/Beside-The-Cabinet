@@ -42,8 +42,9 @@ the Welcome and on "Meet …"),
 (presses that button in it, `+_Add`, `Keep_yours` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
 second click to press), `memorybooktype:words:new_words` (types the new words into the field showing
 with those words in it, a fact, an agenda item or a note, without leaving it), `memorybookleave` (leaves that field, as a click
-elsewhere: it is saved, or a question shows), `memorychange:words:new_words` (their fact with those words is reworded
-under the open book, as upkeep might: a clash with a field typed in but not left), `ticketpress:0`
+elsewhere: it is saved, or a question shows), `memorychange:words:new_words` (their fact with those words, or else their agenda item, is reworded
+under the open book, as upkeep might: a clash with a field typed in but not left), `memorycancel:words` (their agenda
+item with those words is cancelled under the open book, as upkeep might), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,

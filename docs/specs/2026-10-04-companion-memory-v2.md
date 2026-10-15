@@ -228,7 +228,9 @@ list's × stays one click); only Close is left.
   and only if it is still what the book showed when the player began. Otherwise she changed it meanwhile: the row
   shows hers and asks which to keep ("Keep yours", "Keep <name>'s"); a fact she retired or merged meanwhile says why,
   with "Keep yours" (brought back, in the player's words) and "Let it go"; an agenda item gone meanwhile asks once
-  however many of its fields changed, and is put back once. Items are matched by when they were learned or added as
+  however many of its fields changed, and is put back once. Whatever keeps the player's (a button, closing, a pin or
+  a choice) on an item that has gone since, even after a clash question was showing, puts it back or asks; it never
+  says kept while writing nothing. Items are matched by when they were learned or added as
   well as their id (SQLite gives a forgotten item's id to the next one).
 - **Closing never drops an edit.** A field typed in and not left is saved; a question left unanswered keeps the
   player's, and hers is kept too: a fact's as what it used to say (retired, "changed to: " the player's words), a

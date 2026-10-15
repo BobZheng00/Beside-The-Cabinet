@@ -319,8 +319,25 @@ public partial class MemoryBook : Window
             _store.UpdateFact(fact.Id, text);
             GD.Print($"Memory book: her fact with \"{words}\" reworded");
         }
+        else if (_store.Agenda().FirstOrDefault(p => p.Text.Contains(words)) is { } plan)
+        {
+            _store.UpdatePlan(plan.Id, text, plan.At, plan.AllDay, plan.Before, plan.Repeat);
+            GD.Print($"Memory book: her agenda item with \"{words}\" reworded");
+        }
         else
-            GD.PrintErr($"Memory book: no fact with \"{words}\"");
+            GD.PrintErr($"Memory book: no fact or agenda item with \"{words}\"");
+    }
+
+    /// <summary>Dev: the agenda item with these words in it is cancelled under the book, as her upkeep would.</summary>
+    public void DevCancel(string words)
+    {
+        if (_store.Agenda().FirstOrDefault(p => p.Text.Contains(words)) is { } plan)
+        {
+            _store.DeletePlan(plan.Id);
+            GD.Print($"Memory book: her agenda item with \"{words}\" cancelled");
+        }
+        else
+            GD.PrintErr($"Memory book: no agenda item with \"{words}\"");
     }
 
     /// <summary>What each part of the book shows, read afresh (not when a fact was last recalled, which every reply changes).</summary>
@@ -580,6 +597,20 @@ public partial class MemoryBook : Window
         text.FocusExited += () => SaveFact(row);
         pin.Toggled += on =>
         {
+            if (MemoryEdits.Current(_store, _character, row.Shown) is null)
+            {
+                if (!on)
+                {
+                    Say($"{_name} let this go meanwhile.");
+                    Refresh();
+                    return;
+                }
+                // pinned though it left their mind meanwhile: put back, as the player has it, to stay in mind
+                Settle(row, row.Text);
+                KeepYours(row, row.Text.Text);
+                if (!_facts.Contains(row))
+                    return;                                 // emptied: forgotten instead
+            }
             _store.PinFact(row.Shown.Id, on);
             row.Shown = row.Shown with { Pinned = on };
             Saved(on ? "Pinned" : "Unpinned");
@@ -629,7 +660,7 @@ public partial class MemoryBook : Window
                 }
                 row.Pin.SetPressedNoSignal(fact.Pinned);
             }
-            else if (!Changed(row))
+            else if (!Changed(row) && row.Questions.Count == 0)
                 DropFact(row);
         }
         var added = stored.Where(f => fresh.ContainsKey((f.Id, f.Learned))).ToList();
@@ -658,35 +689,32 @@ public partial class MemoryBook : Window
             case Kept.Clash:
                 var theirs = MemoryEdits.Current(_store, _character, row.Shown)?.Text;
                 Ask(row, row.Text, edited, $"{_name} changed this meanwhile, to: “{theirs}”",
-                    ("Keep yours", () =>
-                    {
-                        row.Shown = MemoryEdits.KeepFact(_store, _character, row.Shown, edited, DateTimeOffset.Now);
-                        Saved("Fact saved");
-                    }),
+                    ("Keep yours", () => KeepYours(row, edited)),
                     ($"Keep {_name}'s", () =>
                     {
                         if (MemoryEdits.Current(_store, _character, row.Shown) is { } hers)
                         {
                             row.Shown = hers;
                             row.Text.Text = hers.Text;
+                            Say($"Kept {_name}'s.");
                         }
-                        Say($"Kept {_name}'s.");
+                        else
+                        {
+                            DropFact(row);                  // theirs has since left their mind as well (any newer fact shows on its own)
+                            Say("Let go.");
+                        }
                     }),
                     () =>
                     {
                         // closed unanswered: the player's is kept, and hers stays as what the fact used to say
-                        GD.Print($"Memory book: closed with a fact changed meanwhile; kept yours, and theirs is retired as it was: “{theirs}”");
-                        row.Shown = MemoryEdits.KeepFact(_store, _character, row.Shown, edited, DateTimeOffset.Now, keepHers: true);
+                        GD.Print($"Memory book: closed with a fact changed meanwhile; kept yours, and theirs (“{theirs}”) as what it used to say");
+                        KeepYours(row, edited, keepHers: true);
                     });
                 return;
             case Kept.Gone:
                 var why = _store.Retired(_character).FirstOrDefault(f => f.Id == row.Shown.Id && f.Learned == row.Shown.Learned)?.Why;
                 Ask(row, row.Text, edited, why is null ? $"{_name} let this go meanwhile." : $"{_name} retired this meanwhile ({why}).",
-                    ("Keep yours", () =>
-                    {
-                        row.Shown = MemoryEdits.KeepFact(_store, _character, row.Shown, edited, DateTimeOffset.Now);
-                        Saved("Fact saved");
-                    }),
+                    ("Keep yours", () => KeepYours(row, edited)),
                     ("Let it go", () =>
                     {
                         DropFact(row);
@@ -704,6 +732,21 @@ public partial class MemoryBook : Window
                 break;
         }
         Refresh();
+    }
+
+    /// <summary>The player's words for a fact kept, whatever became of it meanwhile (<see cref="MemoryEdits.KeepFact"/>); emptied, it is forgotten.</summary>
+    private void KeepYours(FactRow row, string edited, bool keepHers = false)
+    {
+        if (MemoryEdits.KeepFact(_store, _character, row.Shown, edited, DateTimeOffset.Now, keepHers) is { } kept)
+        {
+            row.Shown = kept;
+            Saved("Fact saved");
+        }
+        else
+        {
+            DropFact(row);
+            Saved("Fact forgotten");
+        }
     }
 
     private void ShowRetired()
@@ -725,16 +768,24 @@ public partial class MemoryBook : Window
             text.AddChild(new Label { Text = $"{Day(fact.Retired!.Value)}: {fact.Why}", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });
             row.AddChild(text);
             var back = new Button { Text = "Bring back", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin, TooltipText = "Kept in mind again" };
+            // each acts only on the fact shown: its id may since have gone to another one (SQLite reuses the newest)
+            bool Still() => _store.Retired(_character).Any(f => f.Id == fact.Id && f.Learned == fact.Learned);
             back.Pressed += () =>
             {
-                _store.Restore(fact.Id, DateTimeOffset.Now);
-                Saved("Brought back");
+                if (Still())
+                {
+                    _store.Restore(fact.Id, DateTimeOffset.Now);
+                    Saved("Brought back");
+                }
+                else
+                    Say("That had changed meanwhile: the list shows it as it is now.");
                 Refresh();
             };
             var delete = new Button { Text = "×", ThemeTypeVariation = "Quiet", TooltipText = "Forget this for good", SizeFlagsVertical = Control.SizeFlags.ShrinkBegin };
             delete.Pressed += () =>
             {
-                _store.DeleteFact(fact.Id);
+                if (Still())
+                    _store.DeleteFact(fact.Id);
                 Saved("Fact forgotten");
                 Refresh();
             };
@@ -780,7 +831,8 @@ public partial class MemoryBook : Window
             var settled = new Button { Text = "Settled", ThemeTypeVariation = "Quiet", TooltipText = "It's over: no more asking about it" };
             settled.Pressed += () =>
             {
-                _store.CloseThread(thread.Id, "settled in the memory book", DateTimeOffset.Now);
+                if (_store.Threads().Any(t => t.Id == thread.Id && t.Opened == thread.Opened))
+                    _store.CloseThread(thread.Id, "settled in the memory book", DateTimeOffset.Now);
                 Saved("Settled");
                 Refresh();
             };
@@ -803,7 +855,7 @@ public partial class MemoryBook : Window
                 continue;
             if (stored.FirstOrDefault(p => p.Id == row.Shown.Id && p.Added == row.Shown.Added) is { } plan)
                 Follow(row, plan);
-            else if (!TextChanged(row) && !WhenChanged(row))
+            else if (!TextChanged(row) && !WhenChanged(row) && row.Questions.Count == 0)
                 DropPlan(row);
         }
         foreach (var plan in stored.Where(p => _plans.All(r => r.Shown?.Id != p.Id || r.Shown.Added != p.Added)))
@@ -968,7 +1020,9 @@ public partial class MemoryBook : Window
     {
         if (row.Shown is null)
             return;
-        if (MemoryEdits.PlanChoice(_store, row.Shown, edit) != Kept.Gone)
+        if (MemoryEdits.PlanChoice(_store, row.Shown, edit) == Kept.Gone)
+            AskGone(row);                                   // put back with this choice, or let go
+        else
         {
             row.Shown = edit(row.Shown);
             Saved("Agenda item saved");
@@ -1001,9 +1055,7 @@ public partial class MemoryBook : Window
         if (!TextChanged(row))
             Settle(row, row.Text);                          // typed back to what was shown: nothing to choose
         if (!WhenChanged(row))
-            Settle(row, row.When);
-        if (!TextChanged(row) && !WhenChanged(row))
-            Settle(row, row.Box);
+            Settle(row, row.When);                          // (an item gone meanwhile keeps its question: it is still gone)
         if (TextChanged(row) && !Asked(row, row.Text, text))
         {
             if (text.Length < 2)
@@ -1014,7 +1066,10 @@ public partial class MemoryBook : Window
         if (WhenChanged(row) && !Asked(row, row.When, row.When.Text.Trim()))
         {
             if (when is not { } moved)
+            {
+                Settle(row, row.When);                      // what the question offered to keep is no longer what they have
                 CantRead(row);
+            }
             else
                 Outcome(row, row.When, row.When.Text.Trim(), MemoryEdits.PlanWhen(_store, row.Shown!, moved.At, moved.AllDay),
                         p => p with { At = moved.At, AllDay = moved.AllDay });
@@ -1043,45 +1098,30 @@ public partial class MemoryBook : Window
         {
             case Kept.Clash when MemoryEdits.Current(_store, row.Shown!) is { } hers:
                 Ask(row, field, edited, text ? $"{_name} changed this meanwhile, to: “{hers.Text}”" : $"{_name} moved this meanwhile, to {hers.Label}.",
-                    ("Keep yours", () =>
-                    {
-                        if (row.Shown is not null && MemoryEdits.PlanChoice(_store, row.Shown, mine) != Kept.Gone)
-                        {
-                            row.Shown = mine(row.Shown);
-                            Saved("Agenda item saved");
-                        }
-                    }),
+                    ("Keep yours", () => KeepMine(row, mine)),
                     ($"Keep {_name}'s", () =>
                     {
-                        if (row.Shown is not null && MemoryEdits.Current(_store, row.Shown) is { } latest)
+                        if (row.Shown is null || MemoryEdits.Current(_store, row.Shown) is not { } latest)
                         {
-                            field.Text = text ? latest.Text : When(latest);
-                            row.Shown = text ? row.Shown with { Text = latest.Text } : row.Shown with { At = latest.At, AllDay = latest.AllDay };
-                            if (!text)
-                                field.Modulate = Colors.White;
-                            Follow(row, latest);
+                            AskGone(row);                   // theirs has left the agenda too: what of the player's is left to choose
+                            return;
                         }
+                        field.Text = text ? latest.Text : When(latest);
+                        row.Shown = text ? row.Shown with { Text = latest.Text } : row.Shown with { At = latest.At, AllDay = latest.AllDay };
+                        if (!text)
+                            field.Modulate = Colors.White;
+                        Follow(row, latest);
                         Say($"Kept {_name}'s.");
                     }),
                     () =>
                     {
-                        // closed unanswered: the player's is kept; theirs is only in the log
-                        GD.Print($"Memory book: closed with an agenda item changed meanwhile; kept yours, and theirs was: “{hers.Text}” at {hers.Label}");
-                        if (row.Shown is not null)
-                            MemoryEdits.PlanChoice(_store, row.Shown, mine);
+                        // closed unanswered: the player's is kept (put back if it left the agenda since); theirs is only in the log
+                        GD.Print($"Memory book: closed with an agenda item changed meanwhile; keeping yours, and theirs was: “{hers.Text}” at {hers.Label}");
+                        KeepMine(row, mine);
                     });
                 break;
-            case Kept.Clash or Kept.Gone when !Asked(row, row.Box, "gone"):
-                // one question for the item, however many of its fields were changed: keeping it puts it back once
-                Ask(row, row.Box, "gone", "This left the agenda meanwhile.",
-                    ("Keep yours", () => PutBack(row)),
-                    ("Let it go", () =>
-                    {
-                        DropPlan(row);
-                        Say("Let go.");
-                    }));
-                break;
             case Kept.Clash or Kept.Gone:
+                AskGone(row);
                 break;
             default:
                 row.Shown = mine(row.Shown!);
@@ -1091,6 +1131,34 @@ public partial class MemoryBook : Window
         }
     }
 
+    /// <summary>The player's part of an item kept after a clash: written onto it, or, if it left the agenda since, the item put back as they have it.</summary>
+    private void KeepMine(PlanRow row, Func<Plan, Plan> mine)
+    {
+        if (row.Shown is null)
+            return;
+        if (MemoryEdits.PlanChoice(_store, row.Shown, mine) == Kept.Gone)
+        {
+            PutBack(row);
+            return;
+        }
+        row.Shown = mine(row.Shown);
+        Saved("Agenda item saved");
+    }
+
+    /// <summary>One question for an item that left the agenda meanwhile, however many of its fields were changed: keeping it puts it back once.</summary>
+    private void AskGone(PlanRow row)
+    {
+        if (Asked(row, row.Box, "gone"))
+            return;
+        Ask(row, row.Box, "gone", "This left the agenda meanwhile.",
+            ("Keep yours", () => PutBack(row)),
+            ("Let it go", () =>
+            {
+                DropPlan(row);
+                Say("Let go.");
+            }));
+    }
+
     /// <summary>An item that left the agenda meanwhile, put back as the player has it.</summary>
     private void PutBack(PlanRow row)
     {
@@ -1098,14 +1166,21 @@ public partial class MemoryBook : Window
             return;
         if (Agenda.ParseWhen(row.When.Text, DateTimeOffset.Now, TimeZoneInfo.Local) is not { } when)
         {
+            if (_closing)
+                GD.Print($"Memory book: closed without “{Called(row)}”: it left the agenda meanwhile and its time “{row.When.Text.Trim()}” can't be read");
+            else
+                AskGone(row);                               // still to choose, once the time reads
             CantRead(row);
             return;
         }
-        row.Shown = MemoryEdits.KeepPlan(_store, gone, row.Text.Text, when.At, when.AllDay, row.Leads[row.Lead.Selected], Repeats[row.Repeat.Selected].Repeat,
+        var text = row.Text.Text.Trim().Length < 2 ? gone.Text : row.Text.Text;        // an item needs a few words
+        row.Shown = MemoryEdits.KeepPlan(_store, gone, text, when.At, when.AllDay, row.Leads[row.Lead.Selected], Repeats[row.Repeat.Selected].Repeat,
                                          DateTimeOffset.Now);
         foreach (var field in row.Questions.Keys.ToList())
             Settle(row, field);
         Saved("Put back on the agenda");
+        if (_closing)
+            GD.Print($"Memory book: “{Called(row)}” had left the agenda meanwhile; put back as you had it");
     }
 
     // ---- The diary and the memos ------------------------------------------------------------------------------------
@@ -1125,7 +1200,8 @@ public partial class MemoryBook : Window
             row.AddChild(new Label { Text = (note.Priority == Priority.High ? "! " : "") + note.Text, AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
             var delete = Twice("×", () =>
             {
-                _store.DeleteObservation(note.Id);
+                if (_store.Observations(_character).Any(o => o.Id == note.Id && o.At == note.At && o.Text == note.Text))
+                    _store.DeleteObservation(note.Id);
                 Saved("Note forgotten");
                 Refresh();
             }, "Forget?");

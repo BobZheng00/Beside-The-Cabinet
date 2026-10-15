@@ -60,18 +60,27 @@ public static class MemoryEdits
     /// The player keeps their words for a fact whatever she did with it meanwhile: written over hers, brought back if
     /// her review retired it, or written down again if it was merged or forgotten. With <paramref name="keepHers"/>
     /// (a change of hers the player never answered), her words written over are kept as what the fact used to say,
-    /// retired as changed, as upkeep keeps a fact's history. Returns the fact as it now is.
+    /// retired as changed, as upkeep keeps a fact's history. Emptied, it is forgotten. Returns the fact as it now is, or
+    /// null when forgotten.
     /// </summary>
-    public static Fact KeepFact(MindStore store, string character, Fact shown, string edited, DateTimeOffset now, bool keepHers = false)
+    public static Fact? KeepFact(MindStore store, string character, Fact shown, string edited, DateTimeOffset now, bool keepHers = false)
     {
         edited = edited.Trim();
         if (Current(store, character, shown) is { } hers)
         {
             if (keepHers && hers.Text != edited)
-                store.Retire(store.AddFact(hers.Scope, hers.Text, hers.Importance, hers.Learned), $"{Conversation.Changed} {edited}", now);
+                store.Retire(store.AddFact(hers.Scope, hers.Text, hers.Importance, hers.Learned),
+                             edited.Length == 0 ? Conversation.Ended : $"{Conversation.Changed} {edited}", now);
+            if (edited.Length == 0)
+            {
+                store.DeleteFact(hers.Id);
+                return null;
+            }
             store.UpdateFact(hers.Id, edited);
             return Current(store, character, shown)!;
         }
+        if (edited.Length == 0)
+            return null;                                    // forgotten, and already out of her mind
         if (store.Retired(character).FirstOrDefault(f => f.Id == shown.Id && f.Learned == shown.Learned) is { } retired)
         {
             store.Restore(retired.Id, now);
