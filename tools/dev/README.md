@@ -39,7 +39,8 @@ than its room, which would run off the window's right edge, then how many of the
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`
-(presses that button in it, `+_Add` and `Keep_yours` too), `memorybooktype:words:new_words` (types the new words into the field showing
+(presses that button in it, `+_Add`, `Keep_yours` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
+second click to press), `memorybooktype:words:new_words` (types the new words into the field showing
 with those words in it, a fact, an agenda item or a note, without leaving it), `memorybookleave` (leaves that field, as a click
 elsewhere: it is saved, or a question shows), `memorychange:words:new_words` (their fact with those words is reworded
 under the open book, as upkeep might: a clash with a field typed in but not left), `ticketpress:0`

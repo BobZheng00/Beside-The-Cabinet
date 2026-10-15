@@ -36,7 +36,7 @@ public class MemoryEditsTests
         await Upkeep(store, clock, exam, rust);                             // while the player is typing in the Hades fact
         store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob, studying for exams in October.");
 
-        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", hades, shown.Single(f => f.Id == hades).Text, "The player loves Hades and Celeste."));
+        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", shown.Single(f => f.Id == hades), "The player loves Hades and Celeste."));
 
         Assert.Equal(["The player loves Hades and Celeste.", "The player's exam is on Monday 5 October."], store.Facts("shino").Select(f => f.Text));
         Assert.Equal([exam, rust], store.Retired("shino").Select(f => f.Id));
@@ -55,10 +55,10 @@ public class MemoryEditsTests
 
         await Upkeep(store, clock, exam, rust);                             // while the player is typing in that very fact
 
-        Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", exam, shown.Text, "The player's exam is on Tuesday."));
+        Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", shown, "The player's exam is on Tuesday."));
         Assert.Equal(["The player's exam is on Monday 5 October."], store.Facts("shino").Select(f => f.Text));       // nothing written
 
-        Assert.Equal(exam, MemoryEdits.KeepFact(store, "shino", shown, "The player's exam is on Tuesday.", clock.Now));
+        Assert.Equal(exam, MemoryEdits.KeepFact(store, "shino", shown, "The player's exam is on Tuesday.", clock.Now).Id);
         Assert.Equal(["The player's exam is on Tuesday.", "The player's exam is on Monday 5 October."], store.Facts("shino").Select(f => f.Text));
     }
 
@@ -71,16 +71,17 @@ public class MemoryEditsTests
         var shown = store.Facts("shino").Single();
         store.UpdateFact(hades, "The player enjoys Hades.");                // her review, in other words
 
-        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", hades, shown.Text, "The player loves Hades."));
-        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", hades, shown.Text, ""));          // not forgotten over her change either
-        Assert.Equal(Kept.Same, MemoryEdits.Fact(store, "shino", hades, shown.Text, "The player enjoys Hades. "));
+        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", shown, "The player loves Hades."));
+        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", shown, ""));          // not forgotten over her change either
+        Assert.Equal(Kept.Same, MemoryEdits.Fact(store, "shino", shown, "The player enjoys Hades. "));
         Assert.Equal("The player enjoys Hades.", store.Facts("shino").Single().Text);
-        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", hades, "The player enjoys Hades.", ""));                  // emptied: forgotten
+        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", shown with { Text = "The player enjoys Hades." }, ""));                  // emptied: forgotten
         Assert.Empty(store.Facts("shino"));
 
-        Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", hades, shown.Text, "The player loves Hades."));
+        Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", shown, "The player loves Hades."));
         var back = MemoryEdits.KeepFact(store, "shino", shown, "The player loves Hades.", Friday);
-        Assert.Equal((back, "The player loves Hades."), (store.Facts("shino").Single().Id, store.Facts("shino").Single().Text));
+        Assert.Equal(back, store.Facts("shino").Single());
+        Assert.Equal("The player loves Hades.", back.Text);
     }
 
     [Fact]
@@ -113,12 +114,66 @@ public class MemoryEditsTests
         Assert.Equal(Kept.Clash, MemoryEdits.PlanWhen(store, shown, Friday.AddHours(14), false));   // she moved it, and so did the player
         Assert.Equal(next, store.Agenda().Single().At);
 
-        Assert.Equal(Kept.Saved, MemoryEdits.PlanChoice(store, id, p => p with { Before = TimeSpan.FromMinutes(10) }));
+        Assert.Equal(Kept.Saved, MemoryEdits.PlanChoice(store, shown, p => p with { Before = TimeSpan.FromMinutes(10) }));
         Assert.Equal(("Take vitamins with water", next, TimeSpan.FromMinutes(10)),
                      (store.Agenda().Single().Text, store.Agenda().Single().At, store.Agenda().Single().Before));
-        Assert.Equal(Kept.Same, MemoryEdits.PlanChoice(store, id, p => p with { Repeat = Repeat.Daily }));
+        Assert.Equal(Kept.Same, MemoryEdits.PlanChoice(store, shown, p => p with { Repeat = Repeat.Daily }));
 
         store.DeletePlan(id);
         Assert.Equal(Kept.Gone, MemoryEdits.PlanText(store, shown, "Vitamins"));
+    }
+
+    [Fact]
+    public void An_item_forgotten_meanwhile_is_gone_even_when_a_new_one_took_its_number()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var hades = store.AddFact(MindStore.Shared, "The player likes Hades.", 5, Friday.AddDays(-2));
+        var fact = store.Facts("shino").Single();
+        store.AddPlan("Gym", Friday.AddHours(20), false, null, Friday.AddHours(-1), null);
+        var plan = store.Agenda().Single();
+        store.DeleteFact(hades);                                           // forgotten (Chat history's Forget), then something new learned
+        store.DeletePlan(plan.Id);                                         // cancelled, then something new put on the agenda
+        Assert.Equal(hades, store.AddFact(MindStore.Shared, "The player has a cat.", 5, Friday));
+        Assert.Equal(plan.Id, store.AddPlan("Dentist", Friday.AddHours(22), false, null, Friday, "shino"));
+
+        Assert.Equal(Kept.Gone, MemoryEdits.Fact(store, "shino", fact, "The player loves Hades."));
+        Assert.Equal(Kept.Gone, MemoryEdits.PlanText(store, plan, "Gym with Sam"));
+        Assert.Equal(Kept.Gone, MemoryEdits.PlanChoice(store, plan, p => p with { Before = TimeSpan.Zero }));
+        Assert.Equal("The player has a cat.", store.Facts("shino").Single().Text);
+        Assert.Equal(("Dentist", (TimeSpan?)null), (store.Agenda().Single().Text, store.Agenda().Single().Before));
+    }
+
+    [Fact]
+    public void An_agenda_item_kept_twice_after_it_left_the_agenda_is_put_back_once()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var id = store.AddPlan("Gym", Friday.AddHours(20), false, TimeSpan.Zero, Friday, null);
+        var shown = store.Agenda().Single();
+        store.DeletePlan(id);
+
+        var back = MemoryEdits.KeepPlan(store, shown, "Gym with Sam", Friday.AddHours(21), false, TimeSpan.Zero, Repeat.Once, Friday);
+        var again = MemoryEdits.KeepPlan(store, shown, "Gym with Sam", Friday.AddHours(21), false, TimeSpan.Zero, Repeat.Once, Friday);
+
+        Assert.Equal(back, again);
+        Assert.Equal(("Gym with Sam", Friday.AddHours(21)), (store.Agenda().Single().Text, store.Agenda().Single().At));
+    }
+
+    [Fact]
+    public void Her_change_the_player_never_answered_is_kept_as_what_the_fact_used_to_say_when_theirs_is_kept_on_closing()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var hades = store.AddFact(MindStore.Shared, "The player likes Hades.", 5, Friday);
+        var shown = store.Facts("shino").Single();
+        store.UpdateFact(hades, "The player enjoys Hades a lot.");         // hers, while the player typed
+
+        Assert.Equal(Kept.Clash, MemoryEdits.Fact(store, "shino", shown, "The player loves Hades."));
+        var kept = MemoryEdits.KeepFact(store, "shino", shown, "The player loves Hades.", Friday.AddHours(1), keepHers: true);
+
+        Assert.Equal((hades, "The player loves Hades."), (kept.Id, kept.Text));
+        var hers = Assert.Single(store.Retired("shino"));
+        Assert.Equal(("The player enjoys Hades a lot.", "changed to: The player loves Hades."), (hers.Text, hers.Why));
     }
 }

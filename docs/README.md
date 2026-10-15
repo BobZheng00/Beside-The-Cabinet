@@ -363,10 +363,13 @@ true, notes from their diary, old talk). Each says what it is in words ("About y
 Edit corrects a fact. The talk itself can't be changed: forgetting old talk only stops them recalling it, and the line
 stays in the chat. Replies from before this version kept nothing, and don't react to a click. Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: their log, memos,
 forget): edit, pin (always in mind, upkeep leaves it alone) or delete anything. Each change is saved as you make it,
-as in Settings: a field when you leave it (Enter, or a click elsewhere), a tick, a choice or a × at once, and the line
-beside Close says what was saved and when. Only what you changed is written. While it is open it follows what upkeep,
+as in Settings: a field when you leave it (Enter, or a click elsewhere), a tick or a choice at once; a × asks once
+more ("Forget?") and forgets on the second click. The line beside Close says what was saved and when, and whether a
+change is waiting for you to choose. Only what you changed is written. While it is open it follows what upkeep,
 their replies, reminders and the chat history change, except a field you have changed and not yet left; if they
-changed that same thing meanwhile, the row shows theirs and asks which to keep (closing keeps yours). "Clear the chat" starts the conversation afresh and keeps what they remember;
+changed that same thing meanwhile, the row shows theirs and asks which to keep. Closing with that unanswered keeps
+yours (a fact of theirs written over is kept under "Retired by the review", as changed to yours). A time that can't
+be read can't be saved: Close says so first, and a second Close closes without that one change. "Clear the chat" starts the conversation afresh and keeps what they remember;
 "Forget all with …" clears the conversation and everything about the two of you; "Forget all about me" clears what
 every character knows about you, and your agenda, and leaves the conversations. It stays in the profile folder
 (`companion\memory.db`); the key is encrypted for your Windows account. Without a provider they keep to their canned
