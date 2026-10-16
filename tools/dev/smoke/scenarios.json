@@ -45,11 +45,12 @@
     },
     {
       "name": "memory",
-      "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items.",
+      "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items; a fact edited is saved on leaving it, and one the companion rewords while it is being edited asks which to keep, then keeps the player's.",
       "covers": ["src/InsertCoin.Game/App/MemoryBook.cs", "src/InsertCoin.Mind/*"],
-      "script": "memoryseed@2,memorybook@4,memorybook:agenda@6,memorybook:facts@8",
-      "shots": [7, 9, 11],
-      "window": "remembers"
+      "script": "memoryseed@2,memorybook@4,memorybook:agenda@6,memorybook:facts@8,memorybooktype:Hades:Bob_loves_Hades_and_Celeste.@10,memorybookleave@11,memorybooktype:promised:Bob_promised_her_two_Hard_problems.@13,memorychange:promised:Bob_promised_her_a_Medium_problem.@14,memorybookleave@16,memorybookdo:Keep_yours@20",
+      "shots": [7, 9, 11, 15, 20, 24],
+      "window": "remembers",
+      "expect": ["^Memory book: fact saved", "^Memory book: asked which to keep: \\S+ changed this meanwhile, to: “Bob promised her a Medium problem.”", "^Memory book: \"Keep yours\" pressed"]
     },
     {
       "name": "agendacancel",

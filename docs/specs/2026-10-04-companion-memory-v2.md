@@ -219,3 +219,29 @@ chunked one). Checked against a local receiver; the Windows notification was see
 - **Dates in the player's zone.** Times she writes down take the offset of their own date, and repeats keep their
   time of day across a clock change (this PC is on US Eastern time; the tests found an hour's slip after 1 November).
 
+### 12. The memory book saves as you go (decided 2026-10-14, built)
+
+The book had Apply and "Save and close", and saving wrote both notes and every fact back whole, so an Apply could put
+back what upkeep had changed meanwhile, and a book left open showed old lists (issue #18). The user chose to save as
+you go, as Settings does: each field is saved when the player leaves it (Enter, or a click elsewhere, the book losing
+focus included), a tick or a choice at once; every forget asks twice (the forget buttons, and a fact's, a diary
+note's or an agenda item's ×: the first click says "Forget?", the second within a few seconds forgets; the retired
+list's × stays one click); only Close is left.
+*Built 2026-10-14* (`MemoryEdits`, tests):
+- **Only what was edited is written**, onto the item as it is now (an agenda item's other parts as she left them),
+  and only if it is still what the book showed when the player began. Otherwise she changed it meanwhile: the row
+  shows hers and asks which to keep ("Keep yours", "Keep <name>'s"); a fact she retired or merged meanwhile says why,
+  with "Keep yours" (brought back, in the player's words) and "Let it go"; an agenda item gone meanwhile asks once
+  however many of its fields changed, and is put back once. Whatever keeps the player's (a button, closing, a pin or
+  a choice) on an item that has gone since, even after a clash question was showing, puts it back or asks; it never
+  says kept while writing nothing. Items are matched by when they were learned or added as
+  well as their id (SQLite gives a forgotten item's id to the next one).
+- **Closing never drops an edit.** A field typed in and not left is saved; a question left unanswered keeps the
+  player's, and hers is kept too: a fact's as what it used to say (retired, "changed to: " the player's words), a
+  note's or an agenda item's in the log (a note is the player's own and rarely changed by anyone else; a second agenda
+  item would remind twice). A time that can't be read can't be saved: Close stops and says which, and a second Close
+  within a few seconds closes without that one change; the app quitting drops it with a log line naming it.
+- **It follows her memory in place** every two seconds: agenda, threads, facts (new ones on top while it is open),
+  retired facts, diary, memos and the two notes, except a field the player has changed and not left.
+- The line beside Close says what was saved last, and when, after how many changes wait for the player to choose.
+

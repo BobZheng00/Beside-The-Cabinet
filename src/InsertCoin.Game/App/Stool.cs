@@ -1081,9 +1081,11 @@ public partial class Stool : Node2D
             _chatBox.Close();                               // clicked away without typing
     }
 
-    /// <summary>The cabinet is closing: her mind lets go of its files and her voice's server ends.</summary>
+    /// <summary>The cabinet is closing: the memory book saves what the player was in the middle of, her mind lets go of its files and her voice's server ends.</summary>
     public void Shutdown()
     {
+        if (IsInstanceValid(_memoryBook))
+            _memoryBook!.SaveAll();
         _chat?.Dispose();
         _voice?.Shutdown();
     }
@@ -2211,7 +2213,15 @@ public partial class Stool : Node2D
             case "chathistory": OpenChatHistory(); break;
             case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Close
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
-            case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Apply presses that button in the memory book
+            case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Close presses that button in the memory book
+            case "memorybooktype" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var typed]:   // memorybooktype:words:new_words types in that field, not leaving it
+                _memoryBook!.DevType(words, typed);
+                break;
+            case "memorybookleave": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevLeave(); break;    // leaves the field typed in last, as a click elsewhere
+            case "memorychange" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var reworded]:   // memorychange:words:new_words: her fact (or agenda item) reworded under the book
+                _memoryBook!.DevChange(words, reworded);
+                break;
+            case "memorycancel": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment
