@@ -35,7 +35,8 @@
 # Output: <Out>\report.md and report.json, <scenario>-<n>.png per shot (-window, -desk as shoot.ps1 makes them),
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
 # A scenario with "beside" also starts stand-ins for the player's own app first (hidden copies that aren't test runs,
-# on throwaway profiles): the first holds the lock, a second must quit at once, and the scenario runs beside them.
+# on throwaway profiles): the first holds a one-copy lock of their own (--lock, never the player's), a second must
+# quit at once, and the scenario runs beside them; the player's own lock must stay free meanwhile.
 # Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another smoke run held the lock too long).
 param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
       [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main")
@@ -223,7 +224,9 @@ function Get-Copies {
 }
 
 # A stand-in for the player's own app ("beside" scenarios): a hidden copy that isn't a test run (no --offscreen), so it
-# takes the app's one-copy lock as theirs does, on a throwaway profile, watched as test runs are.
+# keeps to one copy at a time as theirs does, on a throwaway profile, watched as test runs are. Its lock is one of its
+# own (--lock, honoured only on a profile that isn't the player's), so the player's own app can always start meanwhile.
+$standInLock = "InsertCoin.Cabinet.beside"
 function Start-StandIn([string]$name) {
   if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
   $profile = Join-Path $Out "profile-$name"
@@ -231,13 +234,13 @@ function Start-StandIn([string]$name) {
   New-Item -ItemType Directory $profile | Out-Null
   '{ "SetUp": true, "Initials": "BOB", "Muted": true, "AlwaysOnTop": false, "WindowX": -4000, "WindowY": 100 }' |
     Out-File -Encoding ascii (Join-Path $profile "settings.json")
-  $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam",
+  $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam --lock=beside",
                           (Join-Path $Out "run-$name.log"), (Join-Path $Out "run-$name.err"))
   [pscustomobject]@{ Name = $name; Process = $p; Watch = (New-Object Unseen $p.Id) }
 }
-function Lock-Held {
+function Lock-Held([string]$name) {
   $m = $null
-  if ([System.Threading.Mutex]::TryOpenExisting("InsertCoin.Cabinet", [ref]$m)) { $m.Dispose(); return $true }
+  if ([System.Threading.Mutex]::TryOpenExisting($name, [ref]$m)) { $m.Dispose(); return $true }
   return $false
 }
 
@@ -286,25 +289,30 @@ try {
       Where-Object { $_.Name -like "$($s.name)-*.png" -or $_.Name -like "run-$($s.name).*" -or $_.Name -eq "mind-$($s.name).jsonl" } |
       Remove-Item -Force
 
-    # "beside": the player's own app, played by a stand-in holding the lock (unless a copy of theirs already does), and
-    # a second copy for the player, which must quit at once; then the scenario's test copy runs beside them
+    # "beside": the player's own app, played by a stand-in holding its one-copy lock (a lock of its own, never the
+    # player's), and a second such copy, which must quit at once; then the scenario's test copy runs beside them
     $standIns = @(); $besideProblems = @()
     if ($s.beside) {
-      if (Lock-Held) { "  a copy of the player's own holds the app's lock: the run goes beside it" }
-      else {
-        $player = Start-StandIn "$($s.name)-player"
-        $standIns += $player
-        $until = (Get-Date).AddSeconds(60)
-        while (-not (Lock-Held) -and -not $player.Process.HasExited -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 250 }
-        if (-not (Lock-Held)) { $besideProblems += "the stand-in for the player's app never took the app's lock" }
-      }
+      $playersHeld = Lock-Held "InsertCoin.Cabinet"                          # held already only by a copy of the player's own
+      $player = Start-StandIn "$($s.name)-player"
+      $standIns += $player
+      $until = (Get-Date).AddSeconds(60)
+      while (-not (Lock-Held $standInLock) -and -not $player.Process.HasExited -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 250 }
+      if (-not (Lock-Held $standInLock)) { $besideProblems += "the stand-in for the player's app never took its lock" }
       $second = Start-StandIn "$($s.name)-second"
       $standIns += $second
       if (-not $second.Process.WaitForExit(30000)) { $besideProblems += "a second copy for the player didn't quit: the one-copy lock didn't hold" }
       elseif (-not (Select-String -Path (Join-Path $Out "run-$($s.name)-second.log") -Pattern "^Main: another copy is running; this one quits" -Quiet)) {
         $besideProblems += "the second copy for the player quit without saying another copy is running"
       }
-      if (-not (Lock-Held)) { $besideProblems += "nothing held the app's lock when the test copy started" }
+      if (-not (Lock-Held $standInLock)) { $besideProblems += "nothing held the stand-ins' lock when the test copy started" }
+      if (-not (Select-String -Path (Join-Path $Out "run-$($s.name)-player.log") -Pattern "^Main: a copy for tests, holding a lock of its own \($([regex]::Escape($standInLock))\)" -Quiet)) {
+        $besideProblems += "the stand-in didn't say it holds a lock of its own"
+      }
+      if (-not $playersHeld) {
+        if (Lock-Held "InsertCoin.Cabinet") { $besideProblems += "a stand-in took the player's own lock (InsertCoin.Cabinet): their app couldn't have started" }
+        else { "  the player's own lock (InsertCoin.Cabinet) stayed free beside the stand-ins" }
+      }
     }
 
     $settings = "" + $s.settings

@@ -72,9 +72,10 @@ public partial class Main : Node2D
         Paper.OffScreen = args.ContainsKey("offscreen");
         // One copy for the player at a time. A hidden test run (--offscreen) runs beside theirs instead, on a profile of
         // its own, and leaves their tray, notices, talk key, mouse and microphone alone.
+        var ownProfile = !Path.GetFullPath(dataDir).TrimEnd('\\', '/').Equals(DefaultDataDir, StringComparison.OrdinalIgnoreCase);
         if (Paper.OffScreen)
         {
-            if (Path.GetFullPath(dataDir).TrimEnd('\\', '/').Equals(DefaultDataDir, StringComparison.OrdinalIgnoreCase))
+            if (!ownProfile)
             {
                 GD.PrintErr("Main: a test run (--offscreen) needs a profile of its own (--data); it quits");
                 GetTree().Quit();
@@ -84,7 +85,11 @@ public partial class Main : Node2D
         }
         else
         {
-            _singleInstance = new System.Threading.Mutex(true, "InsertCoin.Cabinet", out var first);
+            // --lock=NAME (dev, on a profile of its own only): a lock apart from the player's, for stand-ins of their app in tests
+            var lockName = ownProfile && args.TryGetValue("lock", out var apart) && apart.Length > 0 ? $"InsertCoin.Cabinet.{apart}" : "InsertCoin.Cabinet";
+            _singleInstance = new System.Threading.Mutex(true, lockName, out var first);
+            if (lockName != "InsertCoin.Cabinet")
+                GD.Print($"Main: a copy for tests, holding a lock of its own ({lockName}), never the player's");
             if (!first)
             {
                 GD.Print("Main: another copy is running; this one quits");
