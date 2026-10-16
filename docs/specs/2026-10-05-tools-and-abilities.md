@@ -11,6 +11,8 @@ Modular, framed like Claude Code's tools, connectors and plugins:
   - A search connector (Tavily, SearXNG), writing to a calendar later.
   - **Local MCP servers** the player adds count as connectors too: the command that runs one on their PC. Its tools appear beside hers.
 - **Remote MCP is out for now.** We run no cloud service and hold nothing for the player, so we don't set one up for them.
+  - *Changed 2026-10-15* (the user: "can be local or remote"): the player may add servers on the internet too; we
+    still run none. Skills became the umbrella for what she can be given: `2026-10-15-skills.md`.
 - **Plugins** are later, if at all: bundles of a connector, its prompt guidance and maybe her motions for it. Perhaps something a character brings with them at character import.
 - *Changed 2026-10-09* (the user): optional extras are framed as **add-ons** (Chat settings → Add-ons), "functionality that ppl may not want to enable and they can choose to install": off until turned on, each saying what it needs and where the player's data goes. Connectors (a key, a sign-in, a local MCP server) become add-ons. The first is web search through the player's own SearXNG. And what she can see of the player's own has a **Privacy** tab (balance spec, "Help with learning").
 
