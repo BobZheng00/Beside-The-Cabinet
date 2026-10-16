@@ -101,8 +101,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - **Something new mid-task**, found by you or raised by the user, is parked as an issue (`/pm:park`) and the task goes
   on, unless the user says to switch now.
 - **Done** means committed, `tools/dev/check.ps1` passed on that commit in a clean checkout, and QA's verdict PASS.
-  The plugin's gate holds `gh pr ready` and merging to that, and refuses pushes to `main`. A merge run from a session
-  (`gh pr merge`) asks the user to confirm it each time (the gate, with `merge: user` in `.claude/pm.md`); the user
+  The plugin's gate holds `gh pr ready` to that, and refuses pushes to `main`. A merge run from a session
+  (`gh pr merge`) isn't checked against it: the gate only asks the user to confirm it (`merge: user` in
+  `.claude/pm.md`), so the PM runs one only for a pull request already marked ready, when the user asks. The user
   lifted the outright deny in `.claude/settings.json` on 2026-10-15. The gate needs `gh` on PATH.
 - **The user is brought in** for: a choice the player would notice that the specs don't settle, or one that touches
   a rule above; what only they can unblock (their keys, real profile, microphone, money, downloads, GitHub
