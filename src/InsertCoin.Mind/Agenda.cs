@@ -44,7 +44,9 @@ public sealed record PlanSpec(DateTimeOffset At, bool AllDay, string Text, TimeS
 /// The player's agenda as she sees it: what is coming up in the next week and what has just passed (so she can ask
 /// how it went) go into every turn; reminders go off at their time; a repeating item moves on to its next time;
 /// two days after, a one-off item leaves the agenda (the conversation about it is what her moments keep). Items
-/// come from her replies (<c>[plan: …]</c>, <c>[remind: …]</c>), from upkeep, and from the memory book.
+/// come from her replies (<c>[plan: …]</c>, <c>[remind: …]</c>), from upkeep, and from the memory book. In a reply she can
+/// also call off or change an item she was shown, by its number (<c>[cancel: #12]</c>, <c>[change: #12 | …]</c>), but never a
+/// calendar's: the calendar decides those.
 /// </summary>
 public static partial class Agenda
 {
@@ -113,6 +115,25 @@ public static partial class Agenda
     }
 
     /// <summary>
+    /// A <c>[cancel: #12]</c> or <c>[change: #12 | 2026-10-16 10:00 | 1 hour before]</c> payload: the item's number, and
+    /// what changes: a new time, new options (see <see cref="ParseOptions"/>), or both, in any order. Null without a number.
+    /// </summary>
+    public static (long Id, (DateTimeOffset At, bool AllDay)? When, string? Options)? ParseChange(string payload, DateTimeOffset now, TimeZoneInfo? zone = null)
+    {
+        var parts = payload.Split('|');
+        if (!long.TryParse(parts[0].Trim().TrimStart('#'), NumberStyles.None, English, out var id))
+            return null;
+        (DateTimeOffset At, bool AllDay)? when = null;
+        var options = new List<string>();
+        foreach (var part in parts.Skip(1).Select(p => p.Trim()).Where(p => p.Length > 0))
+            if (when is null && ParseWhen(part, now, zone) is { } at)
+                when = at;
+            else
+                options.Add(part);
+        return (id, when, options.Count > 0 ? string.Join(", ", options) : null);
+    }
+
+    /// <summary>
     /// A direction's payload, "2026-10-09 15:00 | the dentist" with optional "| 30 min before, weekly": what to put on
     /// the agenda. A [remind: …] goes off at its time (a whole day's, that morning). Null when it cannot be read.
     /// </summary>
@@ -176,20 +197,33 @@ public static partial class Agenda
         return next.At;
     }
 
-    /// <summary>The agenda for this turn: what is coming up in the next week and what has just passed; empty when there is none.</summary>
-    public static string Block(IReadOnlyList<Plan> plans, DateTimeOffset now, TimeSpan? lead = null)
+    /// <summary>What the agenda block lists: up to <see cref="MostAhead"/> items coming up in the next week, by time, and how many more; what has just passed.</summary>
+    public static (IReadOnlyList<Plan> Ahead, int More, IReadOnlyList<Plan> Past) Shown(IReadOnlyList<Plan> plans, DateTimeOffset now)
     {
         var ahead = plans.Where(p => p.End > now && p.At <= now + Ahead).OrderBy(p => p.At).ToList();
         var past = plans.Where(p => p.Repeat == Repeat.Once && p.End <= now && p.End > now - Behind).OrderBy(p => p.At).ToList();
+        return ([.. ahead.Take(MostAhead)], Math.Max(0, ahead.Count - MostAhead), past);
+    }
+
+    /// <summary>
+    /// The agenda for this turn: what is coming up in the next week and what has just passed; empty when there is none.
+    /// Items she may change carry their number (see <see cref="ParseChange"/>); a calendar's say where they come from.
+    /// </summary>
+    public static string Block(IReadOnlyList<Plan> plans, DateTimeOffset now, TimeSpan? lead = null)
+    {
+        var (ahead, more, past) = Shown(plans, now);
+        static string Number(Plan plan) => plan.Source is null ? $"#{plan.Id} " : "";
         if (ahead.Count == 0 && past.Count == 0)
             return "";
         var block = new StringBuilder("<agenda>\n");
         if (ahead.Count > 0)
         {
             block.Append("Coming up:\n");
-            foreach (var plan in ahead.Take(MostAhead))
+            foreach (var plan in ahead)
             {
                 var notes = new List<string>();
+                if (plan.Source is not null)
+                    notes.Add("from their calendar");
                 if (plan.Repeat != Repeat.Once)
                     notes.Add(Describe(plan.Repeat));
                 if (plan.AllDay && plan.RemindAt() is { } morning)
@@ -198,16 +232,16 @@ public static partial class Agenda
                     notes.Add(before == TimeSpan.Zero ? "a reminder goes off then" : $"a reminder {Describe(before)}");
                 else if (plan.RemindAt(lead) is not null)
                     notes.Add($"a reminder {Describe(lead!.Value)}");
-                block.Append($"- {plan.Label} ({Until(plan, now)}): {plan.Text}{(notes.Count > 0 ? $" ({string.Join("; ", notes)})" : "")}\n");
+                block.Append($"- {Number(plan)}{plan.Label} ({Until(plan, now)}): {plan.Text}{(notes.Count > 0 ? $" ({string.Join("; ", notes)})" : "")}\n");
             }
-            if (ahead.Count > MostAhead)
-                block.Append($"- and {ahead.Count - MostAhead} more in the week\n");
+            if (more > 0)
+                block.Append($"- and {more} more in the week\n");
         }
         if (past.Count > 0)
         {
             block.Append("Just past:\n");
             foreach (var plan in past)
-                block.Append($"- {plan.Label} ({(plan.AllDay ? When.Ago(plan.At.AddHours(12), now) : When.Ago(plan.At, now))}): {plan.Text}\n");
+                block.Append($"- {Number(plan)}{plan.Label} ({(plan.AllDay ? When.Ago(plan.At.AddHours(12), now) : When.Ago(plan.At, now))}): {plan.Text}\n");
         }
         return block.Append("</agenda>\n").ToString();
     }

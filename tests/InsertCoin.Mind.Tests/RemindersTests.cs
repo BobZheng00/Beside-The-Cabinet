@@ -87,8 +87,9 @@ public class RemindersTests
                      temp.Store.Agenda().Select(p => (p.Text, p.Before!.Value, p.Repeat)));
         var next = new FakeModel("Mm.");
         await conversation.Answer(next, "what's up", "", _ => { }, (_, _) => { });
-        Assert.Contains("- Sat 3 Oct 08:00 (tomorrow): Take your vitamins (every day; a reminder goes off then)", next.Requests.Single()[^1].Text);
-        Assert.Contains("- Thu 8 Oct 10:00 (in 6 days): Job interview at Acme (a reminder 1 hour before)", next.Requests.Single()[^1].Text);
+        var (vitamins, interview) = (temp.Store.Agenda()[0].Id, temp.Store.Agenda()[1].Id);
+        Assert.Contains($"- #{vitamins} Sat 3 Oct 08:00 (tomorrow): Take your vitamins (every day; a reminder goes off then)", next.Requests.Single()[^1].Text);
+        Assert.Contains($"- #{interview} Thu 8 Oct 10:00 (in 6 days): Job interview at Acme (a reminder 1 hour before)", next.Requests.Single()[^1].Text);
     }
 
     [Fact]
