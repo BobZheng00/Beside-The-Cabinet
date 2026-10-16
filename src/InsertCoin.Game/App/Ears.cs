@@ -55,6 +55,12 @@ public partial class Ears : Node
     {
         if (Listening)
             return;
+        if (Companion.Paper.OffScreen)
+        {
+            GD.Print("Ears: a test run never opens the microphone; she hears silence, or a recording");
+            Pretend();
+            return;
+        }
         Begin((int)AudioServer.GetMixRate());
         _capture.ClearBuffer();
         _player.Play();

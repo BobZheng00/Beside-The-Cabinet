@@ -67,16 +67,31 @@ public partial class Main : Node2D
 
     public override void _Ready()
     {
-        _singleInstance = new System.Threading.Mutex(true, "InsertCoin.Cabinet", out var first);
-        if (!first)
-        {
-            GetTree().Quit();
-            return;
-        }
-
         var args = OS.GetCmdlineUserArgs().Select(a => a.TrimStart('-').Split('=', 2)).ToDictionary(a => a[0], a => a.Length > 1 ? a[1] : "");
         var dataDir = args.TryGetValue("data", out var dir) && dir.Length > 0 ? dir : DefaultDataDir;
         Paper.OffScreen = args.ContainsKey("offscreen");
+        // One copy for the player at a time. A hidden test run (--offscreen) runs beside theirs instead, on a profile of
+        // its own, and leaves their tray, notices, talk key, mouse and microphone alone.
+        if (Paper.OffScreen)
+        {
+            if (Path.GetFullPath(dataDir).TrimEnd('\\', '/').Equals(DefaultDataDir, StringComparison.OrdinalIgnoreCase))
+            {
+                GD.PrintErr("Main: a test run (--offscreen) needs a profile of its own (--data); it quits");
+                GetTree().Quit();
+                return;
+            }
+            GD.Print($"Main: a test run, beside any other copy (no single-instance lock), on its own profile {dataDir}");
+        }
+        else
+        {
+            _singleInstance = new System.Threading.Mutex(true, "InsertCoin.Cabinet", out var first);
+            if (!first)
+            {
+                GD.Print("Main: another copy is running; this one quits");
+                GetTree().Quit();
+                return;
+            }
+        }
         _settingsFile = new SettingsFile(new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json")));
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
         _rules = RulesOf(_settings);

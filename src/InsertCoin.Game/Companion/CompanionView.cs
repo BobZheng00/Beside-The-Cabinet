@@ -688,6 +688,8 @@ public partial class CompanionView : Node2D
     /// </summary>
     private Vector3? PointerTarget(double delta)
     {
+        if (Paper.OffScreen && _devPointer is null)
+            return null;                                    // a test run never follows the player's own pointer
         var mouse = DisplayServer.MouseGetPosition();
         _mouseStill = mouse == _lastMouse ? _mouseStill + delta : 0;
         _lastMouse = mouse;

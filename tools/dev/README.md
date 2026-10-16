@@ -64,8 +64,8 @@ thinking sounds saved as WAV files) and
 in Settings does), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording they hear as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: they
 listen and nod for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
-microphone), and, opening the real microphone, `mic` (click the slip's microphone), `listen` and `listened` (as if
-the mouse were held on them, then let go), and `closeup:hands` (the camera narrowed onto their hands, to judge fingers; `closeup:off`).
+microphone), and, opening the real microphone (except in a test copy, where they hear silence), `mic` (click the
+slip's microphone), `listen` and `listened` (as if the mouse were held on them, then let go), and `closeup:hands` (the camera narrowed onto their hands, to judge fingers; `closeup:off`).
 
 Hands-free, without ever opening the real microphone: `fakemic` (from then on they hear only recordings),
 `mictalk:C:\path\said.wav` (said into their open microphone), `converse` (`converse:on`, `converse:off`). Their tools:
@@ -106,8 +106,16 @@ Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (
 
 ## Test runs
 
-`--offscreen` opens the app's windows off every monitor; with it,
-`--shots=DIR` has the app picture its own windows when a file `<n>.want` appears there.
+`--offscreen` makes a copy a test copy: its windows open off every monitor; with it,
+`--shots=DIR` has the app picture its own windows when a file `<n>.want` appears there. A test copy runs beside the
+player's own copies (their app, the demo): it never takes the app's one-copy lock, needs a profile of its own (`--data`,
+or it quits), shows no tray icon or Windows notice (it logs what the notice would have said), never reads the talk key or
+the mouse's buttons (the companion's eyes don't follow the player's pointer either), and never opens the microphone (what would open it hears silence, or a
+recording: `talk:`, `hear:`, `fakemic` and `mictalk:`). Each says so in its log (`Main: a test run…`, `Tray: none in a
+test run`, `Listening: a test run…`, `Ears: a test run never opens the microphone…`). A copy without `--offscreen` keeps
+to one at a time: a second one quits at once (`Main: another copy is running; this one quits`). The test scripts write
+Godot's own log into the run's profile (`--log-file`), so the player's log (in Godot's user folder) is never written
+over. Godot's shader cache in that folder is still shared: it only ever holds the same compiled shaders.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
 (`-Script "moment:cheer@3" -Seconds 6`), and ffmpeg makes a GIF and an MP4 of the companion.
 
@@ -119,8 +127,8 @@ app's code runs. Windows draws nothing on a desktop no one looks at, so the app 
 the screenshots are the same as before, except that a window's title bar isn't in its picture. Meanwhile the run watches
 the player's desktop: a window of the run's on any monitor or on the taskbar, or in front, is said in a
 `seen by the player:` line, which fails a smoke scenario. The app and everything it starts live in a job that ends
-with the script: a run killed halfway leaves no unseen copy behind holding the app's lock. A run without `-Hidden`
-shows the app as before.
+with the script: a run killed halfway leaves no unseen copy behind. A run without `-Hidden` shows the app as before,
+and is no test copy: quit the player's copies first.
 
 Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
 
@@ -135,8 +143,10 @@ What a commit must pass before its pull request is marked ready, run the same wa
   plugin's gate wants both before a pull request is marked ready.
 - `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
   `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. The report and shots go to
-  `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; a running copy of the app (the demo, say)
-  blocks it and is never stopped. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
+  `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; the player's own copies of the app (their app,
+  the demo) are never stopped and never block it: its test copies run beside them. The `beside` scenario shows it
+  with stand-ins (hidden copies that aren't test runs, on throwaway profiles): one holds the lock, a second must quit
+  at once, and the test copy runs and passes beside them. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
   it borrows the main checkout's `GODOT` and models.
 - Which scenarios a check runs (`smoke.ps1 -Changed`, from `git diff origin/main...HEAD`): every one when shared code
   or the harness changed (the file's `all`: `Main.cs`, `Stool.cs`, `project.godot`, Core, `smoke.ps1`, `shoot.ps1`,

@@ -15,7 +15,8 @@
 #
 # Commit first: a result belongs to HEAD, and one taken with uncommitted changes is recorded as not clean, which the
 # gate refuses. The smoke suite takes a few minutes and waits its turn: run this in the background.
-# Exit code: 0 passed, 1 failed, 3 the smoke suite was blocked (another run, or a copy of the app running).
+# Exit code: 0 passed, 1 failed, 3 the smoke suite was blocked (another smoke run held the lock too long). The
+# player's own copies of the app (their app, the demo) never block it: its test copies run beside them.
 param([switch]$NoSmoke, [switch]$All, [string]$Only = "", [string]$Verdict = "", [string]$Because = "", [switch]$Status)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)

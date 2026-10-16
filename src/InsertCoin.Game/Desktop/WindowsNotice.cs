@@ -41,6 +41,11 @@ public static class WindowsNotice
     {
         if (OS.GetName() != "Windows")
             return false;
+        if (Companion.Paper.OffScreen)
+        {
+            GD.Print($"WindowsNotice: none in a test run (it would have said \"{title}\")");
+            return true;                                    // as if shown, so the run goes on as the player's would
+        }
         var data = new NotifyIconData
         {
             Size = Marshal.SizeOf<NotifyIconData>(),
