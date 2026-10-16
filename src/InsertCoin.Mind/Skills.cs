@@ -92,7 +92,7 @@ public sealed class Skills(string own)
                 var read = Parse(text);
                 var name = read.Name ?? named;
                 // a name the format doesn't allow has its own hint already: that it isn't the folder's name too goes without saying
-                var hint = read.Name is not null && read.Name != named && Allowed(read.Name) ?$"its name, \"{read.Name}\", isn't its folder's name, \"{named}\", as the format asks" : null;
+                var hint = read.Name is not null && read.Name != named && Allowed(read.Name) ? $"its name, \"{read.Name}\", isn't its folder's name, \"{named}\", as the format asks" : null;
                 found.Add(new Skill(name, read.Description ?? "", dir, read.Problem, Joined([hint, read.Hint])));
             }
         }
