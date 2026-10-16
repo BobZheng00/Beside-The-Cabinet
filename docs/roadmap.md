@@ -31,14 +31,16 @@ says where things stand today); this page keeps the story. Update it at each mil
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
 **Now: skills** (the user, 2026-10-15: the feature they most want, to make the app "a daily touch point"). Spec
-`docs/specs/2026-10-15-skills.md`: skills in the open SKILL.md format, read where they are; a notes folder a skill may
-reach, read and written freely, moving and deleting asked; her suggested changes to a skill in her words and a plain
+`docs/specs/2026-10-15-skills.md`: skills in the open SKILL.md format, in the app's own skills folder and folders the
+player links (read where they are; their scripts never run); a folder a skill may work in, read and written freely,
+moving and deleting asked; her suggested changes to a skill in her words and a plain
 card; servers the player adds (MCP, on this PC or the internet), all their tools starting at Ask. No knowledge base
 inside the app and no routines assumed. Issues for steps 1 to 4; step 5, the first connector of ours, is open.
 
 **Tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
 - **Decided:**
-  - tools are framed like Claude Code's: built-in tools, connectors the player chooses (keys, sign-ins, local MCP servers; no remote MCP), plugins later;
+  - tools are framed like Claude Code's: built-in tools, connectors the player chooses (keys, sign-ins, local MCP servers; no remote MCP, changed 2026-10-15: the player's own
+    servers on the internet too, `2026-10-15-skills.md`), plugins later;
   - optional extras are **add-ons** (the user, 2026-10-09): off until turned on, each saying what it needs and where data goes; connectors become add-ons. No service of ours and no third party's free tier as a default: "no resources or holdbacks on my side";
   - acting outside the app asks first;
   - while a tool works, she says a short line the model writes itself, fitting what she's doing.

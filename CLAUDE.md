@@ -29,7 +29,7 @@ The README is the front page for strangers; the manual is in READMEs beside what
   - `2026-10-10-reaching-the-player.md`: a roommate who calls at the PC and texts when the player is away; texting with her on Telegram, both ways.
   - `2026-10-10-settings-and-setup.md`: one Settings window of short pages, saved as changed; guides for setup outside the app; Getting started; the short tray.
   - `2026-10-11-observational-memory.md`: her memory as a dated log of notes (phases 1 to 4; what is built where).
-  - `2026-10-15-skills.md`: skills in the open SKILL.md format, a notes folder a skill may reach, her suggested
+  - `2026-10-15-skills.md`: skills in the open SKILL.md format, the folder a skill may work in, her suggested
     changes to a skill, and servers the player adds (MCP); the order of work.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
