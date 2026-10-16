@@ -1,8 +1,5 @@
 {
   "permissions": {
-    "deny": [
-      "Bash(gh pr merge *)",
-      "PowerShell(gh pr merge *)"
-    ]
+    "deny": []
   }
 }
