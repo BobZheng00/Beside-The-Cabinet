@@ -1,0 +1,365 @@
+using System.IO.Compression;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace InsertCoin.Mind;
+
+/// <summary>
+/// A skill: something she knows how to do the player's way, a folder with a SKILL.md in the open Agent Skills format
+/// (https://agentskills.io/specification): a name and a one-line description in its front matter, instructions below
+/// (docs/specs/2026-10-15-skills.md).
+/// </summary>
+/// <param name="Folder">The skill's own folder, where it is (a linked one is never copied).</param>
+/// <param name="Broken">Why its SKILL.md can't be used, in a few words for the Skills page; null when it can.</param>
+public sealed record Skill(string Name, string Description, string Folder, string? Broken = null);
+
+/// <summary>
+/// The skills she has: each folder with a SKILL.md inside a skills folder, the app's own (in the player's profile) or
+/// one elsewhere that the player linked, as Claude Code finds them in ~/.claude/skills. Only what each is called and
+/// what it is for is always with her; she reads a skill's instructions when she uses it, from the file each time, so
+/// an edit made anywhere applies the next time. Only its SKILL.md and the text files it mentions are ever read, and
+/// only inside its own folder: its scripts are never run.
+/// </summary>
+public sealed class Skills(string own)
+{
+    public const string FileName = "SKILL.md";
+
+    /// <summary>
+    /// Characters one read gives her, about 5,000 tokens of English: the format recommends instructions under 5,000
+    /// tokens and 500 lines (to tune). What is longer is cut, and she is told.
+    /// </summary>
+    public const int ReadLimit = 20_000;
+
+    public const int NameLimit = 64, DescriptionLimit = 1024;
+
+    /// <summary>The app's own skills folder, in the player's profile: new and imported skills go here.</summary>
+    public string Own { get; } = Path.GetFullPath(own);
+
+    /// <summary>Whether <paramref name="skill"/> is in the skills folder <paramref name="folder"/>.</summary>
+    public static bool IsIn(Skill skill, string folder) =>
+        string.Equals(Path.GetDirectoryName(Path.GetFullPath(skill.Folder)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Skills folders elsewhere that the player linked, read where they are.</summary>
+    public IReadOnlyList<string> Linked { get; set; } = [];
+
+    /// <summary>The skills the player switched off, by folder (so a rename keeps it off).</summary>
+    public IReadOnlySet<string> Off { get; set; } = new HashSet<string>();
+
+    /// <summary>Every skill in one skills folder, by name; a subfolder without a SKILL.md isn't a skill.</summary>
+    public static IReadOnlyList<Skill> In(string folder)
+    {
+        if (!Directory.Exists(folder))
+            return [];
+        var found = new List<Skill>();
+        foreach (var dir in Directory.EnumerateDirectories(folder))
+        {
+            var file = Path.Combine(dir, FileName);
+            if (!File.Exists(file))
+                continue;
+            string text;
+            try
+            {
+                text = File.ReadAllText(file);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                found.Add(new Skill(Path.GetFileName(dir), "", dir, $"its {FileName} can't be opened ({e.Message})"));
+                continue;
+            }
+            var read = Parse(text);
+            var problem = read.Problem ?? (read.Name != Path.GetFileName(dir) ? $"its name, \"{read.Name}\", isn't its folder's name, \"{Path.GetFileName(dir)}\"" : null);
+            found.Add(new Skill(read.Name ?? Path.GetFileName(dir), read.Description ?? "", dir, problem));
+        }
+        return [.. found.OrderBy(s => s.Name, StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Every skill, the app's own folder first, then each linked one in turn. Two with one name: the later is listed as
+    /// broken, so the name she asks for means one skill.
+    /// </summary>
+    public IReadOnlyList<Skill> All()
+    {
+        var all = new List<Skill>();
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var folder in Linked.Prepend(Own))
+            foreach (var skill in In(folder))
+            {
+                if (skill.Broken is null && !names.TryAdd(skill.Name, skill.Folder))
+                    all.Add(skill with { Broken = $"another skill is called {skill.Name} too ({names[skill.Name]})" });
+                else
+                    all.Add(skill);
+            }
+        return all;
+    }
+
+    /// <summary>The skills she has now: those that can be read and aren't switched off, by name.</summary>
+    public IReadOnlyList<Skill> On() =>
+        [.. All().Where(s => s.Broken is null && !Off.Contains(s.Folder)).OrderBy(s => s.Name, StringComparer.Ordinal)];
+
+    /// <summary>
+    /// What she reads when she uses a skill: its instructions (no <paramref name="file"/>), or a file they mention, by its
+    /// path from the skill's folder; read from disk now, and cut at <see cref="ReadLimit"/>. What can't be read says why.
+    /// </summary>
+    public string Read(string name, string? file = null)
+    {
+        if (On().FirstOrDefault(s => s.Name == name.Trim()) is not { } skill)
+            return $"There is no skill called {name} switched on.";
+        var instructions = Inside(skill.Folder, FileName, out var why);
+        if (instructions is null)
+            return why!;
+        string text;
+        try
+        {
+            text = File.ReadAllText(instructions);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return $"Its {FileName} can't be read: {e.Message}";
+        }
+        var read = Parse(text);
+        if (read.Problem is not null)
+            return $"Its {FileName} can't be used now: {read.Problem}.";
+        if (string.IsNullOrWhiteSpace(file) || Same(file, FileName))
+            return Cut(read.Body.Trim(), FileName);
+
+        var wanted = file.Trim().Replace('\\', '/');
+        if (wanted.StartsWith("./", StringComparison.Ordinal))
+            wanted = wanted[2..];
+        // mentioned as a path of its own ("references/forms.md", "./forms.md"), not as part of another word or path
+        if (!Regex.IsMatch(text.Replace('\\', '/'), $@"(?<![\w./-])(\./)?{Regex.Escape(wanted)}(?![\w/-])"))
+            return $"Its {FileName} doesn't mention {file}: only the files it mentions can be read.";
+        if (Inside(skill.Folder, wanted, out why) is not { } path)
+            return why!;
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return $"{file} can't be read: {e.Message}";
+        }
+        if (Array.IndexOf(bytes, (byte)0) >= 0)
+            return $"{file} isn't text, so it can't be read.";
+        return Cut(Encoding.UTF8.GetString(bytes).TrimStart('﻿'), wanted);
+    }
+
+    /// <summary>
+    /// The full path of <paramref name="relative"/> inside <paramref name="folder"/>, if it is a file there; null, saying
+    /// why, for one outside it (by "..", an absolute path or a link on the way: links aren't followed) or missing.
+    /// </summary>
+    internal static string? Inside(string folder, string relative, out string? why)
+    {
+        why = null;
+        var root = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (Path.IsPathRooted(relative))
+        {
+            why = $"{relative} is outside the skill's folder: only its own files can be read.";
+            return null;
+        }
+        var full = Path.GetFullPath(Path.Combine(root, relative));
+        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            why = $"{relative} is outside the skill's folder: only its own files can be read.";
+            return null;
+        }
+        // every step below the skill's folder, the file too: none may be a link (or a junction), which could lead out
+        var step = root;
+        foreach (var part in full[(root.Length + 1)..].Split(Path.DirectorySeparatorChar))
+        {
+            step = Path.Combine(step, part);
+            FileSystemInfo info = Directory.Exists(step) ? new DirectoryInfo(step) : new FileInfo(step);
+            if (!info.Exists)
+            {
+                why = $"There is no {relative} in the skill's folder.";
+                return null;
+            }
+            if (info.LinkTarget is not null || info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                why = $"{relative} goes through a link, and links aren't followed: only the skill's own files can be read.";
+                return null;
+            }
+        }
+        if (!File.Exists(full))
+        {
+            why = $"{relative} is a folder, not a file.";
+            return null;
+        }
+        return full;
+    }
+
+    private static bool Same(string file, string name) => file.Trim().TrimStart('.', '/', '\\').Equals(name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Text cut at <see cref="ReadLimit"/>, at a line's end where one is near, saying so.</summary>
+    internal static string Cut(string text, string file)
+    {
+        if (text.Length <= ReadLimit)
+            return text;
+        var end = text.LastIndexOf('\n', ReadLimit - 1);
+        var kept = text[..(end > ReadLimit / 2 ? end : ReadLimit)].TrimEnd();
+        return $"{kept}\n\n[{file} was cut here: it is longer than {ReadLimit:N0} characters, the most read at once. The rest isn't shown.]";
+    }
+
+    /// <summary>What a SKILL.md's front matter says, and its instructions.</summary>
+    /// <param name="Problem">Why it can't be used, by the format's rules; null when it can.</param>
+    public sealed record Front(string? Name, string? Description, string Body, string? Problem);
+
+    /// <summary>
+    /// Reads a SKILL.md: the front matter between "---" lines at its top (the few fields of YAML it uses: plain, quoted
+    /// and block values; the rest, such as metadata, passed over), then its instructions. The name and description are
+    /// checked by the format's rules.
+    /// </summary>
+    public static Front Parse(string text)
+    {
+        var lines = text.TrimStart('﻿').Replace("\r\n", "\n").Split('\n');
+        if (lines.Length == 0 || lines[0].TrimEnd() != "---")
+            return new(null, null, text, "it has no front matter (its name and description between --- lines at its top)");
+        var close = Array.FindIndex(lines, 1, l => l.TrimEnd() is "---" or "...");
+        if (close < 0)
+            return new(null, null, text, "its front matter has no closing --- line");
+        var fields = Fields(lines[1..close]);
+        var body = string.Join("\n", lines[(close + 1)..]);
+        var name = fields.GetValueOrDefault("name")?.Trim();
+        var description = fields.GetValueOrDefault("description")?.Trim();
+        string? problem = null;
+        if (string.IsNullOrEmpty(name))
+            problem = "it has no name in its front matter";
+        else if (string.IsNullOrEmpty(description))
+            problem = "it has no description in its front matter";
+        else if (name.Length > NameLimit || !name.All(c => c == '-' || char.IsLetterOrDigit(c) && !char.IsUpper(c))
+                 || name.StartsWith('-') || name.EndsWith('-') || name.Contains("--", StringComparison.Ordinal))
+            problem = $"its name, \"{name}\", isn't one the format allows (lowercase letters, numbers and single hyphens, at most {NameLimit})";
+        else if (description.Length > DescriptionLimit)
+            problem = $"its description is longer than {DescriptionLimit:N0} characters";
+        return new(name, description is null ? null : string.Join(' ', description.Split((char[])['\n', '\r', '\t', ' '], StringSplitOptions.RemoveEmptyEntries)), body, problem);
+    }
+
+    /// <summary>The front matter's top-level fields that hold text; a nested one (a map or a list) is passed over.</summary>
+    private static Dictionary<string, string> Fields(string[] lines)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i];
+            if (line.Length == 0 || char.IsWhiteSpace(line[0]) || line.TrimStart().StartsWith('#'))
+                continue;
+            var colon = line.IndexOf(':');
+            if (colon <= 0)
+                continue;
+            var key = line[..colon].Trim();
+            var value = line[(colon + 1)..].Trim();
+            // the lines set in under it belong to it
+            var more = new List<string>();
+            while (i + 1 < lines.Length && (lines[i + 1].Length == 0 || char.IsWhiteSpace(lines[i + 1][0])))
+                more.Add(lines[++i]);
+            while (more.Count > 0 && more[^1].Trim().Length == 0)
+                more.RemoveAt(more.Count - 1);
+            if (value.Length > 0 && value[0] is '|' or '>')
+            {
+                var indent = more.Where(l => l.Trim().Length > 0).Select(l => l.Length - l.TrimStart().Length).DefaultIfEmpty(0).Min();
+                var block = more.Select(l => l.Length >= indent ? l[indent..] : l.Trim());
+                fields[key] = value[0] == '|' ? string.Join("\n", block) : string.Join(" ", block.Select(l => l.Trim()).Where(l => l.Length > 0));
+            }
+            else if (value.Length > 0 && value[0] is '"' or '\'')
+                fields[key] = Quoted(string.Join(" ", more.Select(l => l.Trim()).Prepend(value)));
+            else if (value.Length == 0 && more.FirstOrDefault(l => l.Trim().Length > 0)?.Trim() is { } first && (first.StartsWith('-') || first.Contains(':')))
+                continue;                                   // a map or a list (metadata:): no text of its own
+            else
+                fields[key] = string.Join(" ", more.Select(l => l.Trim()).Prepend(Uncommented(value)).Where(l => l.Length > 0));
+        }
+        return fields;
+    }
+
+    private static string Uncommented(string value)
+    {
+        var comment = value.IndexOf(" #", StringComparison.Ordinal);
+        return comment >= 0 ? value[..comment].TrimEnd() : value;
+    }
+
+    private static string Quoted(string value)
+    {
+        var quote = value[0];
+        var end = value.LastIndexOf(quote);
+        var inner = end > 0 ? value[1..end] : value[1..];
+        return quote == '\''
+            ? inner.Replace("''", "'")
+            : inner.Replace("\\\"", "\"").Replace("\\n", "\n").Replace("\\t", "\t").Replace("\\\\", "\\");
+    }
+
+    /// <summary>
+    /// "New skill": a folder in the app's own skills folder with a SKILL.md to fill in. Its description is left for the
+    /// player, so it is listed as needing one until written. Returns its folder.
+    /// </summary>
+    public string Make()
+    {
+        Directory.CreateDirectory(Own);
+        var name = "new-skill";
+        for (var n = 2; Directory.Exists(Path.Combine(Own, name)); n++)
+            name = $"new-skill-{n}";
+        var folder = Directory.CreateDirectory(Path.Combine(Own, name)).FullName;
+        File.WriteAllText(Path.Combine(folder, FileName), $"""
+            ---
+            name: {name}
+            description:
+            ---
+
+            # {name}
+
+            Write here, in your own words, how this is done: the steps, what to keep in mind, examples.
+
+            Fill in the description above too, in a sentence: what this skill does and when to use it. The name is the
+            folder's name: change both together (lowercase letters, numbers and hyphens).
+
+            """);
+        return folder;
+    }
+
+    /// <summary>
+    /// "Import a skill": copies a skill (its folder, or a .zip holding one) into the app's own skills folder, for this
+    /// app only, under its name. Links inside it are left out. Returns its new folder.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">It holds no SKILL.md, or one by that name is there already.</exception>
+    public string Import(string path)
+    {
+        if (path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
+        {
+            var unpacked = Path.Combine(Path.GetTempPath(), "insert-coin-skill-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                ZipFile.ExtractToDirectory(path, unpacked);  // refuses entries that would land outside it
+                var skill = File.Exists(Path.Combine(unpacked, FileName)) ? unpacked
+                    : Directory.GetFiles(unpacked, FileName, SearchOption.AllDirectories).OrderBy(f => f.Length).Select(Path.GetDirectoryName).FirstOrDefault()
+                      ?? throw new InvalidOperationException($"There's no {FileName} in that .zip.");
+                return Copy(skill, skill == unpacked ? Path.GetFileNameWithoutExtension(path) : Path.GetFileName(skill));
+            }
+            finally
+            {
+                if (Directory.Exists(unpacked))
+                    Directory.Delete(unpacked, recursive: true);
+            }
+        }
+        var folder = File.Exists(path) && Same(Path.GetFileName(path), FileName) ? Path.GetDirectoryName(path)! : path;
+        if (!File.Exists(Path.Combine(folder, FileName)))
+            throw new InvalidOperationException($"There's no {FileName} in that folder.");
+        return Copy(folder, Path.GetFileName(Path.TrimEndingDirectorySeparator(folder)));
+    }
+
+    private string Copy(string from, string fallback)
+    {
+        var read = Parse(File.ReadAllText(Path.Combine(from, FileName)));
+        var name = read.Problem is null ? read.Name! : fallback;
+        var to = Path.Combine(Own, name);
+        if (Directory.Exists(to))
+            throw new InvalidOperationException($"There's a skill called {name} in this app's folder already.");
+        CopyFolder(new DirectoryInfo(from), Directory.CreateDirectory(to));
+        return to;
+    }
+
+    private static void CopyFolder(DirectoryInfo from, DirectoryInfo to)
+    {
+        foreach (var file in from.EnumerateFiles().Where(f => f.LinkTarget is null))
+            file.CopyTo(Path.Combine(to.FullName, file.Name));
+        foreach (var dir in from.EnumerateDirectories().Where(d => d.LinkTarget is null && !d.Attributes.HasFlag(FileAttributes.ReparsePoint)))
+            CopyFolder(dir, to.CreateSubdirectory(dir.Name));
+    }
+}

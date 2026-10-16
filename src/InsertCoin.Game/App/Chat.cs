@@ -50,6 +50,8 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
+        Skills = new Skills(Path.Combine(dataDir, "skills"));
+        _readSkill = BuiltIn.ReadSkill(ReadSkill);
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
                              BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
                              BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
@@ -74,6 +76,33 @@ public sealed class Chat : IDisposable
 
     public MindStore Store { get; }
     public KeyStore Keys { get; }
+
+    /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
+    public Skills Skills { get; }
+
+    private readonly Tool _readSkill;
+
+    private string ReadSkill(string name, string? file)
+    {
+        var read = Skills.Read(name, file);
+        GD.Print($"Skills: she read {name}{(file is null ? "" : $" ({file})")}: {read.Length} characters");
+        return read;
+    }
+
+    /// <summary>
+    /// Her skills as they are on disk now, for the reply about to be written: the tool that reads them offered while one
+    /// is on (and its tool not switched off), and their names and descriptions with her tools. Both stay the same, so the
+    /// cached start of the prompt does, until a skill is added, removed, renamed or switched.
+    /// </summary>
+    private void UseSkills(Conversation conversation)
+    {
+        var on = Skills.On();
+        if (on.Count == 0)
+            Tools.Take(BuiltIn.SkillName);
+        else if (!Tools.All.Contains(_readSkill))
+            Tools.Put(_readSkill);
+        conversation.Skills = on.Count > 0 && Tools.PermissionOf(_readSkill) != Permission.Off ? on : [];
+    }
 
     /// <summary>What she can do with tools, and the player's permission for each (Settings → Abilities).</summary>
     public Toolbox Tools { get; }
@@ -412,6 +441,7 @@ public sealed class Chat : IDisposable
         var client = _talk;
         var conversation = _conversation;
         conversation.VoiceLanguage = voiceLanguage ?? speech?.Language;
+        UseSkills(conversation);
         using var answering = _answering = new CancellationTokenSource(AnswerTimeout);
         if (within is { } limit)
             answering.CancelAfter(limit);

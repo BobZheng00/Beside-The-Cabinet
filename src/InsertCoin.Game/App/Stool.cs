@@ -133,6 +133,8 @@ public partial class Stool : Node2D
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
         _chat.SearchThrough(settings.Now.AddOns.Search);
+        _chat.Skills.Linked = settings.Now.SkillFolders;
+        _chat.Skills.Off = settings.Now.SkillsOff.ToHashSet();
         _chat.Connect(ChatProvider());
         _chatBox = new ChatBox();
         AddChild(_chatBox);
@@ -1756,6 +1758,7 @@ public partial class Stool : Node2D
         new("characters", SettingsWindow.Companion, "Characters", CharactersPage),
         new("abilities", SettingsWindow.Companion, "Abilities", AbilitiesPage),
         new("privacy", SettingsWindow.Companion, "Privacy", PrivacyPage),
+        new("skills", SettingsWindow.Companion, "Skills", SkillsPage, Fresh: true),     // made again each time: skills change on disk
         new("addons", SettingsWindow.Companion, "Add-ons", AddOnsPage),
         new("usage", SettingsWindow.Cabinet, "Usage", UsedPage),
     ];
@@ -1995,6 +1998,15 @@ public partial class Stool : Node2D
         _chat.Tools.Choose(permissions);
     }
 
+    /// <summary>Her skills: the app's own, the folders the player linked, and which are on.</summary>
+    private Control SkillsPage()
+    {
+        var page = new SkillSettings();
+        page.Build(_chat.Skills, HerName(), Pick,
+                   () => _settings.Save(_settings.Now with { SkillFolders = [.. _chat.Skills.Linked], SkillsOff = [.. _chat.Skills.Off.Order()] }));
+        return page;
+    }
+
     /// <summary>Extras the player turns on: web search through their own SearXNG.</summary>
     private Control AddOnsPage()
     {
@@ -2223,6 +2235,7 @@ public partial class Stool : Node2D
                 break;
             case "memorycancel": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
+            case "skillseed": SeedSkills(); break;          // skills in the app's folder and a linked one, to try the Skills page and her skill tool on
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment
                 var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -2253,6 +2266,38 @@ public partial class Stool : Node2D
             default: return _listening.Dev(name, rest);
         }
         return true;
+    }
+
+    /// <summary>
+    /// Dev: skills to try the Skills page and her skill tool on. In the app's folder: tea-timer (with a file its
+    /// instructions mention and a script, never run), one without a description (broken) and a folder without a SKILL.md
+    /// (not a skill); and a linked folder, as a notes vault's .claude\skills, with journal in it.
+    /// </summary>
+    private void SeedSkills()
+    {
+        static void Write(string path, string text)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, text);
+        }
+
+        var own = _chat.Skills.Own;
+        Write(Path.Combine(own, "tea-timer", Skills.FileName),
+              "---\nname: tea-timer\ndescription: Brewing a pot of tea the player's way. Use when they want tea or a break with tea.\n---\n\n" +
+              "Remind them to warm the pot first. The steeping times are in references/times.md.\nscripts/brew.cmd starts a timer.\n");
+        Write(Path.Combine(own, "tea-timer", "references", "times.md"), "Green tea: 2 minutes. Black tea: 4 minutes.\n");
+        Write(Path.Combine(own, "tea-timer", "scripts", "brew.cmd"), "@echo off\necho brewed > \"%~dp0brewed.txt\"\n");
+        Write(Path.Combine(own, "half-written", Skills.FileName), "---\nname: half-written\ndescription:\n---\n\nNot finished yet.\n");
+        Write(Path.Combine(own, "just-notes", "notes.txt"), "Not a skill: there is no SKILL.md here.\n");
+        var linked = Path.Combine(Path.GetDirectoryName(own)!, "vault", ".claude", "skills");
+        Write(Path.Combine(linked, "journal", Skills.FileName),
+              "---\nname: journal\ndescription: >\n  Adding a line to the player's journal\n  at the end of the day.\nmetadata:\n  author: test\n---\n\nAsk how the day went first.\n");
+        if (!_chat.Skills.Linked.Contains(linked))
+        {
+            _chat.Skills.Linked = [.. _chat.Skills.Linked, linked];
+            _settings.Save(_settings.Now with { SkillFolders = [.. _chat.Skills.Linked] });
+        }
+        GD.Print($"Skills: seeded; on: {string.Join(", ", _chat.Skills.On().Select(s => s.Name))}");
     }
 
     /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>

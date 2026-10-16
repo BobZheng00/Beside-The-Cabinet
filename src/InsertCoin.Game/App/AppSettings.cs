@@ -50,6 +50,8 @@ public sealed record AppSettings
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
     public Privacy Privacy { get; init; } = new();      // what she is told in the background (Settings → Privacy; what she looks at is in ToolPermissions)
     public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (Settings → Add-ons)
+    public string[] SkillFolders { get; init; } = [];   // skills folders elsewhere the player linked, read where they are (Settings → Skills)
+    public string[] SkillsOff { get; init; } = [];      // skills switched off, by their folder; the rest are on
     public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
     public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
     public int BreakMinutes { get; init; } = 5;

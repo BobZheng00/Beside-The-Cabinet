@@ -289,6 +289,26 @@ public static class BuiltIn
         "Set the bedtime",
         OutsideApp: false);
 
+    /// <summary>The skill tool's name, and where it comes from: Settings → Skills, not Abilities, switches skills on and off.</summary>
+    public const string SkillName = "read_skill", SkillSource = "skills";
+
+    /// <summary>
+    /// Reads one of her skills (see <see cref="Skills"/>): its instructions, or a file they mention, from disk each time.
+    /// It only reads, inside the skill's own folder, so it needs no asking; offered while she has a skill switched on.
+    /// </summary>
+    /// <param name="read">Reads it (the skill's name, and a file's path or null for its instructions) and says what came of it.</param>
+    public static Tool ReadSkill(Func<string, string?, string> read) => new(
+        AIFunctionFactory.Create(
+            ([Description("The skill's name, as your skills list it")] string skill,
+             [Description("Leave it out for the skill's instructions. Otherwise a file its instructions mention, by the path they give (\"references/forms.md\")")] string? file = null) =>
+                read(skill, string.IsNullOrWhiteSpace(file) ? null : file),
+            SkillName,
+            "Reads one of your skills: its instructions, or a file they mention. Read a skill's instructions each time you use it, " +
+            "before you follow them: the player may have changed them since."),
+        "Use skills",
+        OutsideApp: false,
+        Source: SkillSource);
+
     private static (string What, string Detail, string? Scope)? Asked(string what, string detail, string? scope) => (what, detail, scope);
 
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>

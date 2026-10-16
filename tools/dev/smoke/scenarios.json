@@ -25,7 +25,7 @@
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
-      "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settingswidths@17",
+      "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settings:skills@17,settingswidths@18",
       "shots": [6, 11, 16, 21],
       "window": "Settings",
       "expect": ["^Settings: (\\d+) of \\1 pages measured"],
@@ -42,6 +42,19 @@
       "shots": [8, 12],
       "desk": true,
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
+    },
+    {
+      "name": "skills",
+      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken, one in a linked folder); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
+      "covers": ["src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
+      "mind": true,
+      "mindReply": "Warm the pot first, then four minutes.",
+      "mindRequests": 2,
+      "script": "nocall@1,skillseed@2,settings:skills@3,chat:could_you_do_the_tea-timer_skill@8",
+      "shots": [7, 15],
+      "window": "Settings",
+      "desk": true,
+      "expect": ["^Skills: seeded; on: journal, tea-timer$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
       "name": "memory",

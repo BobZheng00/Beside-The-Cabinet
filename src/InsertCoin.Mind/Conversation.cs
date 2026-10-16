@@ -63,6 +63,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>The player chose "Keeps in touch", as set now: she may plan when to reach them while they are out (see <see cref="Later"/>).</summary>
     public Func<bool> KeepsInTouch { get; init; } = () => false;
 
+    /// <summary>Her skills switched on now, named with her tools (see <see cref="Mind.Skills"/>); set before each reply.</summary>
+    public IReadOnlyList<Skill> Skills { get; set; } = [];
+
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
 
@@ -109,7 +112,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var folded = store.Folded(character);
         var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
-                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known);
+                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known, skills: Skills);
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
             written.Append(update.Text);
@@ -188,7 +191,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known);
+                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
