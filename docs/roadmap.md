@@ -34,7 +34,8 @@ says where things stand today); this page keeps the story. Update it at each mil
 `docs/specs/2026-10-15-skills.md`: skills in the open SKILL.md format, in the app's own skills folder and folders the
 player links (read where they are; their scripts never run); a folder a skill may work in, read and written freely,
 moving and deleting asked; her suggested changes to a skill in her words and a plain
-card; servers the player adds (MCP, on this PC or the internet), all their tools starting at Ask. No knowledge base
+card; servers (MCP, on this PC or the internet) live inside skills, so a connector is a skill (a `.mcp.json` in its
+folder), and how freely she uses a skill's tools comes from its `allowed-tools`. No knowledge base
 inside the app and no routines assumed. Issues for steps 1 to 4; step 5, the first connector of ours, is open.
 
 **Tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
