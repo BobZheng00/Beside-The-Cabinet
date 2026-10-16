@@ -111,6 +111,10 @@ cache at a tenth of that or less.
    answering, speaking or listening, with the plain line when her mind is not connected; a chime that can sound
    while the cabinet is muted (its own bus); the memory book in tabs. A reminder whose time had passed before it was
    added goes off only while its item is ahead, as does one from the default lead.
+   *Third round, 2026-10-14 (#17):* she calls off or changes an item in the reply where she is asked, not at the next
+   upkeep: the agenda in her turn numbers the items she may change, and `[cancel: #12]` or `[change: #12 | new time |
+   options]` reach that same item. The code takes only a number from that turn's list, and never a calendar's item
+   (listed without a number, "from their calendar"): the calendar decides those.
 
 ## Second pass (decided with the player, 2026-10-04)
 

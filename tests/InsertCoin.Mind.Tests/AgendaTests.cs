@@ -5,6 +5,7 @@ public class AgendaTests
 {
     private static readonly DateTimeOffset Friday = new(2026, 10, 2, 19, 30, 0, TimeSpan.FromHours(8));
     private static readonly Persona Shino = new("Shino", "Shino is cheerful.");
+    private static DateTimeOffset On(int day, int hour) => new(2026, 10, day, hour, 0, 0, Friday.Offset);
 
     [Fact]
     public void Directions_are_read_as_a_time_and_what_it_is()
@@ -42,7 +43,7 @@ public class AgendaTests
 
         var next = new FakeModel("Not yet!");
         await conversation.Answer(next, "is it time?", "", _ => { }, (_, _) => { });
-        Assert.Contains("<agenda>\nComing up:\n- Fri 2 Oct 21:00 (in an hour): Call Mum (a reminder goes off then)\n</agenda>\n<cabinet>", next.Requests.Single()[^1].Text);
+        Assert.Contains($"<agenda>\nComing up:\n- #{reminder.Id} Fri 2 Oct 21:00 (in an hour): Call Mum (a reminder goes off then)\n</agenda>\n<cabinet>", next.Requests.Single()[^1].Text);
         Assert.Contains("[remind: YYYY-MM-DD HH:MM | what to remind them of]", next.Requests.Single()[0].Text);
 
         Assert.Empty(Agenda.Due(temp.Store.Agenda(), Friday.AddMinutes(89)));
@@ -52,25 +53,91 @@ public class AgendaTests
     }
 
     [Fact]
+    public void Changes_are_read_as_an_item_s_number_and_what_changes()
+    {
+        Assert.Equal((12L, (DateTimeOffset?)null, (string?)null), Plain(Agenda.ParseChange("#12", Friday)));
+        Assert.Equal((12L, On(5, 10), (string?)null), Plain(Agenda.ParseChange(" 12 | 2026-10-05 10:00", Friday)));
+        Assert.Equal((12L, On(5, 10), "1 hour before"), Plain(Agenda.ParseChange("#12 | 1 hour before | 2026-10-05 10:00", Friday)));
+        Assert.Null(Agenda.ParseChange("the dentist", Friday));
+        Assert.Null(Agenda.ParseChange("#-3", Friday));
+
+        static (long, DateTimeOffset?, string?)? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options)? c) =>
+            c is { } x ? (x.Id, x.When?.At, x.Options) : null;
+    }
+
+    [Fact]
+    public async Task Asked_to_call_something_off_she_takes_it_off_the_agenda_in_that_reply_and_its_reminder_never_goes_off()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel($"[cancel: #{dentist}] Done, it's off.");
+
+        var answer = await conversation.Answer(model, "the dentist time doesn't work, take it off", "", _ => { }, (_, _) => { });
+
+        Assert.Equal("Done, it's off.", answer);
+        Assert.Contains($"- #{dentist} Sat 3 Oct 10:00 (tomorrow): Dentist (a reminder 1 hour before)", model.Requests.Single()[^1].Text);
+        Assert.Contains("[cancel: #12]", model.Requests.Single()[0].Text);
+        Assert.Empty(temp.Store.Agenda());
+        Assert.Empty(Agenda.Due(temp.Store.Agenda(), Friday.AddDays(1).AddHours(10)));
+    }
+
+    [Fact]
+    public async Task Asked_to_move_something_or_change_its_reminder_she_changes_that_same_item()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        temp.Store.Reminded(dentist, Friday);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | 2026-10-06 15:00] Moved to Tuesday at three."), "the dentist moved to Tuesday 3pm", "", _ => { }, (_, _) => { });
+        var moved = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((dentist, "Dentist", "Tue 6 Oct 15:00", TimeSpan.FromHours(1), (DateTimeOffset?)null), (moved.Id, moved.Text, moved.Label, moved.Before!.Value, moved.Reminded));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | 1 day before] I'll tell you the day before."), "remind me the day before instead", "", _ => { }, (_, _) => { });
+        var reminded = Assert.Single(temp.Store.Agenda());
+        Assert.Equal(("Tue 6 Oct 15:00", TimeSpan.FromDays(1)), (reminded.Label, reminded.Before!.Value));
+    }
+
+    [Fact]
+    public async Task She_changes_only_an_item_she_was_shown_and_never_a_calendar_s()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var dentist = store.AddPlan("Dentist", On(3, 10), allDay: false, before: null, Friday, "shino");
+        var trip = store.AddPlan("Trip to the coast", On(22, 0), allDay: true, before: null, Friday, null);    // beyond the week: not shown
+        var sync = store.AddCalendarPlan("Work", "sync@work", "Team sync", Friday.AddDays(3), allDay: false, Friday);
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
+        var model = new FakeModel($"[cancel: #{sync}] [cancel: #{trip}] [change: #999 | 2026-10-08 10:00] [cancel: #{sync + 100}] Hm.");
+
+        await conversation.Answer(model, "cancel the team sync and the trip", "", _ => { }, (_, _) => { });
+
+        Assert.Contains("- Mon 5 Oct 19:30 (in 3 days): Team sync (from their calendar)", model.Requests.Single()[^1].Text);    // no number to change it by
+        Assert.Contains("An item without a number is from their calendar", model.Requests.Single()[0].Text);
+        Assert.Equal([dentist, sync, trip], store.Agenda().Select(p => p.Id));
+        Assert.Equal(Friday.AddDays(3), store.Agenda().Single(p => p.Id == sync).At);
+    }
+
+    [Fact]
     public void Past_items_are_mentioned_for_two_days_then_leave_the_agenda()
     {
         using var temp = new TempStore();
         var store = temp.Store;
-        store.AddPlan("Calculus exam", Friday.Date.AddDays(1), allDay: true, before: null, Friday, null);
-        store.AddPlan("Job interview", Friday.Date.AddDays(10).AddHours(10), allDay: false, before: null, Friday, null);
+        var exam = store.AddPlan("Calculus exam", Friday.Date.AddDays(1), allDay: true, before: null, Friday, null);
+        var interview = store.AddPlan("Job interview", Friday.Date.AddDays(10).AddHours(10), allDay: false, before: null, Friday, null);
         var missed = store.AddPlan("Water the plants", Friday.AddHours(1), allDay: false, before: TimeSpan.Zero, Friday, "shino");
 
-        Assert.Equal("""
+        Assert.Equal($"""
             <agenda>
             Coming up:
-            - Fri 2 Oct 20:30 (in an hour): Water the plants (a reminder goes off then)
-            - Sat 3 Oct (tomorrow): Calculus exam
+            - #{missed} Fri 2 Oct 20:30 (in an hour): Water the plants (a reminder goes off then)
+            - #{exam} Sat 3 Oct (tomorrow): Calculus exam
             </agenda>
 
             """.ReplaceLineEndings("\n"), Agenda.Block(store.Agenda(), Friday));
         var sunday = Friday.AddDays(2);
-        Assert.Contains("Just past:\n- Fri 2 Oct 20:30 (2 days ago): Water the plants\n- Sat 3 Oct (yesterday): Calculus exam\n", Agenda.Block(store.Agenda(), sunday));
-        Assert.Contains("- Mon 12 Oct 10:00 (in 5 days): Job interview", Agenda.Block(store.Agenda(), Friday.AddDays(5)));
+        Assert.Contains($"Just past:\n- #{missed} Fri 2 Oct 20:30 (2 days ago): Water the plants\n- #{exam} Sat 3 Oct (yesterday): Calculus exam\n", Agenda.Block(store.Agenda(), sunday));
+        Assert.Contains($"- #{interview} Mon 12 Oct 10:00 (in 5 days): Job interview", Agenda.Block(store.Agenda(), Friday.AddDays(5)));
         Assert.DoesNotContain("Job interview", Agenda.Block(store.Agenda(), Friday.AddDays(2.5)));       // more than a week ahead
 
         store.ClosePast(Friday.AddDays(4));

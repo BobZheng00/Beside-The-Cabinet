@@ -53,6 +53,18 @@
       "expect": ["^Memory book: fact saved", "^Memory book: asked which to keep: \\S+ changed this meanwhile, to: “Bob promised her a Medium problem.”", "^Memory book: \"Keep yours\" pressed"]
     },
     {
+      "name": "agendacancel",
+      "about": "Asked to take something off the agenda, the companion does it in that reply: the job interview the seed put there leaves the memory book's Agenda tab.",
+      "covers": ["src/InsertCoin.Mind/*", "src/InsertCoin.Game/App/MemoryBook.cs"],
+      "mind": true,
+      "mindReply": "[cancel: #1] Done, it's off your agenda.",
+      "mindRequests": 1,
+      "script": "nocall@1,memoryseed@2,memorybook:agenda@4,chat:please_take_the_interview_off_my_agenda@8",
+      "shots": [8, 15],
+      "window": "remembers",
+      "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
+    },
+    {
       "name": "crt",
       "about": "The CRT's small system opens, then its MEMOS app.",
       "covers": ["src/InsertCoin.Game/App/Crt/*", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/Cabinet/screen_quad.gdshader"],

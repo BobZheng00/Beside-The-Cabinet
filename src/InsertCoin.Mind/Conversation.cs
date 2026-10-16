@@ -174,6 +174,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if ((loreUsed += Prompt.Tokens(entry.Content)) <= LoreBudget)
                 lore.Add(new Memory(entry.Content));
         var offered = tools?.Offered;
+        // the agenda as this turn shows it: what she may change in her reply is an item she was shown, and not a calendar's
+        var agenda = store.Agenda();
+        var shown = Agenda.Shown(agenda, now);
+        var changeable = shown.Ahead.Concat(shown.Past).Where(p => p.Source is null).ToDictionary(p => p.Id);
         // what she always has in mind, and what of it went in, kept with her reply beside what recall brought (see MindStore.InMind)
         var listed = new List<Fact>();
         var (aboutPlayer, aboutUs, aboutHer) = (Known(MindStore.Shared, listed), Known(character, listed), Known(MindStore.Herself(character), listed));
@@ -184,7 +188,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(store.Agenda(), now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known);
+                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -212,6 +216,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 seen.Add(saw);
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
+            // "[cancel: #12]" and "[change: #12 | ...]": that same item called off, moved or reminded of differently
+            if (name is "cancel" or "change" && payload is not null && Agenda.ParseChange(payload, now, _clock.LocalTimeZone) is { } change
+                && changeable.TryGetValue(change.Id, out var item))
+            {
+                if (name == "cancel")
+                    store.DeletePlan(item.Id);
+                else
+                    ChangePlan(item, change.When, null, change.Options, remind: false);
+            }
             // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
             if (name is "out" or "sleep")
                 store.SetMark(Reaching.Mark, Reaching.Marked(name == "sleep", now));
@@ -504,6 +517,18 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         return store.AddPlan(spec.Text, spec.At, spec.AllDay, spec.Before, now, character, spec.Repeat);
     }
 
+    /// <summary>
+    /// Changes an item on the agenda: to a new time, a new name, a new reminder or repeat (as words, see
+    /// <see cref="Agenda.ParseOptions"/>; with <paramref name="remind"/>, a reminder at its time), keeping what is not given.
+    /// </summary>
+    private void ChangePlan(Plan plan, (DateTimeOffset At, bool AllDay)? when, string? text, string? options, bool remind)
+    {
+        var moved = when ?? (plan.At, plan.AllDay);
+        var (lead, again) = Agenda.ParseOptions(options);
+        store.UpdatePlan(plan.Id, text is { Length: > 1 } renamed ? renamed : plan.Text, moved.At, moved.AllDay,
+                         lead ?? (remind ? TimeSpan.Zero : plan.Before), again != Repeat.Once ? again : plan.Repeat);
+    }
+
     /// <summary>When the player or she last said something (the cabinet's lines aside), or null.</summary>
     public DateTimeOffset? LastTalked =>
         store.Through(character, long.MaxValue, 40).Where(l => l.Speaker != Speaker.Cabinet).Select(l => (DateTimeOffset?)l.At).Max();
@@ -776,10 +801,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     AddPlan(new PlanSpec(at.At, at.AllDay, text2, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
                     break;
                 case "update" when change.Id is { } id && plans.TryGetValue(id, out var plan):
-                    var moved = when ?? (plan.At, plan.AllDay);
-                    var (lead, again) = Agenda.ParseOptions(change.Options);
-                    store.UpdatePlan(id, change.Text is { Length: > 1 } renamed ? renamed : plan.Text, moved.At, moved.AllDay,
-                                     lead ?? (change.Remind ? TimeSpan.Zero : plan.Before), again != Repeat.Once ? again : plan.Repeat);
+                    ChangePlan(plan, when, change.Text, change.Options, change.Remind);
                     break;
                 case "cancel" when change.Id is { } id && plans.ContainsKey(id):
                     store.DeletePlan(id);
