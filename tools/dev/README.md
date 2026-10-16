@@ -50,7 +50,9 @@ something, opening or closing what they had in mind for it; `chathistorydo:Reply
 on the memory showing with those words in it; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
-own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a linked one; the mock mind reads a skill the player's words name, then answers),
+own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
+skills folder in the profile; the mock mind reads a skill the player's words name, then answers), `skilllink` (links
+that vault's skills folder on the open Skills page, as picking it in "Link a skills folder…" does),
 `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test

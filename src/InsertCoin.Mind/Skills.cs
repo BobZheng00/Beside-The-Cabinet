@@ -91,8 +91,9 @@ public sealed class Skills(string own)
                 }
                 var read = Parse(text);
                 var name = read.Name ?? named;
-                var hint = read.Name is not null && read.Name != named ? $"its name, \"{read.Name}\", isn't its folder's name, \"{named}\", as the format asks" : null;
-                found.Add(new Skill(name, read.Description ?? "", dir, read.Problem, hint ?? read.Hint));
+                // a name the format doesn't allow has its own hint already: that it isn't the folder's name too goes without saying
+                var hint = read.Name is not null && read.Name != named && Allowed(read.Name) ?$"its name, \"{read.Name}\", isn't its folder's name, \"{named}\", as the format asks" : null;
+                found.Add(new Skill(name, read.Description ?? "", dir, read.Problem, Joined([hint, read.Hint])));
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
@@ -112,7 +113,7 @@ public sealed class Skills(string own)
         var buffer = new byte[MostBytes + 1];
         var got = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
         var kept = Math.Min(got, MostBytes);
-        return (Encoding.UTF8.GetString(buffer, 0, kept).TrimStart('﻿'), got > MostBytes, Array.IndexOf(buffer, (byte)0, 0, kept) >= 0);
+        return (Encoding.UTF8.GetString(buffer, 0, kept).TrimStart('\uFEFF'), got > MostBytes, Array.IndexOf(buffer, (byte)0, 0, kept) >= 0);
     }
 
     /// <summary>
@@ -262,7 +263,7 @@ public sealed class Skills(string own)
     /// </summary>
     public static Front Parse(string text)
     {
-        var lines = text.TrimStart('﻿').Replace("\r\n", "\n").Split('\n');
+        var lines = text.TrimStart('\uFEFF').Replace("\r\n", "\n").Split('\n');
         if (lines.Length == 0 || lines[0].TrimEnd() != "---")
             return new(null, null, text, "it has no front matter (its name and description between --- lines at its top)");
         var close = Array.FindIndex(lines, 1, l => l.TrimEnd() is "---" or "...");
@@ -272,17 +273,27 @@ public sealed class Skills(string own)
         var body = string.Join("\n", lines[(close + 1)..]);
         var name = OneLine(fields.GetValueOrDefault("name"));
         var description = OneLine(fields.GetValueOrDefault("description"));
-        string? hint = null;
+        var hints = new List<string>();
         if (description.Length > DescriptionLimit)
         {
             description = Prompt.Fit(description, DescriptionLimit);
-            hint = $"its description is longer than the format's {DescriptionLimit:N0} characters, so only its start is used";
+            hints.Add($"its description is longer than the format's {DescriptionLimit:N0} characters, so only its start is used");
+        }
+        // what goes into her instructions is held to the format's lengths, the name as much as the description
+        if (name.Length > NameLimit)
+        {
+            name = name[..(char.IsHighSurrogate(name[NameLimit - 1]) ? NameLimit - 1 : NameLimit)].TrimEnd();
+            hints.Add($"its name is longer than the format's {NameLimit} characters, so only its start is used");
         }
         if (name.Length > 0 && !Allowed(name))
-            hint = $"its name, \"{name}\", isn't one the format allows (lowercase letters, numbers and single hyphens, at most {NameLimit})";
+            hints.Add($"its name, \"{name}\", isn't one the format allows (lowercase letters, numbers and single hyphens)");
         return new(name.Length > 0 ? name : null, description.Length > 0 ? description : null, body,
-                   description.Length == 0 ? "it has no description in its front matter" : null, hint);
+                   description.Length == 0 ? "it has no description in its front matter" : null, Joined(hints));
     }
+
+    /// <summary>Hints as one line for the page, or null for none.</summary>
+    private static string? Joined(IEnumerable<string?> hints) =>
+        hints.OfType<string>().ToList() is { Count: > 0 } all ? string.Join("; ", all) : null;
 
     /// <summary>A field's words on one line, however they were spread over lines.</summary>
     private static string OneLine(string? value) =>
@@ -414,7 +425,7 @@ public sealed class Skills(string own)
     private string Copy(string from, string fallback)
     {
         var read = Parse(Head(Path.Combine(from, FileName)).Text);
-        var name = read.Name is { } named && Allowed(named) ? named : fallback;
+        var name = read.Name is { } named && Allowed(named) ? named : Listable(fallback);
         var to = Path.Combine(Own, name);
         if (Directory.Exists(to))
             throw new InvalidOperationException($"There's a skill called {name} in this app's folder already.");
@@ -438,6 +449,17 @@ public sealed class Skills(string own)
             throw;
         }
         return to;
+    }
+
+    /// <summary>
+    /// A folder's name the list shows (see <see cref="In"/>): no dots or spaces at its start, where a dot-name is an
+    /// import under way, or at its end, which Windows drops; nothing a file's name can't hold; "imported-skill" when
+    /// nothing is left.
+    /// </summary>
+    internal static string Listable(string name)
+    {
+        var kept = new string([.. name.Where(c => !Path.GetInvalidFileNameChars().Contains(c))]).Trim('.', ' ', '\t');
+        return kept.Length > 0 ? kept : "imported-skill";
     }
 
     /// <summary>The files in a folder and the folders in it, leaving out links (see <see cref="IsLink"/>).</summary>

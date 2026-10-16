@@ -32,7 +32,7 @@ public sealed class SkillTests : IDisposable
     [Fact]
     public void The_front_matter_gives_a_name_and_a_one_line_description_and_the_rest_is_instructions()
     {
-        var read = Skills.Parse("﻿---\r\nname: pdf-processing\r\ndescription: Extract PDF text. Use when handling PDFs. # a comment\r\nlicense: Apache-2.0\r\n" +
+        var read = Skills.Parse("\uFEFF---\r\nname: pdf-processing\r\ndescription: Extract PDF text. Use when handling PDFs. # a comment\r\nlicense: Apache-2.0\r\n" +
                                 "metadata:\r\n  author: example-org\r\n  version: \"1.0\"\r\n---\r\n# Steps\r\nFirst this.\r\n");
 
         Assert.Null(read.Problem);
@@ -83,7 +83,7 @@ public sealed class SkillTests : IDisposable
     [Fact]
     public void Names_and_descriptions_past_the_formats_limits_are_used_with_a_hint()
     {
-        Assert.Contains("isn't one the format allows", Skills.Parse($"---\nname: {new string('a', 65)}\ndescription: Tea.\n---\n").Hint);
+        Assert.Contains("longer than the format's 64", Skills.Parse($"---\nname: {new string('a', 65)}\ndescription: Tea.\n---\n").Hint);
         Assert.Null(Skills.Parse($"---\nname: {new string('a', 64)}\ndescription: Tea.\n---\n").Hint);
         var long_ = Skills.Parse($"---\nname: tea\ndescription: {string.Concat(Enumerable.Repeat("Steep it well. ", 100))}\n---\n");
         Assert.Null(long_.Problem);
@@ -92,18 +92,38 @@ public sealed class SkillTests : IDisposable
     }
 
     [Fact]
+    public void A_long_name_goes_into_her_instructions_cut_to_the_formats_length_with_the_hint_kept()
+    {
+        var name = string.Concat(Enumerable.Repeat("Tea Time ", 300));          // 2,700 characters
+        Write(Path.Combine(_skills.Own, "tea-time", Skills.FileName), $"---\nname: {name}\ndescription: Tea.\n---\nSteep it.\n");
+
+        var skill = _skills.On().Single();
+        var sent = Prompt.Build(new Persona("Shino", "Shino is cheerful."), "", "", null, [], "", "hi", tools: true, skills: _skills.On())[0].Text;
+
+        Assert.True(skill.Name.Length <= Skills.NameLimit);
+        Assert.StartsWith("Tea Time Tea Time", skill.Name);
+        Assert.Contains("longer than the format's 64", skill.Hint);
+        Assert.Contains($"- {skill.Name}: Tea.", sent);
+        Assert.DoesNotContain(name[..(Skills.NameLimit + 9)], sent);
+        Assert.Equal("Steep it.", _skills.Read(skill.Name));
+    }
+
+    [Fact]
     public void A_skill_without_a_name_goes_by_its_folders_and_one_named_otherwise_is_used_with_a_hint()
     {
         Write(Path.Combine(_skills.Own, "unnamed", Skills.FileName), "---\ndescription: Tea.\n---\nSteep it.\n");
         Write(Path.Combine(_skills.Own, "misnamed", Skills.FileName), "---\nname: Other Name\ndescription: Tea.\n---\nBrew it.\n");
+        Write(Path.Combine(_skills.Own, "moved", Skills.FileName), "---\nname: other-name\ndescription: Tea.\n---\nPour it.\n");
 
         var all = _skills.All();
 
-        Assert.Equal(["Other Name", "unnamed"], all.Select(s => s.Name));
+        Assert.Equal(["Other Name", "other-name", "unnamed"], all.Select(s => s.Name));
         Assert.All(all, s => Assert.Null(s.Broken));
-        Assert.Contains("isn't its folder's name", all[0].Hint);
-        Assert.Null(all[1].Hint);
+        Assert.Equal("its name, \"Other Name\", isn't one the format allows (lowercase letters, numbers and single hyphens)", all[0].Hint);
+        Assert.Equal("its name, \"other-name\", isn't its folder's name, \"moved\", as the format asks", all[1].Hint);
+        Assert.Null(all[2].Hint);
         Assert.Equal("Brew it.", _skills.Read("Other Name"));
+        Assert.Equal("Pour it.", _skills.Read("other-name"));
         Assert.Equal("Steep it.", _skills.Read("unnamed"));
     }
 
@@ -386,6 +406,27 @@ public sealed class SkillTests : IDisposable
         Assert.Equal(["tea-timer"], _skills.On().Select(s => s.Name));
         Assert.Equal("From a zip.", _skills.Read("tea-timer"));
         Assert.Throws<InvalidOperationException>(() => _skills.Import(zip));               // there already: nothing overwritten
+    }
+
+    [Fact]
+    public void An_import_named_with_a_dot_lands_where_the_list_shows_it()
+    {
+        // a folder and zips whose names start with a dot, holding skills whose own names the format doesn't allow
+        var file = Write(Path.Combine(_root, "from", ".hidden-skill", Skills.FileName), "---\nname: Hidden Skill\ndescription: Tea.\n---\nSteep it.\n");
+        string Zip(string name, string skill)
+        {
+            var zip = Path.Combine(Directory.CreateDirectory(_root).FullName, name);
+            using var archive = ZipFile.Open(zip, ZipArchiveMode.Create);
+            using var writer = new StreamWriter(archive.CreateEntry(Skills.FileName).Open());
+            writer.Write($"---\nname: {skill}\ndescription: Something.\n---\nDo it.\n");
+            return zip;
+        }
+
+        Assert.Equal(Path.Combine(_skills.Own, "hidden-skill"), _skills.Import(file));
+        Assert.Equal(Path.Combine(_skills.Own, "brew"), _skills.Import(Zip(".brew.zip", "Brew It")));
+        Assert.Equal(Path.Combine(_skills.Own, "imported-skill"), _skills.Import(Zip("....zip", "Only Dots")));
+        Assert.Equal(["Brew It", "Hidden Skill", "Only Dots"], _skills.On().Select(s => s.Name));
+        Assert.Empty(Directory.GetDirectories(_skills.Own, ".*"));
     }
 
     [Fact]

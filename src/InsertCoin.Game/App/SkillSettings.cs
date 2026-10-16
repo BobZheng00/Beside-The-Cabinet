@@ -141,16 +141,20 @@ public partial class SkillSettings : VBoxContainer
         {
             _skills.Linked = [.. _skills.Linked, folder];
             _changed();
-            Said($"Linked {Breakable(folder)}:{Skills.In(folder).Count switch { 0 => "no skills in it yet", 1 => "1 skill in it", var n => $"{n} skills in it" }}.", bad: false);
+            Said($"Linked {Breakable(folder)}: {Skills.In(folder).Count switch { 0 => "no skills in it yet", 1 => "1 skill in it", var n => $"{n} skills in it" }}.", bad: false);
         }
     }
 
     /// <summary>A path that wraps after a \ rather than mid-word: a zero-width space after each is a place to break.</summary>
-    private static string Breakable(string path) => path.Replace("\\", "\\​");
+    private static string Breakable(string path) => path.Replace("\\", "\\\u200B");
+
+    /// <summary>Dev: links a skills folder, as picking it in "Link a skills folder…" does.</summary>
+    public void DevLink(string folder) => Link(folder);
 
     /// <summary>What came of something just done, shown at the top as the page is made again.</summary>
     private void Said(string text, bool bad)
     {
+        GD.Print($"Skills: {text.Replace("\u200B", "")}");
         (_said, _saidBad) = (text, bad);
         Fill();
     }
