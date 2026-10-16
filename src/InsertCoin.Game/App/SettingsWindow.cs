@@ -43,9 +43,14 @@ public partial class SettingsWindow : Window
         row.AddThemeConstantOverride("separation", 18);
         sheet.AddChild(row);
 
-        var list = new VBoxContainer { CustomMinimumSize = new Vector2(200, 0) };
+        // the list scrolls only on a screen too short for it (the window is cut to the screen), so its last page and the
+        // note below it are never out of reach
+        var side = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(200, 0) };
+        side.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
+        row.AddChild(side);
+        var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         list.AddThemeConstantOverride("separation", 2);
-        row.AddChild(list);
+        side.AddChild(list);
         var chosen = new ButtonGroup();
         var all = pages.OrderBy(p => Array.IndexOf(Groups, p.Group)).ToList();      // in each group, in the order given
         string? group = null;
@@ -73,7 +78,7 @@ public partial class SettingsWindow : Window
         ShowPage(open is not null && _pages.ContainsKey(open) ? open : all[0].Id);
     }
 
-    public void Open() => Paper.Open(this, new Vector2(820, 660));
+    public void Open() => Paper.Open(this, new Vector2(820, 704));      // tall enough for every page in the list, and its note
 
     /// <summary>The page showing.</summary>
     public string? Showing => _showing;

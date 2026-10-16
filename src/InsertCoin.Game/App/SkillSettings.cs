@@ -80,8 +80,8 @@ public partial class SkillSettings : VBoxContainer
 
         foreach (var folder in _skills.Linked)
         {
-            var heading = Form.Subheading(this, folder);
-            heading.AutowrapMode = TextServer.AutowrapMode.Arbitrary;
+            var heading = Form.Subheading(this, Breakable(folder));
+            heading.AutowrapMode = TextServer.AutowrapMode.WordSmart;
             heading.CustomMinimumSize = new Vector2(200, 0);
             List(all.Where(s => Skills.IsIn(s, folder)).ToList(),
                  Directory.Exists(folder) ? "No skills in it." : "This folder isn't there now.");
@@ -91,7 +91,7 @@ public partial class SkillSettings : VBoxContainer
             {
                 _skills.Linked = [.. _skills.Linked.Where(f => f != folder)];
                 _changed();
-                Said($"Unlinked {folder}. Nothing in it was changed.", bad: false);
+                Said($"Unlinked {Breakable(folder)}. Nothing in it was changed.", bad: false);
             });
         }
         Form.Subheading(this, "Elsewhere");
@@ -112,16 +112,19 @@ public partial class SkillSettings : VBoxContainer
         foreach (var skill in skills)
         {
             var row = Form.Buttons(this);
+            var key = _skills.KeyOf(skill);
             if (skill.Broken is null)
-                Form.Tick(row, skill.Name, !_skills.Off.Contains(skill.Folder), on =>
+                Form.Tick(row, skill.Name, !_skills.IsOff(skill), on =>
                 {
-                    _skills.Off = on ? _skills.Off.Where(f => f != skill.Folder).ToHashSet() : _skills.Off.Append(skill.Folder).ToHashSet();
+                    _skills.Off = on ? _skills.Off.Where(k => k != key && k != skill.Folder).ToHashSet() : _skills.Off.Append(key).ToHashSet();
                     _changed();
                 });
             else
                 row.AddChild(new Label { Text = skill.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true });
             Form.Button(row, "Open", () => OS.ShellOpen(skill.Folder));
-            var about = Form.Hint(Form.Indented(this), skill.Broken is null ? skill.Description : $"Can't be used: {skill.Broken}.");
+            var about = Form.Hint(Form.Indented(this), skill.Broken is not null ? $"Can't be used: {skill.Broken}."
+                                                       : skill.Hint is null ? skill.Description
+                                                       : $"{skill.Description}\nUsed anyway, though {skill.Hint}.");
             if (skill.Broken is not null)
                 about.AddThemeColorOverride("font_color", Paper.Bad);
         }
@@ -138,9 +141,12 @@ public partial class SkillSettings : VBoxContainer
         {
             _skills.Linked = [.. _skills.Linked, folder];
             _changed();
-            Said($"Linked {folder}: {Skills.In(folder).Count switch { 0 => "no skills in it yet", 1 => "1 skill in it", var n => $"{n} skills in it" }}.", bad: false);
+            Said($"Linked {Breakable(folder)}:{Skills.In(folder).Count switch { 0 => "no skills in it yet", 1 => "1 skill in it", var n => $"{n} skills in it" }}.", bad: false);
         }
     }
+
+    /// <summary>A path that wraps after a \ rather than mid-word: a zero-width space after each is a place to break.</summary>
+    private static string Breakable(string path) => path.Replace("\\", "\\​");
 
     /// <summary>What came of something just done, shown at the top as the page is made again.</summary>
     private void Said(string text, bool bad)

@@ -2271,7 +2271,8 @@ public partial class Stool : Node2D
     /// <summary>
     /// Dev: skills to try the Skills page and her skill tool on. In the app's folder: tea-timer (with a file its
     /// instructions mention and a script, never run), one without a description (broken) and a folder without a SKILL.md
-    /// (not a skill); and a linked folder, as a notes vault's .claude\skills, with journal in it.
+    /// (not a skill); and a linked folder, as a notes vault's .claude\skills, with journal in it and one named as the
+    /// format doesn't allow (shown with a hint, and used).
     /// </summary>
     private void SeedSkills()
     {
@@ -2292,6 +2293,8 @@ public partial class Stool : Node2D
         var linked = Path.Combine(Path.GetDirectoryName(own)!, "vault", ".claude", "skills");
         Write(Path.Combine(linked, "journal", Skills.FileName),
               "---\nname: journal\ndescription: >\n  Adding a line to the player's journal\n  at the end of the day.\nmetadata:\n  author: test\n---\n\nAsk how the day went first.\n");
+        Write(Path.Combine(linked, "daily-notes", Skills.FileName),    // made for another agent: a name the format doesn't allow, used anyway
+              "---\nname: Daily Notes\ndescription: Keeping the player's daily notes tidy.\n---\n\nOne heading a day.\n");
         if (!_chat.Skills.Linked.Contains(linked))
         {
             _chat.Skills.Linked = [.. _chat.Skills.Linked, linked];

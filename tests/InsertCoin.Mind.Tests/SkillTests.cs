@@ -59,24 +59,52 @@ public sealed class SkillTests : IDisposable
     [Theory]
     [InlineData("No front matter at all.", "it has no front matter")]
     [InlineData("---\nname: tea\ndescription: Tea.\nBody without a closing line", "its front matter has no closing --- line")]
-    [InlineData("---\ndescription: Tea.\n---\n", "it has no name in its front matter")]
     [InlineData("---\nname: tea\n---\n", "it has no description in its front matter")]
     [InlineData("---\nname: tea\ndescription:\n---\n", "it has no description in its front matter")]
-    [InlineData("---\nname: Tea-Time\ndescription: Tea.\n---\n", "isn't one the format allows")]
-    [InlineData("---\nname: -tea\ndescription: Tea.\n---\n", "isn't one the format allows")]
-    [InlineData("---\nname: tea--time\ndescription: Tea.\n---\n", "isn't one the format allows")]
-    [InlineData("---\nname: tea time\ndescription: Tea.\n---\n", "isn't one the format allows")]
-    public void A_skill_md_the_format_wont_have_says_why(string text, string why)
+    public void Only_front_matter_that_cant_be_read_or_no_description_stops_a_skill(string text, string why)
     {
         Assert.Contains(why, Skills.Parse(text).Problem);
     }
 
-    [Fact]
-    public void Names_and_descriptions_past_the_formats_limits_are_refused()
+    [Theory]
+    [InlineData("Tea-Time")]
+    [InlineData("-tea")]
+    [InlineData("tea--time")]
+    [InlineData("Tea Timer")]
+    public void A_name_the_format_doesnt_allow_is_used_with_a_hint(string name)
     {
-        Assert.Contains("isn't one the format allows", Skills.Parse($"---\nname: {new string('a', 65)}\ndescription: Tea.\n---\n").Problem);
-        Assert.Null(Skills.Parse($"---\nname: {new string('a', 64)}\ndescription: Tea.\n---\n").Problem);
-        Assert.Contains("longer than 1,024", Skills.Parse($"---\nname: tea\ndescription: {new string('a', 1025)}\n---\n").Problem);
+        var read = Skills.Parse($"---\nname: {name}\ndescription: Tea.\n---\n");
+
+        Assert.Null(read.Problem);
+        Assert.Equal(name, read.Name);
+        Assert.Contains("isn't one the format allows", read.Hint);
+    }
+
+    [Fact]
+    public void Names_and_descriptions_past_the_formats_limits_are_used_with_a_hint()
+    {
+        Assert.Contains("isn't one the format allows", Skills.Parse($"---\nname: {new string('a', 65)}\ndescription: Tea.\n---\n").Hint);
+        Assert.Null(Skills.Parse($"---\nname: {new string('a', 64)}\ndescription: Tea.\n---\n").Hint);
+        var long_ = Skills.Parse($"---\nname: tea\ndescription: {string.Concat(Enumerable.Repeat("Steep it well. ", 100))}\n---\n");
+        Assert.Null(long_.Problem);
+        Assert.Contains("longer than the format's 1,024", long_.Hint);
+        Assert.True(long_.Description!.Length <= Skills.DescriptionLimit);
+    }
+
+    [Fact]
+    public void A_skill_without_a_name_goes_by_its_folders_and_one_named_otherwise_is_used_with_a_hint()
+    {
+        Write(Path.Combine(_skills.Own, "unnamed", Skills.FileName), "---\ndescription: Tea.\n---\nSteep it.\n");
+        Write(Path.Combine(_skills.Own, "misnamed", Skills.FileName), "---\nname: Other Name\ndescription: Tea.\n---\nBrew it.\n");
+
+        var all = _skills.All();
+
+        Assert.Equal(["Other Name", "unnamed"], all.Select(s => s.Name));
+        Assert.All(all, s => Assert.Null(s.Broken));
+        Assert.Contains("isn't its folder's name", all[0].Hint);
+        Assert.Null(all[1].Hint);
+        Assert.Equal("Brew it.", _skills.Read("Other Name"));
+        Assert.Equal("Steep it.", _skills.Read("unnamed"));
     }
 
     [Fact]
@@ -85,15 +113,43 @@ public sealed class SkillTests : IDisposable
         Skill("tea-timer");
         Skill("half-written", description: null);
         Write(Path.Combine(_skills.Own, "just-notes", "notes.txt"), "Not a skill.");
-        Write(Path.Combine(_skills.Own, "misnamed", Skills.FileName), "---\nname: other-name\ndescription: Tea.\n---\n");
+        Write(Path.Combine(_skills.Own, ".importing-1234", Skills.FileName), "---\nname: half-copied\ndescription: Tea.\n---\n");
 
         var all = _skills.All();
 
-        Assert.Equal(["half-written", "other-name", "tea-timer"], all.Select(s => s.Name));
+        Assert.Equal(["half-written", "tea-timer"], all.Select(s => s.Name));
         Assert.Contains("no description", all[0].Broken);
-        Assert.Contains("isn't its folder's name", all[1].Broken);
-        Assert.Null(all[2].Broken);
+        Assert.Null(all[1].Broken);
         Assert.Equal(["tea-timer"], _skills.On().Select(s => s.Name));
+    }
+
+    [Fact]
+    public void A_linked_folder_that_isnt_there_has_no_skills_and_stops_nothing()
+    {
+        Skill("tea-timer");
+        _skills.Linked = [Path.Combine(_root, "gone"), Write(Path.Combine(_root, "a-file-not-a-folder"), "")];
+
+        Assert.Equal(["tea-timer"], _skills.On().Select(s => s.Name));
+    }
+
+    [Fact]
+    public void A_skill_of_the_apps_own_stays_off_when_the_profile_moves()
+    {
+        var vault = Path.Combine(_root, "vault", "skills");
+        Skill("tea-timer");
+        Skill("journal", folder: vault);
+        _skills.Linked = [vault];
+        var tea = _skills.All().Single(s => s.Name == "tea-timer");
+        var journal = _skills.All().Single(s => s.Name == "journal");
+
+        Assert.Equal("tea-timer", _skills.KeyOf(tea));
+        Assert.Equal(journal.Folder, _skills.KeyOf(journal));
+
+        var moved = Path.Combine(_root, "moved", "skills");
+        Skill("tea-timer", folder: moved);
+        var after = new Skills(moved) { Linked = [vault], Off = new HashSet<string> { _skills.KeyOf(tea), _skills.KeyOf(journal) } };
+
+        Assert.Empty(after.On());
     }
 
     [Fact]
@@ -181,6 +237,31 @@ public sealed class SkillTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// What counts as a link is what has a link target: a junction or a symbolic link, never a plain folder or file. A
+    /// OneDrive or Dropbox folder (a reparse point with no target) is the player's own, so it must read as a plain one.
+    /// </summary>
+    [Fact]
+    public void Only_a_real_link_counts_as_one_so_cloud_synced_folders_are_read()
+    {
+        var plain = Directory.CreateDirectory(Path.Combine(_root, "plain"));
+        var file = new FileInfo(Write(Path.Combine(plain.FullName, "notes.md"), "Mine."));
+        var link = Path.Combine(_root, "link");
+        if (!MakeLink(link, plain.FullName))
+            return;
+
+        try
+        {
+            Assert.True(Skills.IsLink(new DirectoryInfo(link)));
+            Assert.False(Skills.IsLink(plain));
+            Assert.False(Skills.IsLink(file));
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
+
     /// <summary>A symbolic link where Windows allows one, else a junction (which needs no privilege).</summary>
     private static bool MakeLink(string link, string target)
     {
@@ -240,6 +321,53 @@ public sealed class SkillTests : IDisposable
         Assert.True(read.Length < Skills.ReadLimit + 200);
         Assert.Contains("SKILL.md was cut here", read);
         Assert.StartsWith(line, read);
+    }
+
+    [Fact]
+    public void A_huge_file_is_read_only_as_far_as_the_cut()
+    {
+        Skill("tea-timer", "The whole list is in references/all.md.");
+        var big = Path.Combine(_skills.Own, "tea-timer", "references", "all.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(big)!);
+        File.WriteAllText(big, string.Concat(Enumerable.Repeat("Steep it for four minutes.\n", 200_000)));     // about 5 MB
+
+        var read = _skills.Read("tea-timer", "references/all.md");
+
+        Assert.True(read.Length < Skills.ReadLimit + 200);
+        Assert.Contains("references/all.md was cut here", read);
+    }
+
+    [Fact]
+    public void A_zip_too_big_for_a_skill_is_refused_and_leaves_nothing()
+    {
+        var zip = Path.Combine(Directory.CreateDirectory(_root).FullName, "huge.zip");
+        using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+        {
+            using (var writer = new StreamWriter(archive.CreateEntry("huge/SKILL.md").Open()))
+                writer.Write("---\nname: huge\ndescription: Too big.\n---\n");
+            using var zeros = archive.CreateEntry("huge/zeros.bin").Open();
+            var chunk = new byte[1024 * 1024];
+            for (var i = 0; i <= Skills.ImportBytes / chunk.Length; i++)
+                zeros.Write(chunk);
+        }
+
+        Assert.Contains("too big", Assert.Throws<InvalidOperationException>(() => _skills.Import(zip)).Message);
+        Assert.False(Directory.Exists(Path.Combine(_skills.Own, "huge")));
+    }
+
+    [Fact]
+    public void An_import_that_fails_part_way_leaves_nothing_and_can_be_tried_again()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;                                         // only Windows refuses to read a file held open
+        var file = Skill("journal", folder: Path.Combine(_root, "elsewhere"));
+        var held = Write(Path.Combine(Path.GetDirectoryName(file)!, "zz-held.md"), "Held open.");
+
+        using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.ThrowsAny<IOException>(() => _skills.Import(file));
+
+        Assert.Empty(Directory.GetDirectories(_skills.Own));
+        Assert.Equal(Path.Combine(_skills.Own, "journal"), _skills.Import(file));
     }
 
     [Fact]

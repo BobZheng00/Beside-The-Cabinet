@@ -45,7 +45,7 @@
     },
     {
       "name": "skills",
-      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken, one in a linked folder); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
+      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken, two in a linked folder, one of them with a hint); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
       "covers": ["src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
       "mind": true,
       "mindReply": "Warm the pot first, then four minutes.",
@@ -54,7 +54,7 @@
       "shots": [7, 15],
       "window": "Settings",
       "desk": true,
-      "expect": ["^Skills: seeded; on: journal, tea-timer$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
+      "expect": ["^Skills: seeded; on: Daily Notes, journal, tea-timer$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
       "name": "memory",

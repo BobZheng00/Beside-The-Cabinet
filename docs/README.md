@@ -282,9 +282,11 @@ description: Brewing a pot of tea my way. Use when I want tea or a break with te
 Warm the pot first. The steeping times are in references/times.md.
 ```
 
-The name is the folder's name: lowercase letters, numbers and single hyphens. Settings → Skills lists every skill with
-its description and a tick to switch it on or off (a skill found is on until you switch it off); one whose `SKILL.md`
-can't be used (no description, say) is listed with why. Skills live in skills folders, each folder in one with a
+The format asks for the name to be the folder's name, in lowercase letters, numbers and single hyphens; a skill
+without one goes by its folder's name. Settings → Skills lists every skill with its description and a tick to switch
+it on or off (a skill found is on until you switch it off). A skill made for another agent is used as it is: where it
+isn't quite as the format asks (its name, say), a hint under it says so. One whose `SKILL.md` can't be used (no
+description, or no front matter) is listed with why. Skills live in skills folders, each folder in one with a
 `SKILL.md` being a skill:
 
 - **the app's own** (`skills` in your profile): New skill makes one there for you to fill in (it is ready once it has a
