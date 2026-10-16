@@ -149,7 +149,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   their one-copy lock, a second must quit at once, and the test copy runs and passes beside them. `--lock=NAME` gives
   a copy on a profile of its own the lock `InsertCoin.Cabinet.NAME` instead of the player's (`InsertCoin.Cabinet`,
   ignored without `--data` or on the real profile), so the player's own app can always start meanwhile; the
-  scenario fails if the player's lock was taken. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
+  scenario fails if a stand-in took the player's lock, and notes in the report whether it stayed free (or that the
+  player's own app holds it, which is no failure). `smoke.ps1 -SelfCheck` (run by `pick-check.ps1`) checks that
+  judgement on made-up copies. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
   it borrows the main checkout's `GODOT` and models.
 - Which scenarios a check runs (`smoke.ps1 -Changed`, from `git diff origin/main...HEAD`): every one when shared code
   or the harness changed (the file's `all`: `Main.cs`, `Stool.cs`, `project.godot`, Core, `smoke.ps1`, `shoot.ps1`,

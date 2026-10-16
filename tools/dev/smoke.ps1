@@ -24,6 +24,7 @@
 # -NoBuild   skip building the game first (check.ps1 has just built it)
 # -Out       where shots, logs and the report go (default: <main checkout>\.qa\smoke\<branch>)
 # -Wait      minutes to wait for another smoke run before giving up as BLOCKED (default 20)
+# -SelfCheck only check, on made-up copies of the app, how "beside" judges whose the player's lock is; then stop
 # -Port      the mock mind's port (default: a free one for each scenario, so another agent's mock on 8797 can't answer)
 # -Prepare   in a worktree, before shoot.ps1 or clip.ps1 runs of your own: copies the main checkout's private\local.cmd
 #            (where Godot is), links its models, imports the project and builds the game; then stops
@@ -39,7 +40,8 @@
 # quit at once, and the scenario runs beside them; the player's own lock must stay free meanwhile.
 # Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another smoke run held the lock too long).
 param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
-      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main")
+      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main",
+      [switch]$SelfCheck)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
 $game = Join-Path $repo "src\InsertCoin.Game"
@@ -48,6 +50,38 @@ $suite = Get-Content -Raw -Encoding UTF8 (Join-Path (Join-Path $PSScriptRoot "sm
 if ($List) {
   foreach ($s in $suite.scenarios) { "{0,-10} {1}" -f $s.name, $s.about }
   exit 0
+}
+
+# "beside": whose the player's lock (InsertCoin.Cabinet) is once the stand-ins are up, from whether it was held before
+# they started, whether it is now, and the copies of the app running now: a problem, or a note for the report. Held
+# now but not before, it is a stand-in's only if no copy of the player's (neither --lock=beside nor --offscreen) runs:
+# their app may have started meanwhile.
+function Lock-Verdict([bool]$heldBefore, [bool]$heldNow, $copies) {
+  if ($heldBefore) { return @{ note = "a copy of the player's own already held InsertCoin.Cabinet, so whether the stand-ins leave it free wasn't checked" } }
+  if (-not $heldNow) { return @{ note = "the player's own lock (InsertCoin.Cabinet) stayed free beside the stand-ins" } }
+  $theirs = @($copies | Where-Object { "$($_.CommandLine)" -notmatch "--lock=beside|--offscreen" })
+  if ($theirs.Count) { return @{ note = "the player's own app started meanwhile (PID $($theirs[0].ProcessId)) and holds InsertCoin.Cabinet, so whether the stand-ins leave it free wasn't checked" } }
+  return @{ problem = "a stand-in took the player's own lock (InsertCoin.Cabinet): their app couldn't have started" }
+}
+
+if ($SelfCheck) {                                           # Lock-Verdict on made-up copies; pick-check.ps1 runs this
+  $standIn = [pscustomobject]@{ ProcessId = 1; CommandLine = "godot --path x -- --data=p --no-steam --lock=beside" }
+  $test = [pscustomobject]@{ ProcessId = 2; CommandLine = "godot --path x -- --data=q --no-steam --offscreen --shots=s" }
+  $player = [pscustomobject]@{ ProcessId = 3; CommandLine = "godot --path x -- --data=r --no-steam" }
+  $cases = @(
+    @{ before = $true; now = $true; copies = @($standIn); want = "note:already held" },
+    @{ before = $false; now = $false; copies = @($standIn, $test); want = "note:stayed free" },
+    @{ before = $false; now = $true; copies = @($standIn, $test, $player); want = "note:started meanwhile (PID 3)" },
+    @{ before = $false; now = $true; copies = @($standIn, $test); want = "problem:took the player's own lock" }
+  )
+  $wrong = 0
+  foreach ($c in $cases) {
+    $v = Lock-Verdict $c.before $c.now $c.copies
+    $kind, $words = $c.want -split ":", 2
+    if ($v.ContainsKey($kind) -and $v[$kind].Contains($words) -and $v.Count -eq 1) { "ok    lock verdict: $($c.want)" }
+    else { $wrong++; "WRONG lock verdict: wanted $($c.want), got $($v | ConvertTo-Json -Compress)" }
+  }
+  exit $(if ($wrong) { 1 } else { 0 })
 }
 
 # Which scenarios a change needs, each with why it runs or is skipped: all of them when shared code or the harness
@@ -139,6 +173,7 @@ function Finish([int]$code) {
     [void]$md.Add("$($r.about)")
     if ($r.script) { [void]$md.Add(""); [void]$md.Add("Script: ``$($r.script)``") }
     if (@($r.problems).Count -gt 0) { [void]$md.Add(""); foreach ($p in $r.problems) { [void]$md.Add("- $p") } }
+    if (@($r.notes).Count -gt 0) { [void]$md.Add(""); [void]$md.Add("Notes:"); foreach ($n in $r.notes) { [void]$md.Add("- $n") } }
     if (@($r.shots).Count -gt 0) { [void]$md.Add(""); [void]$md.Add("Screenshots:"); foreach ($s in $r.shots) { [void]$md.Add("- ``$s``") } }
     if (@($r.logLines).Count -gt 0) {
       [void]$md.Add(""); [void]$md.Add("Log lines:"); [void]$md.Add("``````")
@@ -155,11 +190,11 @@ function Finish([int]$code) {
   exit $code
 }
 
-function Add-Result($s, [string]$result, $problems, $shots, $logLines, [double]$seconds) {
+function Add-Result($s, [string]$result, $problems, $shots, $logLines, [double]$seconds, $notes = @()) {
   [void]$results.Add([ordered]@{
     name = $s.name; about = $s.about; script = $s.script; result = $result; seconds = [int]$seconds
     picked = $(if ($Changed) { "" + ($picks | Where-Object { $_.name -eq $s.name }).why } else { "" })
-    problems = @($problems); shots = @($shots); logLines = @($logLines | Select-Object -First 30)
+    problems = @($problems); notes = @($notes); shots = @($shots); logLines = @($logLines | Select-Object -First 30)
   })
 }
 
@@ -232,7 +267,7 @@ function Start-StandIn([string]$name) {
   $profile = Join-Path $Out "profile-$name"
   if (Test-Path $profile) { Remove-Item $profile -Recurse -Force }
   New-Item -ItemType Directory $profile | Out-Null
-  '{ "SetUp": true, "Initials": "BOB", "Muted": true, "AlwaysOnTop": false, "WindowX": -4000, "WindowY": 100 }' |
+  '{ "SetUp": true, "Initials": "BOB", "Muted": true, "AlwaysOnTop": false, "WindowX": -4000, "WindowY": 100, "TalkKey": "Off" }' |
     Out-File -Encoding ascii (Join-Path $profile "settings.json")
   $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam --lock=beside",
                           (Join-Path $Out "run-$name.log"), (Join-Path $Out "run-$name.err"))
@@ -291,7 +326,7 @@ try {
 
     # "beside": the player's own app, played by a stand-in holding its one-copy lock (a lock of its own, never the
     # player's), and a second such copy, which must quit at once; then the scenario's test copy runs beside them
-    $standIns = @(); $besideProblems = @()
+    $standIns = @(); $besideProblems = @(); $besideNotes = @()
     if ($s.beside) {
       $playersHeld = Lock-Held "InsertCoin.Cabinet"                          # held already only by a copy of the player's own
       $player = Start-StandIn "$($s.name)-player"
@@ -309,10 +344,8 @@ try {
       if (-not (Select-String -Path (Join-Path $Out "run-$($s.name)-player.log") -Pattern "^Main: a copy for tests, holding a lock of its own \($([regex]::Escape($standInLock))\)" -Quiet)) {
         $besideProblems += "the stand-in didn't say it holds a lock of its own"
       }
-      if (-not $playersHeld) {
-        if (Lock-Held "InsertCoin.Cabinet") { $besideProblems += "a stand-in took the player's own lock (InsertCoin.Cabinet): their app couldn't have started" }
-        else { "  the player's own lock (InsertCoin.Cabinet) stayed free beside the stand-ins" }
-      }
+      $verdict = Lock-Verdict $playersHeld (Lock-Held "InsertCoin.Cabinet") $(if (-not $playersHeld) { Get-Copies } else { @() })
+      if ($verdict.problem) { $besideProblems += $verdict.problem } else { $besideNotes += $verdict.note; "  $($verdict.note)" }
     }
 
     $settings = "" + $s.settings
@@ -391,7 +424,7 @@ try {
     }
 
     $result = if ($problems.Count -eq 0) { "PASS" } else { "FAIL" }
-    Add-Result $s $result $problems $allShots $bad ((Get-Date) - $t0).TotalSeconds
+    Add-Result $s $result $problems $allShots $bad ((Get-Date) - $t0).TotalSeconds $besideNotes
     "  $result"
   }
 } finally {
