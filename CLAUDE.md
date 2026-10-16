@@ -65,7 +65,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
   clips, not stills), `tools/bench/memory.cs` (her memory). Every dev action is in `tools/dev/README.md`.
 - The launch scripts and these read the Godot editor's path from `GODOT`, or from `private\local.cmd`.
 - **Never** open the real microphone in a test, launch the real profile unasked, send keystrokes or take focus, flip
-  "Start with Windows" (Windows' own setting) or untick "Mute sounds" in a test. One copy of the app runs at a time.
+  "Start with Windows" (Windows' own setting) or untick "Mute sounds" in a test. One copy of the player's app runs
+  at a time; a hidden test copy runs beside it (#31: its own desktop and profile, no tray icon, no talk key or
+  microphone).
 - How this PC runs them (its paths, the demo profile, the mock servers, the provider's quirks) is in its own notes,
   which git ignores: @private/notes.md
 
@@ -109,7 +111,8 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - **What only the user can check** (their microphone and provider, a voice's sound, motion's feel, their phone) is
   an issue labelled `manual-check`, batched for when they next use the app. Never wait on it.
 - **Smoke runs:** `tools\dev\smoke.ps1` runs every scenario in `tools/dev/smoke/scenarios.json` hidden (`-List` says
-  what each checks), one run at a time on this PC, and stops as BLOCKED rather than run beside a copy of the app.
+  what each checks), one run at a time on this PC, beside the player's app or the demo if one is open (never stopping
+  it).
   `tools/dev/mock_mind.py` stands in for her mind. Never loosen a scenario's checks to make a run pass.
 
 ## How the code reads
