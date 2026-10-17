@@ -62,8 +62,9 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
     public bool Private { get; init; }
 
     /// <summary>
-    /// It brings in text from the web (a page, search results), which may try to talk her into things: once it has run
-    /// in a reply, Auto stops going ahead for the rest of that reply, and what acts outside the app asks again.
+    /// It brings in text from the web (a page, search results) or from the player's files (a note), which may try to
+    /// talk her into things: once it has run in a reply, Auto stops going ahead for the rest of that reply, and what acts
+    /// outside the app asks again.
     /// </summary>
     public bool FromWeb { get; init; }
 

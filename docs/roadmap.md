@@ -37,6 +37,8 @@ moving and deleting asked; her suggested changes to a skill in her words and a p
 card; servers (MCP, on this PC or the internet) live inside skills, so a connector is a skill (a `.mcp.json` in its
 folder), and how freely she uses a skill's tools comes from its `allowed-tools`. No knowledge base
 inside the app and no routines assumed. Issues for steps 1 to 4; step 5, the first connector of ours, is open.
+Built: step 1, skills (#37); step 2, folders a skill works in, several a skill, with undo of her changes and no
+workspace of her own (#38, decided 2026-10-16).
 
 **Tools**, the last part of the agent phase. Draft spec: `docs/specs/2026-10-05-tools-and-abilities.md` (brainstormed 2026-10-05).
 - **Decided:**

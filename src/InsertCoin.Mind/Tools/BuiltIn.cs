@@ -309,6 +309,46 @@ public static class BuiltIn
         OutsideApp: false,
         Source: SkillSource);
 
+    /// <summary>
+    /// Her note tools (see <see cref="Notes"/>): list, read, search, create, append, edit, move and delete, in the folders
+    /// the player granted to skills switched on, nothing else. Listing, reading, searching, creating, appending and
+    /// editing are Allowed, the user's own exception for a folder they granted (2026-10-15: "Read and write free");
+    /// moving and deleting ask first. What a note says is information, not instructions, as a web page is: once one of
+    /// these has run in a reply, Auto stops going ahead (see <see cref="Tool.FromWeb"/>). Offered while a skill that is
+    /// on has a folder; set on Settings → Skills. Each runs off the game's thread (a search reads many files), and its
+    /// answer comes back as every tool's does.
+    /// </summary>
+    public static IReadOnlyList<Tool> NoteTools(Notes notes)
+    {
+        const string Where = "The note's path: its folder's name first, as your skills list them, then its place in it (\"notes/Daily/2026-10-16.md\")";
+        const string About = " in a folder one of your skills works in: the player's own notes and documents.";
+        Tool Note(Delegate run, string name, string description, string title, bool asks, Func<AIFunctionArguments, (string, string, string?)> card) =>
+            new(AIFunctionFactory.Create(run, name, description), title, OutsideApp: asks, a => card(a), SkillSource) { FromWeb = true };
+        string Given(AIFunctionArguments a, string name) => Text(a, name)?.Trim() ?? "";
+        return
+        [
+            Note(([Description("A folder's path, its name first (\"notes\" or \"notes/Daily\"); leave it out for the folders your skills have")] string? path = null) =>
+                     Task.Run(() => notes.List(path)),
+                 "list_notes", "Lists the notes and folders in a folder" + About, "List notes", false, a => ("Look in this folder?", Given(a, "path"), null)),
+            Note(([Description(Where)] string path) => Task.Run(() => notes.Read(path)),
+                 "read_note", "Reads a note" + About, "Read notes", false, a => ("Read this note?", Given(a, "path"), null)),
+            Note(([Description("The words to look for")] string words) => Task.Run(() => notes.Search(words)),
+                 "search_notes", "Searches the notes by their words, in every folder your skills work in: the notes with the most of them, with the lines that have them.",
+                 "Search notes", false, a => ("Search your notes?", Given(a, "words"), null)),
+            Note(([Description(Where + ", ending .md or .txt")] string path, [Description("What the note says")] string text) => Task.Run(() => notes.Create(path, text)),
+                 "create_note", "Makes a new note" + About, "Make notes", false, a => ("Make this note?", Given(a, "path"), null)),
+            Note(([Description(Where)] string path, [Description("What to add, on lines of its own at the end")] string text) => Task.Run(() => notes.Append(path, text)),
+                 "append_to_note", "Adds lines at the end of a note" + About, "Add to notes", false, a => ("Add to this note?", Given(a, "path"), null)),
+            Note(([Description(Where)] string path, [Description("The passage to change, exactly as the note has it, there only once")] string passage,
+                  [Description("What it becomes (empty takes it out)")] string with) => Task.Run(() => notes.Edit(path, passage, with)),
+                 "edit_note", "Changes a passage of a note" + About + " Read the note first.", "Edit notes", false, a => ("Change this note?", Given(a, "path"), null)),
+            Note(([Description(Where)] string path, [Description("Its new path, in the same folder")] string to) => Task.Run(() => notes.Move(path, to)),
+                 "move_note", "Moves or renames a note" + About, "Move notes", true, a => ("Move this note?", $"{Given(a, "path")} → {Given(a, "to")}", null)),
+            Note(([Description(Where)] string path) => Task.Run(() => notes.Delete(path)),
+                 "delete_note", "Deletes a note" + About, "Delete notes", true, a => ("Delete this note?", Given(a, "path"), null)),
+        ];
+    }
+
     private static (string What, string Detail, string? Scope)? Asked(string what, string detail, string? scope) => (what, detail, scope);
 
     /// <summary>A web address she may open: http or https only, never a file, a program or a script.</summary>

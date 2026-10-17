@@ -12,7 +12,11 @@ namespace InsertCoin.Mind;
 /// <param name="Folder">The skill's own folder, where it is (a linked one is never copied).</param>
 /// <param name="Broken">Why its SKILL.md can't be used, in a few words for the Skills page; null when it can.</param>
 /// <param name="Hint">What in it isn't as the format asks, though it is used anyway (a name that isn't its folder's, say), for the page.</param>
-public sealed record Skill(string Name, string Description, string Folder, string? Broken = null, string? Hint = null);
+public sealed record Skill(string Name, string Description, string Folder, string? Broken = null, string? Hint = null)
+{
+    /// <summary>The names of the folders it works in, as her note tools' paths start (see <see cref="Notes.Reachable"/>), for her skills list.</summary>
+    public IReadOnlyList<string> WorksIn { get; init; } = [];
+}
 
 /// <summary>
 /// The skills she has: each folder with a SKILL.md inside a skills folder, the app's own (in the player's profile) or
