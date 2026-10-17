@@ -133,6 +133,17 @@
       "shots": [6, 10]
     },
     {
+      "name": "agendaapp",
+      "about": "The CRT's AGENDA app follows the agenda while it is open: the job interview the seed put there leaves it when the companion takes it off, without reopening it.",
+      "covers": ["src/InsertCoin.Game/App/Crt/AgendaApp.cs"],
+      "mind": true,
+      "mindReply": "[cancel: #1] Done, it's off your agenda.",
+      "mindRequests": 1,
+      "script": "nocall@1,memoryseed@2,crt:agenda@4,chat:please_take_the_interview_off_my_agenda@12",
+      "shots": [12, 19],
+      "expect": ["^Agenda app: changed while open, now 1 ahead"]
+    },
+    {
       "name": "reminder",
       "about": "A reminder set a few seconds ahead goes off, with its ticket.",
       "covers": ["src/InsertCoin.Game/App/Reminders.cs", "src/InsertCoin.Game/Desktop/AlertTicket.cs", "src/InsertCoin.Mind/*"],

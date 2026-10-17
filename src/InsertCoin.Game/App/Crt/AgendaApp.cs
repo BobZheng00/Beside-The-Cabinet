@@ -6,7 +6,8 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// AGENDA on the CRT: what is coming up, four to a page, each with when (today, tomorrow, or the day) and what. A click
-/// opens the memory book's Agenda tab, to change it.
+/// opens the memory book's Agenda tab, to change it. While it shows, it follows the agenda as it changes (her plans and
+/// cancellations, upkeep, a reminder, the memory book), looking again every two seconds.
 /// </summary>
 public partial class AgendaApp(MindStore store, Action openAgenda) : CrtApp
 {
@@ -18,13 +19,39 @@ public partial class AgendaApp(MindStore store, Action openAgenda) : CrtApp
     public override string Label => "AGENDA";
     public override Color Tint => new("CFE6FF");
 
+    public override void _Ready()
+    {
+        var check = new Godot.Timer { WaitTime = 2, Autostart = true };
+        check.Timeout += () =>
+        {
+            if (Visible)
+                Read();
+        };
+        AddChild(check);
+    }
+
     public override void Opened()
     {
-        var now = DateTimeOffset.Now;
-        _ahead = [.. store.Agenda().Where(p => p.End >= now).OrderBy(p => p.At)];
         _page = 0;
+        Read();
         QueueRedraw();
     }
+
+    /// <summary>Reads what is ahead, and redraws only when what it shows changed (the page it is on kept, if still there).</summary>
+    private void Read()
+    {
+        var now = DateTimeOffset.Now;
+        List<Plan> ahead = [.. store.Agenda().Where(p => p.End >= now).OrderBy(p => p.At)];
+        if (ahead.Select(Shown).SequenceEqual(_ahead.Select(Shown)))
+            return;
+        if (Visible)
+            GD.Print($"Agenda app: changed while open, now {ahead.Count} ahead");
+        _ahead = ahead;
+        _page = Math.Clamp(_page, 0, Pages - 1);
+        QueueRedraw();
+    }
+
+    private static (long, string, DateTimeOffset, bool) Shown(Plan plan) => (plan.Id, plan.Text, plan.At, plan.AllDay);
 
     private int Pages => Math.Max(1, (_ahead.Count + 3) / 4);
 

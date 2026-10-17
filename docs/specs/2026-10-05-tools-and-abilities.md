@@ -295,7 +295,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - The power mark, or 15 s untouched on the home screen (40 s in an app), folds the readout back.
 - **Apps:**
   - **MEMOS:** the memos as little paper tiles (colour, sticker, title; taped ones are on the cabinet), the cabinet's first; the first tile writes a new one. A tile opens the memo's sheet over the cabinet. Four to a page.
-  - **AGENDA:** what is coming up, four to a page: when (today, tomorrow, the day) and what. A click opens the memory book's Agenda tab.
+  - **AGENDA:** what is coming up, four to a page: when (today, tomorrow, the day) and what, following changes while it is open (it looks again every 2 s, as the memory book does). A click opens the memory book's Agenda tab.
   - Next: FOCUS and MUSIC, with focus sessions.
 
 **Too small at the small cabinet size** (the user, 2026-10-06): at S (0.6 of the canvas) the CRT is about 90 px wide and the memo sheet's text about 10 px. The user suggested a view that brings the viewpoint in front of the cabinet. Options:
