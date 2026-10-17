@@ -139,6 +139,9 @@ short flow for what she can't do without, the checklist for the rest.
 About ten entries: Show cabinet, Settings…, Getting started… (while unfinished), Memory book…, Chat history…, Write a
 memo…, Check LeetCode now, the switches flipped often (Mute sounds, Voice, Conversation), Quit.
 
+*Changed 2026-10-17* (the user): the same menu also opens from a right-click on her or the cabinet, and the CRT gets a
+SETTINGS app and a row of the switches: `2026-10-17-on-the-cabinet.md`. The tray itself stays as it is.
+
 ## Order
 
 1. The Settings window and the short tray, today's pages moved in as they are (*built 2026-10-10*: `SettingsWindow`,
