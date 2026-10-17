@@ -81,6 +81,18 @@
       "expect": ["^Notes: seeded ", "^Skills: tea-timer works in \\S.*\\\\notes now\\.$", "^Tools: she uses read_note", "^Tools: she uses append_to_note", "^Notes: today\\.md ends: - A line from the mock mind\\.$", "^Skills: Undone: today\\.md is as it was\\.$", "^Notes: today\\.md ends: - Woke up early\\.$", "^Notes: the player wrote in today\\.md$", "^Skills: today\\.md has changed since, so it was left as it is; the version from before is still kept\\.$", "^Notes: today\\.md ends: - The player's own line\\.$"]
     },
     {
+      "name": "skill-change",
+      "about": "Told the player now does something a skill describes differently, the companion's mind (the mock) suggests a change to that skill: the card by the stool says plainly what changes (Update how tea-timer works: the new wording, and what it was), See the change opens the exact lines, and Remember it writes only that line; the skill's own page lists the change, and Undo puts the skill back.",
+      "covers": ["src/InsertCoin.Mind/Notes.cs", "src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Game/Companion/PermissionCard.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
+      "mind": true,
+      "mindReply": "Noted.",
+      "mindRequests": 2,
+      "script": "nocall@1,skillseed@2,chat:tea-timer_from_now_on_rinse_the_pot_with_hot_water_first_instead_of_warm_the_pot_first@4,seechange@11,allow@14,settings:skills@16,skillpage:tea-timer@17,settingsscroll:2000@18,settingsdo:Undo@22",
+      "shots": [11, 15, 21, 26],
+      "desk": true,
+      "expect": ["^Skills: seeded; on: tea-timer$", "^Tools: she uses change_skill", "^Card: \"Update how tea-timer works:\" confirmed$", "^Skills: she suggested a change to tea-timer: Written: from now on tea-timer's instructions say \"rinse the pot with hot water first\"\\.$", "^Skills: Undone: SKILL\\.md is as it was\\.$"]
+    },
+    {
       "name": "memory",
       "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items; a fact edited is saved on leaving it, and one the companion rewords while it is being edited asks which to keep, then keeps the player's.",
       "covers": ["src/InsertCoin.Game/App/MemoryBook.cs", "src/InsertCoin.Mind/*"],

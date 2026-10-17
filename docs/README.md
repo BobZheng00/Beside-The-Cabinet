@@ -333,6 +333,18 @@ was. Undo puts a note back (or, for one they made, takes it away again) only if 
 or another app or agent, changed it since, it is left as it is and says so beside the change, and the old version
 stays kept. Remove a folder and its changes leave the page with it (grant it again to undo them).
 
+### When your ways change
+
+Tell your companion you do something a skill describes differently now ("tasks go under Today from now on") and they
+offer to change the skill, in their own words, while a card by their stool says plainly what changes: *Update how
+journal works:* "Put tasks under ## Today" (was: "Tasks"), with **Remember it** and **Not now**. *See the change* opens
+the exact lines, before and after. Nothing is written until you press Remember it, and then only those lines, and only
+if the skill still has them as shown: if you or another agent changed them meanwhile, nothing is written and they're
+told. Only skills in the app's own skills folder or one you linked are changed, never their name or description (the
+front matter), and a skill's files are changed no other way. The skill's page (Folders) lists the change with Undo and
+Before, as it does their changes to your notes. While you text them from away, the card comes as a message with the
+lines and the two buttons.
+
 ## Help with learning
 
 Ask your companion for help with what you're on ("help me with this") and they read your window titles to see what

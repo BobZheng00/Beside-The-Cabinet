@@ -26,6 +26,38 @@ public enum NoteChangeKind
 public sealed record NoteChange(string Id, DateTimeOffset At, NoteChangeKind Kind, string Folder, string Path, string? To, string? After);
 
 /// <summary>
+/// A change she suggests to a skill's instructions as the player's ways change, for them to see on her card before
+/// anything is written (docs/specs/2026-10-15-skills.md, step 3).
+/// </summary>
+/// <param name="Folder">The skill's own folder.</param>
+/// <param name="Replaces">The passage she would change, as its SKILL.md has it.</param>
+/// <param name="With">What it becomes.</param>
+/// <param name="Before">The whole lines the passage is in, as they are now; <paramref name="After"/>, as they would be.</param>
+public sealed record SkillChange(string Skill, string Folder, string Replaces, string With, string Before, string After)
+{
+    /// <summary>
+    /// The change in a line, as her card shows it: the new wording, and what it replaces without the words the two
+    /// start with alike ("Put tasks under ## Today" (was: "Tasks")).
+    /// </summary>
+    public string Plainly
+    {
+        get
+        {
+            var same = 0;
+            while (same < Replaces.Length && same < With.Length && Replaces[same] == With[same])
+                same++;
+            var cut = same == Replaces.Length ? 0 : Replaces.LastIndexOf(' ', Math.Max(same - 1, 0)) + 1;
+            return $"\"{Prompt.Fit(OneLine(With), 120)}\" (was: \"{Prompt.Fit(OneLine(Replaces[cut..]), 80)}\")";
+        }
+    }
+
+    /// <summary>The exact lines before and after, as See the change shows them.</summary>
+    public string Lines => $"Before:\n{Before.Replace("\r", "")}\n\nAfter:\n{After.Replace("\r", "")}";
+
+    private static string OneLine(string text) => string.Join(' ', text.Split((char[])['\n', '\r', '\t', ' '], StringSplitOptions.RemoveEmptyEntries));
+}
+
+/// <summary>
 /// The folders skills work in: the player's own files a skill is about (a notes vault, a folder of documents), granted
 /// to it on its page in Settings → Skills, never by the skill (docs/specs/2026-10-15-skills.md). While a skill is on,
 /// her note tools reach its folders and nothing else: each path starts with its folder's name, and is checked here
@@ -314,6 +346,91 @@ public sealed class Notes
             return $"Deleted {Shown(found)}.";
         }
     }
+
+    // ---- Her suggested changes to a skill ------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Her suggested change to a skill's instructions (a passage there exactly once, below its front matter), with the
+    /// whole lines it touches before and after, for the player to see; nothing is written. Null, saying why, when it
+    /// can't be made.
+    /// </summary>
+    public SkillChange? Propose(string skill, string replaces, string with, out string why)
+    {
+        lock (_gate)
+        {
+            if (_skills.On().FirstOrDefault(s => s.Name == skill.Trim()) is not { } found)
+            {
+                why = $"There is no skill called {skill} switched on.";
+                return null;
+            }
+            if (SkillFile(found.Name, found.Folder, out why) is not { } file || Changeable(file, out why) is not { } note)
+                return null;
+            if (replaces.Length == 0 || replaces == with)
+            {
+                why = "Give the passage to change, as its instructions have it, and what it becomes.";
+                return null;
+            }
+            var windows = note.Words.Contains("\r\n", StringComparison.Ordinal);
+            string Lines(string text) => windows ? text.Replace("\r\n", "\n").Replace("\n", "\r\n") : text;
+            var old = Occurrences(note.Words, replaces) == 0 ? Lines(replaces) : replaces;
+            var at = note.Words.IndexOf(old, StringComparison.Ordinal);
+            var times = Occurrences(note.Words, old);
+            why = times == 0 ? $"{found.Name}'s instructions don't have that passage: read them again and give it exactly as it is."
+                : times > 1 ? $"That passage is in {found.Name}'s instructions {times} times: give more of it, so it is there only once."
+                : at < BodyStart(note.Words) ? "That's in its front matter (its name and description), which only the player changes: suggest a change to its instructions."
+                : "";
+            if (why.Length > 0)
+                return null;
+            var start = at == 0 ? 0 : note.Words.LastIndexOf('\n', at - 1) + 1;
+            var end = note.Words.IndexOf('\n', at + old.Length) is var newline and >= 0 ? newline : note.Words.Length;
+            if (end > start && note.Words[end - 1] == '\r')
+                end--;
+            return new SkillChange(found.Name, found.Folder, replaces, with, note.Words[start..end],
+                                   note.Words[start..at] + Lines(with) + note.Words[(at + old.Length)..end]);
+        }
+    }
+
+    /// <summary>
+    /// Writes a change the player agreed to: only its lines, and only if the skill's instructions still have them as they
+    /// were shown; otherwise nothing is written, and she is told they changed meanwhile. The old version is kept, so
+    /// the skill's page can undo it as it undoes a note.
+    /// </summary>
+    public string Apply(SkillChange change)
+    {
+        lock (_gate)
+        {
+            if (SkillFile(change.Skill, change.Folder, out var why) is not { } file || Changeable(file, out why) is not { } note)
+                return why;
+            if (Occurrences(note.Words, change.Before) != 1 || note.Words.IndexOf(change.Before, StringComparison.Ordinal) < BodyStart(note.Words))
+                return $"{change.Skill}'s instructions have changed since you suggested that, so nothing was written. Read them again before suggesting it again.";
+            return Write(file, note, note.Words.Replace(change.Before, change.After, StringComparison.Ordinal), NoteChangeKind.Edited,
+                         $"Written: from now on {change.Skill}'s instructions say \"{Prompt.Fit(change.With, 200)}\".");
+        }
+    }
+
+    /// <summary>
+    /// A skill's SKILL.md, if it may be written: only a skill directly in the app's own skills folder or one the player
+    /// linked (a skill shipped with the app would be elsewhere, and isn't written in place), neither its folder nor the
+    /// file a link.
+    /// </summary>
+    private Found? SkillFile(string name, string folder, out string why)
+    {
+        why = "";
+        var holder = Path.GetDirectoryName(Trimmed(folder));
+        if (holder is null || !_skills.Linked.Prepend(_skills.Own).Any(f => Same(Trimmed(f), holder)))
+            why = $"{name} isn't in this app's skills folder or one the player linked, so it can't be changed.";
+        else if (!Directory.Exists(folder) || Skills.IsLink(new DirectoryInfo(folder)))
+            why = $"{name}'s folder isn't there, or is a link, so it can't be changed.";
+        else if (Skills.Inside(folder, Skills.FileName, out var inside) is { } path)
+            return new Found(name, Trimmed(folder), Skills.FileName, path);
+        else
+            why = inside ?? "";
+        return null;
+    }
+
+    /// <summary>Where a SKILL.md's instructions start: after its front matter, as <see cref="Skills.Parse"/> finds it.</summary>
+    private static int BodyStart(string text) =>
+        Regex.Match(text, @"\A---[ \t]*\r?\n(?:.*?\r?\n)?(?:---|\.\.\.)[ \t]*(?:\r?\n|\z)", RegexOptions.Singleline) is { Success: true } front ? front.Length : 0;
 
     // ---- Undo ---------------------------------------------------------------------------------------------------------
 

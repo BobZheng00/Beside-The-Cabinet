@@ -197,11 +197,13 @@ public partial class SkillSettings : VBoxContainer
         Form.Subheading(this, "Recent changes");
         if (_said is not null && _saidByChanges)            // what Undo came to, where it was pressed
             Reveal(Form.Result(this), _said, _saidBad);
-        var changes = _notes.ChangesIn(granted).Take(Changes).ToList();
+        var changes = _notes.ChangesIn([.. granted, skill.Folder]).Take(Changes).ToList();     // its own SKILL.md too, as the player agreed
         foreach (var change in changes)
         {
             var row = Form.Buttons(this);
-            var said = Form.Hint(row, $"{Done(change, Where(change, granted))} · {When(change.At)}");
+            var done = string.Equals(change.Folder, Path.TrimEndingDirectorySeparator(Path.GetFullPath(skill.Folder)), StringComparison.OrdinalIgnoreCase)
+                ? $"Changed how {skill.Name} works ({Skills.FileName})" : Done(change, Where(change, granted));
+            var said = Form.Hint(row, $"{done} · {When(change.At)}");
             said.CustomMinimumSize = new Vector2(200, 0);
             Form.Button(row, "Undo", () =>
             {
@@ -219,7 +221,7 @@ public partial class SkillSettings : VBoxContainer
                 Form.Button(row, "Before", () => OS.ShellOpen(before));
         }
         Form.Hint(this, (changes.Count == 0 ? "Nothing yet. " : "") +
-                        $"Before {_name} changes a note here, this app keeps it as it was, for {Notes.KeptFor.Days} days, so you can undo the change " +
+                        $"Before {_name} changes a note here, or this skill's instructions as you agreed, this app keeps it as it was, for {Notes.KeptFor.Days} days, so you can undo the change " +
                         $"(Before shows it). Undo puts a note back only if it is still as {_name} left it, so a change made since is never lost.");
 
         Form.Subheading(this, $"What {_name} may do there");

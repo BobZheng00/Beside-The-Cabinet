@@ -168,6 +168,7 @@ public partial class Stool : Node2D
         };
         _chat.Activities = _activities;
         _chat.Bedtime = SetBedtime;
+        _chat.AskSkillChange = (change, cancel) => ConfirmOnCard($"Update how {change.Skill} works:", change.Plainly, cancel, change.Lines);
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
@@ -1711,19 +1712,26 @@ public partial class Stool : Node2D
     /// <summary>She counts an activity: the player confirms it on her card ("I'm going to the gym" isn't "I went").</summary>
     private Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel) => ConfirmOnCard(what, detail, cancel);
 
-    /// <summary>The player confirms something she does for them on her card (by text, buttons): yes, not yet, or null when they let it be.</summary>
-    private async Task<bool?> ConfirmOnCard(string what, string detail, CancellationToken cancel)
+    /// <summary>
+    /// The player confirms something she does for them on her card (by text, buttons): yes, not yet, or null when they
+    /// let it be. With <paramref name="change"/>, her suggested change to a skill: Remember it or Not now, and the exact
+    /// lines behind See the change (by text, in the message).
+    /// </summary>
+    private async Task<bool?> ConfirmOnCard(string what, string detail, CancellationToken cancel, string? change = null)
     {
         if (Her is null)
             return null;
         if (_texting && Phone is { Linked: true } phone)
         {
-            var pressed = await phone.Ask($"{what}\n{detail}", [("Yes", "yes"), ("Not yet", "no")], cancel);
+            var pressed = change is null
+                ? await phone.Ask($"{what}\n{detail}", [("Yes", "yes"), ("Not yet", "no")], cancel)
+                : await phone.Ask($"{what}\n{detail}\n\n{change}", [("Remember it", "yes"), ("Not now", "no")], cancel);
             GD.Print($"Card: \"{what}\" by text: {pressed ?? "no answer"}");
             return pressed switch { "yes" => true, "no" => false, _ => null };
         }
         Her.Play(Moment.Listen);
-        var asked = _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel);
+        var asked = change is null ? _permission.Confirm(what, detail, new Vector2(14, CardBottom), cancel)
+            : _permission.Suggest(what, detail, change, new Vector2(14, CardBottom), cancel);
         _listening.CardShown();
         var answer = await asked;
         _listening.CardGone();
@@ -2229,6 +2237,7 @@ public partial class Stool : Node2D
             case "allow": _permission.Choose(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.Choose(Answer.Always); break;
             case "deny": _permission.Choose(Answer.No); break;
+            case "seechange": _permission.SeeChange(); break;  // presses See the change on her suggested change to a skill
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, diary, memos, forget; retired)
                 OpenMemoryBook();
                 if (rest.Length > 0)
