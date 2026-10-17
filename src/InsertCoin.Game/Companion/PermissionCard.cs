@@ -7,7 +7,8 @@ namespace InsertCoin.Game.Companion;
 /// The card by her stool when she asks to use a tool that acts outside the app (see <see cref="Toolbox"/>): what
 /// she wants to do and on what, always the real address whatever she said about it, with Allow once, Always (for
 /// that site) and No. Clicks only: a key pressed in another app never answers it. The same card confirms an activity
-/// she counts (see <see cref="Activities"/>): Yes, count it, or Not yet.
+/// she counts (see <see cref="Activities"/>): Yes, count it, or Not yet; and shows her suggested change to a skill (see
+/// <see cref="SkillChange"/>): Remember it or Not now, with See the change opening the exact lines.
 /// </summary>
 public partial class PermissionCard : Node2D
 {
@@ -17,8 +18,12 @@ public partial class PermissionCard : Node2D
     public const double Waits = 120;
 
     private PanelContainer _panel = null!;
-    private Label _what = null!, _detail = null!;
-    private Button _once = null!, _always = null!, _no = null!;
+    /// <summary>The most height See the change takes, the rest of the lines a scroll away: the card stays below her face.</summary>
+    public const float LinesTallest = 170;
+
+    private Label _what = null!, _detail = null!, _lines = null!;
+    private ScrollContainer _scroll = null!;
+    private Button _once = null!, _always = null!, _no = null!, _see = null!;
     private TaskCompletionSource<Answer>? _answer;
     private Tween? _tween;
 
@@ -42,15 +47,31 @@ public partial class PermissionCard : Node2D
         };
         _detail.AddThemeFontSizeOverride("font_size", 14);
         _detail.AddThemeColorOverride("font_color", Paper.Accent);
+        _lines = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        _lines.AddThemeFontSizeOverride("font_size", 13);
+        _lines.AddThemeColorOverride("font_color", Paper.Ink);
+        _scroll = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(Width - 32, 0), Visible = false,
+        };
+        _scroll.AddChild(_lines);
         rows.AddChild(_what);
         rows.AddChild(_detail);
+        rows.AddChild(_scroll);
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 6);
         _once = Choice("Allow once", "", Answer.Once);
         _always = Choice("Always", "Quiet", Answer.Always);
         _no = Choice("No", "Quiet", Answer.No);
+        _see = new Button
+        {
+            Text = "See the change", ThemeTypeVariation = "Quiet", FocusMode = Control.FocusModeEnum.None, MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+        };
+        _see.AddThemeFontSizeOverride("font_size", 14);
+        _see.Pressed += SeeChange;
         buttons.AddChild(_once);
         buttons.AddChild(_always);
+        buttons.AddChild(_see);
         buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         buttons.AddChild(_no);
         rows.AddChild(new Control { CustomMinimumSize = new Vector2(0, 4) });
@@ -78,6 +99,9 @@ public partial class PermissionCard : Node2D
         _once.Text = "Allow once";
         _no.Text = "No";
         _always.Visible = true;
+        _see.Visible = false;
+        _detail.MaxLinesVisible = 3;
+        _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _always.Text = asking.Scope is { } site ? $"Always for {site}" : "Always";
         _always.TooltipText = Words.Wrap(asking.Scope is { } scope
             ? $"From now on this is allowed on {scope} without asking. Settings → Abilities can take it back."
@@ -91,7 +115,71 @@ public partial class PermissionCard : Node2D
         _once.Text = "Yes, count it";
         _no.Text = "Not yet";
         _always.Visible = false;                                // each time is its own: "I'm going" isn't "I went"
+        _see.Visible = false;
+        _detail.MaxLinesVisible = 3;
+        _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once => true, Answer.No => false, _ => null };
+    }
+
+    /// <summary>
+    /// Shows her suggested change to a skill: what changes in a line, Remember it or Not now, and See the change for the
+    /// exact <paramref name="lines"/>, all of them, scrolled when long. The line (kept short by
+    /// <see cref="SkillChange.Plainly"/>) is shown whole. True for Remember it, false for Not now, null when they let it be.
+    /// </summary>
+    public async Task<bool?> Suggest(string what, string detail, string lines, Vector2 bottomLeft, CancellationToken cancel)
+    {
+        _once.Text = "Remember it";
+        _no.Text = "Not now";
+        _always.Visible = false;
+        _see.Visible = true;
+        _detail.MaxLinesVisible = -1;
+        _detail.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;     // whole: a trimming label has no height of its own
+        _lines.Text = lines;
+        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once => true, Answer.No => false, _ => null };
+    }
+
+    /// <summary>See the change: opens or closes the exact lines (a dev action too).</summary>
+    public void SeeChange()
+    {
+        if (!_see.Visible)
+            return;
+        _scroll.Visible = !_scroll.Visible;
+        _see.Text = _scroll.Visible ? "Hide the change" : "See the change";
+        _scroll.ScrollVertical = 0;
+        _scroll.CustomMinimumSize = new Vector2(Width - 32, LinesTallest);
+        _panel.ResetSize();
+        if (_scroll.Visible)
+            FitLines();
+    }
+
+    /// <summary>Dev: opens See the change and scrolls to the end of the lines.</summary>
+    public async void SeeChangeEnd()
+    {
+        if (!_scroll.Visible)
+            SeeChange();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        _scroll.ScrollVertical = (int)_lines.Size.Y;
+    }
+
+    /// <summary>Once the lines are laid out at the card's width: the area as tall as they are, up to <see cref="LinesTallest"/>.</summary>
+    private async void FitLines()
+    {
+        // as laid out (the scroll bar's range), not as the label measures itself: the bar's width changes the wrapping, so
+        // a few frames, the area only growing
+        for (var i = 0; i < 6; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (!_scroll.Visible)
+                return;
+            var padding = _scroll.GetThemeStylebox("panel").GetMinimumSize().Y;      // the area's own box around the lines
+            var need = Math.Min(LinesTallest, padding + (float)Math.Max(_scroll.GetVScrollBar().MaxValue, _lines.GetCombinedMinimumSize().Y));
+            if (i > 0 && need <= _scroll.CustomMinimumSize.Y)
+                continue;
+            _scroll.CustomMinimumSize = new Vector2(Width - 32, need);
+            _panel.ResetSize();
+        }
+        GD.Print($"Card: the change's lines {_scroll.GetVScrollBar().MaxValue:0} px tall, shown {_scroll.Size.Y:0} px");
     }
 
     private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel)
@@ -101,6 +189,9 @@ public partial class PermissionCard : Node2D
         _what.Text = what;
         _detail.Text = detail;
         _detail.Visible = detail.Length > 0;
+        _scroll.Visible = false;
+        _see.Text = "See the change";
+        _panel.ResetSize();                                     // as small as this card's words, after a taller one
         Position = bottomLeft;
         _tween?.Kill();
         Visible = true;

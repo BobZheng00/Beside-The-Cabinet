@@ -52,6 +52,7 @@ public sealed class Chat : IDisposable
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Skills = new Skills(Path.Combine(dataDir, "skills"));
         _readSkill = BuiltIn.ReadSkill(ReadSkill);
+        _changeSkill = BuiltIn.ChangeSkill(ChangeSkill);
         Notes = new Notes(Skills, Path.Combine(folder, "note-changes"));
         _noteTools = BuiltIn.NoteTools(Notes);
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
@@ -82,7 +83,28 @@ public sealed class Chat : IDisposable
     /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
     public Skills Skills { get; }
 
-    private readonly Tool _readSkill;
+    private readonly Tool _readSkill, _changeSkill;
+
+    /// <summary>Shows her suggested change to a skill on her card: true for Remember it, false for Not now, null when they let it be.</summary>
+    public Func<SkillChange, CancellationToken, Task<bool?>>? AskSkillChange { get; set; }
+
+    /// <summary>Her suggested change to a skill: shown to the player, and written only if they agree (see <see cref="Notes.Apply"/>).</summary>
+    private async Task<string> ChangeSkill(string skill, string replaces, string with, CancellationToken cancel)
+    {
+        // the file work off the game's thread, as the note tools do
+        var (proposed, why) = await Task.Run(() => (Notes.Propose(skill, replaces, with, out var refused), refused), cancel);
+        if (proposed is not { } change)
+            return why;
+        var answer = AskSkillChange is { } ask ? await Unhurried(() => ask(change, cancel)) : null;
+        var said = answer switch
+        {
+            true => await Task.Run(() => Notes.Apply(change)),
+            false => "The player said not now, so nothing was changed. Take that lightly, and don't suggest it again now.",
+            _ => "The player didn't answer, so nothing was changed.",
+        };
+        GD.Print($"Skills: she suggested a change to {change.Skill}: {said}");
+        return said;
+    }
 
     /// <summary>The folders her skills work in, granted on each skill's page, and what she changed there (see <see cref="Mind.Notes"/>).</summary>
     public Notes Notes { get; }
@@ -112,6 +134,7 @@ public sealed class Chat : IDisposable
         var reachable = Notes.Reachable();
         conversation.Skills = on.Count > 0 && Tools.PermissionOf(_readSkill) != Permission.Off
             ? [.. on.Select(s => s with { WorksIn = Notes.LabelsOf(s, reachable) })] : [];
+        Offer([_changeSkill], conversation.Skills.Count > 0);
         Offer(_noteTools, conversation.Skills.Any(s => s.WorksIn.Count > 0));
     }
 
@@ -199,15 +222,17 @@ public sealed class Chat : IDisposable
     public Func<Asking, CancellationToken, Task<Answer>>? AskPlayer { get; set; }
 
     /// <summary>While the player decides, the reply's clock stops: they may take their time, and the card has a limit of its own.</summary>
-    private async Task<Answer> AskFirst(Asking asking, CancellationToken cancel)
+    private Task<Answer> AskFirst(Asking asking, CancellationToken cancel) =>
+        AskPlayer is { } ask ? Unhurried(() => ask(asking, cancel)) : Task.FromResult(Answer.None);
+
+    /// <summary>Waits for the player's answer on a card with the reply's clock stopped.</summary>
+    private async Task<T> Unhurried<T>(Func<Task<T>> answer)
     {
-        if (AskPlayer is null)
-            return Answer.None;
         var answering = _answering;
         answering?.CancelAfter(Timeout.InfiniteTimeSpan);
         try
         {
-            return await AskPlayer(asking, cancel);
+            return await answer();
         }
         finally
         {

@@ -12,7 +12,9 @@ gets "{}"; one that offers tools still gets the plain line, except that when it 
 words name one of the skills her instructions list, it first calls read_skill for that skill (logged as "called"),
 and answers the plain line once the result comes back (logged as "tool_result"); and when it offers read_note and
 append_to_note and the player's words name a note ("add a line to my note notes/today.md"), it reads that note, then
-appends "- A line from the mock mind." to it, then answers. --think waits that many seconds before answering, as a
+appends "- A line from the mock mind." to it, then answers; and when it offers change_skill and the player's words say
+"<skill> from now on <new words> instead of <old words>", it suggests that change to the skill with change_skill
+(before reading any skill), then answers. --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
@@ -94,6 +96,19 @@ def note_call(body):
     return None
 
 
+def change_call(body):
+    """The skill change to suggest: offered change_skill, and the player's words say "<skill> from now on <new> instead
+    of <old>", it calls change_skill once with those, then answers (by the tool results since their words)."""
+    if not any((t.get("function") or {}).get("name") == "change_skill" for t in body.get("tools") or []):
+        return None
+    messages = body.get("messages") or []
+    said = re.search(r"(\S+) from now on (.+) instead of (.+)", last_user_text(messages))
+    last_user = max((i for i, m in enumerate(messages) if m.get("role") == "user"), default=-1)
+    if not said or any(m.get("role") == "tool" for m in messages[last_user + 1:]):
+        return None
+    return "change_skill", {"skill": said.group(1), "replaces": said.group(3).strip(), "with": said.group(2).strip()}
+
+
 def pieces(text):
     words = text.split(" ")
     return [w + (" " if i < len(words) - 1 else "") for i, w in enumerate(words)]
@@ -152,8 +167,9 @@ class Handler(BaseHTTPRequestHandler):
         reply = "{}" if fmt in ("json_object", "json_schema") else ARGS.reply
         stream = bool(body.get("stream"))
         messages = body.get("messages") or []
-        skill = None if fmt else skill_wanted(body)
-        tool = None if fmt else ("read_skill", {"skill": skill}) if skill else note_call(body)
+        change = None if fmt else change_call(body)
+        skill = None if fmt or change else skill_wanted(body)
+        tool = None if fmt else change or (("read_skill", {"skill": skill}) if skill else note_call(body))
         call = None if tool is None else {"index": 0, "id": f"call_mock_{n}", "type": "function",
                                           "function": {"name": tool[0], "arguments": json.dumps(tool[1])}}
         log({

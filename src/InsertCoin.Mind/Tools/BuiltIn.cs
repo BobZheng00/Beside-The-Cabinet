@@ -310,6 +310,26 @@ public static class BuiltIn
         Source: SkillSource);
 
     /// <summary>
+    /// Suggests a change to one of her skills' instructions when the player's ways change (see <see cref="SkillChange"/>):
+    /// the player sees it on her card and decides, and nothing is written unless they agree, so it needs no asking of
+    /// its own. Offered with <see cref="ReadSkill"/>.
+    /// </summary>
+    /// <param name="change">Shows it to the player and writes it if they agree (the skill, the passage, what it becomes); says what came of it.</param>
+    public static Tool ChangeSkill(Func<string, string, string, CancellationToken, Task<string>> change) => new(
+        AIFunctionFactory.Create(
+            async ([Description("The skill's name, as your skills list it")] string skill,
+                   [Description("The passage of its instructions to change, exactly as they have it, there only once")] string replaces,
+                   [Description("What it becomes")] string with, CancellationToken cancel = default) =>
+                await change(skill, replaces, with, cancel),
+            "change_skill",
+            "Suggests a change to one of your skills' instructions, when the player tells you they now do what it describes differently. " +
+            "Read its instructions first. As you use it, say in your own words what would change and ask whether to remember it for that skill: " +
+            "the player sees the change on a card and decides, and nothing changes unless they agree."),
+        "Change skills",
+        OutsideApp: false,
+        Source: SkillSource);
+
+    /// <summary>
     /// Her note tools (see <see cref="Notes"/>): list, read, search, create, append, edit, move and delete, in the folders
     /// the player granted to skills switched on, nothing else. Listing, reading, searching, creating, appending and
     /// editing are Allowed, the user's own exception for a folder they granted (2026-10-15: "Read and write free");

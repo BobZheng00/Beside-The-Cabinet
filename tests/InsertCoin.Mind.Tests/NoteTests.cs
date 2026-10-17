@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Microsoft.Extensions.AI;
 
 namespace InsertCoin.Mind.Tests;
@@ -498,6 +499,124 @@ public sealed class NoteTests : IDisposable
             return null;
         var built = new System.Text.StringBuilder(1024);
         return GetShortPathName(path, built, (uint)built.Capacity) > 0 ? built.ToString() : null;
+    }
+
+    // ---- Her suggested changes to a skill ----------------------------------------------------------------------------
+
+    private string Journal => Path.Combine(_skills.Own, "journal", Skills.FileName);
+
+    private void JournalSays(string instructions) =>
+        File.WriteAllText(Journal, "---\nname: journal\ndescription: The player's journal.\n---\n\n" + instructions);
+
+    [Fact]
+    public void A_change_she_suggests_is_written_once_agreed_and_can_be_undone_like_a_note()
+    {
+        JournalSays("One heading a day.\nPut tasks under ## Tasks at the end.\n");
+
+        var change = _notes.Propose("journal", "## Tasks", "## Today", out var why);
+
+        Assert.NotNull(change);
+        Assert.Equal("", why);
+        Assert.Equal("Put tasks under ## Tasks at the end.", change.Before);
+        Assert.Equal("Put tasks under ## Today at the end.", change.After);
+        Assert.Equal("\"## Today\" (was: \"## Tasks\")", change.Plainly);
+        Assert.False(change.Shortened);
+        Assert.Equal("Before:\nPut tasks under ## Tasks at the end.\n\nAfter:\nPut tasks under ## Today at the end.", change.Lines);
+        Assert.Contains("## Tasks", File.ReadAllText(Journal));          // nothing written until the player agrees
+
+        Assert.StartsWith("Written:", _notes.Apply(change));
+        Assert.Contains("Put tasks under ## Today at the end.", File.ReadAllText(Journal));
+        Assert.Contains("One heading a day.", _skills.Read("journal"));
+
+        var kept = Assert.Single(_notes.ChangesIn([change.Folder]));
+        Assert.True(_notes.Undo(kept).Done);
+        Assert.Contains("## Tasks", File.ReadAllText(Journal));
+    }
+
+    [Fact]
+    public void The_card_shows_the_old_wording_whole_as_the_new_one_is()
+    {
+        var change = new SkillChange("journal", "", "Put tasks under ## Tasks", "Put tasks under ## Today", "", "");
+
+        Assert.Equal("\"Put tasks under ## Today\" (was: \"Put tasks under ## Tasks\")", change.Plainly);
+        Assert.False(change.Shortened);
+    }
+
+    [Fact]
+    public void A_long_change_is_shortened_on_the_cards_line_with_an_ellipsis_and_shown_whole_in_its_lines()
+    {
+        var longer = string.Concat(Enumerable.Repeat("Set a timer on the cabinet. ", 12)).Trim();     // ends at sentences, as Fit cuts
+        var change = new SkillChange("tea-timer", "", "warm the pot first", longer, "Remind them to warm the pot first.", $"Remind them to {longer}");
+
+        Assert.True(change.Shortened);
+        Assert.EndsWith("the cabinet…\" (was: \"warm the pot first\")", change.Plainly);
+        Assert.True(change.Plainly.Length < SkillChange.NewShown + SkillChange.OldShown + 20);
+        Assert.EndsWith(longer, change.Lines);
+    }
+
+    [Fact]
+    public void A_change_that_cant_be_made_is_refused_and_nothing_is_written()
+    {
+        JournalSays("One heading a day.\nOne heading a week.\n");
+        var before = File.ReadAllText(Journal);
+
+        _notes.Propose("journal", "a month", "a year", out var missing);
+        Assert.Contains("don't have that passage", missing);
+        _notes.Propose("journal", "One heading", "Two headings", out var twice);
+        Assert.Contains("2 times", twice);
+        _notes.Propose("journal", "The player's journal.", "Anything.", out var front);
+        Assert.Contains("front matter", front);
+        _notes.Propose("diary", "a day", "a week", out var none);
+        Assert.Contains("no skill called diary", none);
+        _skills.Off = new HashSet<string> { _skills.KeyOf(_journal) };
+        Assert.Null(_notes.Propose("journal", "a day.\n", "a fortnight.\n", out _));
+
+        // a skill elsewhere, as one shipped with the app would be, is never written in place
+        var shipped = Path.Combine(_root, "app", "skills", "journal");
+        Write(Path.Combine(shipped, Skills.FileName), before);
+        Assert.Contains("can't be changed", _notes.Apply(new SkillChange("journal", shipped, "a day", "a week", "One heading a day.", "One heading a week.")));
+
+        Assert.Equal(before, File.ReadAllText(Journal));
+        Assert.Equal(before, File.ReadAllText(Path.Combine(shipped, Skills.FileName)));
+        Assert.Empty(_notes.ChangesIn([Path.GetDirectoryName(Journal)!, shipped]));
+    }
+
+    [Fact]
+    public void A_skill_changed_meanwhile_is_left_as_it_is_and_she_is_told()
+    {
+        JournalSays("Put tasks under ## Tasks.\n");
+        var change = _notes.Propose("journal", "## Tasks", "## Today", out _)!;
+        JournalSays("Put tasks under ## To do.\n");                      // the player, or another agent, in the meantime
+
+        Assert.Contains("changed since", _notes.Apply(change));
+        Assert.Contains("## To do", File.ReadAllText(Journal));
+        Assert.Empty(_notes.ChangesIn([change.Folder]));
+    }
+
+    [Fact]
+    public void A_line_with_words_added_meanwhile_counts_as_changed()
+    {
+        JournalSays("Put tasks under ## Tasks.\n");
+        var change = _notes.Propose("journal", "## Tasks", "## Today", out _)!;
+        JournalSays("Put tasks under ## Tasks. Keep them short.\n");      // the line shown is still in it, as its start
+
+        Assert.Contains("changed since", _notes.Apply(change));
+        Assert.Contains("## Tasks. Keep them short.", File.ReadAllText(Journal));
+    }
+
+    [Fact]
+    public void Only_the_lines_proposed_change_with_the_files_line_endings_and_byte_order_mark_kept()
+    {
+        var text = "---\r\nname: journal\r\ndescription: The player's journal.\r\n---\r\n\r\nOne heading a day.\r\nPut tasks under ## Tasks\r\nand keep them short.\r\nEnd the day with a line.\r\n";
+        File.WriteAllBytes(Journal, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)]);
+
+        var change = _notes.Propose("journal", "## Tasks\nand keep", "## Today\nand keep", out _)!;     // she writes \n
+        Assert.Equal("Put tasks under ## Tasks\r\nand keep them short.", change.Before);
+        File.WriteAllText(Journal, "﻿" + text.Replace("End the day", "Close the day"), new UTF8Encoding(false));    // another line changed meanwhile
+        Assert.StartsWith("Written:", _notes.Apply(change));
+
+        var expected = text.Replace("## Tasks", "## Today").Replace("End the day", "Close the day");
+        Assert.Equal([.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(expected)], File.ReadAllBytes(Journal));
     }
 
     /// <summary>A symbolic link where Windows allows one, else a junction (which needs no privilege).</summary>
