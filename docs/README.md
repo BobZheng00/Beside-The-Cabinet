@@ -101,7 +101,8 @@ type, press Enter, and their answer streams into the bubble while they act it ou
   can't make (a time it can't read, an item that isn't there, stopping a repeat or removing a reminder, which it
   can't do yet) is left undone, and their next reply says so. What is coming up in
   the next week, and what has just passed (so they can ask how it went), is in every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next
-  time. The screen's AGENDA app shows what is coming up, and a click there opens the memory book's Agenda. A
+  time. The screen's AGENDA app shows what is coming up, following changes within a couple of seconds while it is
+  open, and a click there opens the memory book's Agenda. A
   reminder goes off on a ticket at the screen corner with Snooze and OK, and your companion tells you in their own
   words and your language once they have finished what they are saying (never cutting themselves or you off).
   Settings → Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the
