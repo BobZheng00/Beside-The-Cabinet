@@ -44,6 +44,10 @@ Each page is short enough to read without scrolling much, and is named for what 
   since half of it is no use (and picking a provider to look at its server must not switch her over). Her provider has
   Test and Save; a calendar has Link it. The guides (below) take these over.
 - **The tray and the pages agree:** Mute sounds and Voice are in both, and a change in one shows in the other.
+- **A page below a page** (a skill's own page, under Skills) starts with where it is, top left: "‹ Skills › journal",
+  the page above a button back up to it, then its heading (the user, 2026-10-17: "levels of navigation so it is more
+  intuitive for user to go back to upper layer"). *Built* (#62): `Form.Page` with the page above; back up, the list
+  is where it was left. The skill's page is the only one so far.
 
 ## Guides for setup outside the app
 
