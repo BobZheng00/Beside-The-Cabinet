@@ -181,13 +181,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var agenda = store.Agenda();
         var shown = Agenda.Shown(agenda, now);
         var numbered = shown.Ahead.Concat(shown.Past).ToDictionary(p => p.Id);
+        var cancelled = new HashSet<long>();                // called off in this reply
         var refused = new List<string>();                   // her agenda changes that didn't go through, and why: told to her after her reply
         // calls off or changes an item she was shown, as it is now (a reminder may have gone off while she replied, moving
-        // a repeat on); one called off leaves the list, so a [plan] that reuses its number is never changed by it. Why not, or null when done.
+        // a repeat on); one called off is done with for this reply, so a [plan] that reuses its number is never changed by
+        // it, and calling it off again isn't a failure. Why not, or null when done.
         string? ChangeAgenda(bool cancel, string payload)
         {
             if (Agenda.ParseChange(payload, now, _clock.LocalTimeZone) is not { } change)
                 return "it needs the item's number from the agenda, as in #12";
+            if (cancelled.Contains(change.Id))
+                return null;
             if (!numbered.TryGetValue(change.Id, out var listedItem))
                 return $"there is no #{change.Id} on the agenda now";
             if (listedItem.Source is not null)
@@ -197,11 +201,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (cancel)
             {
                 store.DeletePlan(item.Id);
-                numbered.Remove(item.Id);
+                cancelled.Add(item.Id);
                 return null;
             }
             if (change.Unread is { } unread)
-                return $"the cabinet can't read \"{unread}\": a new time is written YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day)";
+                return $"the cabinet can't read \"{unread}\" as a time: write it YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day)";
+            if (change.Unable is { } unable)
+                return $"the cabinet can't do \"{unable}\" yet: a change can only move an item, set its reminder (\"1 hour before\") or make it repeat (daily, weekdays, weekly, monthly)";
             ChangePlan(item, change.When, null, change.Options, remind: false);
             return null;
         }
@@ -244,8 +250,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
             // "[cancel: #12]" and "[change: #12 | ...]": that same item called off, moved or reminded of differently
-            if (name is "cancel" or "change" && payload is not null && ChangeAgenda(name == "cancel", payload) is { } why)
-                refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: {why}. Tell the player briefly, then put it right or ask them.");
+            if (name is "cancel" or "change" && ChangeAgenda(name == "cancel", payload ?? "") is { } why)
+                refused.Add($"Your [{name}{(payload is null ? "" : $": {payload.Trim()}")}] didn't go through: {why}. Tell the player briefly, then put it right or ask them.");
             // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
             if (name is "out" or "sleep")
                 store.SetMark(Reaching.Mark, Reaching.Marked(name == "sleep", now));
