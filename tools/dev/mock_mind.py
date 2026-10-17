@@ -10,12 +10,15 @@ Point a test profile at it with these settings (shoot.ps1 -Settings, or a smoke 
 A server on this PC needs no key, so the profile needs none either. A request that asks for JSON (response_format)
 gets "{}"; one that offers tools still gets the plain line, except that when it offers read_skill and the player's
 words name one of the skills her instructions list, it first calls read_skill for that skill (logged as "called"),
-and answers the plain line once the result comes back (logged as "tool_result"). --think waits that many seconds before answering, as a
+and answers the plain line once the result comes back (logged as "tool_result"); and when it offers read_note and
+append_to_note and the player's words name a note ("add a line to my note notes/today.md"), it reads that note, then
+appends "- A line from the mock mind." to it, then answers. --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
 import argparse
 import json
+import re
 import sys
 import threading
 import time
@@ -66,6 +69,29 @@ def skill_wanted(body):
     names = [line[2:].split(":", 1)[0] for line in listed.split("\n") if line.startswith("- ")]
     said = last_user_text(messages)
     return next((n for n in names if n and n in said), None)
+
+
+NOTE_LINE = "- A line from the mock mind."
+
+
+def note_call(body):
+    """The note tool to call next: offered read_note and append_to_note, and the player's words name a note ("my note
+    notes/today.md"), it reads it, then appends NOTE_LINE to it, then answers (by the tool results since their words)."""
+    offered = {(t.get("function") or {}).get("name") for t in body.get("tools") or []}
+    if not {"read_note", "append_to_note"} <= offered:
+        return None
+    messages = body.get("messages") or []
+    said = re.search(r"note (\S+\.md)", last_user_text(messages))
+    if not said:
+        return None
+    last_user = max((i for i, m in enumerate(messages) if m.get("role") == "user"), default=-1)
+    results = sum(1 for m in messages[last_user + 1:] if m.get("role") == "tool")
+    path = said.group(1)
+    if results == 0:
+        return "read_note", {"path": path}
+    if results == 1:
+        return "append_to_note", {"path": path, "text": NOTE_LINE}
+    return None
 
 
 def pieces(text):
@@ -127,13 +153,14 @@ class Handler(BaseHTTPRequestHandler):
         stream = bool(body.get("stream"))
         messages = body.get("messages") or []
         skill = None if fmt else skill_wanted(body)
-        call = None if skill is None else {"index": 0, "id": f"call_mock_{n}", "type": "function",
-                                           "function": {"name": "read_skill", "arguments": json.dumps({"skill": skill})}}
+        tool = None if fmt else ("read_skill", {"skill": skill}) if skill else note_call(body)
+        call = None if tool is None else {"index": 0, "id": f"call_mock_{n}", "type": "function",
+                                          "function": {"name": tool[0], "arguments": json.dumps(tool[1])}}
         log({
             "at": time.time(), "n": n, "path": self.path, "model": body.get("model"), "stream": stream,
             "messages": len(messages), "tools": len(body.get("tools") or []),
             "response_format": fmt, "user": last_user_text(messages)[:200], "reply": reply,
-            **({"called": f"read_skill {skill}"} if call else {}),
+            **({"called": f"{tool[0]} {next(iter(tool[1].values()))}"} if call else {}),
             **({"tool_result": text_of(messages[-1])[:300]} if messages and messages[-1].get("role") == "tool" else {}),
         })
         if ARGS.think > 0:

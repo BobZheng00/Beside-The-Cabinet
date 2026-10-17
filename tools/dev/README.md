@@ -53,6 +53,12 @@ tool on: tea-timer, with a file and a script, one with no description and a fold
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
 skills folder in the profile; the mock mind reads a skill the player's words name, then answers), `skilllink` (links
 that vault's skills folder on the open Skills page, as picking it in "Link a skills folder…" does),
+`skillpage:tea-timer` (opens that skill's own page on the open Skills page, as its Folders button does), `notesseed` (a
+stand-in notes folder, `notes` with a `today.md`, beside the test profile in `<profile>-files`, never the player's),
+`skillgrant` (grants that folder to the skill whose page is open, as picking it in "Grant a folder…" does; the mock
+mind, asked to "add a line to my note notes/today.md", reads it with `read_note` and appends "- A line from the mock
+mind." with `append_to_note`, then answers), `notetail` (logs the last line of that `today.md`; `notetail:other.md`,
+another note there),
 `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test

@@ -135,6 +135,7 @@ public partial class Stool : Node2D
         _chat.SearchThrough(settings.Now.AddOns.Search);
         _chat.Skills.Linked = settings.Now.SkillFolders;
         _chat.Skills.Off = settings.Now.SkillsOff.ToHashSet();
+        _chat.Notes.Grants = settings.Now.SkillGrants;
         _chat.Connect(ChatProvider());
         _chatBox = new ChatBox();
         AddChild(_chatBox);
@@ -2004,8 +2005,17 @@ public partial class Stool : Node2D
     private Control SkillsPage()
     {
         var page = _skillsPage = new SkillSettings();
-        page.Build(_chat.Skills, HerName(), Pick,
-                   () => _settings.Save(_settings.Now with { SkillFolders = [.. _chat.Skills.Linked], SkillsOff = [.. _chat.Skills.Off.Order()] }));
+        page.Build(_chat.Skills, _chat.Notes, HerName(), Pick, () =>
+                   {
+                       var permissions = new AbilitySettings();
+                       permissions.BuildNoteTools(_chat);
+                       permissions.PermissionsChosen += ChoosePermissions;
+                       return permissions;
+                   },
+                   () => _settings.Save(_settings.Now with
+                   {
+                       SkillFolders = [.. _chat.Skills.Linked], SkillsOff = [.. _chat.Skills.Off.Order()], SkillGrants = new(_chat.Notes.Grants),
+                   }));
         return page;
     }
 
@@ -2244,6 +2254,20 @@ public partial class Stool : Node2D
                 else
                     GD.PrintErr("Skills: the Skills page isn't open");
                 break;
+            case "skillpage" or "skillgrant" when !IsInstanceValid(_skillsPage) || !_skillsPage!.IsVisibleInTree():
+                GD.PrintErr("Skills: the Skills page isn't open");
+                break;
+            case "skillpage": _skillsPage!.DevOpen(rest); break;     // skillpage:tea-timer opens that skill's own page, as its Folders button does
+            case "skillgrant": _skillsPage!.DevGrant(SeededNotes()); break;     // grants the seeded notes folder to the skill whose page is open, as picking it does
+            case "notesseed":                               // a stand-in notes folder beside the profile (never the player's), for skillgrant
+                Directory.CreateDirectory(SeededNotes());
+                File.WriteAllText(Path.Combine(SeededNotes(), "today.md"), "# Today\n- Woke up early.\n");
+                GD.Print($"Notes: seeded {SeededNotes()}");
+                break;
+            case "notetail":                                // notetail:today.md logs the last line of that note in the seeded folder
+                var tail = File.ReadAllLines(Path.Combine(SeededNotes(), rest.Length > 0 ? rest : "today.md")).LastOrDefault(l => l.Trim().Length > 0);
+                GD.Print($"Notes: {(rest.Length > 0 ? rest : "today.md")} ends: {tail}");
+                break;
             case "checkin": MaybeCheckIn(force: true); break;   // she asks about something past now, whatever the player is doing
             case "presence":                                // logs what she would make of this moment
                 var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -2308,6 +2332,9 @@ public partial class Stool : Node2D
 
     /// <summary>Dev: the seeded vault's skills folder (see <see cref="SeedSkills"/>), in the profile.</summary>
     private string SeededVault() => Path.Combine(Path.GetDirectoryName(_chat.Skills.Own)!, "vault", ".claude", "skills");
+
+    /// <summary>Dev: a stand-in notes folder beside the profile (a folder inside it can't be granted), named "notes" as her paths start.</summary>
+    private string SeededNotes() => Path.Combine(Path.GetDirectoryName(_chat.Skills.Own)! + "-files", "notes");
 
     /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>
     private void SeedMemory()

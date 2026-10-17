@@ -68,6 +68,19 @@
       "expect": ["^Skills: seeded; on: tea-timer$", "^Skills: Linked \\S.*\\\\skills: 2 skills in it\\.$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
+      "name": "skill-folders",
+      "about": "A stand-in notes folder granted to a skill on its own page (Settings → Skills → Folders); asked to add a line to a note there, the companion's mind (the mock) reads it and appends a line with their note tools, and the file shows it; Undo on the skill's page takes it out again.",
+      "covers": ["src/InsertCoin.Mind/Notes.cs", "src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
+      "mind": true,
+      "mindReply": "Done: it's in your note.",
+      "mindRequests": 3,
+      "script": "nocall@1,skillseed@2,notesseed@2,settings:skills@3,skillpage:tea-timer@4,skillgrant@5,chat:please_add_a_line_to_my_note_notes/today.md@7,notetail@12,settings:abilities@13,settings:skills@14,skillpage:tea-timer@15,settingsscroll:2000@16,settingsdo:Undo@19,notetail@20",
+      "shots": [9, 20, 24],
+      "window": "Settings",
+      "desk": true,
+      "expect": ["^Notes: seeded ", "^Skills: tea-timer works in \\S.*\\\\notes now\\.$", "^Tools: she uses read_note", "^Tools: she uses append_to_note", "^Notes: today\\.md ends: - A line from the mock mind\\.$", "^Skills: Undone: today\\.md is as it was\\.$", "^Notes: today\\.md ends: - Woke up early\\.$"]
+    },
+    {
       "name": "memory",
       "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items; a fact edited is saved on leaving it, and one the companion rewords while it is being edited asks which to keep, then keeps the player's.",
       "covers": ["src/InsertCoin.Game/App/MemoryBook.cs", "src/InsertCoin.Mind/*"],

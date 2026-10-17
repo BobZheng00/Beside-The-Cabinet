@@ -52,6 +52,8 @@ public sealed class Chat : IDisposable
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         Skills = new Skills(Path.Combine(dataDir, "skills"));
         _readSkill = BuiltIn.ReadSkill(ReadSkill);
+        Notes = new Notes(Skills, Path.Combine(folder, "note-changes"));
+        _noteTools = BuiltIn.NoteTools(Notes);
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
                              BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
                              BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
@@ -82,6 +84,14 @@ public sealed class Chat : IDisposable
 
     private readonly Tool _readSkill;
 
+    /// <summary>The folders her skills work in, granted on each skill's page, and what she changed there (see <see cref="Mind.Notes"/>).</summary>
+    public Notes Notes { get; }
+
+    /// <summary>Her note tools, for their permissions on a skill's page whether offered now or not.</summary>
+    public IReadOnlyList<Tool> NoteTools => _noteTools;
+
+    private readonly IReadOnlyList<Tool> _noteTools;
+
     private string ReadSkill(string name, string? file)
     {
         var read = Skills.Read(name, file);
@@ -91,17 +101,27 @@ public sealed class Chat : IDisposable
 
     /// <summary>
     /// Her skills as they are on disk now, for the reply about to be written: the tool that reads them offered while one
-    /// is on (and its tool not switched off), and their names and descriptions with her tools. Both stay the same, so the
-    /// cached start of the prompt does, until a skill is added, removed, renamed or switched.
+    /// is on (and its tool not switched off), and their names, descriptions and folders with her tools; her note tools
+    /// while one of them has a folder. All stay the same, so the cached start of the prompt does, until a skill is added,
+    /// removed, renamed or switched, or a folder granted or taken back.
     /// </summary>
     private void UseSkills(Conversation conversation)
     {
         var on = Skills.On();
-        if (on.Count == 0)
-            Tools.Take(BuiltIn.SkillName);
-        else if (!Tools.All.Contains(_readSkill))
-            Tools.Put(_readSkill);
-        conversation.Skills = on.Count > 0 && Tools.PermissionOf(_readSkill) != Permission.Off ? on : [];
+        Offer([_readSkill], on.Count > 0);
+        var reachable = Notes.Reachable();
+        conversation.Skills = on.Count > 0 && Tools.PermissionOf(_readSkill) != Permission.Off
+            ? [.. on.Select(s => s with { WorksIn = Notes.LabelsOf(s, reachable) })] : [];
+        Offer(_noteTools, conversation.Skills.Any(s => s.WorksIn.Count > 0));
+    }
+
+    private void Offer(IEnumerable<Tool> tools, bool offered)
+    {
+        foreach (var tool in tools)
+            if (!offered)
+                Tools.Take(tool.Name);
+            else if (!Tools.All.Contains(tool))
+                Tools.Put(tool);
     }
 
     /// <summary>What she can do with tools, and the player's permission for each (Settings → Abilities).</summary>

@@ -303,6 +303,32 @@ the skill's own folder (links in it aren't followed), never run a skill's script
 20,000 characters (about 5,000 tokens), knowing it was cut. What they read goes to your AI provider with the
 conversation. Design: [docs/specs/2026-10-15-skills.md](specs/2026-10-15-skills.md).
 
+### Folders a skill works in
+
+A skill can also work in your own files: a notes vault (Obsidian's, say), a folder of notes or documents. On the
+skill's own page (Folders, beside it on Settings → Skills) Grant a folder… gives it one, or several; each is listed
+with its path, Open and Remove, and the grant is kept in this app's settings, never in the skill. While the skill is
+on, your companion has note tools for those folders and nothing else of yours:
+
+- **list** a folder, **read** a note, **search** the notes by their words: allowed;
+- **make** a note, **add** lines at its end, **change** a passage in it: allowed (you granted the folder, so they write
+  freely there);
+- **move** (or rename) a note within its folder, **delete** one: they ask first, on a card by the stool.
+
+Each is changeable on the skill's page (Allowed, Ask me first, Off), the same for every skill's folders. Their paths
+start with the folder's name (`notes/Daily/2026-10-16.md`; two folders with one name are told apart as `notes` and
+`notes-2`), and the app checks every one: nothing outside the folder (no `..`, no other drive), no links inside it
+followed, nothing hidden (`.obsidian`, `.git`) touched. A folder kept in sync by OneDrive or Dropbox is fine. Only text
+is read and written (notes up to 1 MB; they write `.md`, `.txt`, `.org`, `.csv`, `.json`, `.yaml` and `.canvas` files),
+and a folder that holds this app's own files can't be granted. What a note says is information to them, never
+instructions: once they have read one, Auto stops going ahead for the rest of that reply, as after a web page. What
+they read there goes to your AI provider with the conversation.
+
+**Undo.** Before they change, move or delete a note, the app keeps it as it was in your profile (never in your folder),
+for 30 days. The skill's page lists their recent changes there, each with Undo, and Before, which opens the note as it
+was. Undo puts a note back (or, for one they made, takes it away again) only if it is still as they left it: if you,
+or another app or agent, changed it since, it is left as it is and says so, and the old version stays kept.
+
 ## Help with learning
 
 Ask your companion for help with what you're on ("help me with this") and they read your window titles to see what

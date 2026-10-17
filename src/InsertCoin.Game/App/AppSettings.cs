@@ -52,6 +52,7 @@ public sealed record AppSettings
     public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (Settings → Add-ons)
     public string[] SkillFolders { get; init; } = [];   // skills folders elsewhere the player linked, read where they are (Settings → Skills)
     public string[] SkillsOff { get; init; } = [];      // skills switched off, by their folder; the rest are on
+    public Dictionary<string, string[]> SkillGrants { get; init; } = [];   // the folders each skill works in, by skill as SkillsOff names them (granted on its page)
     public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda"];      // the order of the screen's apps, as the player arranged them
     public int FocusMinutes { get; init; } = 25;        // a focus session's parts (the screen's FOCUS app)
     public int BreakMinutes { get; init; } = 5;

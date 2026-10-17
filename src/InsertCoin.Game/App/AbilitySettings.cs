@@ -90,6 +90,13 @@ public partial class AbilitySettings : VBoxContainer
                         $"provider, or to your own SearXNG (Add-ons); pages {name} reads are fetched by this PC from their site.");
     }
 
+    /// <summary>On a skill's page (Settings → Skills): how freely she uses her note tools in the folders skills work in.</summary>
+    public void BuildNoteTools(Chat chat)
+    {
+        _chat = chat;
+        AddChild(Choices(chat.NoteTools));
+    }
+
     /// <summary>A permission to choose for each tool (the provider's own search only runs or doesn't: it can't ask).</summary>
     private GridContainer Choices(IEnumerable<Tool> listed)
     {
