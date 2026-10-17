@@ -31,6 +31,8 @@ The README is the front page for strangers; the manual is in READMEs beside what
   - `2026-10-11-observational-memory.md`: her memory as a dated log of notes (phases 1 to 4; what is built where).
   - `2026-10-15-skills.md`: skills in the open SKILL.md format, the folder a skill may work in, her suggested
     changes to a skill, and servers the player adds (MCP); the order of work.
+  - `2026-10-17-on-the-cabinet.md`: Settings and the switches from the cabinet itself: a right-click menu on her
+    and the cabinet, a SETTINGS app and a row of switches on the CRT, a Memory page in Settings.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database).
