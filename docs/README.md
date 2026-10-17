@@ -11,7 +11,7 @@ Drag the cabinet by its body. The big gold button asks LeetCode right away. The 
 cabinet, Settings…, Getting started… (until it is done), the memory book and chat history, a memo of your own, a
 LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). Settings is one window with a page
 for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
-Characters, Abilities, Privacy and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
+Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.
 
 At first run a Welcome asks three things: your name (what your companion calls you; your initials on the cabinet
@@ -265,6 +265,43 @@ to forget. Auto lets them go ahead without asking (what's switched off stays off
 page, and for the rest of a reply once they have read a page or search results: a page could try to talk them into
 things. A model that can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](specs/2026-10-05-tools-and-abilities.md).
+
+## Skills
+
+A skill is something your companion knows how to do your way: a folder with a `SKILL.md` in it, in the open
+[Agent Skills](https://agentskills.io/specification) format that other AI agents (Claude Code among them) read too. Its
+top says what it is called and, in a sentence, what it is for and when to use it; below come the instructions, in your
+own words, and they may mention other text files in its folder (`references/times.md`):
+
+```
+---
+name: tea-timer
+description: Brewing a pot of tea my way. Use when I want tea or a break with tea.
+---
+
+Warm the pot first. The steeping times are in references/times.md.
+```
+
+The format asks for the name to be the folder's name, in lowercase letters, numbers and single hyphens; a skill
+without one goes by its folder's name. Settings → Skills lists every skill with its description and a tick to switch
+it on or off (a skill found is on until you switch it off). A skill made for another agent is used as it is: where it
+isn't quite as the format asks (its name, say), a hint under it says so. One whose `SKILL.md` can't be used (no
+description, or no front matter) is listed with why. Skills live in skills folders, each folder in one with a
+`SKILL.md` being a skill:
+
+- **the app's own** (`skills` in your profile): New skill makes one there for you to fill in (it is ready once it has a
+  description), Import a skill copies one in (its .zip, or the `SKILL.md` in its folder), for this app only, and Open
+  skills folder shows it in Explorer;
+- **folders elsewhere you link** (Link a skills folder…), read where they are and never copied: Claude Code's own
+  (`.claude\skills` in your user folder), or one in your notes, so one skill serves your other agents and your
+  companion alike. Unlink takes a folder off the page and changes nothing in it.
+
+Only each skill's name and description are always with your companion (about 100 tokens a skill, in the part of every
+request providers cache). When what you ask fits a skill, they read its instructions, from the file each time, so a
+change made anywhere applies the next time; the files it mentions they read as information. They read nothing outside
+the skill's own folder (links in it aren't followed), never run a skill's scripts, and stop reading a file after
+20,000 characters (about 5,000 tokens), knowing it was cut. What they read goes to your AI provider with the
+conversation. Design: [docs/specs/2026-10-15-skills.md](specs/2026-10-15-skills.md).
 
 ## Help with learning
 

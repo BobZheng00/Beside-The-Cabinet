@@ -30,7 +30,7 @@ bubble clicked), `nocall` (another app's microphone doesn't count as a call), `s
 head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
 menu at that screen point), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
-(Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `addons`,
+(Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
 from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
@@ -48,7 +48,12 @@ item with those words is cancelled under the open book, as upkeep might), `ticke
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
-agenda items, retired facts and a note to try it on), `remind:some_text` (a reminder goes off now),
+agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
+tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
+own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
+skills folder in the profile; the mock mind reads a skill the player's words name, then answers), `skilllink` (links
+that vault's skills folder on the open Skills page, as picking it in "Link a skills folder…" does),
+`remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, idle),

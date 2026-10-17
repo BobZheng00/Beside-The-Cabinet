@@ -71,7 +71,8 @@ src/InsertCoin.Core       rules as a pure function (Ledger.Step) — no I/O, no 
 src/InsertCoin.Adapters   LeetCode GraphQL source, Steam registry detector, atomic JSON store
 src/InsertCoin.Mind       the companion's mind, no Godot: provider connection (Microsoft.Extensions.AI), conversation
                           store (SQLite), prompt, stage directions, notes and upkeep, encrypted key; Tools/: the
-                          companion's tools and their permissions (Toolbox) and the built-in ones (BuiltIn); memos (Memo);
+                          companion's tools and their permissions (Toolbox) and the built-in ones (BuiltIn); skills,
+                          the SKILL.md folders read where they are (Skills); memos (Memo);
                           Voice/: what of
                           a reply is spoken, voice profiles and their import, the GPT-SoVITS client, training
                           (VoiceTraining, and train_voice.py, run with GPT-SoVITS's Python), hearing (SenseVoice

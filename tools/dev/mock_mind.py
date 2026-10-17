@@ -8,7 +8,9 @@ Point a test profile at it with these settings (shoot.ps1 -Settings, or a smoke 
     "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:8797/v1", "ChatModel": "mock"
 
 A server on this PC needs no key, so the profile needs none either. A request that asks for JSON (response_format)
-gets "{}"; one that offers tools still gets the plain line. --think waits that many seconds before answering, as a
+gets "{}"; one that offers tools still gets the plain line, except that when it offers read_skill and the player's
+words name one of the skills her instructions list, it first calls read_skill for that skill (logged as "called"),
+and answers the plain line once the result comes back (logged as "tool_result"). --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
@@ -42,6 +44,28 @@ def last_user_text(messages):
         if isinstance(content, list):
             return " ".join(p.get("text", "") for p in content if isinstance(p, dict))
     return ""
+
+
+def text_of(message):
+    content = (message or {}).get("content")
+    if isinstance(content, list):
+        return " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+    return content or ""
+
+
+def skill_wanted(body):
+    """The skill to read first: offered read_skill, with no tool result yet, and the player's words name one of the
+    skills her instructions list ("- name: description" after "Your skills:")."""
+    messages = body.get("messages") or []
+    if not any((t.get("function") or {}).get("name") == "read_skill" for t in body.get("tools") or []):
+        return None
+    if messages and messages[-1].get("role") == "tool":
+        return None
+    system = text_of(messages[0]) if messages and messages[0].get("role") == "system" else ""
+    listed = system.split("Your skills:", 1)[1] if "Your skills:" in system else ""
+    names = [line[2:].split(":", 1)[0] for line in listed.split("\n") if line.startswith("- ")]
+    said = last_user_text(messages)
+    return next((n for n in names if n and n in said), None)
 
 
 def pieces(text):
@@ -101,10 +125,16 @@ class Handler(BaseHTTPRequestHandler):
         fmt = (body.get("response_format") or {}).get("type")
         reply = "{}" if fmt in ("json_object", "json_schema") else ARGS.reply
         stream = bool(body.get("stream"))
+        messages = body.get("messages") or []
+        skill = None if fmt else skill_wanted(body)
+        call = None if skill is None else {"index": 0, "id": f"call_mock_{n}", "type": "function",
+                                           "function": {"name": "read_skill", "arguments": json.dumps({"skill": skill})}}
         log({
             "at": time.time(), "n": n, "path": self.path, "model": body.get("model"), "stream": stream,
-            "messages": len(body.get("messages") or []), "tools": len(body.get("tools") or []),
-            "response_format": fmt, "user": last_user_text(body.get("messages"))[:200], "reply": reply,
+            "messages": len(messages), "tools": len(body.get("tools") or []),
+            "response_format": fmt, "user": last_user_text(messages)[:200], "reply": reply,
+            **({"called": f"read_skill {skill}"} if call else {}),
+            **({"tool_result": text_of(messages[-1])[:300]} if messages and messages[-1].get("role") == "tool" else {}),
         })
         if ARGS.think > 0:
             time.sleep(ARGS.think)
@@ -115,9 +145,10 @@ class Handler(BaseHTTPRequestHandler):
         usage = {"prompt_tokens": 100, "completion_tokens": len(reply.split()), "total_tokens": 100 + len(reply.split())}
 
         if not stream:
+            message = {"role": "assistant", "content": None, "tool_calls": [call]} if call else {"role": "assistant", "content": reply}
             self.send_json(200, {
                 "id": rid, "object": "chat.completion", "created": created, "model": model,
-                "choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}],
+                "choices": [{"index": 0, "message": message, "finish_reason": "tool_calls" if call else "stop"}],
                 "usage": usage,
             })
             return
@@ -137,6 +168,12 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             event([{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}])
+            if call:
+                event([{"index": 0, "delta": {"tool_calls": [call]}, "finish_reason": None}])
+                event([{"index": 0, "delta": {}, "finish_reason": "tool_calls"}])
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+                return
             for piece in pieces(reply):
                 event([{"index": 0, "delta": {"content": piece}, "finish_reason": None}])
                 time.sleep(0.02)
