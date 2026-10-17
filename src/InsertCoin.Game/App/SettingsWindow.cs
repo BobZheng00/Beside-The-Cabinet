@@ -177,6 +177,19 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>Dev: on a page below a page, presses its way back up (see <see cref="Form.Page(VBoxContainer, string, string, Action)"/>).</summary>
+    public void DevUp()
+    {
+        if (_showing is not null && PageOf(_showing) is { } page
+            && Within(page).OfType<Button>().FirstOrDefault(b => b.Name == "Up" && b.IsVisibleInTree()) is { } up)
+        {
+            GD.Print($"Settings: \"{up.Text}\" pressed");
+            up.EmitSignal(BaseButton.SignalName.Pressed);
+        }
+        else
+            GD.PrintErr($"Settings: no way up on {_showing}");
+    }
+
     /// <summary>Dev: the pointer resting on the control with this text on the page showing, so its hover tip shows; the real mouse never moves.</summary>
     public void DevHover(string label)
     {

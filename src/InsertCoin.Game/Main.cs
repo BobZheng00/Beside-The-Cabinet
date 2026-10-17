@@ -602,6 +602,12 @@ public partial class Main : Node2D
                 _settingsWindow!.DevHover(action["settingshover:".Length..].Replace('_', ' '));
             return;
         }
+        if (action == "settingsup")                         // on a page below a page, its way back up (top left)
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevUp();
+            return;
+        }
         if (action == "settingswidths")                     // logs any page made so far that is wider than its room
         {
             if (IsInstanceValid(_settingsWindow))

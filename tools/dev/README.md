@@ -33,7 +33,8 @@ menu at that screen point), `chat:some_text` (say something to them), `chatbox` 
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
-from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingshover:Label` (rests a pretend pointer on that control, so its
+from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
+presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured), `trayitems` (logs the tray menu's entries),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
@@ -53,7 +54,7 @@ tool on: tea-timer, with a file and a script, one with no description and a fold
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
 skills folder in the profile; the mock mind reads a skill the player's words name, then answers), `skilllink` (links
 that vault's skills folder on the open Skills page, as picking it in "Link a skills folder…" does),
-`skillpage:tea-timer` (opens that skill's own page on the open Skills page, as its Folders button does), `notesseed` (a
+`skillpage:tea-timer` (opens that skill's own page on the open Skills page, as its Settings › button does; `settingsup` goes back up), `notesseed` (a
 stand-in notes folder, `notes` with a `today.md`, beside the test profile in `<profile>-files`, never the player's),
 `skillgrant` (grants that folder to the skill whose page is open, as picking it in "Grant a folder…" does; the mock
 mind, asked to "add a line to my note notes/today.md", reads it with `read_note` and appends "- A line from the mock

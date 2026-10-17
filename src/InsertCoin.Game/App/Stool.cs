@@ -2268,7 +2268,7 @@ public partial class Stool : Node2D
             case "skillpage" or "skillgrant" when !IsInstanceValid(_skillsPage) || !_skillsPage!.IsVisibleInTree():
                 GD.PrintErr("Skills: the Skills page isn't open");
                 break;
-            case "skillpage": _skillsPage!.DevOpen(rest); break;     // skillpage:tea-timer opens that skill's own page, as its Folders button does
+            case "skillpage": _skillsPage!.DevOpen(rest); break;     // skillpage:tea-timer opens that skill's own page, as its Settings button does
             case "skillgrant": _skillsPage!.DevGrant(SeededNotes()); break;     // grants the seeded notes folder to the skill whose page is open, as picking it does
             case "notesseed":                               // a stand-in notes folder beside the profile (never the player's), for skillgrant
                 Directory.CreateDirectory(SeededNotes());

@@ -308,7 +308,7 @@ conversation. Design: [docs/specs/2026-10-15-skills.md](specs/2026-10-15-skills.
 ### Folders a skill works in
 
 A skill can also work in your own files: a notes vault (Obsidian's, say), a folder of notes or documents. On the
-skill's own page (Folders, beside it on Settings → Skills) Grant a folder… gives it one, or several; each is listed
+skill's own page (Settings ›, beside it on Settings → Skills; ‹ Skills, top left, goes back) Grant a folder… gives it one, or several; each is listed
 with its path, Open and Remove, and the grant is kept in this app's settings, never in the skill. While the skill is
 on, your companion has note tools for those folders and nothing else of yours:
 
@@ -344,7 +344,7 @@ ending in "…", and the card says all of it is under See the change). *See the 
 whole, before and after, scrolling when there are many. Nothing is written until you press Remember it, and then only those lines, and only
 if the skill still has them as shown: if you or another agent changed them meanwhile, nothing is written and they're
 told. Only skills in the app's own skills folder or one you linked are changed, never their name or description (the
-front matter), and a skill's files are changed no other way. The skill's page (Folders) lists the change with Undo and
+front matter), and a skill's files are changed no other way. The skill's page (Settings ›) lists the change with Undo and
 Before, as it does their changes to your notes. While you text them from away, the card comes as a message with the
 lines and the two buttons.
 

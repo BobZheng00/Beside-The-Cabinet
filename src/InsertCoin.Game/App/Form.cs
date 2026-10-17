@@ -17,6 +17,20 @@ public static class Form
         return page;
     }
 
+    /// <summary>
+    /// A page below a page: first, top left, where it is ("‹ Skills › journal"), the page above it a button back up to
+    /// it; then its heading. Every page below a page starts this way.
+    /// </summary>
+    public static VBoxContainer Page(VBoxContainer page, string above, string heading, Action up)
+    {
+        var path = new HBoxContainer();
+        path.AddThemeConstantOverride("separation", 6);
+        page.AddChild(path);
+        Button(path, $"‹ {above}", up).Name = "Up";             // the name finds it for dev actions (settingsup)
+        path.AddChild(new Label { Text = $"› {heading}", ThemeTypeVariation = "Hint", ClipText = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        return Page(page, heading);
+    }
+
     public static Label Subheading(Container parent, string text)
     {
         var label = new Label { Text = text, ThemeTypeVariation = "Subheading" };

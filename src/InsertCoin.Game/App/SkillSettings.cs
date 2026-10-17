@@ -8,7 +8,7 @@ namespace InsertCoin.Game.App;
 /// Settings → Skills: what she knows how to do the player's way (see <see cref="Skills"/>). The skills in the app's own
 /// skills folder, with a new one made there, one imported into it and the folder opened; then each skills folder the
 /// player linked, read where it is, with unlinking. Each skill has its name, its description and on/off; one that can't
-/// be read says why; and a page of its own, where the player grants it folders to work in (see <see cref="Notes"/>),
+/// be read says why; and a page of its own (its Settings button), below this one and headed by its name, where the player grants it folders to work in (see <see cref="Notes"/>),
 /// chooses how freely she works there, and undoes what she changed. Each change is used at once.
 /// </summary>
 public partial class SkillSettings : VBoxContainer
@@ -135,7 +135,7 @@ public partial class SkillSettings : VBoxContainer
             else
                 row.AddChild(new Label { Text = skill.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true });
             if (skill.Broken is null)
-                Form.Button(row, "Folders", () => Show(key));
+                Form.Button(row, "Settings ›", () => Show(key));
             Form.Button(row, "Open", () => OS.ShellOpen(skill.Folder));
             var about = Form.Hint(Form.Indented(this), skill.Broken is not null ? $"Can't be used: {skill.Broken}."
                                                        : skill.Hint is null ? skill.Description
@@ -166,7 +166,7 @@ public partial class SkillSettings : VBoxContainer
     /// </summary>
     private void SkillPage(Skill skill)
     {
-        Form.Page(this, skill.Name);
+        Form.Page(this, "Skills", skill.Name, () => Show(null));
         if (_said is not null && !_saidByChanges)
             Form.Say(Form.Result(this), _said, _saidBad ? Paper.Bad : Paper.Good);
         Form.Hint(this, skill.Description);
@@ -228,7 +228,6 @@ public partial class SkillSettings : VBoxContainer
         AddChild(_permissions());
         Form.Hint(this, "The same in every skill's folders. Moving and deleting ask first unless you allow them. A skill's own files " +
                         "(its SKILL.md) are never changed through notes.");
-        Form.Button(Form.Buttons(this), "All skills", () => Show(null));
     }
 
     /// <summary>Her changes listed on a skill's page, the newest first.</summary>
@@ -262,12 +261,7 @@ public partial class SkillSettings : VBoxContainer
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         if (!IsInstanceValid(label))
             return;
-        for (var at = label.GetParent(); at is not null; at = at.GetParent())
-            if (at is ScrollContainer scroll)
-            {
-                scroll.EnsureControlVisible(label);
-                return;
-            }
+        Scroll()?.EnsureControlVisible(label);
     }
 
     private static string When(DateTimeOffset at)
@@ -301,14 +295,41 @@ public partial class SkillSettings : VBoxContainer
         _changed();
     }
 
-    /// <summary>A skill's own page (by <see cref="Skills.KeyOf"/>), or the list.</summary>
+    /// <summary>A skill's own page (by <see cref="Skills.KeyOf"/>) from its top, or the list where it was left.</summary>
     private void Show(string? key)
     {
+        if (key is not null && _open is null && Scroll() is { } scroll)
+            _listAt = scroll.ScrollVertical;
         (_open, _said) = (key, null);
         Fill();
+        GD.Print(_open is null ? "Skills: the list" : $"Skills: {_skills.All().First(s => _skills.KeyOf(s) == _open).Name}'s page");
+        ScrollTo(key is null ? _listAt : 0);
     }
 
-    /// <summary>Dev: opens the page of the skill called <paramref name="name"/>, as its Folders button does.</summary>
+    /// <summary>Where the list was scrolled to when a skill's page was opened.</summary>
+    private int _listAt;
+
+    private ScrollContainer? Scroll()
+    {
+        for (var at = GetParent(); at is not null; at = at.GetParent())
+            if (at is ScrollContainer scroll)
+                return scroll;
+        return null;
+    }
+
+    /// <summary>The page scrolled this far down, once laid out (until then it can't scroll further than the old page's length).</summary>
+    private async void ScrollTo(int down)
+    {
+        if (Scroll() is not { } scroll)
+            return;
+        scroll.ScrollVertical = down;
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (IsInstanceValid(scroll))
+            scroll.ScrollVertical = down;
+    }
+
+    /// <summary>Dev: opens the page of the skill called <paramref name="name"/>, as its Settings button does.</summary>
     public void DevOpen(string name)
     {
         if (_skills.All().FirstOrDefault(s => s.Name == name && s.Broken is null) is { } skill)
