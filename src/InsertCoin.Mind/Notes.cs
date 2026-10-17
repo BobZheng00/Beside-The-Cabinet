@@ -436,6 +436,11 @@ public sealed class Notes
             why = $"{relative} would leave the folder: only what's inside it can be reached.";
             return null;
         }
+        if (parts.Any(p => p != p.TrimEnd(' ', '.')))
+        {
+            why = $"{relative} has a name ending in a space or a dot, which Windows doesn't keep: give the name without it.";
+            return null;
+        }
         if (parts.Any(p => p.StartsWith('.') || p.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
         {
             why = $"{relative} is hidden, or isn't a plain path: only the folder's own notes can be reached.";
@@ -586,14 +591,16 @@ public sealed class Notes
         var bytes = (note.Marked ? Encoding.UTF8.GetPreamble() : []).Concat(Encoding.UTF8.GetBytes(text)).ToArray();
         if (bytes.Length > Biggest)
             return TooBig(found);
-        var id = Keep(found, note.Bytes, () => File.WriteAllBytes(found.Full, bytes));
+        var id = Keep(found, note.Bytes, () => WriteBytes(found.Full, bytes));
         Add(new NoteChange(id, _clock.GetLocalNow(), kind, found.Folder, found.Relative, null, Hash(bytes)));
         return said;
     }
 
     /// <summary>
     /// Keeps the note as it is now in the app's profile, then makes her <paramref name="change"/>; returns the change's
-    /// id. A change that fails (a note locked or read-only) takes the copy away again and says why.
+    /// id. A change that fails with the note untouched (locked or read-only) takes the copy away again; one that fails
+    /// after the note was touched (a vault on a network share or a USB stick gone mid-write, the note cut short) keeps
+    /// the copy and records the change, so Undo puts the note back. Either way it says why.
     /// </summary>
     private string Keep(Found found, byte[] bytes, Action change)
     {
@@ -607,11 +614,26 @@ public sealed class Notes
         }
         catch
         {
-            File.Delete(copy);
+            string? now;
+            try
+            {
+                now = File.Exists(found.Full) ? Hash(File.ReadAllBytes(found.Full)) : null;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                now = null;                                 // can't tell how it was left: keep the copy
+            }
+            if (now == Hash(bytes))
+                File.Delete(copy);
+            else
+                Add(new NoteChange(id, _clock.GetLocalNow(), NoteChangeKind.Edited, found.Folder, found.Relative, null, now));
             throw;
         }
         return id;
     }
+
+    /// <summary>How a note's new bytes are written: <see cref="File.WriteAllBytes(string, byte[])"/>; a test makes it fail midway.</summary>
+    public Action<string, byte[]> WriteBytes { get; init; } = File.WriteAllBytes;
 
     private static string NewId() => Guid.NewGuid().ToString("N");
 

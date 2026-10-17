@@ -454,6 +454,41 @@ public sealed class NoteTests : IDisposable
         Assert.EndsWith("- One.\n", InVault("today.md"));
     }
 
+    /// <summary>A vault on a network share or a USB stick gone mid-write: the note cut short, and its copy its only whole version (review, round 3).</summary>
+    [Fact]
+    public void A_write_that_fails_after_cutting_the_note_short_keeps_the_copy_and_undo_puts_the_note_back()
+    {
+        var notes = new Notes(_skills, Path.Combine(_root, "profile", "companion", "note-changes"), _clock)
+        {
+            Grants = _notes.Grants,
+            WriteBytes = (path, bytes) =>
+            {
+                File.WriteAllBytes(path, bytes[..3]);
+                throw new IOException("The network location is no longer available.");
+            },
+        };
+
+        Assert.Throws<IOException>(() => notes.Append("vault/today.md", "- Went for a run."));
+        Assert.Equal("# T", InVault("today.md"));
+
+        var change = Assert.Single(notes.ChangesIn([_vault]));
+        Assert.Equal("# Today\n- Woke up early.\n", File.ReadAllText(notes.Before(change)!));
+        Assert.True(notes.Undo(change).Done);
+        Assert.Equal("# Today\n- Woke up early.\n", InVault("today.md"));
+    }
+
+    [Theory]
+    [InlineData("vault/sub /y.md")]
+    [InlineData("vault/sub./y.md")]
+    [InlineData("vault/y.md.")]
+    public void A_name_ending_in_a_space_or_a_dot_is_refused_before_anything_is_made(string path)
+    {
+        var said = _notes.Create(path, "Hers.");
+
+        Assert.Contains("ending in a space or a dot", said);
+        Assert.Equal(["today.md"], Directory.GetFileSystemEntries(_vault).Select(Path.GetFileName));
+    }
+
     [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern uint GetShortPathName(string longPath, System.Text.StringBuilder shortPath, uint size);
 
