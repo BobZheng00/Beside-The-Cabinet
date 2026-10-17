@@ -39,8 +39,9 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
 - **The right-click works on her and on the cabinet** (the user, 2026-10-17, choosing "On her and the cabinet").
 - **The tray is unchanged** (the user, 2026-10-17, choosing "Keep it as it is"): it is where Windows users look, and the
   only way in while the cabinet is hidden.
-- **A test run never shows the menu or takes focus:** dev actions open it and press its entries, as `trayitems` and
-  the tray's dev actions already do.
+- **A test run never shows the menu or takes focus:** new dev actions open it (logging its entries, as `trayitems`
+  does for the tray's) and press an entry. The tray has no such actions yet: `trayitems` only logs, and
+  `tools/dev/README.md`'s `tray:x:y` lost its handler some time ago.
 
 ## Not built, and why
 
