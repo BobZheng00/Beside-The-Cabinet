@@ -114,6 +114,18 @@
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
+      "name": "chathistory",
+      "about": "Chat history follows the conversation while it is open: lines said meanwhile come in at the end, what the companion had in mind for a reply stays open as more come in, and with the player scrolled up the new lines leave their place and a \"New lines below\" note takes them there.",
+      "covers": ["src/InsertCoin.Game/App/ChatHistory.cs", "src/InsertCoin.Mind/MindStore.cs"],
+      "mind": true,
+      "mindReply": "Hi! It's good to see you. How did today go?",
+      "mindRequests": 3,
+      "script": "nocall@1,memoryseed@1,chathistory@2,chat:hello_there@3,chathistorydo:Reply@7,chat:and_another_thing@9,chat:a_third_thing@11,chat:a_fourth_thing@13,chat:a_fifth_thing@15,chat:a_sixth_thing@17,chathistorydo:Top@20,chat:one_more_thing@21,chathistorydo:Below@26",
+      "shots": [6, 21, 26, 30],
+      "window": "Chat with",
+      "expect": ["^Chat history: \\d new lines? shown, at the end", "^Chat history: \\d+ in mind for line", "^Chat history: \\d new lines? shown, below the player's place"]
+    },
+    {
       "name": "crt",
       "about": "The CRT's small system opens, then its MEMOS app.",
       "covers": ["src/InsertCoin.Game/App/Crt/*", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/Cabinet/screen_quad.gdshader"],
