@@ -115,6 +115,11 @@ cache at a tenth of that or less.
    upkeep: the agenda in her turn numbers the items she may change, and `[cancel: #12]` or `[change: #12 | new time |
    options]` reach that same item. The code takes only a number from that turn's list, and never a calendar's item
    (listed without a number, "from their calendar"): the calendar decides those.
+  *Fourth round, 2026-10-16 (#32):* a change the code turns down (a number not in that turn's list, a calendar's item,
+  a time or option it can't read, such as "tomorrow 3pm") changes nothing, not even the parts it could read, and is
+  logged after her reply as a cabinet line saying why, so her next turn tells the player and puts it right or asks. A
+  change works on the item as it is when the tag is read (a reminder may have gone off mid-reply and moved a repeat
+  on), and an item called off leaves that reply's list, so a `[plan]` that reuses its number is never changed by it.
 
 ## Second pass (decided with the player, 2026-10-04)
 

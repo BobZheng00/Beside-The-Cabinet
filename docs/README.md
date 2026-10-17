@@ -97,7 +97,8 @@ type, press Enter, and their answer streams into the bubble while they act it ou
   them (or upkeep does later), and reminders you ask for ("remind me at 9 to call Mum", "an hour before the
   interview", "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on
   weekdays, weekly or monthly). Ask them to cancel something, move it or change its reminder and they do it in that
-  reply, to that same item; an item from a calendar you linked stays as the calendar has it. What is coming up in
+  reply, to that same item; an item from a calendar you linked stays as the calendar has it. A change the cabinet
+  can't make (a time it can't read, an item that isn't there) is left undone, and their next reply says so. What is coming up in
   the next week, and what has just passed (so they can ask how it went), is in every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next
   time. The screen's AGENDA app shows what is coming up, and a click there opens the memory book's Agenda. A
   reminder goes off on a ticket at the screen corner with Snooze and OK, and your companion tells you in their own

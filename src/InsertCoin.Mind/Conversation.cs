@@ -180,7 +180,31 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // the agenda as this turn shows it: what she may change in her reply is an item she was shown, and not a calendar's
         var agenda = store.Agenda();
         var shown = Agenda.Shown(agenda, now);
-        var changeable = shown.Ahead.Concat(shown.Past).Where(p => p.Source is null).ToDictionary(p => p.Id);
+        var numbered = shown.Ahead.Concat(shown.Past).ToDictionary(p => p.Id);
+        var refused = new List<string>();                   // her agenda changes that didn't go through, and why: told to her after her reply
+        // calls off or changes an item she was shown, as it is now (a reminder may have gone off while she replied, moving
+        // a repeat on); one called off leaves the list, so a [plan] that reuses its number is never changed by it. Why not, or null when done.
+        string? ChangeAgenda(bool cancel, string payload)
+        {
+            if (Agenda.ParseChange(payload, now, _clock.LocalTimeZone) is not { } change)
+                return "it needs the item's number from the agenda, as in #12";
+            if (!numbered.TryGetValue(change.Id, out var listedItem))
+                return $"there is no #{change.Id} on the agenda now";
+            if (listedItem.Source is not null)
+                return $"#{change.Id} is from their calendar, which decides it";
+            if (store.Agenda().FirstOrDefault(p => p.Id == change.Id) is not { } item)
+                return $"#{change.Id} is no longer on the agenda";
+            if (cancel)
+            {
+                store.DeletePlan(item.Id);
+                numbered.Remove(item.Id);
+                return null;
+            }
+            if (change.Unread is { } unread)
+                return $"the cabinet can't read \"{unread}\": a new time is written YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day)";
+            ChangePlan(item, change.When, null, change.Options, remind: false);
+            return null;
+        }
         // what she always has in mind, and what of it went in, kept with her reply beside what recall brought (see MindStore.InMind)
         var listed = new List<Fact>();
         var (aboutPlayer, aboutUs, aboutHer) = (Known(MindStore.Shared, listed), Known(character, listed), Known(MindStore.Herself(character), listed));
@@ -220,14 +244,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
                 AddPlan(plan, now);
             // "[cancel: #12]" and "[change: #12 | ...]": that same item called off, moved or reminded of differently
-            if (name is "cancel" or "change" && payload is not null && Agenda.ParseChange(payload, now, _clock.LocalTimeZone) is { } change
-                && changeable.TryGetValue(change.Id, out var item))
-            {
-                if (name == "cancel")
-                    store.DeletePlan(item.Id);
-                else
-                    ChangePlan(item, change.When, null, change.Options, remind: false);
-            }
+            if (name is "cancel" or "change" && payload is not null && ChangeAgenda(name == "cancel", payload) is { } why)
+                refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: {why}. Tell the player briefly, then put it right or ask them.");
             // "[out]" and "[sleep]": the player is leaving the PC now, or going to sleep (see Reaching.Where)
             if (name is "out" or "sleep")
                 store.SetMark(Reaching.Mark, Reaching.Marked(name == "sleep", now));
@@ -324,6 +342,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         catch (OperationCanceledException) when (reply.Length > 0)
         {
             Keep(reply.ToString(), inMind);                 // stopped part-way (cut off, or out of time): what she had written is hers
+            Refused();
             throw;
         }
         catch (Exception) when (fromCabinet && !wrote && !acted)
@@ -342,7 +361,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // to stretch" with the weather, then "the stretch reminder came and went" with the music)
         if (fromCabinet && !wrote && !acted)
             store.RemoveLine(line);
-        return Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole, inMind);
+        var kept = Keep(texting && toolsDone > 0 && !string.IsNullOrWhiteSpace(whole[toolsDone..]) ? whole[toolsDone..] : whole, inMind);
+        Refused();
+        return kept;
+
+        // after her line, so her next turn reads it as what came of what she said
+        void Refused()
+        {
+            foreach (var why in refused)
+                store.Add(character, Speaker.Cabinet, why, _clock.GetLocalNow());
+        }
     }
 
     /// <summary>

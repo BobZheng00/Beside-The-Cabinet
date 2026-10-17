@@ -116,21 +116,25 @@ public static partial class Agenda
 
     /// <summary>
     /// A <c>[cancel: #12]</c> or <c>[change: #12 | 2026-10-16 10:00 | 1 hour before]</c> payload: the item's number, and
-    /// what changes: a new time, new options (see <see cref="ParseOptions"/>), or both, in any order. Null without a number.
+    /// what changes: a new time, new options (see <see cref="ParseOptions"/>), or both, in any order; and what of it is
+    /// neither ("tomorrow 3pm", a second time), which the change can't be made with. Null without a number.
     /// </summary>
-    public static (long Id, (DateTimeOffset At, bool AllDay)? When, string? Options)? ParseChange(string payload, DateTimeOffset now, TimeZoneInfo? zone = null)
+    public static (long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread)? ParseChange(string payload, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         var parts = payload.Split('|');
         if (!long.TryParse(parts[0].Trim().TrimStart('#'), NumberStyles.None, English, out var id))
             return null;
         (DateTimeOffset At, bool AllDay)? when = null;
         var options = new List<string>();
+        var unread = new List<string>();
         foreach (var part in parts.Skip(1).Select(p => p.Trim()).Where(p => p.Length > 0))
             if (when is null && ParseWhen(part, now, zone) is { } at)
                 when = at;
+            else if (part.Split(',').Any(p => p.Trim().Length > 0 && ParseOptions(p) is (null, Repeat.Once)))
+                unread.Add(part);
             else
                 options.Add(part);
-        return (id, when, options.Count > 0 ? string.Join(", ", options) : null);
+        return (id, when, options.Count > 0 ? string.Join(", ", options) : null, unread.Count > 0 ? string.Join(" | ", unread) : null);
     }
 
     /// <summary>
