@@ -2,8 +2,10 @@
 # (a throwaway muted profile, Steam ignored, the real profile never touched; on a Windows desktop of its own, so nothing
 # reaches the player's screen, taskbar or focus, and a scenario that showed them anything fails), and says PASS, FAIL or
 # BLOCKED for each, with the screenshots and log lines that show why.
-# One smoke run at a time on this PC: a second run waits for the first. A copy of the app already running (the demo,
-# say) blocks the run instead of being stopped: this script never stops anything of the user's.
+# One smoke run at a time on this PC: a second run waits for the first. Each scenario's copy of the app is a test copy
+# (--offscreen): it runs beside the player's own copies (their app, the demo) on a profile of its own, without the
+# app's one-copy lock, and leaves their tray, notices, talk key, mouse and microphone alone. This script never stops
+# anything of the user's.
 # Works the same in a worktree: it borrows the main checkout's GODOT setting and models when the worktree has none.
 #
 #   tools\dev\smoke.ps1                      # every scenario
@@ -22,6 +24,7 @@
 # -NoBuild   skip building the game first (check.ps1 has just built it)
 # -Out       where shots, logs and the report go (default: <main checkout>\.qa\smoke\<branch>)
 # -Wait      minutes to wait for another smoke run before giving up as BLOCKED (default 20)
+# -SelfCheck only check, on made-up copies of the app, how "beside" judges whose the player's lock is; then stop
 # -Port      the mock mind's port (default: a free one for each scenario, so another agent's mock on 8797 can't answer)
 # -Prepare   in a worktree, before shoot.ps1 or clip.ps1 runs of your own: copies the main checkout's private\local.cmd
 #            (where Godot is), links its models, imports the project and builds the game; then stops
@@ -32,9 +35,13 @@
 # `cmd /c rmdir` the link first), never with Remove-Item -Recurse, which can follow the link.
 # Output: <Out>\report.md and report.json, <scenario>-<n>.png per shot (-window, -desk as shoot.ps1 makes them),
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
-# Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another run, or a copy of the app running).
+# A scenario with "beside" also starts stand-ins for the player's own app first (hidden copies that aren't test runs,
+# on throwaway profiles): the first holds a one-copy lock of their own (--lock, never the player's), a second must
+# quit at once, and the scenario runs beside them; the player's own lock must stay free meanwhile.
+# Exit code: 0 every scenario passed, 1 something failed, 3 blocked (another smoke run held the lock too long).
 param([string[]]$Only = @(), [switch]$NoBuild, [string]$Out = "", [double]$Wait = 20, [int]$Port = 0, [switch]$List,
-      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main")
+      [switch]$Prepare, [switch]$Changed, [string[]]$Files = $null, [switch]$Explain, [string]$Base = "origin/main",
+      [switch]$SelfCheck)
 
 $repo = Split-Path (Split-Path $PSScriptRoot)
 $game = Join-Path $repo "src\InsertCoin.Game"
@@ -43,6 +50,38 @@ $suite = Get-Content -Raw -Encoding UTF8 (Join-Path (Join-Path $PSScriptRoot "sm
 if ($List) {
   foreach ($s in $suite.scenarios) { "{0,-10} {1}" -f $s.name, $s.about }
   exit 0
+}
+
+# "beside": whose the player's lock (InsertCoin.Cabinet) is once the stand-ins are up, from whether it was held before
+# they started, whether it is now, and the copies of the app running now: a problem, or a note for the report. Held
+# now but not before, it is a stand-in's only if no copy of the player's (neither --lock=beside nor --offscreen) runs:
+# their app may have started meanwhile.
+function Lock-Verdict([bool]$heldBefore, [bool]$heldNow, $copies) {
+  if ($heldBefore) { return @{ note = "a copy of the player's own already held InsertCoin.Cabinet, so whether the stand-ins leave it free wasn't checked" } }
+  if (-not $heldNow) { return @{ note = "the player's own lock (InsertCoin.Cabinet) stayed free beside the stand-ins" } }
+  $theirs = @($copies | Where-Object { "$($_.CommandLine)" -notmatch "--lock=beside|--offscreen" })
+  if ($theirs.Count) { return @{ note = "the player's own app started meanwhile (PID $($theirs[0].ProcessId)) and holds InsertCoin.Cabinet, so whether the stand-ins leave it free wasn't checked" } }
+  return @{ problem = "a stand-in took the player's own lock (InsertCoin.Cabinet): their app couldn't have started" }
+}
+
+if ($SelfCheck) {                                           # Lock-Verdict on made-up copies; pick-check.ps1 runs this
+  $standIn = [pscustomobject]@{ ProcessId = 1; CommandLine = "godot --path x -- --data=p --no-steam --lock=beside" }
+  $test = [pscustomobject]@{ ProcessId = 2; CommandLine = "godot --path x -- --data=q --no-steam --offscreen --shots=s" }
+  $player = [pscustomobject]@{ ProcessId = 3; CommandLine = "godot --path x -- --data=r --no-steam" }
+  $cases = @(
+    @{ before = $true; now = $true; copies = @($standIn); want = "note:already held" },
+    @{ before = $false; now = $false; copies = @($standIn, $test); want = "note:stayed free" },
+    @{ before = $false; now = $true; copies = @($standIn, $test, $player); want = "note:started meanwhile (PID 3)" },
+    @{ before = $false; now = $true; copies = @($standIn, $test); want = "problem:took the player's own lock" }
+  )
+  $wrong = 0
+  foreach ($c in $cases) {
+    $v = Lock-Verdict $c.before $c.now $c.copies
+    $kind, $words = $c.want -split ":", 2
+    if ($v.ContainsKey($kind) -and $v[$kind].Contains($words) -and $v.Count -eq 1) { "ok    lock verdict: $($c.want)" }
+    else { $wrong++; "WRONG lock verdict: wanted $($c.want), got $($v | ConvertTo-Json -Compress)" }
+  }
+  exit $(if ($wrong) { 1 } else { 0 })
 }
 
 # Which scenarios a change needs, each with why it runs or is skipped: all of them when shared code or the harness
@@ -134,6 +173,7 @@ function Finish([int]$code) {
     [void]$md.Add("$($r.about)")
     if ($r.script) { [void]$md.Add(""); [void]$md.Add("Script: ``$($r.script)``") }
     if (@($r.problems).Count -gt 0) { [void]$md.Add(""); foreach ($p in $r.problems) { [void]$md.Add("- $p") } }
+    if (@($r.notes).Count -gt 0) { [void]$md.Add(""); [void]$md.Add("Notes:"); foreach ($n in $r.notes) { [void]$md.Add("- $n") } }
     if (@($r.shots).Count -gt 0) { [void]$md.Add(""); [void]$md.Add("Screenshots:"); foreach ($s in $r.shots) { [void]$md.Add("- ``$s``") } }
     if (@($r.logLines).Count -gt 0) {
       [void]$md.Add(""); [void]$md.Add("Log lines:"); [void]$md.Add("``````")
@@ -150,11 +190,11 @@ function Finish([int]$code) {
   exit $code
 }
 
-function Add-Result($s, [string]$result, $problems, $shots, $logLines, [double]$seconds) {
+function Add-Result($s, [string]$result, $problems, $shots, $logLines, [double]$seconds, $notes = @()) {
   [void]$results.Add([ordered]@{
     name = $s.name; about = $s.about; script = $s.script; result = $result; seconds = [int]$seconds
     picked = $(if ($Changed) { "" + ($picks | Where-Object { $_.name -eq $s.name }).why } else { "" })
-    problems = @($problems); shots = @($shots); logLines = @($logLines | Select-Object -First 30)
+    problems = @($problems); notes = @($notes); shots = @($shots); logLines = @($logLines | Select-Object -First 30)
   })
 }
 
@@ -208,7 +248,7 @@ if (-not $NoBuild) {
   }
 }
 
-# --- one run at a time, and never alongside a copy of the app -----------------------------------------------------
+# --- one run at a time; the player's own copies of the app are left alone ---------------------------------------
 function Get-Copies {
   @(Get-CimInstance Win32_Process | Where-Object {
       $_.Name -like "BesideTheCabinet*.exe" -or $_.Name -like "InsertCoin*.exe" -or
@@ -217,12 +257,26 @@ function Get-Copies {
        $_.CommandLine -notmatch "\s--import(\s|$)")   # neither the editor nor an import is a copy
     })
 }
-function Describe-Copies($copies) {
-  ($copies | ForEach-Object {
-      $line = "" + $_.CommandLine
-      if ($line.Length -gt 160) { $line = $line.Substring(0, 160) + "..." }
-      "PID $($_.ProcessId) $($_.Name): $line"
-    }) -join "; "
+
+# A stand-in for the player's own app ("beside" scenarios): a hidden copy that isn't a test run (no --offscreen), so it
+# keeps to one copy at a time as theirs does, on a throwaway profile, watched as test runs are. Its lock is one of its
+# own (--lock, honoured only on a profile that isn't the player's), so the player's own app can always start meanwhile.
+$standInLock = "InsertCoin.Cabinet.beside"
+function Start-StandIn([string]$name) {
+  if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
+  $profile = Join-Path $Out "profile-$name"
+  if (Test-Path $profile) { Remove-Item $profile -Recurse -Force }
+  New-Item -ItemType Directory $profile | Out-Null
+  '{ "SetUp": true, "Initials": "BOB", "Muted": true, "AlwaysOnTop": false, "WindowX": -4000, "WindowY": 100, "TalkKey": "Off" }' |
+    Out-File -Encoding ascii (Join-Path $profile "settings.json")
+  $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam --lock=beside",
+                          (Join-Path $Out "run-$name.log"), (Join-Path $Out "run-$name.err"))
+  [pscustomobject]@{ Name = $name; Process = $p; Watch = (New-Object Unseen $p.Id) }
+}
+function Lock-Held([string]$name) {
+  $m = $null
+  if ([System.Threading.Mutex]::TryOpenExisting($name, [ref]$m)) { $m.Dispose(); return $true }
+  return $false
 }
 
 $lock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
@@ -236,12 +290,8 @@ try {
     Stop-Process -Id $orphan.ProcessId -Force -ErrorAction SilentlyContinue
     "Stopped a copy left over from a killed test run (PID $($orphan.ProcessId))."
   }
-  $copies = Get-Copies
+  # The player's own copies (their app, the demo) are left running: test copies run beside them.
   $needImport = -not (Test-Path (Join-Path $game ".godot\imported"))
-  if ($copies.Count -gt 0) {
-    if (-not $Prepare) { Block-All ("a copy of the app is running (only one runs at a time): " + (Describe-Copies $copies)) }
-    if ($needImport) { "A copy of the app is running, so the project wasn't imported yet: $(Describe-Copies $copies)"; exit 3 }
-  }
   if ($needImport) {
     "Importing the project's resources (a fresh checkout's first run)..."
     & $godotConsole --headless --path $game --import 2>&1 | Out-Null
@@ -270,14 +320,33 @@ try {
 
   foreach ($s in $scenarios) {
     $t0 = Get-Date
-    $copies = Get-Copies
-    if ($copies.Count -gt 0) {
-      Add-Result $s "BLOCKED" @("a copy of the app started meanwhile: " + (Describe-Copies $copies)) @() @() 0
-      continue
-    }
     Get-ChildItem $Out -File -ErrorAction SilentlyContinue |
       Where-Object { $_.Name -like "$($s.name)-*.png" -or $_.Name -like "run-$($s.name).*" -or $_.Name -eq "mind-$($s.name).jsonl" } |
       Remove-Item -Force
+
+    # "beside": the player's own app, played by a stand-in holding its one-copy lock (a lock of its own, never the
+    # player's), and a second such copy, which must quit at once; then the scenario's test copy runs beside them
+    $standIns = @(); $besideProblems = @(); $besideNotes = @()
+    if ($s.beside) {
+      $playersHeld = Lock-Held "InsertCoin.Cabinet"                          # held already only by a copy of the player's own
+      $player = Start-StandIn "$($s.name)-player"
+      $standIns += $player
+      $until = (Get-Date).AddSeconds(60)
+      while (-not (Lock-Held $standInLock) -and -not $player.Process.HasExited -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 250 }
+      if (-not (Lock-Held $standInLock)) { $besideProblems += "the stand-in for the player's app never took its lock" }
+      $second = Start-StandIn "$($s.name)-second"
+      $standIns += $second
+      if (-not $second.Process.WaitForExit(30000)) { $besideProblems += "a second copy for the player didn't quit: the one-copy lock didn't hold" }
+      elseif (-not (Select-String -Path (Join-Path $Out "run-$($s.name)-second.log") -Pattern "^Main: another copy is running; this one quits" -Quiet)) {
+        $besideProblems += "the second copy for the player quit without saying another copy is running"
+      }
+      if (-not (Lock-Held $standInLock)) { $besideProblems += "nothing held the stand-ins' lock when the test copy started" }
+      if (-not (Select-String -Path (Join-Path $Out "run-$($s.name)-player.log") -Pattern "^Main: a copy for tests, holding a lock of its own \($([regex]::Escape($standInLock))\)" -Quiet)) {
+        $besideProblems += "the stand-in didn't say it holds a lock of its own"
+      }
+      $verdict = Lock-Verdict $playersHeld (Lock-Held "InsertCoin.Cabinet") $(if (-not $playersHeld) { Get-Copies } else { @() })
+      if ($verdict.problem) { $besideProblems += $verdict.problem } else { $besideNotes += $verdict.note; "  $($verdict.note)" }
+    }
 
     $settings = "" + $s.settings
     $mock = $null
@@ -310,12 +379,21 @@ try {
     $said = @()
     try { $said = @(& (Join-Path $PSScriptRoot "shoot.ps1") @shootArgs *>&1 | ForEach-Object { "$_" }) }
     catch { $said += "shoot.ps1 failed: $($_.Exception.Message)" }
-    finally { if ($mock) { Stop-Process -Id $mock.Id -Force -ErrorAction SilentlyContinue } }
+    finally {
+      if ($mock) { Stop-Process -Id $mock.Id -Force -ErrorAction SilentlyContinue }
+      if ($standIns.Count) {
+        [Backstage]::EndAll()                                                   # the stand-ins end with the run
+        foreach ($x in $standIns) { $besideProblems += @($x.Watch.Stop()) }    # anything of theirs the player saw
+      }
+    }
 
     $problems = New-Object System.Collections.ArrayList
+    foreach ($line in @($besideProblems)) { [void]$problems.Add($line) }
     foreach ($line in $said) {
       if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player") { [void]$problems.Add($line.Trim()) }
     }
+    # a test copy writes Godot's log into its own profile, never over the player's (in Godot's user folder)
+    if (-not (Test-Path (Join-Path $Out "profile-$($s.name)\godot.log"))) { [void]$problems.Add("Godot's log isn't in the run's own profile") }
 
     $pngs = @(Get-ChildItem $Out -File | Where-Object { $_.Name -match ("^" + [regex]::Escape($s.name) + "-\d+\.png$") } | Sort-Object Name)
     if ($pngs.Count -lt $shots.Count) { [void]$problems.Add("only $($pngs.Count) of $($shots.Count) screenshots were taken") }
@@ -346,7 +424,7 @@ try {
     }
 
     $result = if ($problems.Count -eq 0) { "PASS" } else { "FAIL" }
-    Add-Result $s $result $problems $allShots $bad ((Get-Date) - $t0).TotalSeconds
+    Add-Result $s $result $problems $allShots $bad ((Get-Date) - $t0).TotalSeconds $besideNotes
     "  $result"
   }
 } finally {

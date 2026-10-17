@@ -27,7 +27,7 @@ public static class Backstage
     /// <summary>
     /// Starts a command line on the test desktop, with no console, its output and errors going to files. It and
     /// everything it starts live in a job that ends with this process: a run killed halfway leaves no copy of the app
-    /// running unseen (holding the app's single-instance lock, so the player's own copy wouldn't start).
+    /// running unseen.
     /// </summary>
     public static Process Start(string commandLine, string output, string errors)
     {

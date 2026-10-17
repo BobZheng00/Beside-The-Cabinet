@@ -74,6 +74,8 @@ public partial class Listening : Node
         _chatBox = chatBox;
         _ears = new Ears();
         AddChild(_ears);
+        if (Paper.OffScreen)
+            GD.Print("Listening: a test run: the talk key is never read, and only recordings reach her ears");
         _ears.Full += () =>
         {
             if (_talking != Talk.Open)                      // hands-free turns end themselves at the same length
@@ -214,7 +216,7 @@ public partial class Listening : Node
     private void Key(double delta)
     {
         var key = _settings.Now.TalkKey;
-        if (key == TalkKey.Off)
+        if (key == TalkKey.Off || Paper.OffScreen)          // a test run never reads the keyboard: the key is the player's own copy's
             return;
         if (TalkKey.IsDown(key))
         {
