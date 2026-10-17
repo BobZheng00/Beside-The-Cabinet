@@ -19,7 +19,7 @@ public partial class PermissionCard : Node2D
 
     private PanelContainer _panel = null!;
     /// <summary>The most height See the change takes, the rest of the lines a scroll away: the card stays below her face.</summary>
-    public const float LinesTallest = 140;
+    public const float LinesTallest = 170;
 
     private Label _what = null!, _detail = null!, _lines = null!;
     private ScrollContainer _scroll = null!;
