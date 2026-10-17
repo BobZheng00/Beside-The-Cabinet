@@ -188,11 +188,16 @@ public partial class ChatHistory : Window
             return;
         }
         var since = now.Count == Recheck ? now[0].Id : long.MinValue;
+        var tookBack = false;
         foreach (var id in _shown.Keys.Where(id => id >= since).ToList())
         {
             var shown = _shown[id];
-            if (now.FirstOrDefault(l => l.Id == id) is not { } line)
+            // a line taken back leaves its number free for the next one, which is said by someone, or at a time, of its own
+            if (now.FirstOrDefault(l => l.Id == id) is not { } line || line.Speaker != shown.Line.Speaker || line.At != shown.Line.At)
+            {
                 TakeBack(id);
+                tookBack = true;
+            }
             else if (line.Text != shown.Line.Text)
             {
                 shown.Words.Text = line.Text;
@@ -200,6 +205,8 @@ public partial class ChatHistory : Window
                 GD.Print($"Chat history: line {id} shown as rewritten");
             }
         }
+        if (tookBack)                                       // a newer line may come under a number taken back
+            _newestShown = _shown.Count > 0 ? _shown.Keys.Max() : _oldestShown - 1;
 
         var added = _store.After(_character, _newestShown);
         if (added.Count == 0)
