@@ -47,7 +47,8 @@ under the open book, as upkeep might: a clash with a field typed in but not left
 item with those words is cancelled under the open book, as upkeep might), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
-on the memory showing with those words in it; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
+on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
+`chathistorydo:Below` presses "New lines below"; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's

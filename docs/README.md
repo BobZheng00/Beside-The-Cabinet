@@ -438,7 +438,9 @@ tokens read, the share served from the provider's cache, cache writes and output
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes they work from above
-it). Click one of your companion's replies (it lights up under the mouse) to see what they had in mind for it, and
+it). While it is open it follows the conversation: what either of you says comes in at the bottom within a second,
+and it stays at the end if you were there; if you have scrolled up, your place stays put and "New lines below" takes
+you down. Click one of your companion's replies (it lights up under the mouse) to see what they had in mind for it, and
 click it again or press Close to put it away. It comes in two groups: "Kept in mind for every reply" (their most
 important facts) and "Recalled for this reply" (what came back with what was just said: smaller facts, what used to be
 true, notes from their diary, old talk). Each says what it is in words ("About you", "About you two", "About" them,

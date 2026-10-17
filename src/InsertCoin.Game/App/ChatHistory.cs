@@ -11,20 +11,26 @@ namespace InsertCoin.Game.App;
 /// her window is still here in full; the notes she works from instead (her log, see <see cref="Log"/>) are above it,
 /// the part she sees of them. The talk itself is read only; a click on one of her replies opens what she had in mind for
 /// it (her lists and what recall brought, see <see cref="MindStore.InMind"/>), each to forget, and facts to edit.
+/// While it is open it follows the conversation: new lines come in at the bottom, and a line rewritten or taken back
+/// since (her reply cut off, a cabinet line she never answered) shows as it is now.
 /// </summary>
 public partial class ChatHistory : Window
 {
     private const int AtOnce = 200;
+    private const int Recheck = 20;                     // the newest lines shown, read again each second for rewrites
 
     private MindStore _store = null!;
     private string _character = "", _name = "";
     private VBoxContainer _lines = null!;
     private ScrollContainer _scroll = null!;
-    private Button _earlier = null!;
-    private long _oldestShown = long.MaxValue;
+    private Button _earlier = null!, _below = null!;
+    private long _oldestShown = long.MaxValue, _newestShown;
     private DateOnly? _topDay;
     private Label? _topHeading;                         // the heading of the oldest day shown
+    private Label? _empty;                              // "Nothing yet."
     private Label _howTo = null!;
+    // every line shown: what it said when shown, its row, its words, and what she had in mind for it (hidden until clicked)
+    private readonly Dictionary<long, (Line Line, Control Row, Label Words, Control? Mind)> _shown = [];
 
     /// <param name="window">Her window now, in tokens: how much of her log she sees (see <see cref="Log.Budget"/>).</param>
     public void Build(MindStore store, string characterId, string characterName, int window)
@@ -74,6 +80,19 @@ public partial class ChatHistory : Window
         _earlier = new Button { Text = "Show earlier", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter };
         _earlier.Pressed += () => ShowEarlier(keepPlace: true);
         _lines.AddChild(_earlier);
+        // shown when lines come in while the player has scrolled up, so their place stays put
+        _below = new Button { Text = "New lines below", ThemeTypeVariation = "Quiet", SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter, Visible = false };
+        _below.Pressed += () =>
+        {
+            _below.Visible = false;
+            ToEnd();
+        };
+        column.AddChild(_below);
+        _scroll.GetVScrollBar().ValueChanged += _ =>
+        {
+            if (AtEnd())
+                _below.Visible = false;
+        };
 
         var buttons = new HBoxContainer();
         buttons.AddChild(Text("Everything said is kept on this PC. Clear it in the memory book.", Paper.Faint, hint: true));
@@ -83,6 +102,13 @@ public partial class ChatHistory : Window
         column.AddChild(buttons);
 
         ShowEarlier(keepPlace: false);
+        var check = new Godot.Timer { WaitTime = 1, Autostart = true };
+        check.Timeout += () =>
+        {
+            if (Visible)
+                Follow();
+        };
+        AddChild(check);
     }
 
     public void Open() => Paper.Open(this, new Vector2(560, 760));
@@ -95,14 +121,35 @@ public partial class ChatHistory : Window
         if (lines.Count == 0)
         {
             if (_oldestShown == long.MaxValue)
-                _lines.AddChild(Text("Nothing yet.", Paper.Faint, hint: true));
+                _lines.AddChild(_empty = Text("Nothing yet.", Paper.Faint, hint: true));
             return;
         }
+        if (_oldestShown == long.MaxValue)
+            _newestShown = lines[^1].Id;
         _oldestShown = lines[0].Id;
-        var minded = _store.WithInMind(lines[0].Id, lines[^1].Id);
         var height = _scroll.GetVScrollBar().MaxValue;
         var at = 1;                                         // after the "Show earlier" button
-        var day = (DateOnly?)null;
+        var first = Place(lines, ref at, day: null);
+        // the block shown before began on the day this one ends with: that day continues, without a second heading
+        if (_topDay == DateOnly.FromDateTime(lines[^1].At.LocalDateTime) && IsInstanceValid(_topHeading))
+            _topHeading!.QueueFree();
+        _topDay = DateOnly.FromDateTime(lines[0].At.LocalDateTime);
+        _topHeading = first;
+        Callable.From(() =>
+        {
+            var bar = _scroll.GetVScrollBar();
+            _scroll.ScrollVertical = keepPlace ? (int)(bar.MaxValue - height) : (int)bar.MaxValue;   // stay where you were, or start at the newest
+        }).CallDeferred();
+    }
+
+    /// <summary>
+    /// Lines placed in the history from <paramref name="at"/>, each day under its heading (none for <paramref name="day"/>,
+    /// the day already showing just above), with what she had in mind under her replies.
+    /// </summary>
+    /// <returns>The first heading placed.</returns>
+    private Label? Place(IReadOnlyList<Line> lines, ref int at, DateOnly? day)
+    {
+        var minded = _store.WithInMind(lines[0].Id, lines[^1].Id);
         Label? first = null;
         foreach (var line in lines)
         {
@@ -114,24 +161,116 @@ public partial class ChatHistory : Window
                 first ??= heading;
                 Insert(ref at, heading);
             }
-            var row = Row(line, _name);
+            var row = Row(line, _name, out var words);
             Insert(ref at, row);
+            Control? mind = null;
             if (minded.Contains(line.Id))
             {
-                Insert(ref at, InMind(line, row));
+                Insert(ref at, mind = InMind(line, row));
                 _howTo.Visible = true;
             }
+            _shown[line.Id] = (line, row, words, mind);
         }
-        // the block shown before began on the day this one ends with: that day continues, without a second heading
-        if (_topDay == day && IsInstanceValid(_topHeading))
-            _topHeading!.QueueFree();
-        _topDay = DateOnly.FromDateTime(lines[0].At.LocalDateTime);
-        _topHeading = first;
-        Callable.From(() =>
+        return first;
+    }
+
+    /// <summary>
+    /// Each second while open: new lines at the bottom, staying at the end if the player was there, else leaving their
+    /// place and saying new lines are below; and the newest lines shown as they are now, rewritten or taken back. A
+    /// panel open stays open.
+    /// </summary>
+    private void Follow()
+    {
+        var now = _store.Through(_character, _newestShown, Recheck);
+        if (now.Count == 0 && _shown.Count > 0)
         {
-            var bar = _scroll.GetVScrollBar();
-            _scroll.ScrollVertical = keepPlace ? (int)(bar.MaxValue - height) : (int)bar.MaxValue;   // stay where you were, or start at the newest
-        }).CallDeferred();
+            Rebuild();                                      // the chat was cleared
+            return;
+        }
+        var since = now.Count == Recheck ? now[0].Id : long.MinValue;
+        foreach (var id in _shown.Keys.Where(id => id >= since).ToList())
+        {
+            var shown = _shown[id];
+            if (now.FirstOrDefault(l => l.Id == id) is not { } line)
+                TakeBack(id);
+            else if (line.Text != shown.Line.Text)
+            {
+                shown.Words.Text = line.Text;
+                _shown[id] = shown with { Line = line };
+                GD.Print($"Chat history: line {id} shown as rewritten");
+            }
+        }
+
+        var added = _store.After(_character, _newestShown);
+        if (added.Count == 0)
+            return;
+        var atEnd = AtEnd();
+        if (IsInstanceValid(_empty))
+        {
+            _lines.RemoveChild(_empty);
+            _empty!.QueueFree();
+        }
+        var day = _shown.Count > 0 ? DateOnly.FromDateTime(_shown.MaxBy(s => s.Key).Value.Line.At.LocalDateTime) : (DateOnly?)null;
+        var at = _lines.GetChildCount();
+        var first = Place(added, ref at, day);
+        if (_oldestShown == long.MaxValue)                 // the history was empty when opened
+            (_oldestShown, _topDay, _topHeading) = (added[0].Id, DateOnly.FromDateTime(added[0].At.LocalDateTime), first);
+        _newestShown = added[^1].Id;
+        if (atEnd)
+            ToEnd();
+        else
+            _below.Visible = true;
+        GD.Print($"Chat history: {added.Count} new line{(added.Count == 1 ? "" : "s")} shown, {(atEnd ? "at the end" : "below the player's place")}");
+    }
+
+    /// <summary>A line no longer in the conversation leaves the history, and its day's heading if nothing is left under it.</summary>
+    private void TakeBack(long id)
+    {
+        var (_, row, _, mind) = _shown[id];
+        _shown.Remove(id);
+        _replies.RemoveAll(r => r.Id == id);
+        if (mind is { Visible: true })
+            _closeOpen = null;
+        foreach (var gone in new[] { row, mind })
+            if (gone is not null)
+            {
+                _lines.RemoveChild(gone);
+                gone.QueueFree();
+            }
+        // only the newest lines are taken back, so only the bottom day can be left empty
+        if (_lines.GetChildCount() > 1 && _lines.GetChild(-1) is Label heading && heading.ThemeTypeVariation == "Subheading")
+        {
+            _lines.RemoveChild(heading);
+            heading.QueueFree();
+        }
+        GD.Print($"Chat history: line {id} taken back");
+    }
+
+    /// <summary>The history afresh, from the newest line.</summary>
+    private void Rebuild()
+    {
+        foreach (var child in _lines.GetChildren())
+            if (child != _earlier)
+            {
+                _lines.RemoveChild(child);
+                child.QueueFree();
+            }
+        _shown.Clear();
+        _replies.Clear();
+        (_closeOpen, _howTo.Visible, _below.Visible) = (null, false, false);
+        (_oldestShown, _newestShown, _topDay, _topHeading) = (long.MaxValue, 0, null, null);
+        ShowEarlier(keepPlace: false);
+        GD.Print("Chat history: shown afresh");
+    }
+
+    /// <summary>Once laid out, scrolls to the newest line (a panel under it stays shut, so the last thing showing).</summary>
+    private void ToEnd() => Reveal(_lines.GetChildren().OfType<Control>().LastOrDefault(c => c.Visible) ?? _lines);
+
+    /// <summary>Whether the player is at the end of the history, the newest line in view.</summary>
+    private bool AtEnd()
+    {
+        var bar = _scroll.GetVScrollBar();
+        return bar.Value >= bar.MaxValue - bar.Page - 8;
     }
 
     private void Insert(ref int at, Control item)
@@ -140,7 +279,7 @@ public partial class ChatHistory : Window
         _lines.MoveChild(item, at++);
     }
 
-    private static PanelContainer Row(Line line, string name)
+    private static PanelContainer Row(Line line, string name, out Label words)
     {
         var frame = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         frame.AddThemeStyleboxOverride("panel", Plain);
@@ -156,7 +295,7 @@ public partial class ChatHistory : Window
         };
         row.AddChild(new Label { Text = who, CustomMinimumSize = new Vector2(70, 0), SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
                                  ThemeTypeVariation = line.Speaker == Speaker.Her ? "Subheading" : "Hint" });
-        row.AddChild(Text(line.Text, colour, hint: line.Speaker == Speaker.Cabinet));
+        row.AddChild(words = Text(line.Text, colour, hint: line.Speaker == Speaker.Cabinet));
         frame.AddChild(row);
         return frame;
     }
@@ -350,7 +489,8 @@ public partial class ChatHistory : Window
     /// <summary>
     /// Dev: "Reply" clicks her newest reply shown that kept something ("Reply:words", the newest with those words in
     /// it; "Reply:2", the second newest), opening or closing what she had in mind; "Forget:words" and "Edit:words:new words" act on the memory
-    /// showing whose words have those in them, as the buttons would; "Close" closes the window.
+    /// showing whose words have those in them, as the buttons would; "Top" scrolls to the top, as the player might;
+    /// "Below" presses "New lines below"; "Close" closes the window.
     /// </summary>
     public void DevPress(string what)
     {
@@ -358,6 +498,19 @@ public partial class ChatHistory : Window
         if (parts[0] == "Close")
         {
             QueueFree();
+            return;
+        }
+        if (parts[0] == "Top")
+        {
+            _scroll.ScrollVertical = 0;
+            return;
+        }
+        if (parts[0] == "Below")
+        {
+            if (_below.Visible)
+                _below.EmitSignal(BaseButton.SignalName.Pressed);
+            else
+                GD.PrintErr("Chat history: no new lines below");
             return;
         }
         if (parts[0] == "Reply")
