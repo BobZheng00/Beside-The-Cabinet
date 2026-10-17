@@ -48,7 +48,8 @@ build.cmd                                                                       
 
 The export preset (`custom_template/release` in `src/InsertCoin.Game/export_presets.cfg`) names that template: set it to
 yours. Godot's exporter needs `src/InsertCoin.Game/InsertCoin.Game.sln`
-(the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly.
+(the repo-level solution is `.slnx`). Only one copy of the app runs at a time: a second launch exits quietly (test copies, started
+`--offscreen` by the test scripts, run beside it: `tools/dev/README.md`).
 Godot's exporter writes the app icon (`icon.ico`) and the product name into the `.exe` itself; no `rcedit` needed.
 
 To share a build, make a release instead: `python tools/export/release.py 0.1.0-preview.1` exports into

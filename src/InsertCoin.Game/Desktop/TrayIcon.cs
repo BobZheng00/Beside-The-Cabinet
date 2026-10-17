@@ -48,7 +48,10 @@ public partial class TrayIcon : Node
 
         foreach (var (mood, tint) in Tint)
             _icons[mood] = CoinIcon(tint);
-        _indicator = new StatusIndicator { Tooltip = "Beside the Cabinet" };
+        // a test run has its menu (the dev actions open it) but never an icon: the tray is the player's own copy's
+        _indicator = new StatusIndicator { Tooltip = "Beside the Cabinet", Visible = !Companion.Paper.OffScreen };
+        if (Companion.Paper.OffScreen)
+            GD.Print("Tray: none in a test run");
         AddChild(_indicator);
         _indicator.Menu = _indicator.GetPathTo(_menu);
         Set(TrayMood.Fine, "Beside the Cabinet");

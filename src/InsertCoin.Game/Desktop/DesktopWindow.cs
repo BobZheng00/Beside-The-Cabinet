@@ -52,6 +52,8 @@ public partial class DesktopWindow : Node
         var poll = new Godot.Timer { WaitTime = 1.0 / 30, Autostart = true };
         poll.Timeout += Poll;
         AddChild(poll);
+        if (Companion.Paper.OffScreen)
+            GD.Print("DesktopWindow: a test run: the player's mouse buttons are never read, nor their pointer followed");
     }
 
     /// <summary>Window pixels per canvas unit.</summary>

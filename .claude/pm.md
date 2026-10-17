@@ -28,9 +28,10 @@ work here (its rules, how the code reads, where things are); `private/notes.md`,
   background.
 - QA: read the screenshots of the scenarios that ran (the smoke report lists them) and compare them with main's
   baseline (below); make aimed runs only for what the change touches, never a tour of the UI it doesn't.
-- Test runs take turns on this PC: smoke.ps1, shoot.ps1 and clip.ps1 share one lock, and only one copy of the app
-  runs at a time. A smoke run blocked by a running copy of the app reports BLOCKED (exit 3): retry later, never stop
-  the copy. If it's the user's demo or their own app, leave it.
+- Test runs take turns on this PC: smoke.ps1, shoot.ps1 and clip.ps1 share one lock. A hidden test copy runs beside
+  the user's own app or demo (it skips the app's one-copy lock, ignores the talk key, the microphone and the pointer,
+  and shows no tray icon or notices): never stop the user's copy. BLOCKED (exit 3) now means only that another test
+  run held the lock too long: retry later.
 - In a worktree, before test runs of your own: `powershell -NoProfile -ExecutionPolicy Bypass -File
   tools/dev/smoke.ps1 -Prepare` (where Godot is, the main checkout's models, the import, the build).
 - Aimed runs: `tools\dev\shoot.ps1 -Hidden -Out <worktree>\.qa\shots -Tag <name> -Script "action@s,..." -Shots s,...`

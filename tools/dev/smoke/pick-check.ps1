@@ -1,4 +1,5 @@
-# Checks how smoke.ps1 -Changed picks scenarios, on a few lists of changed files. check.ps1 runs it; by hand:
+# Checks how smoke.ps1 -Changed picks scenarios, on a few lists of changed files, and how the beside scenario judges
+# whose the player's lock is (smoke.ps1 -SelfCheck). check.ps1 runs it; by hand:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\smoke\pick-check.ps1
 # Exit code: 0 every case picked what it should, 1 otherwise.
 $smoke = Join-Path (Split-Path $PSScriptRoot) "smoke.ps1"
@@ -38,6 +39,8 @@ foreach ($case in $cases) {
   if ($got -eq $case.want -and $everyOneSaysWhy -and $picks.Count -eq $suite.scenarios.Count) { "ok    $label -> $(if ($got) { $got } else { 'none' })" }
   else { $failed++; "WRONG $label -> '$got', wanted '$($case.want)'" }
 }
-if ($failed) { "$failed case(s) picked the wrong scenarios"; exit 1 }
+& $smoke -SelfCheck                                                     # the beside scenario's verdict on the player's lock
+if ($LASTEXITCODE -ne 0) { $failed++ }
+if ($failed) { "$failed case(s) picked the wrong scenarios or judged the lock wrongly"; exit 1 }
 "Every case picked what it should."
 exit 0

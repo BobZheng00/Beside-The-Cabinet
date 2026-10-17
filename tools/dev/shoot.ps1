@@ -1,5 +1,7 @@
 # Runs the app in a throwaway, muted profile (Steam ignored), plays dev actions and screenshots the window.
-# Never touches the real profile. Only one copy of the app runs at a time, so quit any running one first.
+# Never touches the real profile, nor Godot's own log (the run's is <Out>\profile-<Tag>\godot.log). A hidden run is a
+# test copy (--offscreen) and runs beside the player's own copies; without -Hidden, quit any running copy first (the
+# player's app keeps to one copy at a time, and a second one quits at once).
 #
 #   tools\dev\shoot.ps1 -Script "hard@3,moment:greet@8" -Shots 5,10 -Tag solve
 #   tools\dev\shoot.ps1 -Exe builds\BesideTheCabinet\BesideTheCabinet.exe -Shots 6            # the standalone build
@@ -101,14 +103,15 @@ $runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
 try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
 $watch = $null
+$ownLog = "--log-file `"$(Join-Path $profile 'godot.log')`""          # Godot's log in the profile: the player's own is left alone
 if ($Hidden) {
-  $command = if ($Exe -ne "") { "`"$(Resolve-Path $Exe)`" -- $userArgs" } else { "`"$Godot`" --path `"$repo\src\InsertCoin.Game`" -- $userArgs" }
+  $command = if ($Exe -ne "") { "`"$(Resolve-Path $Exe)`" $ownLog -- $userArgs" } else { "`"$Godot`" --path `"$repo\src\InsertCoin.Game`" $ownLog -- $userArgs" }
   $p = [Backstage]::Start($command, $log, $err)
   $watch = New-Object Unseen $p.Id
 } elseif ($Exe -ne "") {
-  $p = Start-Process (Resolve-Path $Exe) -ArgumentList "-- $userArgs" -PassThru
+  $p = Start-Process (Resolve-Path $Exe) -ArgumentList "$ownLog -- $userArgs" -PassThru
 } else {
-  $p = Start-Process $Godot -ArgumentList "--path `"$repo\src\InsertCoin.Game`" -- $userArgs" -PassThru -WindowStyle Minimized `
+  $p = Start-Process $Godot -ArgumentList "--path `"$repo\src\InsertCoin.Game`" $ownLog -- $userArgs" -PassThru -WindowStyle Minimized `
     -RedirectStandardOutput $log -RedirectStandardError $err
 }
 
@@ -161,7 +164,7 @@ foreach ($s in $Shots) {
     $child = Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | Where-Object { $_.Name -like "Godot*" } | Select-Object -First 1
     if ($child) { Get-Process -Id $child.ProcessId } else { $null }
   }
-  if (-not $app) { "no app process at ${s}s (is another copy running?)"; continue }
+  if (-not $app) { "no app process at ${s}s$(if (-not $Hidden) { ' (is another copy running?)' })"; continue }
   $wins = @()
   if ($Hidden) {
     $wins = @(App-Windows $i)
