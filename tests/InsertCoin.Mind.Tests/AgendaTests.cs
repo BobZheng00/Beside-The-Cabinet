@@ -55,14 +55,27 @@ public class AgendaTests
     [Fact]
     public void Changes_are_read_as_an_item_s_number_and_what_changes()
     {
-        Assert.Equal((12L, (DateTimeOffset?)null, (string?)null), Plain(Agenda.ParseChange("#12", Friday)));
-        Assert.Equal((12L, On(5, 10), (string?)null), Plain(Agenda.ParseChange(" 12 | 2026-10-05 10:00", Friday)));
-        Assert.Equal((12L, On(5, 10), "1 hour before"), Plain(Agenda.ParseChange("#12 | 1 hour before | 2026-10-05 10:00", Friday)));
+        Assert.Equal("12 | - | - | - | -", Plain(Agenda.ParseChange("#12", Friday)));
+        Assert.Equal("12 | 2026-10-05 10:00 | - | - | -", Plain(Agenda.ParseChange(" 12 | 2026-10-05 10:00", Friday)));
+        Assert.Equal("12 | 2026-10-05 10:00 | 1 hour before | - | -", Plain(Agenda.ParseChange("#12 | 1 hour before | 2026-10-05 10:00", Friday)));
+        Assert.Equal("12 | - | Monday to Friday, daily | - | -", Plain(Agenda.ParseChange("#12 | Monday to Friday | daily", Friday)));
         Assert.Null(Agenda.ParseChange("the dentist", Friday));
         Assert.Null(Agenda.ParseChange("#-3", Friday));
+        Assert.Null(Agenda.ParseChange("", Friday));
+        // a time that isn't written as one, even beside an option that is read, is left over, never dropped
+        Assert.Equal("12 | - | 1 hour before | tomorrow 3pm | -", Plain(Agenda.ParseChange("#12 | tomorrow 3pm | 1 hour before", Friday)));
+        Assert.Equal("12 | 2026-10-05 10:00 | - | 2026-10-06 10:00 | -", Plain(Agenda.ParseChange("#12 | 2026-10-05 10:00 | 2026-10-06 10:00", Friday)));
+        Assert.Equal("12 | - | - | daily, at noon | -", Plain(Agenda.ParseChange("#12 | daily, at noon", Friday)));
+        Assert.Equal("12 | - | - | remind me tomorrow 3pm | -", Plain(Agenda.ParseChange("#12 | remind me tomorrow 3pm", Friday)));
+        Assert.Equal("12 | - | - | 1 hour before tomorrow at 3 | -", Plain(Agenda.ParseChange("#12 | 1 hour before tomorrow at 3", Friday)));
+        Assert.Equal("12 | - | - | daily at 9:00 | -", Plain(Agenda.ParseChange("#12 | daily at 9:00", Friday)));
+        Assert.Equal("12 | - | - | next Tuesday | -", Plain(Agenda.ParseChange("#12 | next Tuesday", Friday)));
+        // and an option the cabinet can't do
+        Assert.Equal("12 | - | - | - | no reminder | stop repeating", Plain(Agenda.ParseChange("#12 | no reminder | stop repeating", Friday)));
+        Assert.Equal("12 | - | - | - | every Monday", Plain(Agenda.ParseChange("#12 | every Monday", Friday)));
 
-        static (long, DateTimeOffset?, string?)? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options)? c) =>
-            c is { } x ? (x.Id, x.When?.At, x.Options) : null;
+        static string? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread, string? Unable)? c) =>
+            c is { } x ? $"{x.Id} | {x.When?.At.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-"} | {x.Options ?? "-"} | {x.Unread ?? "-"} | {x.Unable ?? "-"}" : null;
     }
 
     [Fact]
@@ -116,6 +129,120 @@ public class AgendaTests
         Assert.Contains("An item without a number is from their calendar", model.Requests.Single()[0].Text);
         Assert.Equal([dentist, sync, trip], store.Agenda().Select(p => p.Id));
         Assert.Equal(Friday.AddDays(3), store.Agenda().Single(p => p.Id == sync).At);
+    }
+
+    [Fact]
+    public async Task A_cancel_of_a_number_not_on_the_agenda_is_logged_with_why_and_her_next_turn_hears_of_it()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[cancel: #{dentist + 7}] Done, it's off."), "take the dentist off", "", _ => { }, (_, _) => { });
+        var next = new FakeModel("Oh, sorry!");
+        await conversation.Answer(next, "thanks", "", _ => { }, (_, _) => { });
+
+        Assert.Single(temp.Store.Agenda());
+        var why = $"Your [cancel: #{dentist + 7}] didn't go through: there is no #{dentist + 7} on the agenda now. Tell the player briefly, then put it right or ask them.";
+        var lines = temp.Store.Through("shino", long.MaxValue, 10);
+        Assert.Equal(["take the dentist off", "Done, it's off.", why, "thanks", "Oh, sorry!"], lines.Select(l => l.Text));
+        Assert.Equal(Speaker.Cabinet, lines[2].Speaker);
+        Assert.Contains($"[cabinet] {why}", string.Join("\n", next.Requests.Single().Select(m => m.Text)));
+    }
+
+    [Fact]
+    public async Task A_change_to_a_time_the_cabinet_can_t_read_leaves_the_item_as_it_was_and_her_next_turn_hears_why()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | tomorrow 3pm | 30 min before] Moved to three."), "move the dentist to 3pm", "", _ => { }, (_, _) => { });
+        var next = new FakeModel("Hm.");
+        await conversation.Answer(next, "ok", "", _ => { }, (_, _) => { });
+
+        var item = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((On(3, 10), TimeSpan.FromHours(1)), (item.At, item.Before!.Value));       // not half done: the reminder stays as well
+        Assert.Contains($"[cabinet] Your [change: #{dentist} | tomorrow 3pm | 30 min before] didn't go through: the cabinet can't read \"tomorrow 3pm\" as a time: " +
+                        "write it YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day).", string.Join("\n", next.Requests.Single().Select(m => m.Text)));
+    }
+
+    [Fact]
+    public async Task A_reminder_that_goes_off_while_she_replies_goes_off_only_once_when_she_then_changes_it()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var stretch = store.AddPlan("Stretch", Friday.AddMinutes(10), allDay: false, TimeSpan.FromMinutes(10), Friday, "shino", Repeat.Daily);
+        var clock = new FakeClock(Friday);
+        var conversation = new Conversation(store, "shino", Shino, clock);
+        var wentOff = 0;
+        void Tick()                                         // what the cabinet's reminder check does when one is due
+        {
+            foreach (var plan in Agenda.Due(store.Agenda(), clock.Now))
+            {
+                wentOff++;
+                store.Advance(plan.Id, Agenda.NextAfter(plan, clock.Now, zone: clock.LocalTimeZone));
+            }
+        }
+
+        await conversation.Answer(new FakeModel("Sure, ", $"[change: #{stretch} | 10 min before | daily] ten minutes ahead it is."), "remind me ten minutes before stretching",
+                                  "", _ => { if (wentOff == 0) Tick(); }, (_, _) => { });
+        Tick();
+
+        Assert.Equal(1, wentOff);
+        Assert.Equal(Friday.AddDays(1).AddMinutes(10), Assert.Single(store.Agenda()).At);
+    }
+
+    [Fact]
+    public async Task A_number_called_off_and_reused_by_a_new_plan_in_the_same_reply_never_changes_the_new_item()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        store.AddPlan("Dentist", On(3, 10), allDay: false, before: null, Friday, "shino");
+        var haircut = store.AddPlan("Haircut", On(4, 11), allDay: false, before: null, Friday, "shino");
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[cancel: #{haircut}] [plan: 2026-10-05 12:00 | Lunch with Sam] [change: #{haircut} | 2026-10-08 10:00] All sorted."),
+                                  "no haircut, lunch with Sam on Monday instead", "", _ => { }, (_, _) => { });
+
+        var lunch = store.Agenda().Single(p => p.Text == "Lunch with Sam");
+        Assert.Equal((haircut, On(5, 12)), (lunch.Id, lunch.At));                              // its number reused, and left alone
+        Assert.Equal(["Dentist", "Lunch with Sam"], store.Agenda().Select(p => p.Text));
+        Assert.DoesNotContain(store.Through("shino", long.MaxValue, 10), l => l.Speaker == Speaker.Cabinet);   // the haircut is off, as she said
+    }
+
+    [Fact]
+    public async Task Calling_the_same_item_off_twice_in_a_reply_is_not_a_change_that_failed()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, before: null, Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[cancel: #{dentist}] Off it goes. [cancel: #{dentist}] [change: #{dentist} | 1 hour before] Gone."), "cancel the dentist", "", _ => { }, (_, _) => { });
+
+        Assert.Empty(temp.Store.Agenda());
+        Assert.DoesNotContain(temp.Store.Through("shino", long.MaxValue, 10), l => l.Speaker == Speaker.Cabinet);
+    }
+
+    [Fact]
+    public async Task A_change_the_cabinet_can_t_make_says_what_it_can_and_a_half_read_time_or_a_bare_tag_is_refused_too()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino", Repeat.Weekly);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | stop repeating] [change: #{dentist} | 30 min before tomorrow at 3] [cancel] Done."),
+                                  "make the dentist a one-off, and move it to tomorrow at 3", "", _ => { }, (_, _) => { });
+
+        var item = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((On(3, 10), TimeSpan.FromHours(1), Repeat.Weekly), (item.At, item.Before!.Value, item.Repeat));
+        Assert.Equal([
+            $"Your [change: #{dentist} | stop repeating] didn't go through: the cabinet can't do \"stop repeating\" yet: a change can only move an item, " +
+            "set its reminder (\"1 hour before\") or make it repeat (daily, weekdays, weekly, monthly). Tell the player briefly, then put it right or ask them.",
+            $"Your [change: #{dentist} | 30 min before tomorrow at 3] didn't go through: the cabinet can't read \"30 min before tomorrow at 3\" as a time: " +
+            "write it YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day). Tell the player briefly, then put it right or ask them.",
+            "Your [cancel] didn't go through: it needs the item's number from the agenda, as in #12. Tell the player briefly, then put it right or ask them.",
+        ], temp.Store.Through("shino", long.MaxValue, 10).Where(l => l.Speaker == Speaker.Cabinet).Select(l => l.Text));
     }
 
     [Fact]

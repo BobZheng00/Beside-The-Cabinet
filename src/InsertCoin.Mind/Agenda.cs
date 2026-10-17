@@ -116,21 +116,40 @@ public static partial class Agenda
 
     /// <summary>
     /// A <c>[cancel: #12]</c> or <c>[change: #12 | 2026-10-16 10:00 | 1 hour before]</c> payload: the item's number, and
-    /// what changes: a new time, new options (see <see cref="ParseOptions"/>), or both, in any order. Null without a number.
+    /// what changes: a new time, new options (see <see cref="ParseOptions"/>), or both, in any order; and what of it the
+    /// change can't be made with: a time not written as one ("tomorrow 3pm", "daily at 9:00", a second time), and
+    /// options the cabinet can't do ("no reminder", "every Monday"). Null without a number.
     /// </summary>
-    public static (long Id, (DateTimeOffset At, bool AllDay)? When, string? Options)? ParseChange(string payload, DateTimeOffset now, TimeZoneInfo? zone = null)
+    public static (long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread, string? Unable)? ParseChange(string payload, DateTimeOffset now, TimeZoneInfo? zone = null)
     {
         var parts = payload.Split('|');
         if (!long.TryParse(parts[0].Trim().TrimStart('#'), NumberStyles.None, English, out var id))
             return null;
         (DateTimeOffset At, bool AllDay)? when = null;
-        var options = new List<string>();
+        List<string> options = [], unread = [], unable = [];
         foreach (var part in parts.Skip(1).Select(p => p.Trim()).Where(p => p.Length > 0))
+        {
+            var pieces = part.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
             if (when is null && ParseWhen(part, now, zone) is { } at)
                 when = at;
+            else if (pieces.Any(SaysWhen))
+                unread.Add(part);
+            else if (pieces.Any(p => ParseOptions(p) is (null, Repeat.Once)))
+                unable.Add(part);
             else
                 options.Add(part);
-        return (id, when, options.Count > 0 ? string.Join(", ", options) : null);
+        }
+        static string? Joined(List<string> list, string by) => list.Count > 0 ? string.Join(by, list) : null;
+        return (id, when, Joined(options, ", "), Joined(unread, " | "), Joined(unable, " | "));
+    }
+
+    /// <summary>Says a time or a day beyond the reminder and repeat <see cref="ParseOptions"/> reads ("daily at 9:00", "1 hour before tomorrow").</summary>
+    private static bool SaysWhen(string piece)
+    {
+        var rest = piece.ToLowerInvariant().Replace("the day before", "1 day before").Replace("the night before", "1 day before");
+        foreach (var known in new[] { WeekdaysWord(), DailyWord(), WeeklyWord(), MonthlyWord(), BeforeWords(), AtTheTime() })
+            rest = known.Replace(rest, " ");
+        return TimeWords().IsMatch(rest);
     }
 
     /// <summary>
@@ -327,4 +346,10 @@ public static partial class Agenda
     private static partial Regex BeforeWords();
     [GeneratedRegex(@"\bat\s+the\s+time\b|\bon\s+time\b|\bremind\b")]
     private static partial Regex AtTheTime();
+    // a time or day in words or numbers ("3pm", "9:00", "at 3", "tomorrow", "next Tuesday", "the 5th"), not a repeat's "every Monday"
+    [GeneratedRegex(@"\d{1,2}(:\d{2})?\s*(am|pm|a\.m\.|p\.m\.)|\b\d{1,2}[:.h]\d{2}\b|\b\d{4}-\d{1,2}-\d{1,2}\b|\bat\s+\d{1,2}\b|\b\d{1,2}(st|nd|rd|th)\b" +
+                    @"|\b(today|tonight|tomorrow|yesterday|noon|midday|midnight|morning|afternoon|evening|next|weekend)\b" +
+                    @"|(?<!\b(every|each)\s+)\b(mon|tue|tues|wed|wednes|thu|thur|thurs|fri|sat|satur|sun)(day)?s?\b" +
+                    @"|\b(january|february|march|april|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\b")]
+    private static partial Regex TimeWords();
 }
