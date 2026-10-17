@@ -165,11 +165,21 @@ public partial class PermissionCard : Node2D
     /// <summary>Once the lines are laid out at the card's width: the area as tall as they are, up to <see cref="LinesTallest"/>.</summary>
     private async void FitLines()
     {
-        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-        if (!_scroll.Visible)
-            return;
-        _scroll.CustomMinimumSize = new Vector2(Width - 32, Math.Min(LinesTallest, _lines.GetCombinedMinimumSize().Y));
-        _panel.ResetSize();
+        // as laid out (the scroll bar's range), not as the label measures itself: the bar's width changes the wrapping, so
+        // a few frames, the area only growing
+        for (var i = 0; i < 6; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            if (!_scroll.Visible)
+                return;
+            var padding = _scroll.GetThemeStylebox("panel").GetMinimumSize().Y;      // the area's own box around the lines
+            var need = Math.Min(LinesTallest, padding + (float)Math.Max(_scroll.GetVScrollBar().MaxValue, _lines.GetCombinedMinimumSize().Y));
+            if (i > 0 && need <= _scroll.CustomMinimumSize.Y)
+                continue;
+            _scroll.CustomMinimumSize = new Vector2(Width - 32, need);
+            _panel.ResetSize();
+        }
+        GD.Print($"Card: the change's lines {_scroll.GetVScrollBar().MaxValue:0} px tall, shown {_scroll.Size.Y:0} px");
     }
 
     private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel)
