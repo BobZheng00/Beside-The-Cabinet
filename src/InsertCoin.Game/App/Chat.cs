@@ -91,12 +91,14 @@ public sealed class Chat : IDisposable
     /// <summary>Her suggested change to a skill: shown to the player, and written only if they agree (see <see cref="Notes.Apply"/>).</summary>
     private async Task<string> ChangeSkill(string skill, string replaces, string with, CancellationToken cancel)
     {
-        if (Notes.Propose(skill, replaces, with, out var why) is not { } change)
+        // the file work off the game's thread, as the note tools do
+        var (proposed, why) = await Task.Run(() => (Notes.Propose(skill, replaces, with, out var refused), refused), cancel);
+        if (proposed is not { } change)
             return why;
         var answer = AskSkillChange is { } ask ? await Unhurried(() => ask(change, cancel)) : null;
         var said = answer switch
         {
-            true => Notes.Apply(change),
+            true => await Task.Run(() => Notes.Apply(change)),
             false => "The player said not now, so nothing was changed. Take that lightly, and don't suggest it again now.",
             _ => "The player didn't answer, so nothing was changed.",
         };

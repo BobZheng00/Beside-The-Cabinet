@@ -168,7 +168,8 @@ public partial class Stool : Node2D
         };
         _chat.Activities = _activities;
         _chat.Bedtime = SetBedtime;
-        _chat.AskSkillChange = (change, cancel) => ConfirmOnCard($"Update how {change.Skill} works:", change.Plainly, cancel, change.Lines);
+        _chat.AskSkillChange = (change, cancel) => ConfirmOnCard($"Update how {change.Skill} works:",
+            change.Plainly + (change.Shortened ? "\nAll of it is under See the change." : ""), cancel, change.Lines);
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
@@ -2237,6 +2238,7 @@ public partial class Stool : Node2D
             case "allow": _permission.Choose(Answer.Once); break;       // answers the card she asks with, as its buttons would
             case "always": _permission.Choose(Answer.Always); break;
             case "deny": _permission.Choose(Answer.No); break;
+            case "seechange" when rest == "end": _permission.SeeChangeEnd(); break;     // seechange:end opens it and scrolls to the end of the lines
             case "seechange": _permission.SeeChange(); break;  // presses See the change on her suggested change to a skill
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, diary, memos, forget; retired)
                 OpenMemoryBook();

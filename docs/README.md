@@ -337,8 +337,9 @@ stays kept. Remove a folder and its changes leave the page with it (grant it aga
 
 Tell your companion you do something a skill describes differently now ("tasks go under Today from now on") and they
 offer to change the skill, in their own words, while a card by their stool says plainly what changes: *Update how
-journal works:* "Put tasks under ## Today" (was: "Tasks"), with **Remember it** and **Not now**. *See the change* opens
-the exact lines, before and after. Nothing is written until you press Remember it, and then only those lines, and only
+journal works:* "## Today" (was: "## Tasks"), with **Remember it** and **Not now** (a long change is shortened there,
+ending in "…", and the card says all of it is under See the change). *See the change* opens every line it touches,
+whole, before and after, scrolling when there are many. Nothing is written until you press Remember it, and then only those lines, and only
 if the skill still has them as shown: if you or another agent changed them meanwhile, nothing is written and they're
 told. Only skills in the app's own skills folder or one you linked are changed, never their name or description (the
 front matter), and a skill's files are changed no other way. The skill's page (Folders) lists the change with Undo and

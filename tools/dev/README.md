@@ -82,7 +82,7 @@ slip's microphone), `listen` and `listened` (as if the mouse were held on them, 
 Hands-free, without ever opening the real microphone: `fakemic` (from then on they hear only recordings),
 `mictalk:C:\path\said.wav` (said into their open microphone), `converse` (`converse:on`, `converse:off`). Their tools:
 `allow`, `always` and `deny` (answer the card they ask with, as its buttons do; on a suggested change to a skill,
-`allow` is Remember it and `deny` Not now), `seechange` (presses See the change on that card; the mock mind suggests a
+`allow` is Remember it and `deny` Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
 change to a skill when told "tea-timer from now on new_words instead of old_words", as with
 `chat:tea-timer_from_now_on_rinse_the_pot_first_instead_of_warm_the_pot_first` after `skillseed`), and
 `fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway). With `--offscreen` a page they open is

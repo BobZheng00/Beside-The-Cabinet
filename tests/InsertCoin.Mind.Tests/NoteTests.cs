@@ -519,7 +519,8 @@ public sealed class NoteTests : IDisposable
         Assert.Equal("", why);
         Assert.Equal("Put tasks under ## Tasks at the end.", change.Before);
         Assert.Equal("Put tasks under ## Today at the end.", change.After);
-        Assert.Equal("\"## Today\" (was: \"Tasks\")", change.Plainly);
+        Assert.Equal("\"## Today\" (was: \"## Tasks\")", change.Plainly);
+        Assert.False(change.Shortened);
         Assert.Equal("Before:\nPut tasks under ## Tasks at the end.\n\nAfter:\nPut tasks under ## Today at the end.", change.Lines);
         Assert.Contains("## Tasks", File.ReadAllText(Journal));          // nothing written until the player agrees
 
@@ -533,12 +534,24 @@ public sealed class NoteTests : IDisposable
     }
 
     [Fact]
-    public void The_card_says_what_a_change_replaces_without_the_words_both_start_with()
+    public void The_card_shows_the_old_wording_whole_as_the_new_one_is()
     {
-        Assert.Equal("\"Put tasks under ## Today\" (was: \"Tasks\")",
-                     new SkillChange("journal", "", "Put tasks under ## Tasks", "Put tasks under ## Today", "", "").Plainly);
-        Assert.Equal("\"Ask how the day went first, briefly\" (was: \"Ask how the day went first\")",     // only added to: all of it
-                     new SkillChange("journal", "", "Ask how the day went first", "Ask how the day went first, briefly", "", "").Plainly);
+        var change = new SkillChange("journal", "", "Put tasks under ## Tasks", "Put tasks under ## Today", "", "");
+
+        Assert.Equal("\"Put tasks under ## Today\" (was: \"Put tasks under ## Tasks\")", change.Plainly);
+        Assert.False(change.Shortened);
+    }
+
+    [Fact]
+    public void A_long_change_is_shortened_on_the_cards_line_with_an_ellipsis_and_shown_whole_in_its_lines()
+    {
+        var longer = string.Concat(Enumerable.Repeat("Set a timer on the cabinet. ", 12)).Trim();     // ends at sentences, as Fit cuts
+        var change = new SkillChange("tea-timer", "", "warm the pot first", longer, "Remind them to warm the pot first.", $"Remind them to {longer}");
+
+        Assert.True(change.Shortened);
+        Assert.EndsWith("the cabinet…\" (was: \"warm the pot first\")", change.Plainly);
+        Assert.True(change.Plainly.Length < SkillChange.NewShown + SkillChange.OldShown + 20);
+        Assert.EndsWith(longer, change.Lines);
     }
 
     [Fact]
@@ -578,6 +591,17 @@ public sealed class NoteTests : IDisposable
         Assert.Contains("changed since", _notes.Apply(change));
         Assert.Contains("## To do", File.ReadAllText(Journal));
         Assert.Empty(_notes.ChangesIn([change.Folder]));
+    }
+
+    [Fact]
+    public void A_line_with_words_added_meanwhile_counts_as_changed()
+    {
+        JournalSays("Put tasks under ## Tasks.\n");
+        var change = _notes.Propose("journal", "## Tasks", "## Today", out _)!;
+        JournalSays("Put tasks under ## Tasks. Keep them short.\n");      // the line shown is still in it, as its start
+
+        Assert.Contains("changed since", _notes.Apply(change));
+        Assert.Contains("## Tasks. Keep them short.", File.ReadAllText(Journal));
     }
 
     [Fact]

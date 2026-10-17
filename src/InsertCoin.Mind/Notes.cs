@@ -35,26 +35,32 @@ public sealed record NoteChange(string Id, DateTimeOffset At, NoteChangeKind Kin
 /// <param name="Before">The whole lines the passage is in, as they are now; <paramref name="After"/>, as they would be.</param>
 public sealed record SkillChange(string Skill, string Folder, string Replaces, string With, string Before, string After)
 {
-    /// <summary>
-    /// The change in a line, as her card shows it: the new wording, and what it replaces without the words the two
-    /// start with alike ("Put tasks under ## Today" (was: "Tasks")).
-    /// </summary>
-    public string Plainly
-    {
-        get
-        {
-            var same = 0;
-            while (same < Replaces.Length && same < With.Length && Replaces[same] == With[same])
-                same++;
-            var cut = same == Replaces.Length ? 0 : Replaces.LastIndexOf(' ', Math.Max(same - 1, 0)) + 1;
-            return $"\"{Prompt.Fit(OneLine(With), 120)}\" (was: \"{Prompt.Fit(OneLine(Replaces[cut..]), 80)}\")";
-        }
-    }
+    /// <summary>The most of the new wording, and of the old, that her card's line shows; what is longer ends in "…".</summary>
+    public const int NewShown = 100, OldShown = 60;
 
-    /// <summary>The exact lines before and after, as See the change shows them.</summary>
+    /// <summary>
+    /// The change in a line, as her card shows it: the new wording and the old, each whole ("Put tasks under ## Today"
+    /// (was: "Put tasks under ## Tasks")), or its start ending in "…" when long (see <see cref="Shortened"/>).
+    /// </summary>
+    public string Plainly => $"\"{Short(With, NewShown)}\" (was: \"{Short(Replaces, OldShown)}\")";
+
+    /// <summary>Whether <see cref="Plainly"/> leaves some of the change out: the whole of it is in <see cref="Lines"/>.</summary>
+    public bool Shortened => Short(With, NewShown) != OneLine(With) || Short(Replaces, OldShown) != OneLine(Replaces);
+
+    /// <summary>The exact lines before and after, whole, as See the change shows them.</summary>
     public string Lines => $"Before:\n{Before.Replace("\r", "")}\n\nAfter:\n{After.Replace("\r", "")}";
 
     private static string OneLine(string text) => string.Join(' ', text.Split((char[])['\n', '\r', '\t', ' '], StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>Text on one line, at most <paramref name="limit"/> characters, ending in "…" whenever any of it is left out.</summary>
+    private static string Short(string text, int limit)
+    {
+        var line = OneLine(text);
+        if (line.Length <= limit)
+            return line;
+        var fit = Prompt.Fit(line, limit - 1);           // at a sentence's or a word's end
+        return fit.EndsWith('…') ? fit : fit.TrimEnd('.') + "…";
+    }
 }
 
 /// <summary>
@@ -401,9 +407,15 @@ public sealed class Notes
         {
             if (SkillFile(change.Skill, change.Folder, out var why) is not { } file || Changeable(file, out why) is not { } note)
                 return why;
-            if (Occurrences(note.Words, change.Before) != 1 || note.Words.IndexOf(change.Before, StringComparison.Ordinal) < BodyStart(note.Words))
+            // the lines shown, as whole lines (one with words added since doesn't count), there once, below the front matter
+            var words = note.Words;
+            var at = new List<int>();
+            for (var i = words.IndexOf(change.Before, StringComparison.Ordinal); i >= 0; i = words.IndexOf(change.Before, i + 1, StringComparison.Ordinal))
+                if ((i == 0 || words[i - 1] == '\n') && (i + change.Before.Length == words.Length || words[i + change.Before.Length] is '\r' or '\n'))
+                    at.Add(i);
+            if (at.Count != 1 || at[0] < BodyStart(words))
                 return $"{change.Skill}'s instructions have changed since you suggested that, so nothing was written. Read them again before suggesting it again.";
-            return Write(file, note, note.Words.Replace(change.Before, change.After, StringComparison.Ordinal), NoteChangeKind.Edited,
+            return Write(file, note, words[..at[0]] + change.After + words[(at[0] + change.Before.Length)..], NoteChangeKind.Edited,
                          $"Written: from now on {change.Skill}'s instructions say \"{Prompt.Fit(change.With, 200)}\".");
         }
     }
