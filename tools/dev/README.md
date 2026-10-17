@@ -58,7 +58,8 @@ stand-in notes folder, `notes` with a `today.md`, beside the test profile in `<p
 `skillgrant` (grants that folder to the skill whose page is open, as picking it in "Grant a folder…" does; the mock
 mind, asked to "add a line to my note notes/today.md", reads it with `read_note` and appends "- A line from the mock
 mind." with `append_to_note`, then answers), `notetail` (logs the last line of that `today.md`; `notetail:other.md`,
-another note there),
+another note there), `noteplayer:a_line` (adds that line to that `today.md` as the player or another app would, so an
+Undo after it is refused),
 `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test

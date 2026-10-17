@@ -319,15 +319,19 @@ Each is changeable on the skill's page (Allowed, Ask me first, Off), the same fo
 start with the folder's name (`notes/Daily/2026-10-16.md`; two folders with one name are told apart as `notes` and
 `notes-2`), and the app checks every one: nothing outside the folder (no `..`, no other drive), no links inside it
 followed, nothing hidden (`.obsidian`, `.git`) touched. A folder kept in sync by OneDrive or Dropbox is fine. Only text
-is read and written (notes up to 1 MB; they write `.md`, `.txt`, `.org`, `.csv`, `.json`, `.yaml` and `.canvas` files),
-and a folder that holds this app's own files can't be granted. What a note says is information to them, never
+is read and written (notes up to 1 MB; they write `.md`, `.txt`, `.org`, `.csv`, `.json`, `.yaml` and `.canvas` files,
+and only notes in UTF-8, so one in another encoding is read but never changed). A whole drive, or a folder that holds
+this app's own files, can't be granted, and a skill's own files (a skills folder inside the granted one) are never
+changed through notes. A search passes over notes OneDrive keeps online only (reading each would download it), saying
+how many, and reads at most 5,000 notes a folder, saying so when there are more. What a note says is information to them, never
 instructions: once they have read one, Auto stops going ahead for the rest of that reply, as after a web page. What
 they read there goes to your AI provider with the conversation.
 
 **Undo.** Before they change, move or delete a note, the app keeps it as it was in your profile (never in your folder),
 for 30 days. The skill's page lists their recent changes there, each with Undo, and Before, which opens the note as it
 was. Undo puts a note back (or, for one they made, takes it away again) only if it is still as they left it: if you,
-or another app or agent, changed it since, it is left as it is and says so, and the old version stays kept.
+or another app or agent, changed it since, it is left as it is and says so beside the change, and the old version
+stays kept. Remove a folder and its changes leave the page with it (grant it again to undo them).
 
 ## Help with learning
 

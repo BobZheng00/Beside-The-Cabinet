@@ -69,16 +69,16 @@
     },
     {
       "name": "skill-folders",
-      "about": "A stand-in notes folder granted to a skill on its own page (Settings → Skills → Folders); asked to add a line to a note there, the companion's mind (the mock) reads it and appends a line with their note tools, and the file shows it; Undo on the skill's page takes it out again.",
+      "about": "A stand-in notes folder granted to a skill on its own page (Settings → Skills → Folders); asked to add a line to a note there, the companion's mind (the mock) reads it and appends a line with their note tools, and the file shows it; Undo on the skill's page takes it out again. Asked again, then the player adds a line of their own, Undo is refused, says so beside the changes (in view), and leaves the player's line.",
       "covers": ["src/InsertCoin.Mind/Notes.cs", "src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
       "mind": true,
       "mindReply": "Done: it's in your note.",
-      "mindRequests": 3,
-      "script": "nocall@1,skillseed@2,notesseed@2,settings:skills@3,skillpage:tea-timer@4,skillgrant@5,chat:please_add_a_line_to_my_note_notes/today.md@7,notetail@12,settings:abilities@13,settings:skills@14,skillpage:tea-timer@15,settingsscroll:2000@16,settingsdo:Undo@19,notetail@20",
-      "shots": [9, 20, 24],
+      "mindRequests": 6,
+      "script": "nocall@1,skillseed@2,notesseed@2,settings:skills@3,skillpage:tea-timer@4,skillgrant@5,chat:please_add_a_line_to_my_note_notes/today.md@7,notetail@12,settings:abilities@13,settings:skills@14,skillpage:tea-timer@15,settingsscroll:2000@16,settingsdo:Undo@19,notetail@20,chat:please_add_a_line_to_my_note_notes/today.md@21,noteplayer:-_The_player's_own_line.@26,settings:abilities@27,settings:skills@28,skillpage:tea-timer@29,settingsdo:Undo@31,notetail@32",
+      "shots": [9, 20, 24, 35],
       "window": "Settings",
       "desk": true,
-      "expect": ["^Notes: seeded ", "^Skills: tea-timer works in \\S.*\\\\notes now\\.$", "^Tools: she uses read_note", "^Tools: she uses append_to_note", "^Notes: today\\.md ends: - A line from the mock mind\\.$", "^Skills: Undone: today\\.md is as it was\\.$", "^Notes: today\\.md ends: - Woke up early\\.$"]
+      "expect": ["^Notes: seeded ", "^Skills: tea-timer works in \\S.*\\\\notes now\\.$", "^Tools: she uses read_note", "^Tools: she uses append_to_note", "^Notes: today\\.md ends: - A line from the mock mind\\.$", "^Skills: Undone: today\\.md is as it was\\.$", "^Notes: today\\.md ends: - Woke up early\\.$", "^Notes: the player wrote in today\\.md$", "^Skills: today\\.md has changed since, so it was left as it is; the version from before is still kept\\.$", "^Notes: today\\.md ends: - The player's own line\\.$"]
     },
     {
       "name": "memory",

@@ -319,6 +319,152 @@ public sealed class NoteTests : IDisposable
         Assert.False(File.Exists(copy));
     }
 
+    // ---- Round 2: what review and QA found ------------------------------------------------------------------------------
+
+    /// <summary>A short (8.3) name, "CLAUDE~1", leads to ".claude": hidden all the same, so refused (found in review, 2026-10-16).</summary>
+    [Fact]
+    public void A_hidden_folder_reached_by_its_short_name_is_refused_all_the_same()
+    {
+        var skill = Write(Path.Combine(_vault, ".claude", "skills", "x", Skills.FileName), "---\nname: x\ndescription: X.\n---\nThe player's.\n");
+        var hidden = Path.Combine(_vault, ".claude");
+        var shortName = Path.GetFileName(ShortPath(hidden));
+        if (shortName is null || shortName == ".claude")
+            return;                                         // no short names on this drive: nothing to try
+
+        Assert.DoesNotContain("The player's.", _notes.Read($"vault/{shortName}/skills/x/SKILL.md"));
+        Assert.DoesNotMatch("^Changed", _notes.Edit($"vault/{shortName}/skills/x/SKILL.md", "The player's.", "Hers."));
+        Assert.DoesNotMatch("^Made", _notes.Create($"vault/{shortName}/new.md", "Hers."));
+        Assert.Equal(["SKILL.md"], Directory.GetFiles(Path.Combine(hidden, "skills", "x")).Select(Path.GetFileName));
+        Assert.Contains("The player's.", File.ReadAllText(skill));
+    }
+
+    [Fact]
+    public void A_note_not_in_utf8_is_read_but_never_written_back()
+    {
+        byte[] gbk = [0xC4, 0xE3, 0xBA, 0xC3, (byte)'\n'];                 // 你好 in GBK
+        File.WriteAllBytes(Path.Combine(_vault, "gbk.txt"), gbk);
+
+        Assert.Contains("isn't in UTF-8", _notes.Append("vault/gbk.txt", "More."));
+        Assert.Contains("isn't in UTF-8", _notes.Edit("vault/gbk.txt", "\n", "x\n"));
+        Assert.Equal(gbk, File.ReadAllBytes(Path.Combine(_vault, "gbk.txt")));
+        Assert.DoesNotContain("isn't", _notes.Read("vault/gbk.txt"));       // readable, with stand-ins
+        Assert.Equal("Added to vault/today.md.", _notes.Append("vault/today.md", "- 你好"));     // UTF-8 as ever
+    }
+
+    [Fact]
+    public void Search_passes_over_notes_kept_online_only_and_says_so()
+    {
+        Assert.True(Notes.OnlineOnly(FileAttributes.Archive | (FileAttributes)0x400000));    // OneDrive's online-only: read by downloading
+        Assert.True(Notes.OnlineOnly(FileAttributes.Offline));
+        Assert.False(Notes.OnlineOnly(FileAttributes.Archive | FileAttributes.ReadOnly));
+
+        var online = Write(Path.Combine(_vault, "online.md"), "The dentist on Friday.");
+        File.SetAttributes(online, FileAttributes.Offline);
+        if (!Notes.OnlineOnly(File.GetAttributes(online)))
+            return;                                         // this file system won't mark it: the rule above is checked
+
+        var found = _notes.Search("dentist");
+        Assert.DoesNotContain("online.md", found);
+        Assert.Contains("1 note is kept online only, so not searched", found);
+    }
+
+    [Fact]
+    public void Search_counts_only_notes_towards_its_limit_and_says_when_it_was_reached()
+    {
+        var many = Directory.CreateDirectory(Path.Combine(_vault, "many")).FullName;
+        for (var i = 0; i < 50; i++)
+            File.WriteAllBytes(Path.Combine(many, $"a{i}.png"), [1]);         // attachments don't count
+        Assert.DoesNotContain("Only the first", _notes.Search("Woke"));
+
+        for (var i = 0; i < Notes.SearchLimit; i++)
+            File.WriteAllText(Path.Combine(many, $"n{i:D4}.md"), "");
+        Assert.Contains($"Only the first {Notes.SearchLimit:N0} notes in vault were searched.", _notes.Search("Woke"));
+    }
+
+    [Fact]
+    public void A_skill_inside_a_granted_folder_is_never_changed_through_notes()
+    {
+        var skills = Path.Combine(_vault, "agents");
+        var instructions = Write(Path.Combine(skills, "journal-rules", Skills.FileName), "---\nname: journal-rules\ndescription: Rules.\n---\nOne a day.\n");
+        _skills.Linked = [skills];
+
+        Assert.Contains("One a day.", _notes.Read("vault/agents/journal-rules/SKILL.md"));     // read, as any note
+        Assert.Contains("skills folder", _notes.Edit("vault/agents/journal-rules/SKILL.md", "One a day.", "Two a day."));
+        Assert.Contains("skills folder", _notes.Create("vault/agents/journal-rules/more.md", "x"));
+        Assert.Contains("skills folder", _notes.Delete("vault/agents/journal-rules/SKILL.md"));
+        Assert.Contains("skills folder", _notes.Move("vault/today.md", "vault/agents/today.md"));
+        Assert.Contains("One a day.", File.ReadAllText(instructions));
+    }
+
+    [Fact]
+    public void A_whole_drive_cant_be_granted()
+    {
+        Assert.Contains("whole drive", _notes.WhyNot(_journal, Path.GetPathRoot(_root)!));
+    }
+
+    [Fact]
+    public void A_change_that_fails_leaves_no_copy_behind()
+    {
+        var note = Path.Combine(_vault, "today.md");
+        File.SetAttributes(note, FileAttributes.ReadOnly);
+        try
+        {
+            Assert.ThrowsAny<UnauthorizedAccessException>(() => _notes.Append("vault/today.md", "- More."));
+        }
+        finally
+        {
+            File.SetAttributes(note, FileAttributes.Normal);
+        }
+
+        Assert.Empty(_notes.ChangesIn([_vault]));
+        var kept = Path.Combine(_root, "profile", "companion", "note-changes");
+        Assert.True(!Directory.Exists(kept) || Directory.GetFiles(kept).All(f => Path.GetFileName(f).StartsWith("changes.json")));
+    }
+
+    [Fact]
+    public void A_copy_no_change_names_is_swept_once_old()
+    {
+        var kept = Directory.CreateDirectory(Path.Combine(_root, "profile", "companion", "note-changes")).FullName;
+        var stray = Write(Path.Combine(kept, "0123456789abcdef0123456789abcdef.md"), "From a run stopped mid-change.");
+        var fresh = Write(Path.Combine(kept, "fedcba9876543210fedcba9876543210.md"), "Just now.");
+        File.SetLastWriteTimeUtc(stray, (Friday - Notes.KeptFor - TimeSpan.FromDays(1)).UtcDateTime);
+        File.SetLastWriteTimeUtc(fresh, Friday.UtcDateTime);
+
+        _notes.ChangesIn([_vault]);
+
+        Assert.False(File.Exists(stray));
+        Assert.True(File.Exists(fresh));
+    }
+
+    [Fact]
+    public void An_undo_that_cant_be_done_says_why_and_changes_nothing()
+    {
+        _notes.Append("vault/today.md", "- One.");
+        var change = Latest;
+        using (new FileStream(Path.Combine(_vault, "today.md"), FileMode.Open, FileAccess.Read, FileShare.None))     // open in another app
+        {
+            var (done, said) = _notes.Undo(change);
+            Assert.False(done);
+            Assert.Contains("couldn't be undone", said);
+        }
+        Assert.Single(_notes.ChangesIn([_vault]));
+
+        File.Delete(_notes.Before(change)!);                                // the copy gone (cleaned up by hand)
+        Assert.Equal((false, "The version of today.md from before isn't kept any more, so nothing was undone."), _notes.Undo(change));
+        Assert.EndsWith("- One.\n", InVault("today.md"));
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern uint GetShortPathName(string longPath, System.Text.StringBuilder shortPath, uint size);
+
+    private static string? ShortPath(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+        var built = new System.Text.StringBuilder(1024);
+        return GetShortPathName(path, built, (uint)built.Capacity) > 0 ? built.ToString() : null;
+    }
+
     /// <summary>A symbolic link where Windows allows one, else a junction (which needs no privilege).</summary>
     private static bool MakeLink(string link, string target)
     {

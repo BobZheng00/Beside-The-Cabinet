@@ -23,7 +23,7 @@ public partial class SkillSettings : VBoxContainer
     private Func<Control> _permissions = null!;
     private Action _changed = null!;
     private string? _said;
-    private bool _saidBad;
+    private bool _saidBad, _saidByChanges;
     private string? _open;                                  // the skill whose own page shows, by Skills.KeyOf; null: the list
 
     /// <param name="permissions">Makes the choices of how freely she uses her note tools.</param>
@@ -167,7 +167,7 @@ public partial class SkillSettings : VBoxContainer
     private void SkillPage(Skill skill)
     {
         Form.Page(this, skill.Name);
-        if (_said is not null)
+        if (_said is not null && !_saidByChanges)
             Form.Say(Form.Result(this), _said, _saidBad ? Paper.Bad : Paper.Good);
         Form.Hint(this, skill.Description);
 
@@ -184,7 +184,8 @@ public partial class SkillSettings : VBoxContainer
             Form.Button(row, "Remove", () =>
             {
                 Grant(skill, [.. granted.Where(f => f != folder)]);
-                Said($"{skill.Name} no longer works in {Breakable(folder)}. Nothing in it was changed.", bad: false);
+                Said($"{skill.Name} no longer works in {Breakable(folder)}. Nothing in it was changed; what {_name} changed there can be " +
+                     "undone here again only if you grant it again.", bad: false);
             });
         }
         Form.Button(Form.Buttons(this), "Grant a folder…", () => _pick($"A folder for {skill.Name} to work in", FileDialog.FileModeEnum.OpenDir, [],
@@ -193,21 +194,26 @@ public partial class SkillSettings : VBoxContainer
                         $"else of yours. What {_name} reads there goes to your AI provider with your conversation. A folder kept in sync " +
                         "(OneDrive, say) is fine; links inside one aren't followed, and hidden folders (.obsidian, .git) are left alone.");
 
-        Form.Subheading(this, $"What {_name} may do there");
-        AddChild(_permissions());
-        Form.Hint(this, "The same in every skill's folders. Moving and deleting ask first unless you allow them.");
-
         Form.Subheading(this, "Recent changes");
+        if (_said is not null && _saidByChanges)            // what Undo came to, where it was pressed
+            Reveal(Form.Result(this), _said, _saidBad);
         var changes = _notes.ChangesIn(granted).Take(Changes).ToList();
         foreach (var change in changes)
         {
             var row = Form.Buttons(this);
-            var said = Form.Hint(row, $"{Done(change)} · {When(change.At)}");
+            var said = Form.Hint(row, $"{Done(change, Where(change, granted))} · {When(change.At)}");
             said.CustomMinimumSize = new Vector2(200, 0);
             Form.Button(row, "Undo", () =>
             {
-                var (done, what) = _notes.Undo(change);
-                Said(what, bad: !done);
+                try
+                {
+                    var (done, what) = _notes.Undo(change);
+                    Said(what, bad: !done, byChanges: true);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    Said($"That couldn't be undone: {e.Message}", bad: true, byChanges: true);
+                }
             });
             if (_notes.Before(change) is { } before && File.Exists(before))
                 Form.Button(row, "Before", () => OS.ShellOpen(before));
@@ -215,20 +221,52 @@ public partial class SkillSettings : VBoxContainer
         Form.Hint(this, (changes.Count == 0 ? "Nothing yet. " : "") +
                         $"Before {_name} changes a note here, this app keeps it as it was, for {Notes.KeptFor.Days} days, so you can undo the change " +
                         $"(Before shows it). Undo puts a note back only if it is still as {_name} left it, so a change made since is never lost.");
+
+        Form.Subheading(this, $"What {_name} may do there");
+        AddChild(_permissions());
+        Form.Hint(this, "The same in every skill's folders. Moving and deleting ask first unless you allow them. A skill's own files " +
+                        "(its SKILL.md) are never changed through notes.");
         Form.Button(Form.Buttons(this), "All skills", () => Show(null));
     }
 
     /// <summary>Her changes listed on a skill's page, the newest first.</summary>
     private const int Changes = 20;
 
-    private static string Done(NoteChange change) => change.Kind switch
+    /// <summary>
+    /// The folder a change is in, as the page names it: its own name, or its whole path when two of the skill's folders
+    /// have that name (or the folder isn't granted to it now).
+    /// </summary>
+    private static string Where(NoteChange change, IReadOnlyList<string> granted)
     {
-        NoteChangeKind.Created => $"Made {change.Path}",
-        NoteChangeKind.Appended => $"Added to {change.Path}",
-        NoteChangeKind.Edited => $"Changed {change.Path}",
-        NoteChangeKind.Moved => $"Moved {change.Path} to {change.To}",
-        _ => $"Deleted {change.Path}",
+        var name = Path.GetFileName(change.Folder);
+        return granted.Count(f => string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(f)), name, StringComparison.OrdinalIgnoreCase)) == 1
+            ? name : Breakable(change.Folder);
+    }
+
+    private static string Done(NoteChange change, string folder) => change.Kind switch
+    {
+        NoteChangeKind.Created => $"Made {folder}/{change.Path}",
+        NoteChangeKind.Appended => $"Added to {folder}/{change.Path}",
+        NoteChangeKind.Edited => $"Changed {folder}/{change.Path}",
+        NoteChangeKind.Moved => $"Moved {folder}/{change.Path} to {change.To}",
+        _ => $"Deleted {folder}/{change.Path}",
     };
+
+    /// <summary>What came of an Undo, beside the changes, and the page scrolled to show it once laid out.</summary>
+    private async void Reveal(Label label, string text, bool bad)
+    {
+        Form.Say(label, text, bad ? Paper.Bad : Paper.Good);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        if (!IsInstanceValid(label))
+            return;
+        for (var at = label.GetParent(); at is not null; at = at.GetParent())
+            if (at is ScrollContainer scroll)
+            {
+                scroll.EnsureControlVisible(label);
+                return;
+            }
+    }
 
     private static string When(DateTimeOffset at)
     {
@@ -293,10 +331,11 @@ public partial class SkillSettings : VBoxContainer
     public void DevLink(string folder) => Link(folder);
 
     /// <summary>What came of something just done, shown at the top as the page is made again.</summary>
-    private void Said(string text, bool bad)
+    /// <param name="byChanges">Said by the recent changes (an Undo), not at the top.</param>
+    private void Said(string text, bool bad, bool byChanges = false)
     {
         GD.Print($"Skills: {text.Replace("\u200B", "")}");
-        (_said, _saidBad) = (text, bad);
+        (_said, _saidBad, _saidByChanges) = (text, bad, byChanges);
         Fill();
     }
 }

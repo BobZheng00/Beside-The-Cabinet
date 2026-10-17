@@ -44,13 +44,17 @@ public sealed class Notes
     /// <summary>The kinds of file she may write (and move or delete): text she can read back.</summary>
     public static readonly string[] Writable = [".md", ".markdown", ".txt", ".org", ".csv", ".json", ".yaml", ".yml", ".canvas"];
 
-    private const int Listed = 200, Results = 20, Walked = 5_000;
+    private const int Listed = 200, Results = 20;
+
+    /// <summary>The most notes searched in one folder (attachments and other files not counted), saying so when there are more.</summary>
+    public const int SearchLimit = 5_000;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     private readonly Skills _skills;
     private readonly string _kept;
     private readonly TimeProvider _clock;
     private List<NoteChange>? _changes;
+    private readonly object _gate = new();                 // her tools run off the game's thread; the page's Undo on it
 
     /// <param name="kept">Where what she changed is kept, in the app's profile.</param>
     public Notes(Skills skills, string kept, TimeProvider? clock = null)
@@ -75,6 +79,8 @@ public sealed class Notes
         var full = Trimmed(folder);
         if (!Directory.Exists(full))
             return "That folder isn't there.";
+        if (IsDrive(full))
+            return "A whole drive can't be granted: choose a folder on it.";
         if (Holds(full, Profile) || Holds(Profile, full))
             return "That folder holds this app's own files, so it can't be granted.";
         return GrantedTo(skill).Any(f => Same(Trimmed(f), full)) ? "That folder is granted already." : null;
@@ -87,11 +93,11 @@ public sealed class Notes
     public IReadOnlyList<(string Label, string Folder)> Reachable()
     {
         var all = new List<(string, string)>();
-        foreach (var folder in _skills.On().SelectMany(GrantedTo).Select(Trimmed).Where(f => !Holds(f, Profile) && !Holds(Profile, f)))
+        foreach (var folder in _skills.On().SelectMany(GrantedTo).Select(Trimmed).Where(f => !IsDrive(f) && !Holds(f, Profile) && !Holds(Profile, f)))
         {
             if (all.Any(a => Same(a.Item2, folder)))
                 continue;
-            var name = Path.GetFileName(folder) is { Length: > 0 } named ? named : folder.TrimEnd(':', '\\', '/');
+            var name = Path.GetFileName(folder);
             var label = name;
             for (var n = 2; all.Any(a => string.Equals(a.Item1, label, StringComparison.OrdinalIgnoreCase)); n++)
                 label = $"{name}-{n}";
@@ -153,11 +159,24 @@ public sealed class Notes
         if (reachable.Count == 0)
             return "No folders are granted to your skills now.";
         var hits = new List<(int Score, DateTime Changed, string Path, string[] Lines)>();
+        var (online, unsearched) = (0, new List<string>());
         foreach (var (label, folder) in reachable)
-            foreach (var file in Walk(new DirectoryInfo(folder)).Take(Walked))
+        {
+            var notes = Walk(new DirectoryInfo(folder)).Where(f => Writable.Contains(f.Extension, StringComparer.OrdinalIgnoreCase)).Take(SearchLimit + 1).ToList();
+            if (notes.Count > SearchLimit)
             {
-                if (!Writable.Contains(file.Extension, StringComparer.OrdinalIgnoreCase) || file.Length > Biggest)
+                unsearched.Add(label);
+                notes.RemoveAt(SearchLimit);
+            }
+            foreach (var file in notes)
+            {
+                if (file.Length > Biggest)
                     continue;
+                if (OnlineOnly(file.Attributes))
+                {
+                    online++;                               // reading it would download it, one by one: not for a search
+                    continue;
+                }
                 string text;
                 try
                 {
@@ -177,97 +196,123 @@ public sealed class Notes
                                 .Select(l => $"  {l.At}: {Prompt.Fit(l.Line.Trim(), 160)}").ToArray();
                 hits.Add((score, file.LastWriteTimeUtc, shown, lines));
             }
+        }
+        var passed = (online == 0 ? "" : $"\n{online} {(online == 1 ? "note is" : "notes are")} kept online only, so not searched (read_note reads one).")
+                   + (unsearched.Count == 0 ? "" : $"\nOnly the first {SearchLimit:N0} notes in {string.Join(", ", unsearched)} were searched.");
         if (hits.Count == 0)
-            return $"No notes have {string.Join(" or ", wanted)} in them.";
+            return $"No notes have {string.Join(" or ", wanted)} in them.{passed}";
         var best = hits.OrderByDescending(h => h.Score).ThenByDescending(h => h.Changed).Take(Results)
                        .Select(h => h.Lines.Length == 0 ? $"- {h.Path} (in its name)" : $"- {h.Path}\n{string.Join("\n", h.Lines)}");
         return Skills.Cut($"Notes with {string.Join(", ", wanted)}, the most of them first{(hits.Count > Results ? $" (the first {Results} of {hits.Count})" : "")}:\n" +
-                          string.Join("\n", best), "the results");
+                          string.Join("\n", best) + passed, "the results");
     }
+
+    /// <summary>
+    /// Whether a file is kept online only (OneDrive's or Dropbox's placeholder): offline, or read only by downloading it
+    /// (FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, or on open).
+    /// </summary>
+    public static bool OnlineOnly(FileAttributes attributes) =>
+        (attributes & (FileAttributes.Offline | (FileAttributes)0x400000 | (FileAttributes)0x40000)) != 0;
 
     /// <summary>A new note, with <paramref name="text"/> in it; refused where one is there already.</summary>
     public string Create(string path, string text)
     {
-        if (Writing(path, mustExist: false, out var why) is not { } found)
-            return why;
-        if (File.Exists(found.Full) || Directory.Exists(found.Full))
-            return $"There is a {Shown(found)} already: add to it or edit it instead.";
-        var bytes = Encoding.UTF8.GetBytes(Ended(text));
-        if (bytes.Length > Biggest)
-            return TooBig(found);
-        Directory.CreateDirectory(Path.GetDirectoryName(found.Full)!);
-        using (var stream = new FileStream(found.Full, FileMode.CreateNew, FileAccess.Write))
-            stream.Write(bytes);
-        Add(new NoteChange(NewId(), _clock.GetLocalNow(), NoteChangeKind.Created, found.Folder, found.Relative, null, Hash(bytes)));
-        return $"Made {Shown(found)}.";
+        lock (_gate)
+        {
+            if (Writing(path, mustExist: false, out var why) is not { } found)
+                return why;
+            if (File.Exists(found.Full) || Directory.Exists(found.Full))
+                return $"There is a {Shown(found)} already: add to it or edit it instead.";
+            var bytes = Encoding.UTF8.GetBytes(Ended(text));
+            if (bytes.Length > Biggest)
+                return TooBig(found);
+            Directory.CreateDirectory(Path.GetDirectoryName(found.Full)!);
+            using (var stream = new FileStream(found.Full, FileMode.CreateNew, FileAccess.Write))
+                stream.Write(bytes);
+            Add(new NoteChange(NewId(), _clock.GetLocalNow(), NoteChangeKind.Created, found.Folder, found.Relative, null, Hash(bytes)));
+            return $"Made {Shown(found)}.";
+        }
     }
 
     /// <summary>Adds <paramref name="text"/> at the end of a note, on a line of its own.</summary>
     public string Append(string path, string text)
     {
-        if (Writing(path, mustExist: true, out var why) is not { } found)
-            return why;
-        if (Text(found, out why) is not { } note)
-            return why;
-        var newline = note.Words.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";   // the note's own line endings
-        var added = Ended(text).Replace("\r\n", "\n").Replace("\n", newline);
-        var joined = note.Words.Length == 0 || note.Words.EndsWith('\n') ? note.Words + added : note.Words + newline + added;
-        return Write(found, note, joined, NoteChangeKind.Appended, $"Added to {Shown(found)}.");
+        lock (_gate)
+        {
+            if (Writing(path, mustExist: true, out var why) is not { } found)
+                return why;
+            if (Changeable(found, out why) is not { } note)
+                return why;
+            var newline = note.Words.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";   // the note's own line endings
+            var added = Ended(text).Replace("\r\n", "\n").Replace("\n", newline);
+            var joined = note.Words.Length == 0 || note.Words.EndsWith('\n') ? note.Words + added : note.Words + newline + added;
+            return Write(found, note, joined, NoteChangeKind.Appended, $"Added to {Shown(found)}.");
+        }
     }
 
     /// <summary>Replaces a passage of a note, one that is there exactly once, with <paramref name="with"/> (empty takes it out).</summary>
     public string Edit(string path, string passage, string with)
     {
-        if (Writing(path, mustExist: true, out var why) is not { } found)
-            return why;
-        if (Text(found, out why) is not { } note)
-            return why;
-        if (passage.Length == 0)
-            return "Give the passage to change, as the note has it.";
-        // the note's own line endings: she writes \n, a note made on Windows may have \r\n
-        var windows = note.Words.Contains("\r\n", StringComparison.Ordinal);
-        string Lines(string text) => windows ? text.Replace("\r\n", "\n").Replace("\n", "\r\n") : text;
-        var old = Occurrences(note.Words, passage) == 0 ? Lines(passage) : passage;
-        var replacement = Lines(with);
-        return Occurrences(note.Words, old) switch
+        lock (_gate)
         {
-            0 => $"{Shown(found)} doesn't have that passage: read it again and give the passage exactly as it is.",
-            1 => Write(found, note, note.Words.Replace(old, replacement, StringComparison.Ordinal), NoteChangeKind.Edited, $"Changed {Shown(found)}."),
-            var n => $"That passage is in {Shown(found)} {n} times: give more of it, so it is there only once.",
-        };
+            if (Writing(path, mustExist: true, out var why) is not { } found)
+                return why;
+            if (Changeable(found, out why) is not { } note)
+                return why;
+            if (passage.Length == 0)
+                return "Give the passage to change, as the note has it.";
+            // the note's own line endings: she writes \n, a note made on Windows may have \r\n
+            var windows = note.Words.Contains("\r\n", StringComparison.Ordinal);
+            string Lines(string text) => windows ? text.Replace("\r\n", "\n").Replace("\n", "\r\n") : text;
+            var old = Occurrences(note.Words, passage) == 0 ? Lines(passage) : passage;
+            var replacement = Lines(with);
+            return Occurrences(note.Words, old) switch
+            {
+                0 => $"{Shown(found)} doesn't have that passage: read it again and give the passage exactly as it is.",
+                1 => Write(found, note, note.Words.Replace(old, replacement, StringComparison.Ordinal), NoteChangeKind.Edited, $"Changed {Shown(found)}."),
+                var n => $"That passage is in {Shown(found)} {n} times: give more of it, so it is there only once.",
+            };
+        }
     }
 
     /// <summary>Moves or renames a note within its folder; refused where a note is there already.</summary>
     public string Move(string path, string to)
     {
-        if (Writing(path, mustExist: true, out var why) is not { } found)
-            return why;
-        if (Writing(to, mustExist: false, out why) is not { } into)
-            return why;
-        if (!Same(found.Folder, into.Folder))
-            return "A note can only be moved within its own folder.";
-        if (File.Exists(into.Full) || Directory.Exists(into.Full))
-            return $"There is a {Shown(into)} already.";
-        if (Text(found, out why) is not { } note)
-            return why;
-        var at = Keep(found, note.Bytes);
-        Directory.CreateDirectory(Path.GetDirectoryName(into.Full)!);
-        File.Move(found.Full, into.Full);
-        Add(new NoteChange(at, _clock.GetLocalNow(), NoteChangeKind.Moved, found.Folder, found.Relative, into.Relative, Hash(note.Bytes)));
-        return $"Moved {Shown(found)} to {Shown(into)}.";
+        lock (_gate)
+        {
+            if (Writing(path, mustExist: true, out var why) is not { } found)
+                return why;
+            if (Writing(to, mustExist: false, out why) is not { } into)
+                return why;
+            if (!Same(found.Folder, into.Folder))
+                return "A note can only be moved within its own folder.";
+            if (File.Exists(into.Full) || Directory.Exists(into.Full))
+                return $"There is a {Shown(into)} already.";
+            if (Text(found, out why) is not { } note)
+                return why;
+            var at = Keep(found, note.Bytes, () =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(into.Full)!);
+                File.Move(found.Full, into.Full);
+            });
+            Add(new NoteChange(at, _clock.GetLocalNow(), NoteChangeKind.Moved, found.Folder, found.Relative, into.Relative, Hash(note.Bytes)));
+            return $"Moved {Shown(found)} to {Shown(into)}.";
+        }
     }
 
     /// <summary>Deletes a note (kept in the app's profile, so the player can undo it).</summary>
     public string Delete(string path)
     {
-        if (Writing(path, mustExist: true, out var why) is not { } found)
-            return why;
-        if (Text(found, out why) is not { } note)
-            return why;
-        var at = Keep(found, note.Bytes);
-        File.Delete(found.Full);
-        Add(new NoteChange(at, _clock.GetLocalNow(), NoteChangeKind.Deleted, found.Folder, found.Relative, null, null));
-        return $"Deleted {Shown(found)}.";
+        lock (_gate)
+        {
+            if (Writing(path, mustExist: true, out var why) is not { } found)
+                return why;
+            if (Text(found, out why) is not { } note)
+                return why;
+            var at = Keep(found, note.Bytes, () => File.Delete(found.Full));
+            Add(new NoteChange(at, _clock.GetLocalNow(), NoteChangeKind.Deleted, found.Folder, found.Relative, null, null));
+            return $"Deleted {Shown(found)}.";
+        }
     }
 
     // ---- Undo ---------------------------------------------------------------------------------------------------------
@@ -275,8 +320,11 @@ public sealed class Notes
     /// <summary>Her changes still kept in <paramref name="folders"/>, the newest first.</summary>
     public IReadOnlyList<NoteChange> ChangesIn(IEnumerable<string> folders)
     {
-        var wanted = folders.Select(Trimmed).ToList();
-        return [.. Changes().Where(c => wanted.Any(f => Same(f, c.Folder))).OrderByDescending(c => c.At)];
+        lock (_gate)
+        {
+            var wanted = folders.Select(Trimmed).ToList();
+            return [.. Changes().Where(c => wanted.Any(f => Same(f, c.Folder))).OrderByDescending(c => c.At)];
+        }
     }
 
     /// <summary>The note as it was before <paramref name="change"/>, kept in the app's profile; null for a note she made.</summary>
@@ -288,6 +336,21 @@ public sealed class Notes
     /// </summary>
     public (bool Done, string Said) Undo(NoteChange change)
     {
+        lock (_gate)
+        {
+            try
+            {
+                return Undoing(change);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return (false, $"{change.To ?? change.Path} couldn't be undone: {e.Message} Nothing was changed; try again once it's free.");
+            }
+        }
+    }
+
+    private (bool Done, string Said) Undoing(NoteChange change)
+    {
         var name = change.To ?? change.Path;
         if (Within(change.Folder, change.Path, mustExist: false, out var why) is not { } at
             || (change.To is null ? at : Within(change.Folder, change.To, mustExist: false, out why)) is not { } now)
@@ -298,6 +361,8 @@ public sealed class Notes
                                          : $"{name} has changed since, so it was left as it is; the version from before is still kept.");
         if (change.Kind is NoteChangeKind.Deleted or NoteChangeKind.Moved && (File.Exists(at.Full) || Directory.Exists(at.Full)))
             return (false, $"There is a {change.Path} again since, so it was left as it is; the version from before is still kept.");
+        if (change.Kind is NoteChangeKind.Appended or NoteChangeKind.Edited or NoteChangeKind.Deleted && !File.Exists(Copy(change)))
+            return (false, $"The version of {change.Path} from before isn't kept any more, so nothing was undone.");
         switch (change.Kind)
         {
             case NoteChangeKind.Created:
@@ -356,7 +421,9 @@ public sealed class Notes
     /// <summary>
     /// <paramref name="relative"/> inside the granted <paramref name="folder"/>, if it stays there: no "..", nothing
     /// hidden (a name starting with a dot: .obsidian, .git), no link on the way (links aren't followed; a cloud-synced
-    /// folder isn't one, see <see cref="Skills.IsLink"/>), and, with <paramref name="mustExist"/>, there.
+    /// folder isn't one, see <see cref="Skills.IsLink"/>), and, with <paramref name="mustExist"/>, there. Each step that
+    /// is there is checked by its real name, as the folder lists it: a short name ("CLAUDE~1") reaches a hidden one
+    /// (".claude") otherwise.
     /// </summary>
     private static Found? Within(string folder, string relative, bool mustExist, out string why)
     {
@@ -369,7 +436,7 @@ public sealed class Notes
             why = $"{relative} would leave the folder: only what's inside it can be reached.";
             return null;
         }
-        if (parts.Any(p => p.StartsWith('.')) || relative.Contains(':'))
+        if (parts.Any(p => p.StartsWith('.') || p.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0))
         {
             why = $"{relative} is hidden, or isn't a plain path: only the folder's own notes can be reached.";
             return null;
@@ -380,31 +447,46 @@ public sealed class Notes
             return null;
         }
         var full = Path.GetFullPath(Path.Combine([root, .. parts]));
-        if (!Same(full, root) && !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (!Same(full, root) && !Holds(root, full))
         {
             why = $"{relative} would leave the folder: only what's inside it can be reached.";
             return null;
         }
-        var shown = string.Join('/', parts);
+        var real = new List<string>();                      // the steps by their real names, as the folder lists them
         var step = root;
-        foreach (var part in full.Length > root.Length ? full[(root.Length + 1)..].Split(Path.DirectorySeparatorChar) : [])
+        var steps = Same(full, root) ? [] : Path.GetRelativePath(root, full).Split(Path.DirectorySeparatorChar);
+        for (var i = 0; i < steps.Length; i++)
         {
-            step = Path.Combine(step, part);
-            FileSystemInfo info = Directory.Exists(step) ? new DirectoryInfo(step) : new FileInfo(step);
-            if (!info.Exists)
+            var info = new DirectoryInfo(step).EnumerateFileSystemInfos(steps[i]).FirstOrDefault();
+            if (info is null && Path.Exists(Path.Combine(step, steps[i])))
+            {
+                why = $"{relative} isn't a plain path (a short name, say): only the folder's own notes can be reached, by their names.";
+                return null;
+            }
+            if (info is null)
             {
                 if (!mustExist)
-                    break;                                  // the rest is to be made
-                why = $"There is no {label}/{shown}.";
+                {
+                    real.AddRange(steps[i..]);              // the rest is to be made
+                    break;
+                }
+                why = $"There is no {label}/{string.Join('/', parts)}.";
+                return null;
+            }
+            if (info.Name.StartsWith('.'))
+            {
+                why = $"{relative} is hidden: only the folder's own notes can be reached.";
                 return null;
             }
             if (Skills.IsLink(info))
             {
-                why = $"{label}/{shown} goes through a link, and links aren't followed: only the folder's own notes can be reached.";
+                why = $"{label}/{string.Join('/', parts)} goes through a link, and links aren't followed: only the folder's own notes can be reached.";
                 return null;
             }
+            real.Add(info.Name);
+            step = info.FullName;
         }
-        return new Found(label, root, shown, full);
+        return new Found(label, root, string.Join('/', real), real.Count == 0 ? root : Path.Combine([root, .. real]));
     }
 
     /// <summary>A note that is there, by her path.</summary>
@@ -436,16 +518,46 @@ public sealed class Notes
             why = $"Only text notes ({string.Join(", ", Writable)}) can be written, so {Shown(found)} can't.";
             return null;
         }
+        // a skill's instructions change only as the player approves (docs/specs/2026-10-15-skills.md, step 3), never through these
+        if (_skills.Linked.Prepend(_skills.Own).Any(s => Holds(Trimmed(s), found.Full)))
+        {
+            why = $"{Shown(found)} is in a skills folder: skills aren't changed through notes.";
+            return null;
+        }
         return found;
     }
 
-    /// <summary>A note's text as read: its bytes, its words, and whether it starts with a byte-order mark.</summary>
-    private sealed record Content(byte[] Bytes, string Words, bool Marked);
+    /// <summary>
+    /// A note's text as read: its bytes, its words, whether it starts with a byte-order mark, and whether it is UTF-8
+    /// (a note in another encoding reads with stand-ins for what isn't, and is never written back).
+    /// </summary>
+    private sealed record Content(byte[] Bytes, string Words, bool Marked, bool Utf8);
+
+    private static readonly UTF8Encoding Strict = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     private static Content Decode(byte[] bytes)
     {
         var marked = bytes.AsSpan().StartsWith((byte[])[0xEF, 0xBB, 0xBF]);
-        return new(bytes, Encoding.UTF8.GetString(bytes, marked ? 3 : 0, bytes.Length - (marked ? 3 : 0)), marked);
+        var (start, length) = (marked ? 3 : 0, bytes.Length - (marked ? 3 : 0));
+        try
+        {
+            return new(bytes, Strict.GetString(bytes, start, length), marked, Utf8: true);
+        }
+        catch (DecoderFallbackException)
+        {
+            return new(bytes, Encoding.UTF8.GetString(bytes, start, length), marked, Utf8: false);
+        }
+    }
+
+    /// <summary>A note's text to change: one in UTF-8 only, so writing it back loses nothing.</summary>
+    private static Content? Changeable(Found found, out string why)
+    {
+        if (Text(found, out why) is not { } note)
+            return null;
+        if (note.Utf8)
+            return note;
+        why = $"{Shown(found)} isn't in UTF-8, so it can't be changed without spoiling some of it: it can only be read.";
+        return null;
     }
 
     /// <summary>A note's text, if it is text and not too big.</summary>
@@ -474,18 +586,30 @@ public sealed class Notes
         var bytes = (note.Marked ? Encoding.UTF8.GetPreamble() : []).Concat(Encoding.UTF8.GetBytes(text)).ToArray();
         if (bytes.Length > Biggest)
             return TooBig(found);
-        var id = Keep(found, note.Bytes);
-        File.WriteAllBytes(found.Full, bytes);
+        var id = Keep(found, note.Bytes, () => File.WriteAllBytes(found.Full, bytes));
         Add(new NoteChange(id, _clock.GetLocalNow(), kind, found.Folder, found.Relative, null, Hash(bytes)));
         return said;
     }
 
-    /// <summary>Keeps the note as it is now in the app's profile, before she changes it; returns the change's id.</summary>
-    private string Keep(Found found, byte[] bytes)
+    /// <summary>
+    /// Keeps the note as it is now in the app's profile, then makes her <paramref name="change"/>; returns the change's
+    /// id. A change that fails (a note locked or read-only) takes the copy away again and says why.
+    /// </summary>
+    private string Keep(Found found, byte[] bytes, Action change)
     {
         var id = NewId();
+        var copy = Path.Combine(_kept, id + Path.GetExtension(found.Full));
         Directory.CreateDirectory(_kept);
-        File.WriteAllBytes(Path.Combine(_kept, id + Path.GetExtension(found.Full)), bytes);
+        File.WriteAllBytes(copy, bytes);
+        try
+        {
+            change();
+        }
+        catch
+        {
+            File.Delete(copy);
+            throw;
+        }
         return id;
     }
 
@@ -500,6 +624,7 @@ public sealed class Notes
     /// <summary>Her changes kept, those older than <see cref="KeptFor"/> pruned (with their copies).</summary>
     private List<NoteChange> Changes()
     {
+        var loading = _changes is null;
         if (_changes is null)
         {
             try
@@ -516,7 +641,27 @@ public sealed class Notes
             Forget(change, save: false);
         if (old.Count > 0)
             Save();
+        if (loading || old.Count > 0)
+            Sweep();
         return _changes;
+    }
+
+    /// <summary>Takes away copies older than <see cref="KeptFor"/> that no change names: the app stopped before recording one.</summary>
+    private void Sweep()
+    {
+        if (!Directory.Exists(_kept))
+            return;
+        var named = _changes!.Select(c => c.Id).ToHashSet();
+        foreach (var copy in Directory.EnumerateFiles(_kept).Where(f => !Path.GetFileName(f).StartsWith("changes.json", StringComparison.Ordinal)))
+            if (!named.Contains(Path.GetFileNameWithoutExtension(copy)) && _clock.GetUtcNow() - File.GetLastWriteTimeUtc(copy) > KeptFor)
+                try
+                {
+                    File.Delete(copy);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // open elsewhere: next time
+                }
     }
 
     private void Add(NoteChange change)
@@ -586,6 +731,9 @@ public sealed class Notes
     private static string Trimmed(string folder) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether a folder is a whole drive (D:\, or a network share's root).</summary>
+    private static bool IsDrive(string folder) => Path.GetPathRoot(folder) is { } root && Same(Trimmed(root), folder);
 
     /// <summary>Whether <paramref name="outer"/> is <paramref name="inner"/> or holds it.</summary>
     private static bool Holds(string outer, string inner) =>

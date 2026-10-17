@@ -2264,6 +2264,10 @@ public partial class Stool : Node2D
                 File.WriteAllText(Path.Combine(SeededNotes(), "today.md"), "# Today\n- Woke up early.\n");
                 GD.Print($"Notes: seeded {SeededNotes()}");
                 break;
+            case "noteplayer":                              // noteplayer:a_line: the player adds that line to the seeded today.md, as another app would
+                File.AppendAllText(Path.Combine(SeededNotes(), "today.md"), text + "\n");
+                GD.Print("Notes: the player wrote in today.md");
+                break;
             case "notetail":                                // notetail:today.md logs the last line of that note in the seeded folder
                 var tail = File.ReadAllLines(Path.Combine(SeededNotes(), rest.Length > 0 ? rest : "today.md")).LastOrDefault(l => l.Trim().Length > 0);
                 GD.Print($"Notes: {(rest.Length > 0 ? rest : "today.md")} ends: {tail}");
