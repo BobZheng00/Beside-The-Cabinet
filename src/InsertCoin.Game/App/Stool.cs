@@ -2246,7 +2246,17 @@ public partial class Stool : Node2D
                     _memoryBook?.ShowTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
-            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Close
+            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Close
+            case "lineswap":                                // lineswap:words: the newest line taken back and the player's words kept under its number, at once
+            case "lineclear":                               // lineclear:words: the chat cleared and the player's words kept, at once
+                if (OnStool() is not { } seated)
+                    break;
+                if (name == "lineclear")
+                    _chat.Store.ForgetConversation(seated.Id);
+                else if (_chat.Store.Through(seated.Id, long.MaxValue, 1) is [var newest])
+                    _chat.Store.RemoveLine(newest.Id);
+                GD.Print($"Chat: line {_chat.Store.Add(seated.Id, Speaker.User, text, DateTimeOffset.Now)} kept after a {name}");
+                break;
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
             case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Close presses that button in the memory book
             case "memorybooktype" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var typed]:   // memorybooktype:words:new_words types in that field, not leaving it

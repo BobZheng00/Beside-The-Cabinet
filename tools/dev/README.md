@@ -50,7 +50,7 @@ item with those words is cancelled under the open book, as upkeep might), `ticke
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
-`chathistorydo:Below` presses "New lines below"; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
+`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's

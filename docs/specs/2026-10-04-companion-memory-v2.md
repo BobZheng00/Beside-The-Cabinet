@@ -252,3 +252,21 @@ list's × stays one click); only Close is left.
   retired facts, diary, memos and the two notes, except a field the player has changed and not left.
 - The line beside Close says what was saved last, and when, after how many changes wait for the player to choose.
 
+### 13. The chat history leaves out what the app tells her (decided 2026-10-14, built)
+
+Some cabinet lines are the app's instructions to her rather than what happened: the note of a reminder going off,
+the bedtime ask, a check-in, a memo to think over (every turn the cabinet starts, `Conversation.Announce`), a refused
+agenda change ("Your [cancel: #99] didn't go through: … Tell the player briefly"), the note that the player cut her
+off. The player read them in the chat history as if part of the talk (issue #20). The user (2026-10-14): off by
+default, with a toggle for players who know how AI agents work and want to look.
+*Built 2026-10-17* (`Line.Instruction`, tests):
+- **Marked where they are written**, not told apart by their words: a column on the line (store version 17). They
+  reach her exactly as before; only the chat history reads the mark. What happened at the cabinet (a solve, a game
+  started, her tools' records, texting begun) is not an instruction and still shows.
+- **Chat history** has "Show what the app tells <name>", off by default and remembered (a mark in the store). Ticked,
+  each such line shows in a box of its own, marked "App to <name>". Hidden lines never count as "New lines below";
+  it reads on from the newest line shown, so a number a hidden line leaves free when taken back is the next line's,
+  and a stretch of only hidden lines is read past (never "Nothing yet." above "Show earlier"). After the chat is
+  cleared while it is open, it is read afresh (#73).
+- Lines from before the mark existed can't be told apart and always show.
+
