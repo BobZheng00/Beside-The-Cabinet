@@ -80,11 +80,21 @@ public class AgendaTests
         Assert.Equal("12 | - | - | - | weekly and no reminder", Plain(Agenda.ParseChange("#12 | weekly and no reminder", Friday)));
         Assert.Equal("12 | - | - | - | weekly; stop repeating", Plain(Agenda.ParseChange("#12 | weekly; stop repeating", Friday)));
         Assert.Equal("12 | - | - | - | every other day", Plain(Agenda.ParseChange("#12 | every other day", Friday)));
-        Assert.Equal("12 | - | - | - | an hour and a half before", Plain(Agenda.ParseChange("#12 | an hour and a half before", Friday)));
-        // what it can do, in the words she may use for it
+        Assert.Equal("12 | - | - | - | half a day before", Plain(Agenda.ParseChange("#12 | half a day before", Friday)));
+        Assert.Equal("12 | - | - | - | 1.5 hours before", Plain(Agenda.ParseChange("#12 | 1.5 hours before", Friday)));
+        Assert.Equal("12 | - | - | - | 1 hour before每周", Plain(Agenda.ParseChange("#12 | 1 hour before每周", Friday)));
+        // what it can do, in the words she may use for it, applied as read
         foreach (var options in new[] { "10 min before", "weekdays", "Monday to Friday", "at the time", "on weekdays", "every week",
-                                        "half an hour before、weekly", "a reminder 1 hour before and daily", "remind me；every day", "each weekday" })
+                                        "half an hour before、weekly", "a reminder 1 hour before and daily", "remind me；every day", "each weekday",
+                                        "weekly,1 hour before", "daily,30 min before", "10 minutes beforehand", "a reminder of 30 min before",
+                                        "1 hour 30 min before", "1 day and 2 hours before", "an hour and a half before" })
+        {
             Assert.Equal($"12 | - | {options} | - | -", Plain(Agenda.ParseChange($"#12 | {options}", Friday)));
+            var pieces = options.Split([',', '、', '；']).Select(p => Agenda.ParseOptions(p)).ToList();
+            var applied = Agenda.ParseOptions(options);
+            Assert.Equal(pieces.Select(p => p.Before).FirstOrDefault(b => b is not null), applied.Before);
+            Assert.Equal(pieces.Select(p => p.Repeat).FirstOrDefault(r => r != Repeat.Once), applied.Repeat);
+        }
 
         static string? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread, string? Unable)? c) =>
             c is { } x ? $"{x.Id} | {x.When?.At.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-"} | {x.Options ?? "-"} | {x.Unread ?? "-"} | {x.Unable ?? "-"}" : null;

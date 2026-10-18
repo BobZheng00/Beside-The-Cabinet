@@ -101,13 +101,18 @@ public static partial class Agenda
         TimeSpan? before = null;
         if (BeforeWords().Match(text) is { Success: true } m)
         {
-            var count = m.Groups["n"].Value is "a" or "an" ? 1 : int.Parse(m.Groups["n"].Value, English);
-            before = m.Groups["unit"].Value[0] switch
+            // a lead in parts ("1 hour 30 min before", "1 day and 2 hours before") is their sum
+            before = TimeSpan.Zero;
+            for (var i = 0; i < m.Groups["n"].Captures.Count; i++)
             {
-                'm' => TimeSpan.FromMinutes(count),
-                'h' => TimeSpan.FromHours(count),
-                _ => TimeSpan.FromDays(count),
-            };
+                var count = m.Groups["n"].Captures[i].Value is "a" or "an" ? 1 : int.Parse(m.Groups["n"].Captures[i].Value, English);
+                before += m.Groups["unit"].Captures[i].Value[0] switch
+                {
+                    'm' => TimeSpan.FromMinutes(count),
+                    'h' => TimeSpan.FromHours(count),
+                    _ => TimeSpan.FromDays(count),
+                };
+            }
         }
         else if (AtTheTime().IsMatch(text))
             before = TimeSpan.Zero;
@@ -129,7 +134,7 @@ public static partial class Agenda
         List<string> options = [], unread = [], unable = [];
         foreach (var part in parts.Skip(1).Select(p => p.Trim()).Where(p => p.Length > 0))
         {
-            var pieces = part.Split([',', ';', '，', '、', '；']).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+            var pieces = Pieces(part);
             if (when is null && ParseWhen(part, now, zone) is { } at)
                 when = at;
             else if (pieces.Any(SaysWhen))
@@ -139,7 +144,13 @@ public static partial class Agenda
             else
                 options.Add(part);
         }
+        // what is applied is the options read together (see ParseOptions): never one that loses what a piece of them said
+        var together = ParseOptions(Joined(options, ", "));
+        if (options.SelectMany(Pieces).Select(p => ParseOptions(p))
+                   .Any(p => p.Before is not null && together.Before is null || p.Repeat != Repeat.Once && together.Repeat == Repeat.Once))
+            (unable, options) = ([.. unable, .. options], []);
         static string? Joined(List<string> list, string by) => list.Count > 0 ? string.Join(by, list) : null;
+        static List<string> Pieces(string part) => [.. part.Split([',', ';', '，', '、', '；']).Select(p => p.Trim()).Where(p => p.Length > 0)];
         return (id, when, Joined(options, ", "), Joined(unread, " | "), Joined(unable, " | "));
     }
 
@@ -156,9 +167,13 @@ public static partial class Agenda
     }
 
     /// <summary>Options in lower case, with the leads <see cref="BeforeWords"/> doesn't read ("half an hour before") put as it does.</summary>
-    private static string Plainer(string options) =>
-        HalfAnHour().Replace(QuarterOfAnHour().Replace(options.ToLowerInvariant(), "15 min"), "30 min")
-                    .Replace("the day before", "1 day before").Replace("the night before", "1 day before");
+    private static string Plainer(string options)
+    {
+        var text = AndAHalf().Replace(options.ToLowerInvariant(), m =>
+            $"{(2 * (m.Groups["n"].Value is "a" or "an" or "one" ? 1 : int.Parse(m.Groups["n"].Value, English)) + 1) * (m.Groups["unit"].Value[0] == 'h' ? 30 : 720)} min");
+        text = QuarterOfAnHour().Replace(ThreeQuartersOfAnHour().Replace(text, "45 min"), "15 min");
+        return HalfAnHour().Replace(text, "30 min").Replace("the day before", "1 day before").Replace("the night before", "1 day before");
+    }
 
     /// <summary>
     /// A direction's payload, "2026-10-09 15:00 | the dentist" with optional "| 30 min before, weekly": what to put on
@@ -350,16 +365,22 @@ public static partial class Agenda
     private static partial Regex WeeklyWord();
     [GeneratedRegex(@"\bmonthly\b|\bevery\s+month\b|\beach\s+month\b")]
     private static partial Regex MonthlyWord();
-    // a whole number on its own: never the end of "1.5 hours", "half a day" ("a day") or "three quarters of an hour"
-    [GeneratedRegex(@"(?<![\d.,]|\b(half|quarters?|of)[\s-]+)\b(?<n>\d{1,4}|an?)\s*(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)\s*(before|early|ahead|earlier)\b")]
+    // whole amounts, one or more ("1 hour 30 min", "1 day and 2 hours"), never read from the end of a longer number
+    // ("1.5 hours", "99999 min") or of a fraction ("half a day", "a quarter of a day"); Chinese may touch it either side
+    [GeneratedRegex(@"(?<![a-z\d]|\d[.,]|\b(half|quarters?(\s+of)?)[\s-]+)((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z])" +
+                    @"(\s+(and\s+)?((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z]))*\s*(before(hand)?|early|ahead|earlier)(?![a-z])")]
     private static partial Regex BeforeWords();
+    [GeneratedRegex(@"\b(?<n>\d{1,3}|an?|one)\s+((?<unit>hours?|days?)\s+and\s+a\s+half|and\s+a\s+half\s+(?<unit>hours?|days?))\b")]
+    private static partial Regex AndAHalf();
+    [GeneratedRegex(@"\bthree[\s-]+quarters?[\s-]+(of\s+)?(an\s+)?hour\b")]
+    private static partial Regex ThreeQuartersOfAnHour();
     [GeneratedRegex(@"\b(a\s+)?half[\s-]+(an\s+)?hour\b")]
     private static partial Regex HalfAnHour();
     [GeneratedRegex(@"\b(a\s+)?quarter[\s-]+(of\s+)?(an\s+)?hour\b")]
     private static partial Regex QuarterOfAnHour();
-    // words around options that change nothing ("a reminder 10 min before and weekly", "on weekdays"); "every" and
+    // words around options that change nothing ("a reminder of 10 min before and weekly", "on weekdays"); "every" and
     // "each" only where what follows them is read: "every Monday" still leaves "monday"
-    [GeneratedRegex(@"\b(and|also|then|with|me|a|reminder|on|every|each|repeats?|repeating|it)\b")]
+    [GeneratedRegex(@"\b(and|also|then|with|me|a|of|reminder|on|every|each|repeats?|repeating|it)\b")]
     private static partial Regex Filler();
     [GeneratedRegex(@"\bat\s+the\s+time\b|\bon\s+time\b|\bremind\b")]
     private static partial Regex AtTheTime();
