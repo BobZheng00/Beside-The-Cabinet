@@ -8,12 +8,12 @@ marquee keeps it too). Building, running and testing it: [src/README.md](../src/
 ## The cabinet, Settings and the first run
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu, and a
-right-click on the cabinet or on your companion opens the same menu where you click: the cabinet, Settings…, Getting
-started… (until it is done), the memory book and chat history, a memo of your own, a LeetCode check, and the switches
-flipped often (Mute sounds, Voice, Conversation). A click on the cabinet's screen
-opens its small system: apps on a home screen, four to a page (swipe between pages; hold one to move it), SETTINGS
-last, which opens Settings as the tray does; along its top bar the same three switches, lit when on, a click flipping
-one (the pointer over one shows its name in place of the time). Settings is one window with a page
+right-click on the cabinet or on your companion opens one just like it where you click (and they go on talking and
+moving while it is open): the cabinet, Settings…, Getting started… (until it is done), the memory book and chat
+history, a memo of your own, a LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). A
+click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
+one to move it), SETTINGS last, which opens Settings as the tray does; along its top bar the same three switches, lit
+when on, a click flipping one (the pointer over one shows its name in place of the time). Settings is one window with a page
 for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
 Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.

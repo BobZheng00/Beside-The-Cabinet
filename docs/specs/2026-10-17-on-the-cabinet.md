@@ -72,8 +72,10 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
 Each step is usable on its own.
 
 1. **The right-click menu** on her and the cabinet: the tray's menu, built once and shown in both places, at the pointer.
-   *Built (#68):* the tray's one `PopupMenu`, opened at the pointer when the cabinet window gets a right click (it
-   only does on her or the cabinet: everywhere else clicks pass through); dev actions `menu` and `menupress:`.
+   *Built (#68):* opened at the pointer when the cabinet window gets a right click (it only does on her or the
+   cabinet: everywhere else clicks pass through); dev actions `menu` and `menupress:`. It is a second `PopupMenu`
+   made by the same code as the tray's and kept in step with it, drawn by the app: Windows' own menu, which the tray
+   shows, holds the app still while it is open, and the user wanted her voice and motion to carry on (2026-10-18).
 2. **The CRT:** the SETTINGS app, and the quick-switch row on the home screen.
 3. **Settings → Memory:** the page with "Open the memory book…" and "Open Chat history…".
 

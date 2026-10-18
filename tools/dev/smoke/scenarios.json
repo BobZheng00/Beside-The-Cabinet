@@ -44,7 +44,7 @@
     },
     {
       "name": "menu",
-      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice flipped off there shows on Settings → Voice, and ticked again on that page shows in the tray (the same menu: the only tray line, at the end, with Voice on); its Settings… opens Settings.",
+      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice flipped off there shows on Settings → Voice, and ticked again on that page shows in the tray (the two menus kept in step: the only tray line, at the end, with Voice on); its Settings… opens Settings.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],
       "script": "menu@3,menupress:Voice@4,menu@5,menupress:Settings@6,settings:voice@7,settingsdo:Shino_speaks_aloud@10,trayitems@11",
       "shots": [11, 17],

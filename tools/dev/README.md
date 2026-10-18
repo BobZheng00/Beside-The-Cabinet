@@ -29,7 +29,7 @@ bubble clicked), `nocall` (another app's microphone doesn't count as a call), `s
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `hum` (a tune in their
 head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
-were right-clicked at the window's middle: the menu, the tray's own; a test run never shows it, as it would take focus,
+were right-clicked at the window's middle: the menu with the tray's entries; a test run never shows it, as it would take focus,
 and logs `Menu: at x,y:` and its entries instead, a switch with `[x]` when on and `[ ]` when off), `menupress:Voice`
 (presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
 `menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
