@@ -11,9 +11,9 @@ The user, 2026-10-18: "allow user to use chatgpt subscription to power the LLM c
 pay for ChatGPT Plus or Pro and have neither.
 
 OpenAI made this possible at DevDay (29 September 2026): **Sign in with ChatGPT** with **plan usage** lets a
-participating app run AI requests on the player's ChatGPT plan. At launch it is open to open-source projects and
-personal projects that run locally, self-serve; paid or hosted apps join a waitlist. This app is open source and runs
-locally, so the GitHub builds qualify now.
+participating app run AI requests on the player's ChatGPT plan. At launch it is self-serve for open-source and locally
+hosted apps; paid or hosted apps go through an interest form. This app is open source and runs locally, so the GitHub
+builds qualify now.
 
 ## What OpenAI offers (as read on 2026-10-18)
 
@@ -23,8 +23,8 @@ locally, so the GitHub builds qualify now.
   Scopes: `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, resource
   `https://api.openai.com/v1`. Plan usage is a separate consent from signing in: the session can use the plan only if
   that scope was granted.
-- **Tokens:** an access token for an hour, a refresh token for 30 days, replaced on each refresh. A player who
-  disconnects the app in ChatGPT is not announced: the next request or refresh fails.
+- **Tokens** (OpenAI's Token reference): an access token for an hour, a refresh token for 30 days, replaced on each
+  refresh. A player who disconnects the app in ChatGPT is not announced: the next request or refresh fails.
 - **Requests:** `POST https://api.openai.com/v1/responses` with the access token as a bearer token; `stream: true` and
   `store: false` on every request, the whole context sent each time. System message items are refused: `instructions`
   or developer messages instead. No `temperature`, `top_p`, `max_output_tokens`, `previous_response_id`,
@@ -34,13 +34,18 @@ locally, so the GitHub builds qualify now.
 - **Models:** `GET /v1/models` with the same token; those with `visibility == "list"`, by `slug`, shown by
   `display_name`. The list depends on the account.
 - **Limits:** the player sets a weekly cap for each app in ChatGPT's settings (a share of their weekly usage); Plus
-  also has a five-hour limit shared by every app; nothing is reserved. When a limit is reached a request fails (HTTP 429
-  `subscription_sharing_usage_limit_exceeded` or `…_usage_unavailable`, possibly as `response.failed` mid-stream);
-  OpenAI never switches to other billing. An account that isn't eligible gets 403
-  `subscription_sharing_user_not_eligible`; a disconnected one 401 `subscription_sharing_invalid_user` or
-  `invalid_grant` on refresh.
-- **What the app must show:** a "Continue with ChatGPT" button; "Connected" once signed in; "Using ChatGPT plan" near
-  the model; a **Manage usage** action that opens ChatGPT's Settings → Usage, the main action in a limit message.
+  also has a five-hour limit shared by every app; nothing is reserved (these three from the DEV Community article; no
+  OpenAI page read says them). OpenAI never switches to other billing.
+- **Errors** (OpenAI's Errors and recovery):
+  - a limit reached: HTTP 429 `subscription_sharing_usage_limit_exceeded`, possibly as `response.failed` mid-stream;
+    no reset time may be inferred from it;
+  - usage availability couldn't be checked: HTTP 503 `subscription_sharing_usage_unavailable`, a passing error: keep
+    the sign-in and retry later with bounded backoff. It is **not** a limit reached;
+  - an account that isn't eligible: 403 `subscription_sharing_user_not_eligible`;
+  - a disconnected one: 401 `subscription_sharing_invalid_user`, or `invalid_grant` on refresh.
+- **What OpenAI's guidelines ask the app to show** (its UI/UX guidelines; the cookbook's sample app): a "Continue with
+  ChatGPT" button; "Connected" once signed in; "Using ChatGPT plan" near the model; a **Manage usage** action that
+  opens ChatGPT's usage settings (https://chatgpt.com/settings/usage), the main action in a limit message.
 
 ## What it does
 
@@ -60,6 +65,9 @@ locally, so the GitHub builds qualify now.
     tune) and returns as soon as it answers, saying so once. The next time the plan runs out, she asks again.
 - **Signed out** (a disconnect, an expired refresh, an account no longer eligible) is told the same plain way, with
   **Continue with ChatGPT** to sign in again; the backup rule above applies.
+- **A passing error** (503 `subscription_sharing_usage_unavailable`, or the network) is not a limit: she keeps the
+  sign-in and retries with backoff, as she does today when a provider doesn't answer; it never brings the backup's
+  question.
 - **Getting started**'s step for her mind offers **Continue with ChatGPT** first ("if you have ChatGPT Plus or Pro"),
   and "Use an API key or a local model" as the other way.
 
@@ -86,8 +94,8 @@ locally, so the GitHub builds qualify now.
 
 ## Not built, and why
 
-- **Claude, Gemini or other subscriptions:** Anthropic stopped third-party use of Claude subscriptions in February
-  2026; others offer nothing like this yet. Revisit if they do.
+- **Claude, Gemini or other subscriptions:** Anthropic stopped third-party use of Claude subscriptions in April 2026
+  (The Register, 6 April 2026, via explainx); others offer nothing like this yet. Revisit if they do.
 - **Switching to the backup without asking:** the user chose to be asked, so a paid key never runs up a bill unseen.
 - **Thinner upkeep on the plan:** the user chose everything on the plan; the weekly cap is the player's own control.
 
@@ -95,7 +103,8 @@ locally, so the GitHub builds qualify now.
 
 - **Asking when the player is away:** the card waits at the PC; whether the question also goes by text (Telegram's
   buttons) when they're away, or waits until they're back (to start: it waits; reminders still go out plainly).
-- **How often to try the plan again** (15 minutes to start), and whether a reset time comes with the limit error.
+- **How often to try the plan again** (15 minutes to start): OpenAI says not to infer a reset time from the limit
+  error, so she tries rather than waits for a time.
 - **The model to suggest first** from the account's list, and whether upkeep should use a lighter one from the same
   list to spend less of the plan.
 - **Prompt caching** on plan requests: OpenAI's docs don't say; measure on the user's plan.
@@ -119,6 +128,9 @@ Each step is usable on its own.
 - [Sign in with ChatGPT: quickstart (OpenAI)](https://developers.openai.com/siwc/quickstart)
 - [Models and inference (OpenAI)](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)
 - [Preview limitations (OpenAI)](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+- [Token reference (OpenAI)](https://developers.openai.com/siwc/token-sharing-open-source/token-reference)
+- [Errors and recovery (OpenAI)](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery)
+- [UI/UX guidelines (OpenAI)](https://developers.openai.com/siwc/ui-ux-guidelines)
 - [Sign in with ChatGPT for developers: the OAuth flow, plan usage, and what it means for your API bill (DEV Community)](https://dev.to/hassann/sign-in-with-chatgpt-for-developers-the-oauth-flow-plan-usage-and-what-it-means-for-your-api-bill-48f7)
 - [OpenAI expands ChatGPT with apps and third-party sign-in (The Star)](https://www.thestar.com.my/tech/tech-news/2026/10/04/openai-expands-chatgpt-with-apps-and-third-party-sign-in)
 - [OpenClaw meets ChatGPT Plus: OpenAI's subscription path (explainx)](https://explainx.ai/blog/openclaw-chatgpt-plus-pro-openai-anthropic-subscription-2026), on Anthropic's change of February 2026
