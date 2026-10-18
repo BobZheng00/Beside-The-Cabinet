@@ -126,6 +126,18 @@
       "expect": ["^Chat history: \\d new lines? shown, at the end", "^Chat history: \\d+ in mind for line", "^Chat history: \\d new lines? shown, below the player's place"]
     },
     {
+      "name": "chathistory-hidden",
+      "about": "Chat history leaves out what the app tells the companion (here a refused agenda change after each reply) and still follows the talk: a line the player says under the number of a hidden line taken back comes in, and after the chat is cleared with a line said at once, the history shows that line, not a blank window.",
+      "covers": ["src/InsertCoin.Game/App/ChatHistory.cs", "src/InsertCoin.Mind/MindStore.cs", "src/InsertCoin.Mind/Conversation.cs"],
+      "mind": true,
+      "mindReply": "[cancel: #99] Sure, I can do that.",
+      "mindRequests": 1,
+      "script": "nocall@1,memoryseed@1,chathistory@2,chat:hello_there@3,lineswap:said_where_a_hidden_line_was@8,lineclear:said_right_after_a_clear@13",
+      "shots": [7, 11, 17],
+      "window": "Chat with",
+      "expect": ["^Chat history: 2 new lines shown, at the end", "^Chat: line \\d+ kept after a lineswap", "^Chat history: 1 new line shown, at the end", "^Chat history: shown afresh"]
+    },
+    {
       "name": "crt",
       "about": "The CRT's small system opens, then its MEMOS app.",
       "covers": ["src/InsertCoin.Game/App/Crt/*", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/Cabinet/screen_quad.gdshader"],

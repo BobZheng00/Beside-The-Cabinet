@@ -25,7 +25,10 @@ public partial class ChatHistory : Window
     private VBoxContainer _lines = null!;
     private ScrollContainer _scroll = null!;
     private Button _earlier = null!, _below = null!;
-    private long _oldestShown = long.MaxValue, _newestShown;
+    private long _oldestRead = long.MaxValue;           // the oldest line read, shown or not: "Show earlier" goes on from there
+    // the newest line read while none is shown (an empty history, or only what the app told her): new lines are read from
+    // there, and if it is taken back or cleared, the history is read afresh
+    private Line? _newestRead;
     private DateOnly? _topDay;
     private Label? _topHeading;                         // the heading of the oldest day shown
     private Label? _empty;                              // "Nothing yet."
@@ -66,7 +69,7 @@ public partial class ChatHistory : Window
             _store.SetMark(InstructionsMark, on ? "1" : "0");
             Rebuild();
         });
-        _showInstructions.TooltipText = Words.Wrap($"The app's own instructions to {characterName}, such as a reminder to pass on, each marked App.");
+        _showInstructions.TooltipText = Words.Wrap($"The app's own instructions to {characterName}, such as a reminder to pass on, each marked \"App to {characterName}\".");
 
         var log = Log.Left(store.Observations(characterId), store.Folded(characterId));
         if (log.Count > 0)
@@ -129,15 +132,19 @@ public partial class ChatHistory : Window
     /// <summary>The next older stretch of the conversation, above what is shown.</summary>
     private void ShowEarlier(bool keepPlace)
     {
-        var read = _store.Through(_character, _oldestShown == long.MaxValue ? long.MaxValue : _oldestShown - 1, AtOnce);
-        _earlier.Visible = read.Count == AtOnce;
-        var lines = Shown(read);
-        if (read.Count > 0)                                 // the place read up to, shown or not
+        // a stretch of only what the app told her shows nothing: read on to the next, so "Show earlier" always shows something
+        IReadOnlyList<Line> read, lines = [];
+        do
         {
-            if (_oldestShown == long.MaxValue)
-                _newestShown = read[^1].Id;
-            _oldestShown = read[0].Id;
-        }
+            read = _store.Through(_character, _oldestRead == long.MaxValue ? long.MaxValue : _oldestRead - 1, AtOnce);
+            if (read.Count == 0)
+                break;
+            if (_oldestRead == long.MaxValue)
+                _newestRead = read[^1];
+            _oldestRead = read[0].Id;
+            lines = Shown(read);
+        } while (lines.Count == 0 && read.Count == AtOnce);
+        _earlier.Visible = read.Count == AtOnce;
         if (lines.Count == 0)
         {
             if (_shown.Count == 0 && !IsInstanceValid(_empty))
@@ -199,37 +206,51 @@ public partial class ChatHistory : Window
     /// </summary>
     private void Follow()
     {
-        var now = _store.Through(_character, _newestShown, Recheck);
-        if (now.Count == 0 && _shown.Count > 0)
+        if (_shown.Count == 0)
         {
-            Rebuild();                                      // the chat was cleared
-            return;
-        }
-        var since = now.Count == Recheck ? now[0].Id : long.MinValue;
-        var tookBack = false;
-        foreach (var id in _shown.Keys.Where(id => id >= since).ToList())
-        {
-            var shown = _shown[id];
-            // a line taken back leaves its number free for the next one, which is said by someone, or at a time, of its own
-            if (now.FirstOrDefault(l => l.Id == id) is not { } line || line.Speaker != shown.Line.Speaker || line.At != shown.Line.At)
+            // nothing shown: the newest line read, taken back or cleared since, leaves nothing to go on from
+            if (_newestRead is { } last && !Same(_store.Between(_character, last.Id, last.Id).FirstOrDefault(), last))
             {
-                TakeBack(id);
-                tookBack = true;
-            }
-            else if (line.Text != shown.Line.Text)
-            {
-                shown.Words.Text = line.Text;
-                _shown[id] = shown with { Line = line };
-                GD.Print($"Chat history: line {id} shown as rewritten");
+                Rebuild();
+                return;
             }
         }
-        if (tookBack)                                       // a newer line may come under a number taken back
-            _newestShown = _shown.Count > 0 ? _shown.Keys.Max() : _oldestShown - 1;
+        else
+        {
+            var now = _store.Through(_character, _shown.Keys.Max(), Recheck);
+            if (now.Count == 0)
+            {
+                Rebuild();                                  // the chat was cleared
+                return;
+            }
+            var since = now.Count == Recheck ? now[0].Id : long.MinValue;
+            foreach (var id in _shown.Keys.Where(id => id >= since).ToList())
+            {
+                var shown = _shown[id];
+                // a line taken back leaves its number free for the next one, which is said by someone, or at a time, of its own
+                if (now.FirstOrDefault(l => l.Id == id) is not { } line || !Same(line, shown.Line))
+                    TakeBack(id);
+                else if (line.Text != shown.Line.Text)
+                {
+                    shown.Words.Text = line.Text;
+                    _shown[id] = shown with { Line = line };
+                    GD.Print($"Chat history: line {id} shown as rewritten");
+                }
+            }
+            if (_shown.Count == 0)
+            {
+                Rebuild();                                  // every line shown taken back: the chat was cleared, lines may have come in since
+                return;
+            }
+        }
 
-        var read = _store.After(_character, _newestShown);
+        // read on from the newest line shown, so what the app told her after it is read again each time (and left out):
+        // a number it leaves free when taken back is the next line's
+        var read = _store.After(_character, _shown.Count > 0 ? _shown.Keys.Max() : _newestRead?.Id ?? 0);
         if (read.Count == 0)
             return;
-        _newestShown = read[^1].Id;
+        if (_shown.Count == 0)
+            _newestRead = read[^1];
         var added = Shown(read);
         if (added.Count == 0)                               // only what the app told her: nothing new for the player
             return;
@@ -238,8 +259,8 @@ public partial class ChatHistory : Window
         var day = _shown.Count > 0 ? DateOnly.FromDateTime(_shown.MaxBy(s => s.Key).Value.Line.At.LocalDateTime) : (DateOnly?)null;
         var at = _lines.GetChildCount();
         var first = Place(added, ref at, day);
-        if (_oldestShown == long.MaxValue)                 // the history was empty when opened
-            (_oldestShown, _topDay, _topHeading) = (read[0].Id, DateOnly.FromDateTime(added[0].At.LocalDateTime), first);
+        if (_oldestRead == long.MaxValue)                 // the history was empty when opened
+            (_oldestRead, _topDay, _topHeading) = (read[0].Id, DateOnly.FromDateTime(added[0].At.LocalDateTime), first);
         if (atEnd)
             ToEnd();
         else
@@ -283,7 +304,7 @@ public partial class ChatHistory : Window
         _replies.Clear();
         _empty = null;                                      // freed with the rest, at the end of the frame
         (_closeOpen, _howTo.Visible, _below.Visible) = (null, false, false);
-        (_oldestShown, _newestShown, _topDay, _topHeading) = (long.MaxValue, 0, null, null);
+        (_oldestRead, _newestRead, _topDay, _topHeading) = (long.MaxValue, null, null, null);
         ShowEarlier(keepPlace: false);
         GD.Print("Chat history: shown afresh");
     }
@@ -297,6 +318,9 @@ public partial class ChatHistory : Window
         var bar = _scroll.GetVScrollBar();
         return bar.Value >= bar.MaxValue - bar.Page - 8;
     }
+
+    /// <summary>The same line still: said by the same one at the same time (a number taken back is reused).</summary>
+    private static bool Same(Line? now, Line was) => now is not null && now.Speaker == was.Speaker && now.At == was.At;
 
     /// <summary>The lines the history shows of these: the app's instructions to her only when the player asked to see them.</summary>
     private IReadOnlyList<Line> Shown(IReadOnlyList<Line> lines) => _instructions ? lines : [.. lines.Where(l => !l.Instruction)];

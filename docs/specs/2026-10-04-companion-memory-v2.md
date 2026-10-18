@@ -264,6 +264,9 @@ default, with a toggle for players who know how AI agents work and want to look.
   reach her exactly as before; only the chat history reads the mark. What happened at the cabinet (a solve, a game
   started, her tools' records, texting begun) is not an instruction and still shows.
 - **Chat history** has "Show what the app tells <name>", off by default and remembered (a mark in the store). Ticked,
-  each such line shows in a box of its own, marked "App to <name>". Hidden lines never count as "New lines below".
+  each such line shows in a box of its own, marked "App to <name>". Hidden lines never count as "New lines below";
+  it reads on from the newest line shown, so a number a hidden line leaves free when taken back is the next line's,
+  and a stretch of only hidden lines is read past (never "Nothing yet." above "Show earlier"). After the chat is
+  cleared while it is open, it is read afresh (#73).
 - Lines from before the mark existed can't be told apart and always show.
 
