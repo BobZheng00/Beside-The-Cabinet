@@ -692,6 +692,7 @@ public partial class Main : Node2D
             case "player": _onboarding.Start(); break;
             case "welcome": OpenWelcome(); break;                // the first run's welcome, again
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
+            case "windoworder": GD.Print($"Windows, top first: {_window.DevOrder()}"); break;     // the app's windows as they are stacked on screen
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
             case "remindertry":                             // the "Try it" on Settings → Reminders

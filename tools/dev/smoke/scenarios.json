@@ -168,6 +168,24 @@
       "shots": [8],
       "window": " - Beside the Cabinet memo",
       "desk": true
+    },
+    {
+      "name": "windows-above",
+      "about": "Settings and the memory book stay above the cabinet and the companion: while the cabinet rises for a moment and after it sinks back, with Always on top off, then with it on (ticked in Settings) and the cabinet rising again; then a ticket and the file dialog \"Add a character…\" opens are above them both.",
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
+      "script": "settings:cabinet@2,focuspaid:5@3,windoworder@4,windoworder@11,settingsdo:Always_on_top@12,memorybook@13,focuspaid:5@14,windoworder@15,ticket@16,pick@17,windoworder@19",
+      "shots": [22],
+      "expect": ["^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings, the cabinet$", "^Windows, top first: What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$"],
+      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|What \\S+ remembers|file dialog)", "^Windows, top first: .*(Settings|remembers).*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
+    },
+    {
+      "name": "windows-above-dialog",
+      "about": "With Always on top off, the file dialog \"Add a character…\" opens above Settings, and a ticket above both, while the cabinet rises for the dialog and after it sinks back.",
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
+      "script": "settings:characters@2,ticket@3,pick@4,windoworder@5,windoworder@11",
+      "shots": [14],
+      "expect": ["^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: (Beside the Cabinet ticket \\(on top\\), )?file dialog \"Add a character\", Settings, the cabinet$"],
+      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|file dialog)", "^Windows, top first: .*Settings.*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
     }
   ]
 }

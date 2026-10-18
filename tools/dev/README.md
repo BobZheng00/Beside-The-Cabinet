@@ -36,7 +36,8 @@ flips the tick with that text on the page showing; `settingsdo:Label:value` sets
 from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
-than its room, which would run off the window's right edge, then how many of the pages it measured), `trayitems` (logs the tray menu's entries),
+than its room, which would run off the window's right edge, then how many of the pages it measured), `trayitems` (logs the tray menu's entries), `windoworder` (logs the app's windows top first, as they are stacked on
+screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`

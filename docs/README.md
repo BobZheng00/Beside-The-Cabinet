@@ -13,6 +13,8 @@ LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation
 for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
 Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.
+Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
+the cabinet rises for a moment or is kept on top ("Always on top" on Cabinet).
 
 At first run a Welcome asks three things: your name (what your companion calls you; your initials on the cabinet
 come from it), who keeps you company (seated on the stool as you pick, with how they sit), and their mind (provider,
