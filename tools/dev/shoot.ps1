@@ -45,6 +45,10 @@ New-Item -ItemType Directory $Out -Force | Out-Null
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
 if (Test-Path (Join-Path $profile "companion")) { Remove-Item (Join-Path $profile "companion") -Recurse -Force }   # her memory starts fresh too
+# so do the skills, the vault and the notes folder dev actions seed (skillseed, skillmake, notesseed): a run never finds an earlier run's
+foreach ($seeded in @((Join-Path $profile "skills"), (Join-Path $profile "vault"), "$profile-files")) {
+  if (Test-Path $seeded) { Remove-Item $seeded -Recurse -Force }
+}
 if ($KeyFrom -ne "") {
   New-Item -ItemType Directory (Join-Path $profile "companion") -Force | Out-Null
   Copy-Item (Join-Path $KeyFrom "companion\key.bin") (Join-Path $profile "companion") -Force
