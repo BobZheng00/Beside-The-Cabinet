@@ -133,6 +133,15 @@
       "shots": [6, 10]
     },
     {
+      "name": "crtswitches",
+      "about": "The CRT's home screen has the switch row and the SETTINGS app: Voice flipped off from the row shows unlit there, and SETTINGS opens the Settings window while the screen stays home.",
+      "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/CrtApp.cs", "src/InsertCoin.Game/App/Crt/SettingsApp.cs"],
+      "script": "crt@2,crtclick:260:27@4,crt:settings@6",
+      "shots": [5, 9],
+      "window": "Settings",
+      "expect": ["^Crt: VOICE off$", "^Crt: SETTINGS opens its window$"]
+    },
+    {
       "name": "agendaapp",
       "about": "The CRT's AGENDA app follows the agenda while it is open: the job interview the seed put there leaves it when the companion takes it off, without reopening it.",
       "covers": ["src/InsertCoin.Game/App/Crt/AgendaApp.cs"],

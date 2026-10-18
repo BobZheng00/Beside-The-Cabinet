@@ -24,6 +24,9 @@ public abstract partial class CrtApp : Control
     /// <summary>Draws its icon's picture inside the tile's box.</summary>
     public abstract void DrawGlyph(CanvasItem on, Rect2 box);
 
+    /// <summary>Its icon opens a window of the app's instead (in <see cref="Opened"/>): the screen stays on the home screen.</summary>
+    public virtual bool OpensWindow => false;
+
     /// <summary>It is about to be shown: whatever it shows is read afresh.</summary>
     public virtual void Opened() { }
 

@@ -9,11 +9,58 @@ namespace InsertCoin.Game.App;
 /// app picks it up, to put it somewhere else (the order is kept). An app opens out of its icon while the screen lifts
 /// out of the cabinet to face the player, large enough to read at any cabinet size; a press anywhere away from it
 /// settles it back, the app closing into its icon. The system closes by itself after a while untouched, or from the
-/// power mark, and the readout unfolds again.
+/// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, the quick switches
+/// (Mute sounds, Voice, Conversation): lit when on, a press flips one, and its name shows in place of the time under
+/// the pointer.
 /// </summary>
 public partial class CrtOs : Node
 {
     private enum State { Closed, Moving, Home, App }
+
+    /// <summary>
+    /// A quick switch on the home screen's bar: its name (shown under the pointer), whether it is on, flipping it, and
+    /// its picture (drawn at a centre, given whether it is on and the colour).
+    /// </summary>
+    public sealed record Switch(string Name, Func<bool> On, Action<bool> Set, Action<CanvasItem, Vector2, bool, Color> Glyph);
+
+    /// <summary>Mute sounds: a speaker, crossed out when muted, sounding when not.</summary>
+    public static void Speaker(CanvasItem on, Vector2 c, bool muted, Color ink)
+    {
+        on.DrawColoredPolygon([c + new Vector2(-10, -4), c + new Vector2(-6, -4), c + new Vector2(-1, -9), c + new Vector2(-1, 9),
+                               c + new Vector2(-6, 4), c + new Vector2(-10, 4)], ink);
+        if (muted)
+        {
+            on.DrawLine(c + new Vector2(3, -4), c + new Vector2(10, 4), ink, 3, true);
+            on.DrawLine(c + new Vector2(3, 4), c + new Vector2(10, -4), ink, 3, true);
+        }
+        else
+            foreach (var r in new[] { 5f, 10f })
+                on.DrawArc(c + new Vector2(-1, 0), r, -0.8f, 0.8f, 10, ink, 2.5f, true);
+    }
+
+    /// <summary>Voice: a speech bubble with a sound in it.</summary>
+    public static void Speech(CanvasItem on, Vector2 c, bool _, Color ink)
+    {
+        var bubble = new Rect2(c + new Vector2(-10, -9), new Vector2(20, 14));
+        on.DrawRect(bubble, ink, filled: false, width: 2.5f);
+        on.DrawColoredPolygon([c + new Vector2(-6, 5), c + new Vector2(0, 5), c + new Vector2(-7, 11)], ink);
+        for (var i = -1; i <= 1; i++)
+        {
+            var half = i == 0 ? 4f : 2f;
+            on.DrawLine(c + new Vector2(i * 5, -2 - half), c + new Vector2(i * 5, -2 + half), ink, 2.5f, true);
+        }
+    }
+
+    /// <summary>Conversation (keeps listening): a microphone on its stand.</summary>
+    public static void Microphone(CanvasItem on, Vector2 c, bool _, Color ink)
+    {
+        on.DrawRect(new Rect2(c + new Vector2(-3.5f, -8), new Vector2(7, 7)), ink);
+        on.DrawCircle(c + new Vector2(0, -8), 3.5f, ink);
+        on.DrawCircle(c + new Vector2(0, -1), 3.5f, ink);
+        on.DrawArc(c + new Vector2(0, -2), 7.5f, 0, Mathf.Pi, 12, ink, 2.5f, true);
+        on.DrawLine(c + new Vector2(0, 5.5f), c + new Vector2(0, 10), ink, 2.5f, true);
+        on.DrawLine(c + new Vector2(-5, 10), c + new Vector2(5, 10), ink, 2.5f, true);
+    }
 
     private const float Bar = 54, Tile = 100;
     private static readonly Vector2 Cell = new(164, 140), Grid = new(36, 56);
@@ -25,12 +72,13 @@ public partial class CrtOs : Node
     private Func<float> _windowScale = null!;
     private Rect2 _canvas;
     private readonly List<CrtApp> _apps = [];
+    private IReadOnlyList<Switch> _switches = [];
     private Action<string[]> _keepOrder = null!;
     private Home _home = null!;
     private Panel _zoom = null!;
     private CrtApp? _open;
     private State _state;
-    private int _page, _hovered = -1;
+    private int _page, _hovered = -1, _switchHovered = -1;
     private double _untouched, _time;
     // the pointer: pressed where and how long, carried, the app picked up
     private Vector2? _pressedAt;
@@ -52,11 +100,13 @@ public partial class CrtOs : Node
     /// <param name="apps">Every app there is.</param>
     /// <param name="order">The home screen's order, by app id, as kept; apps not in it come after.</param>
     /// <param name="keepOrder">Keeps the order after the player has moved an app.</param>
+    /// <param name="switches">The quick switches along the home screen's bar, left to right.</param>
     /// <param name="windowScale">The window's pixels per canvas unit now (the screen lifts out larger on a small cabinet).</param>
     public void Build(ScreenView screen, IEnumerable<CrtApp> apps, IReadOnlyList<string> order, Action<string[]> keepOrder,
-                      Func<float> windowScale, Vector2 canvas)
+                      IReadOnlyList<Switch> switches, Func<float> windowScale, Vector2 canvas)
     {
         _screen = screen;
+        _switches = switches;
         _windowScale = windowScale;
         _canvas = new Rect2(Vector2.Zero, canvas);
         _keepOrder = keepOrder;
@@ -139,6 +189,12 @@ public partial class CrtOs : Node
     private void Launch(int index)
     {
         var app = _apps[index];
+        if (app.OpensWindow)
+        {
+            GD.Print($"Crt: {app.Label} opens its window");
+            app.Opened();
+            return;
+        }
         _state = State.Moving;
         _open = app;
         app.Opened();
@@ -223,6 +279,9 @@ public partial class CrtOs : Node
             case State.Home when PowerMark(at):
                 Close();
                 break;
+            case State.Home when SwitchAt(at) is { } flipped:
+                Flip(flipped);
+                break;
             case State.Home when _home.AppAt(at) is { } index:
                 Launch(index);
                 break;
@@ -238,6 +297,26 @@ public partial class CrtOs : Node
 
     private bool PowerMark(Vector2 at) => at.Y < Bar && at.X > _screen.Pixels.X - 70;
 
+    private const float SwitchStep = 50, SwitchRadius = 19;
+
+    /// <summary>Where a quick switch sits on the bar: leftwards from the power mark, the first one furthest left.</summary>
+    private Vector2 SwitchCentre(int index) => new(_screen.Pixels.X - 40 - SwitchStep * (_switches.Count - index), Bar / 2);
+
+    private int? SwitchAt(Vector2 at)
+    {
+        for (var i = 0; i < _switches.Count; i++)
+            if (at.DistanceTo(SwitchCentre(i)) <= SwitchRadius + 5)
+                return i;
+        return null;
+    }
+
+    private void Flip(int index)
+    {
+        var flipped = _switches[index];
+        flipped.Set(!flipped.On());
+        GD.Print($"Crt: {flipped.Name} {(flipped.On() ? "on" : "off")}");
+    }
+
     /// <summary>A press away from the lifted screen (on the cabinet, or anywhere else on the desktop): it settles back, home.</summary>
     public void Away()
     {
@@ -252,6 +331,7 @@ public partial class CrtOs : Node
         if (at is not null && _state != State.Closed)
             _untouched = 0;
         _hovered = _state == State.Home && at is { } h ? _home.AppAt(h) ?? -1 : -1;
+        _switchHovered = _state == State.Home && at is { } s ? SwitchAt(s) ?? -1 : -1;
         if (_state == State.App && _open is { } app)
             app.Hover(at is { } a ? a - app.Position : null);
     }
@@ -374,6 +454,8 @@ public partial class CrtOs : Node
             else
                 app.Click(at - app.Position);
         }
+        else if (_state == State.Home && SwitchAt(at) is { } flipped)
+            Flip(flipped);
         else if (_state == State.Home && _home.AppAt(at) is { } index)
             Launch(index);
     }
@@ -538,7 +620,10 @@ public partial class CrtOs : Node
         }
     }
 
-    /// <summary>The bar along the top: the time and the power mark on the home screen; back and the app's name in an app.</summary>
+    /// <summary>
+    /// The bar along the top: on the home screen the time (or the name of the switch under the pointer), the quick
+    /// switches and the power mark; back and the app's name in an app.
+    /// </summary>
     private partial class BarView(CrtOs os) : Control
     {
         public void Appear(bool shown)
@@ -564,7 +649,19 @@ public partial class CrtOs : Node
             }
             else
             {
-                DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
+                if (os._switchHovered >= 0 && os._switchHovered < os._switches.Count)
+                    DrawString(Pixel, new Vector2(22, 34), os._switches[os._switchHovered].Name, HorizontalAlignment.Left,
+                               os.SwitchCentre(0).X - SwitchRadius - 30, 12, Accent);
+                else
+                    DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
+                for (var i = 0; i < os._switches.Count; i++)
+                {
+                    var (centre, on) = (os.SwitchCentre(i), os._switches[i].On());
+                    var radius = SwitchRadius * (i == os._switchHovered ? 1.08f : 1);
+                    DrawCircle(centre, radius, on ? Accent : new Color(1, 1, 1, 0.42f));
+                    DrawArc(centre, radius, 0, Mathf.Tau, 32, Ink, 3, true);
+                    os._switches[i].Glyph(this, centre, on, on ? Colors.White : Ink);
+                }
                 // the power mark: back to the readout
                 var c = new Vector2(Size.X - 40, 27);
                 DrawArc(c, 11, Mathf.DegToRad(-60), Mathf.DegToRad(240), 20, Ink, 4, true);

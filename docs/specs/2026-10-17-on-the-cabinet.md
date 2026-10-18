@@ -1,6 +1,7 @@
 # Settings and the switches, from the cabinet itself
 
-*Decided with the user, 2026-10-17 (`/pm:brainstorm #64`). Nothing built yet; the order is at the end.*
+*Decided with the user, 2026-10-17 (`/pm:brainstorm #64`). Step 2, the CRT, is built (2026-10-18, #69); the order is
+at the end.*
 
 ## Why
 
@@ -50,11 +51,19 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
   menu), keeping the CRT's home screen to what is used most.
 - **Slimming the tray:** the user kept it.
 
-## Open
+## Built: the CRT (2026-10-18, #69)
 
-- **The SETTINGS app's icon,** drawn in the style of the CRT's other icons, and its place among them (last, to start).
-- **The switch row on a small cabinet:** whether three toggles fit at the smallest cabinet size, or show as icons
-  only there.
+- **SETTINGS** (`App/Crt/SettingsApp.cs`): a cog on a pale orchid tile, last on the home screen (the default order
+  has it; a player's own order gets it at the end) and movable like the others. Its icon opens Settings as the tray's
+  Settings… does; the screen never lifts for it and stays on the home screen (an app that `OpensWindow`).
+- **The switches** (`CrtOs.Switch`): three round toggles on the home screen's bar, between the time and the power
+  mark: a speaker (crossed out while muted), a speech bubble (Voice) and a microphone (Conversation), filled pink when
+  on. Icons only, at every cabinet size: three labelled toggles don't fit the bar beside the time and the power mark,
+  and at the smallest cabinet their labels would be too small to read. The name of the one under the pointer shows in
+  place of the time. Each reads its state where the tray's comes from (the settings, the conversation) every frame
+  the bar is drawn, and flips it through the same calls as the tray, so a change anywhere shows everywhere.
+
+## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close
   the card is left to how the card already handles a click elsewhere.
 
