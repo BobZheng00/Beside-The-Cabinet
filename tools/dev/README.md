@@ -159,7 +159,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   `-Status` says what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` records QA's verdict on it. The pm
   plugin's gate wants both before a pull request is marked ready.
 - `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
-  `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. The report and shots go to
+  `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. A shot whose window (or the scenario's
+  named one) isn't there yet, or is one flat colour (nothing drawn yet), waits for it, up to 10 s, and the report's
+  notes say how long; a window still missing after that, or a cabinet shot still flat, fails the scenario. The report and shots go to
   `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; the player's own copies of the app (their app,
   the demo) are never stopped and never block it: its test copies run beside them. The `beside` scenario shows it
   with stand-ins (hidden copies that aren't test runs, on throwaway profiles, started `--lock=beside`): one holds
