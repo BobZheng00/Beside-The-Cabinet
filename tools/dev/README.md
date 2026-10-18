@@ -152,6 +152,12 @@ and is no test copy: quit the player's copies first.
 
 Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
 
+Settings seeded with `-Settings` (`', "AlwaysOnTop": true'`) need their quotes, so call `shoot.ps1` and `clip.ps1`
+directly in PowerShell: through a nested `powershell -File` the quotes are lost. Either script checks the settings.json
+it seeds is strict JSON and stops before launching, naming the bad text, if not. A test copy whose settings.json still
+can't be read (a value of the wrong kind, say) sets it aside and starts on a test run's defaults, muted, and says so in
+its log (`Main: settings.json couldn't be read…`); the player's own app starts on the usual defaults.
+
 ## Checks and the smoke suite
 
 What a commit must pass before its pull request is marked ready, run the same way by the agents and by hand:

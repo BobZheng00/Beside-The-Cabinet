@@ -33,8 +33,10 @@ $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Remove-Item $profile -Recurse -Force }
 New-Item -ItemType Directory $profile | Out-Null
 if ($Characters -ne "") { Copy-Item $Characters (Join-Path $profile "characters") -Recurse }
-"{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": false, `"WindowX`": -4000, `"WindowY`": 100 $Settings }" |
-  Out-File -Encoding ascii (Join-Path $profile "settings.json")
+$seed = "{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": false, `"WindowX`": -4000, `"WindowY`": 100 $Settings }"
+. (Join-Path $PSScriptRoot "seed.ps1")
+Assert-Seed $seed $Settings "clip.ps1"
+$seed | Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 $frames = Join-Path $Out "frames-$Tag"
 if (Test-Path $frames) { Remove-Item $frames -Recurse -Force }

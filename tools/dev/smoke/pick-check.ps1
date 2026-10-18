@@ -1,5 +1,6 @@
 # Checks how smoke.ps1 -Changed picks scenarios, on a few lists of changed files, and how the beside scenario judges
-# whose the player's lock is (smoke.ps1 -SelfCheck). check.ps1 runs it; by hand:
+# whose the player's lock is (smoke.ps1 -SelfCheck), and that shoot.ps1 and clip.ps1 refuse settings the app couldn't
+# read. check.ps1 runs it; by hand:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\smoke\pick-check.ps1
 # Exit code: 0 every case picked what it should, 1 otherwise.
 $smoke = Join-Path (Split-Path $PSScriptRoot) "smoke.ps1"
@@ -39,8 +40,22 @@ foreach ($case in $cases) {
   if ($got -eq $case.want -and $everyOneSaysWhy -and $picks.Count -eq $suite.scenarios.Count) { "ok    $label -> $(if ($got) { $got } else { 'none' })" }
   else { $failed++; "WRONG $label -> '$got', wanted '$($case.want)'" }
 }
-& $smoke -SelfCheck                                                     # the beside scenario's verdict on the player's lock
+# Settings a run seeds that the app couldn't read stop shoot.ps1 and clip.ps1 before they launch: given directly, and
+# through a nested `powershell -File`, which strips -Settings' quotes (the trap of #77)
+$seedOut = Join-Path $env:TEMP "insert-coin-seed-check"
+foreach ($tool in @("shoot.ps1", "clip.ps1")) {
+  $path = Join-Path (Split-Path $PSScriptRoot) $tool
+  $direct = try { & $path -Godot none -Out $seedOut -Tag seed -Settings ', "Muted": false,' *>&1 | Out-Null; "" } catch { $_.Exception.Message }
+  $nested = (powershell -NoProfile -ExecutionPolicy Bypass -File $path -Godot none -Out $seedOut -Tag seed -Settings ', "Muted": false' 2>&1 | Out-String) -replace '\s+', ' '
+  $nestedExit = $LASTEXITCODE
+  $written = Test-Path (Join-Path $seedOut "profile-seed\settings.json")
+  if ($direct -match "^$tool`: -Settings doesn't make settings the app can read.*The text: , `"Muted`": false," -and
+      $nestedExit -ne 0 -and $nested -match "The text: , Muted: false" -and -not $written) { "ok    $tool refuses settings the app couldn't read" }
+  else { $failed++; "WRONG $tool on unreadable settings: direct '$direct', nested (exit $nestedExit) '$nested', settings.json written: $written" }
+  if (Test-Path $seedOut) { Remove-Item $seedOut -Recurse -Force }
+}
+& $smoke -SelfCheck                                                   # the beside scenario's verdict on the player's lock
 if ($LASTEXITCODE -ne 0) { $failed++ }
-if ($failed) { "$failed case(s) picked the wrong scenarios or judged the lock wrongly"; exit 1 }
+if ($failed) { "$failed case(s) picked the wrong scenarios, judged the lock wrongly or let unreadable settings through"; exit 1 }
 "Every case picked what it should."
 exit 0
