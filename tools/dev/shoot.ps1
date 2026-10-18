@@ -9,7 +9,8 @@
 #
 # -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
 # -Shots    seconds after launch at which to capture. A shot whose window isn't there yet, or not drawn yet (one flat
-#           colour), waits for it, up to -Wait seconds, and says how long it waited
+#           colour), waits for it, up to -Wait seconds, and says how long it waited (not when the app has quit); a shot
+#           taken late, after an earlier one waited, says when it was taken
 # -Wait     the longest a shot waits for its window, and the -Window one, to show and be drawn (default 10)
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma (', "SetUp": false' for a first run)
@@ -203,24 +204,26 @@ $t0 = Get-Date; $i = 0
 foreach ($s in $Shots) {
   while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
   # A busy PC runs a few seconds behind: what isn't there or drawn yet is waited for, up to -Wait seconds, then taken as
-  # it is. A shot with nothing lacking is taken at its second, as ever.
+  # it is. A shot with nothing lacking is taken at its second, as ever; an app that has quit isn't waited for.
   $from = Get-Date; $waitedFor = $null
   while ($true) {
     $shot = Take $i; $lacking = Lacking $shot
-    if (-not $lacking -or ((Get-Date) - $from).TotalSeconds -ge $Wait) { break }
+    if (-not $lacking -or $p.HasExited -or ((Get-Date) - $from).TotalSeconds -ge $Wait) { break }
     if (-not $waitedFor) { $waitedFor = $lacking }
     Drop $shot; Start-Sleep -Milliseconds 250; [System.Windows.Forms.Application]::DoEvents()
   }
   $waited = "{0:0.0}" -f ((Get-Date) - $from).TotalSeconds
   $waitNote = if (-not $waitedFor) { "" } elseif ($lacking) { "; waited ${waited}s for $waitedFor, still lacking $lacking" } else { "; waited ${waited}s for $waitedFor" }
+  $taken = ((Get-Date) - $t0).TotalSeconds
+  $at = if ($taken - $s -ge 0.5) { "${s}s, taken at $("{0:0.0}" -f $taken)s" } else { "${s}s" }   # late after an earlier shot waited
   $app = $shot.App; $wins = $shot.Wins
-  if (-not $app) { "no app process at ${s}s (waited ${waited}s)$(if (-not $Hidden) { ' (is another copy running?)' })"; continue }
-  if (-not $shot.Cabinet) { "no window yet at ${s}s (waited ${waited}s)"; Drop $shot; continue }
+  if (-not $app) { "no app process at $at (waited ${waited}s)$(if (-not $Hidden) { ' (is another copy running?)' })"; continue }
+  if (-not $shot.Cabinet) { "no window yet at $at (waited ${waited}s)"; Drop $shot; continue }
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
   $shot.Cabinet.Save($file)
-  "$file  at ${s}s: $($shot.Cabinet.Width)x$($shot.Cabinet.Height), working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s$waitNote"
+  "$file  at ${at}: $($shot.Cabinet.Width)x$($shot.Cabinet.Height), working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s$waitNote"
   if ($Window -ne "") {
-    if (-not $shot.One) { "  no window titled '$Window' at ${s}s (waited ${waited}s)" } else {
+    if (-not $shot.One) { "  no window titled '$Window' at $at (waited ${waited}s)" } else {
       $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $shot.One.Save($file2); "  $file2"
     }
   }
