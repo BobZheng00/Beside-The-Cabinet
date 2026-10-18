@@ -156,7 +156,7 @@ a bot with @BotFather, paste its token, scan the code and press Start; about two
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
 reach them. A card by text waits two minutes, as on the PC: press a button, or type a short "yes", "always" or "no"
 (in Chinese, Japanese or Korean too); anything else you send leaves it unanswered, and then nothing it asked about is
-done (the chat says so). A reminder due meanwhile still reaches you. What needs you at the PC (your screen, opening things) waits until you're back. What you texted while the
+done (the chat says so). Only what you send after the card arrives answers it. A reminder due meanwhile still reaches you. What needs you at the PC (your screen, opening things) waits until you're back. What you texted while the
 cabinet was closed (Telegram keeps it a day) they read when it next runs, and answer once. Only your chat is listened
 to. The chat goes through Telegram's servers and isn't end-to-end encrypted. Each profile needs a bot of its own, the
 demo too.
@@ -250,7 +250,8 @@ hook), so the key still does what it does in the app in front.
 When they're slow to find their words (a model that thinks first, a tool running) and you're waiting, they think
 aloud in their own voice now and then ("um…", "let's see…", "えっと…": made in their voice when it loads, varied, at
 most twice a reply, never on a quick one). When their card asks you something, you can answer it aloud: a short
-"yes", "always" or "no" (in Chinese, Japanese or Korean too) does what its buttons do; anything else is a new message.
+"yes", "always" or "no" (in Chinese, Japanese or Korean too) does what its buttons do (on a card without Always,
+"always" is a yes); anything else is a new message.
 GPT-SoVITS's habit of starting a line with up to a second of silence is cut, so their first word comes sooner.
 
 They can also listen without the key, if you choose (Settings → Talking aloud). With follow-up listening they listen

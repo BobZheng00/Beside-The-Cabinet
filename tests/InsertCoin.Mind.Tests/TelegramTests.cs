@@ -177,12 +177,17 @@ public class TelegramTests
     private static readonly (string Text, string Data)[] MayI = [("Allow once", "once"), ("Always for leetcode.com", "always"), ("No", "no")],
                                                          Counts = [("Yes", "yes"), ("Not yet", "no")];
 
-    /// <summary>Her question by text, sent through a bot to the stand-in Telegram at noon.</summary>
+    /// <summary>When Telegram dated her question, by its own clock (a second off the PC's), and a while after.</summary>
+    private static readonly DateTimeOffset Delivered = Noon.AddSeconds(1), Later = Noon.AddSeconds(8);
+
+    /// <summary>Her question by text, sent at noon through a bot to the stand-in Telegram, which dates it <see cref="Delivered"/>.</summary>
     private static (Questions Questions, Task<string?> Asked, FakeTelegram Server) Asked((string Text, string Data)[] buttons)
     {
-        var (bot, server) = Bot();
+        var (bot, server) = Bot(("sendMessage", HttpStatusCode.OK, $$$"""{"ok":true,"result":{"message_id":7,"date":{{{Delivered.ToUnixTimeSeconds()}}}}}"""));
         var questions = new Questions();
-        return (questions, questions.Ask("May I open leetcode.com?", buttons, (text, b) => bot.Send("42", text, b), Noon, CancellationToken.None), server);
+        // sent before Ask returns, so that the test goes on with the question already out
+        return (questions, questions.Ask("May I open leetcode.com?", buttons, (text, b) => Task.FromResult(bot.Send("42", text, b).GetAwaiter().GetResult()),
+                                         Noon, CancellationToken.None), server);
     }
 
     /// <summary>What its button sends back when pressed, as the stand-in Telegram was given it.</summary>
@@ -233,7 +238,7 @@ public class TelegramTests
     {
         var (questions, asked, server) = Asked(MayI);
 
-        Assert.True(questions.Typed(typed));
+        Assert.True(questions.Typed(typed, Later));
 
         Assert.Equal(data, await asked);
         Assert.Single(server.Asked);                                    // answered: the chat says nothing more
@@ -247,7 +252,7 @@ public class TelegramTests
     {
         var (questions, asked, _) = Asked(Counts);
 
-        Assert.True(questions.Typed(typed));
+        Assert.True(questions.Typed(typed, Later));
         Assert.Equal(data, await asked);
     }
 
@@ -257,13 +262,28 @@ public class TelegramTests
         var (questions, asked, server) = Asked(MayI);
         var (photo, sent, _) = Asked(Counts);
 
-        Assert.False(questions.Typed("what's that site for?"));
-        Assert.False(photo.Typed(null));                                // a photo or a file, typed nothing
+        Assert.False(questions.Typed("what's that site for?", Later));
+        Assert.False(photo.Typed(null, Later));                         // a photo or a file, typed nothing
 
         Assert.Null(await asked);
         Assert.Null(await sent);
         Assert.Contains(Questions.Unanswered, server.Asked[1].Body);
-        Assert.False(new Questions().Typed("yes"));                     // with no question waiting, a yes is only a message
+        Assert.False(new Questions().Typed("yes", Later));              // with no question waiting, a yes is only a message
+    }
+
+    [Fact]
+    public async Task What_the_player_sent_before_her_question_reached_them_never_answers_it()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        Assert.False(questions.Typed("ok", Noon.AddSeconds(-3)));        // "ok" to her last line, sent before the question
+        Assert.False(questions.Typed("yes", Delivered));                 // the same second: can't be told apart, so not an answer
+        Assert.False(questions.Typed("what's that site for?", Delivered));
+        Assert.True(questions.Asking);                                   // still open: those are ordinary messages
+        Assert.True(questions.Typed("no", Later));
+
+        Assert.Equal("no", await asked);
+        Assert.Single(server.Asked);
     }
 
     [Fact]

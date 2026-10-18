@@ -218,6 +218,25 @@ public class ReachingTests
         Assert.Contains("⏰", System.Text.RegularExpressions.Regex.Unescape(plain["Telegram"].BodyJson));
     }
 
+    [Fact]
+    public void A_reminder_texted_as_its_plain_line_says_reminder_once()
+    {
+        var where = new Elsewhere { Ntfy = true, Discord = true, Telegram = true };
+        var secrets = new ElsewhereSecrets { NtfyTopic = "t", DiscordWebhook = "https://discord.com/api/webhooks/1/x", TelegramToken = "1:A", TelegramChat = "42" };
+        string Text(Parcel p) => System.Text.RegularExpressions.Regex.Unescape(p.BodyJson);
+
+        var line = Couriers.Parcels(where, secrets, new Notice("Reminder", "Reminder: Call Mum.")).ToDictionary(p => p.Name);
+        var two = Couriers.Parcels(where, secrets, new Notice("Reminder", "Reminders: Call Mum; water the plants.")).ToDictionary(p => p.Name);
+        var timed = Couriers.Parcels(where, secrets, new Notice("Reminder", "14:30  Call Mum")).ToDictionary(p => p.Name);
+
+        Assert.Contains("\"text\":\"⏰ Reminder: Call Mum.\"", Text(line["Telegram"]));
+        Assert.Contains("\"content\":\"⏰ Reminder: Call Mum.\"", Text(line["Discord"]));
+        Assert.Contains("\"text\":\"⏰ Reminders: Call Mum; water the plants.\"", Text(two["Telegram"]));
+        Assert.Contains("\"title\":\"Reminder\"", Text(line["ntfy"]));                     // ntfy shows its title apart
+        Assert.Contains("\"text\":\"⏰ Reminder: 14:30  Call Mum\"", Text(timed["Telegram"]));
+        Assert.Contains("\"content\":\"⏰ **Reminder**: 14:30  Call Mum\"", Text(timed["Discord"]));
+    }
+
     [Theory]
     [InlineData("Have fun at the gym! [out]", "out")]
     [InlineData("[sleep] Sleep well, see you tomorrow.", "sleep")]

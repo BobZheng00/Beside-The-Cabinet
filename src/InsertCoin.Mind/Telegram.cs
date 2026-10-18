@@ -76,17 +76,22 @@ public sealed class Telegram(HttpClient http, string token)
 
     private static DateTimeOffset Date(JsonNode? message) => DateTimeOffset.FromUnixTimeSeconds((long?)message?["date"] ?? 0);
 
-    /// <summary>A message to <paramref name="chat"/>, in parts if it is long; buttons go under the last (each sends back its data when pressed).</summary>
-    public async Task Send(string chat, string text, IReadOnlyList<(string Text, string Data)>? buttons = null, CancellationToken cancel = default)
+    /// <summary>
+    /// A message to <paramref name="chat"/>, in parts if it is long; buttons go under the last (each sends back its data
+    /// when pressed). When Telegram dated it (its last part), by Telegram's clock, or null if it didn't say.
+    /// </summary>
+    public async Task<DateTimeOffset?> Send(string chat, string text, IReadOnlyList<(string Text, string Data)>? buttons = null, CancellationToken cancel = default)
     {
+        JsonNode? sent = null;
         for (var at = 0; at < text.Length; at += Longest)
         {
             var part = text.Substring(at, Math.Min(Longest, text.Length - at));
             var last = at + Longest >= text.Length;
-            await Call("sendMessage", buttons is null || !last ? new { chat_id = chat, text = part }
+            sent = await Call("sendMessage", buttons is null || !last ? new { chat_id = chat, text = part }
                 : new { chat_id = chat, text = part, reply_markup = new { inline_keyboard = new[] { buttons.Select(b => new { text = b.Text, callback_data = b.Data }).ToArray() } } },
                 cancel);
         }
+        return sent is JsonObject message && (long?)message["date"] is { } date ? DateTimeOffset.FromUnixTimeSeconds(date) : null;
     }
 
     /// <summary>"Typing…" in the player's chat while she writes (Telegram shows it for a few seconds).</summary>
@@ -146,6 +151,8 @@ public sealed class Telegram(HttpClient http, string token)
 /// app's languages, whichever the player writes in); anything else they send, which leaves it unanswered and goes to her
 /// as a new message; or <see cref="Waits"/> with none of these, as her card by the stool waits. Unanswered, nothing it
 /// asked about is done, and the chat says so. So a question never holds her replies, or the player's texts, for long.
+/// Only what the player sent after the question reached them bears on it: an "ok" to her last line, sent before, is
+/// an ordinary message and leaves the question open (acting outside the app asks the player first).
 /// </summary>
 public sealed class Questions
 {
@@ -155,27 +162,41 @@ public sealed class Questions
     /// <summary>What the chat says when a question ends unanswered.</summary>
     public const string Unanswered = "(Left unanswered, so nothing was done.)";
 
-    private readonly Dictionary<string, (TaskCompletionSource<string?> Answer, DateTimeOffset Until, IReadOnlyList<(string Text, string Data)> Buttons)> _open = [];
+    private sealed class Open(DateTimeOffset until, IReadOnlyList<(string Text, string Data)> buttons)
+    {
+        public TaskCompletionSource<string?> Answer { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public DateTimeOffset Until => until;
+        public IReadOnlyList<(string Text, string Data)> Buttons => buttons;
+
+        /// <summary>When it reached the player, to the second; until it has, nothing they send bears on it.</summary>
+        public DateTimeOffset Sent { get; set; } = DateTimeOffset.MaxValue;
+    }
+
+    private readonly Dictionary<string, Open> _open = [];
 
     /// <summary>A question waits for the player's answer.</summary>
     public bool Asking => _open.Count > 0;
 
     /// <summary>
-    /// Sends <paramref name="text"/> with its buttons through <paramref name="send"/>, and waits: the data of the button
-    /// its answer chose, or null when it went unanswered (or <paramref name="cancel"/> came first), the chat then told so.
+    /// Sends <paramref name="text"/> with its buttons through <paramref name="send"/> (which says when Telegram dated
+    /// it, by Telegram's clock, as the player's messages are; else <paramref name="now"/> stands in), and waits: the data
+    /// of the button its answer chose, or null when it went unanswered (or <paramref name="cancel"/> came first), the
+    /// chat then told so.
     /// </summary>
     public async Task<string?> Ask(string text, IReadOnlyList<(string Text, string Data)> buttons,
-                                   Func<string, IReadOnlyList<(string Text, string Data)>?, Task> send, DateTimeOffset now, CancellationToken cancel)
+                                   Func<string, IReadOnlyList<(string Text, string Data)>?, Task<DateTimeOffset?>> send, DateTimeOffset now,
+                                   CancellationToken cancel)
     {
         var id = Guid.NewGuid().ToString("N")[..8];
-        var answer = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _open[id] = (answer, now + Waits, buttons);
+        var open = _open[id] = new Open(now + Waits, buttons);
+        var answer = open.Answer;
         string? answered;
         try
         {
             await using (cancel.Register(() => answer.TrySetResult(null)))
             {
-                await send(text, [.. buttons.Select(b => (b.Text, $"{id}:{b.Data}"))]);
+                var sent = await send(text, [.. buttons.Select(b => (b.Text, $"{id}:{b.Data}"))]);
+                open.Sent = sent ?? now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond));
                 answered = await answer.Task;
             }
         }
@@ -196,16 +217,18 @@ public sealed class Questions
     }
 
     /// <summary>
-    /// The player sent something while a question waits (<paramref name="typed"/> null for a photo or a file): true when
-    /// it was a short yes, always or no, now the question's answer; otherwise the question ends unanswered, and false,
-    /// as it is a new message.
+    /// The player sent something at <paramref name="at"/> (Telegram's date) while a question waits (<paramref name="typed"/>
+    /// null for a photo or a file). Sent after the question reached them: true when it was a short yes, always or no, now
+    /// the question's answer; otherwise the question ends unanswered, and false, as it is a new message. Sent before it
+    /// (or in the same second, which can't be told apart): false, and the question stays open.
     /// </summary>
-    public bool Typed(string? typed)
+    public bool Typed(string? typed, DateTimeOffset at)
     {
-        if (_open.Count == 0)
+        var after = _open.Where(o => at > o.Value.Sent).ToList();
+        if (after.Count == 0)
             return false;
         var answer = typed is null ? null : SpokenAnswer.Of(typed);
-        foreach (var (id, open) in _open.ToList())
+        foreach (var (id, open) in after)
             End(id, answer switch
             {
                 Answer.No => open.Buttons[^1].Data,

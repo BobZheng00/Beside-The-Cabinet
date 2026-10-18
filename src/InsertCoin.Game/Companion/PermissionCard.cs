@@ -118,7 +118,7 @@ public partial class PermissionCard : Node2D
         _see.Visible = false;
         _detail.MaxLinesVisible = 3;
         _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once => true, Answer.No => false, _ => null };
+        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once or Answer.Always => true, Answer.No => false, _ => null };     // "always" said aloud is a yes, as by text
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public partial class PermissionCard : Node2D
         _detail.MaxLinesVisible = -1;
         _detail.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;     // whole: a trimming label has no height of its own
         _lines.Text = lines;
-        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once => true, Answer.No => false, _ => null };
+        return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once or Answer.Always => true, Answer.No => false, _ => null };
     }
 
     /// <summary>See the change: opens or closes the exact lines (a dev action too).</summary>

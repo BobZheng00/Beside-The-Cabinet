@@ -56,18 +56,19 @@ public partial class Texting : Node
         return code;
     }
 
-    /// <summary>A message to the player; if Telegram can't be reached, the log says so.</summary>
-    public async Task Send(string text, IReadOnlyList<(string Text, string Data)>? buttons = null)
+    /// <summary>A message to the player, and when Telegram dated it; if Telegram can't be reached, the log says so (and null).</summary>
+    public async Task<DateTimeOffset?> Send(string text, IReadOnlyList<(string Text, string Data)>? buttons = null)
     {
         if (_bot is not { } bot || _chat is not { } chat || text.Length == 0)
-            return;
+            return null;
         try
         {
-            await bot.Send(chat, text, buttons);
+            return await bot.Send(chat, text, buttons);
         }
         catch (Exception e) when (e is TelegramException or HttpRequestException or TaskCanceledException)
         {
             GD.PrintErr($"Texting: could not send: {e.Message}");
+            return null;
         }
     }
 
@@ -171,7 +172,7 @@ public partial class Texting : Node
             }
             if (update.Text?.StartsWith("/start", StringComparison.Ordinal) == true)
                 continue;                                   // Start pressed again
-            if (_questions.Typed(update.File is null ? update.Text : null))
+            if (_questions.Typed(update.File is null ? update.Text : null, update.At))
             {
                 GD.Print("Texting: the player typed their answer to her question");
                 continue;                                   // anything else leaves her question unanswered, and is a new message
