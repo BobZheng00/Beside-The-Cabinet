@@ -8,7 +8,9 @@
 #   tools\dev\shoot.ps1 -Model C:\some\character.glb -Settings ', "Companion": "character"'
 #
 # -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
-# -Shots    seconds after launch at which to capture
+# -Shots    seconds after launch at which to capture. A shot whose window isn't there yet, or not drawn yet (one flat
+#           colour), waits for it, up to -Wait seconds, and says how long it waited
+# -Wait     the longest a shot waits for its window, and the -Window one, to show and be drawn (default 10)
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma (', "SetUp": false' for a first run)
 # -Model    file(s) copied into the profile's characters folder (wildcards allowed)
@@ -27,7 +29,7 @@
 # -Godot    the console build of Godot to run (default: the _console.exe beside GODOT, or the one private\local.cmd names)
 # Output: <Out>\<Tag>-<n>.png (and <Tag>-<n>-window.png), plus the app's log and errors.
 param([string]$Script = "", [double[]]$Shots = @(6), [string]$Tag = "shot", [string]$Bg = "#F2EFF7", [string]$Size = "M",
-      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$KeyFrom = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden, [switch]$Desk,
+      [int]$X = 1200, [int]$Y = 150, [string]$Settings = "", [string]$Model = "", [string]$KeyFrom = "", [string]$Exe = "", [string]$Window = "", [switch]$Hidden, [switch]$Desk, [double]$Wait = 10,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-shots"),
       [string]$Godot = "")
 
@@ -56,6 +58,7 @@ $onTop = if ($Hidden) { "false" } else { "true" }
   Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 Add-Type -AssemblyName System.Drawing
+. (Join-Path $PSScriptRoot "flat.ps1")
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @"
 using System; using System.Runtime.InteropServices;
@@ -156,38 +159,69 @@ function App-Windows([int]$n) {
   @($wins | Sort-Object Z)
 }
 
-$t0 = Get-Date; $i = 0
-foreach ($s in $Shots) {
-  while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
+# One shot's pictures: the app's process, its cabinet, the window -Window names and, hidden, every window of the app.
+function Take([int]$n) {
   # run from source, the console wrapper starts the real process as its child
   $app = if ($Exe -ne "") { $p.Refresh(); if ($p.HasExited) { $null } else { $p } } else {
     $child = Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | Where-Object { $_.Name -like "Godot*" } | Select-Object -First 1
     if ($child) { Get-Process -Id $child.ProcessId } else { $null }
   }
-  if (-not $app) { "no app process at ${s}s$(if (-not $Hidden) { ' (is another copy running?)' })"; continue }
-  $wins = @()
+  $shot = [pscustomobject]@{ App = $app; Cabinet = $null; One = $null; Wins = @() }
+  if (-not $app) { return $shot }
   if ($Hidden) {
-    $wins = @(App-Windows $i)
-    $cabinet = $wins | Where-Object { $_.Main } | Select-Object -First 1
-    if (-not $cabinet) { "no window yet at ${s}s"; continue }
-    $bmp = $cabinet.Picture
+    $shot.Wins = @(App-Windows $n)
+    $shot.Cabinet = $shot.Wins | Where-Object { $_.Main } | Select-Object -First 1 | ForEach-Object { $_.Picture }
+    if ($Window -ne "") { $shot.One = $shot.Wins | Where-Object { $_.Title.Contains($Window) } | Select-Object -First 1 | ForEach-Object { $_.Picture } }
   } else {
     $main = Cabinet-Window $app
     $r = New-Object Shoot+RECT; [Shoot]::GetWindowRect($main, [ref]$r) | Out-Null
-    if ($r.R -le $r.L) { "no window yet at ${s}s"; continue }
-    $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $g.Dispose()
+    if ($r.R -gt $r.L) {
+      $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T); $g = [System.Drawing.Graphics]::FromImage($bmp)
+      $g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size); $g.Dispose(); $shot.Cabinet = $bmp
+    }
+    if ($Window -ne "") { $h2 = [Shoot]::Find([uint32]$app.Id, $Window); if ($h2 -ne [IntPtr]::Zero) { $shot.One = (Print-Window $h2).Picture } }
   }
+  $shot
+}
+
+# What a shot still lacks: the app, its window, the named window, or either drawn (one flat colour is nothing drawn yet).
+function Lacking($shot) {
+  if (-not $shot.App) { return "the app" }
+  if (-not $shot.Cabinet) { return "its window" }
+  if (Test-Flat $shot.Cabinet) { return "its window to be drawn" }
+  if ($Window -ne "" -and -not $shot.One) { return "the window titled '$Window'" }
+  if ($Window -ne "" -and (Test-Flat $shot.One)) { return "the window titled '$Window' to be drawn" }
+  return $null
+}
+
+function Drop($shot) {
+  if ($Hidden) { foreach ($one in $shot.Wins) { $one.Picture.Dispose() } }
+  else { foreach ($one in @($shot.Cabinet, $shot.One)) { if ($one) { $one.Dispose() } } }
+}
+
+$t0 = Get-Date; $i = 0
+foreach ($s in $Shots) {
+  while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
+  # A busy PC runs a few seconds behind: what isn't there or drawn yet is waited for, up to -Wait seconds, then taken as
+  # it is. A shot with nothing lacking is taken at its second, as ever.
+  $from = Get-Date; $waitedFor = $null
+  while ($true) {
+    $shot = Take $i; $lacking = Lacking $shot
+    if (-not $lacking -or ((Get-Date) - $from).TotalSeconds -ge $Wait) { break }
+    if (-not $waitedFor) { $waitedFor = $lacking }
+    Drop $shot; Start-Sleep -Milliseconds 250; [System.Windows.Forms.Application]::DoEvents()
+  }
+  $waited = "{0:0.0}" -f ((Get-Date) - $from).TotalSeconds
+  $waitNote = if (-not $waitedFor) { "" } elseif ($lacking) { "; waited ${waited}s for $waitedFor, still lacking $lacking" } else { "; waited ${waited}s for $waitedFor" }
+  $app = $shot.App; $wins = $shot.Wins
+  if (-not $app) { "no app process at ${s}s (waited ${waited}s)$(if (-not $Hidden) { ' (is another copy running?)' })"; continue }
+  if (-not $shot.Cabinet) { "no window yet at ${s}s (waited ${waited}s)"; Drop $shot; continue }
   $file = Join-Path $Out ("{0}-{1}.png" -f $Tag, $i)
-  $bmp.Save($file)
-  "$file  at ${s}s: $($bmp.Width)x$($bmp.Height), working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s"
-  if (-not $Hidden) { $bmp.Dispose() }
+  $shot.Cabinet.Save($file)
+  "$file  at ${s}s: $($shot.Cabinet.Width)x$($shot.Cabinet.Height), working set $([int]($app.WorkingSet64 / 1MB)) MB, cpu $([math]::Round($app.TotalProcessorTime.TotalSeconds, 2))s$waitNote"
   if ($Window -ne "") {
-    $one = if ($Hidden) { $wins | Where-Object { $_.Title.Contains($Window) } | Select-Object -First 1 } else {
-      $h2 = [Shoot]::Find([uint32]$app.Id, $Window); if ($h2 -ne [IntPtr]::Zero) { Print-Window $h2 } }
-    if (-not $one) { "  no window titled '$Window' at ${s}s" } else {
-      $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $one.Picture.Save($file2); "  $file2"
-      if (-not $Hidden) { $one.Picture.Dispose() }
+    if (-not $shot.One) { "  no window titled '$Window' at ${s}s (waited ${waited}s)" } else {
+      $file2 = Join-Path $Out ("{0}-{1}-window.png" -f $Tag, $i); $shot.One.Save($file2); "  $file2"
     }
   }
   if ($Desk) {
@@ -203,7 +237,7 @@ foreach ($s in $Shots) {
     }
     $file3 = Join-Path $Out ("{0}-{1}-desk.png" -f $Tag, $i); $deskBmp.Save($file3); $dg.Dispose(); $deskBmp.Dispose(); "  $file3 ($($wins.Count) windows)"
   }
-  foreach ($one in $wins) { $one.Picture.Dispose() }
+  Drop $shot; if (-not $Hidden) { foreach ($one in $wins) { $one.Picture.Dispose() } }   # -Desk's own pictures
   $i++
 }
 
