@@ -35,7 +35,7 @@ public class ChatGptPlanTests : IDisposable
         public List<(string Path, string Body, string? Bearer)> Asked { get; } = [];
         public string? Challenge, Nonce;
         public int Issued;
-        public bool RefusesRefresh, BusyRefreshing, Revokes = true;
+        public bool RefusesRefresh, BusyRefreshing, RefusesClient, Revokes = true;
         public Queue<HttpResponseMessage> Answers { get; } = new();
 
         public IEnumerable<string> Paths => Asked.Select(a => a.Path);
@@ -49,6 +49,8 @@ public class ChatGptPlanTests : IDisposable
             {
                 case "/api/accounts/oauth/token":
                     var form = HttpUtility.ParseQueryString(body);
+                    if (form["grant_type"] == "authorization_code" && RefusesClient)
+                        return Json(HttpStatusCode.Unauthorized, """{"error":"invalid_client"}""");
                     if (form["grant_type"] == "authorization_code" && Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(form["code_verifier"]!))) != Challenge)
                         return Json(HttpStatusCode.BadRequest, """{"error":"invalid_grant"}""");
                     if (form["grant_type"] == "refresh_token" && RefusesRefresh)
@@ -169,6 +171,18 @@ public class ChatGptPlanTests : IDisposable
         Assert.Equal("Sign-in was turned down in the browser.", failed.Message);
         Assert.False(plan.Connected);
         Assert.Null(_kept);
+    }
+
+    [Fact]
+    public async Task A_sign_in_whose_code_chatgpt_refuses_says_it_was_refused_not_unreachable()
+    {
+        var plan = Plan();
+        _openAi.RefusesClient = true;
+
+        var failed = await Assert.ThrowsAsync<PlanSignInFailed>(() => SignIn(plan));
+
+        Assert.Equal("ChatGPT didn't accept the sign-in. Continue with ChatGPT to try again.", failed.Message);
+        Assert.False(plan.Connected);
     }
 
     [Fact]

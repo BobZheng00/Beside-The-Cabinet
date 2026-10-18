@@ -355,6 +355,8 @@ public partial class MindSettings : VBoxContainer
             finally
             {
                 _acting = false;
+                if (IsInstanceValid(this))
+                    ShowNow();                              // whatever came of it, and whatever changed meanwhile
             }
             var models = await _chat.Plan.Models(signing.Token);
             GD.Print($"ChatGPT: signed in, plan usage allowed; {models.Count} models offered");     // never the email or a token

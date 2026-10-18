@@ -103,12 +103,12 @@
     },
     {
       "name": "chatgpt-signedout",
-      "about": "Signed in with ChatGPT (a stand-in), the player disconnects the app in ChatGPT itself: the next request and its refresh are turned down, the companion's card says they're signed out, with Continue with ChatGPT, and the Mind page, open all along, shows them signed out.",
+      "about": "Signed in with ChatGPT (a stand-in), the player disconnects the app in ChatGPT itself: the next request and its refresh are turned down, the companion's card says they're signed out, with Continue with ChatGPT, and the Mind page, open all along, shows them signed out; signing in again there takes the card back and the page says the companion answers through the plan again.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindRequests": 5,
-      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Continue_with_ChatGPT@4,chat:you_are_signedout@8,settings:abilities@11,settings:mind@12",
-      "shots": [14],
+      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Continue_with_ChatGPT@4,chat:you_are_signedout@8,settings:abilities@11,settings:mind@12,settingsdo:Continue_with_ChatGPT@14",
+      "shots": [14, 19],
       "window": "Settings",
       "desk": true,
       "expect": [

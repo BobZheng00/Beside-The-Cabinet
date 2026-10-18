@@ -57,7 +57,7 @@ def b64url(data):
 
 
 def words_of(body):
-    """The player's last words in a request: its last user message's text."""
+    """The player's newest words in a request: the last user message's text, as sent (with the app's notes around it)."""
     for item in reversed(body.get("input") or []):
         if isinstance(item, dict) and item.get("role") == "user":
             content = item.get("content")
@@ -65,6 +65,14 @@ def words_of(body):
                 return content
             return " ".join(p.get("text", "") for p in content or [] if isinstance(p, dict))
     return ""
+
+
+def newest(words):
+    """Only the newest thing they said: the last paragraph before the closing <character> note. A turn also carries
+    what went unanswered before it, which mustn't trip a trigger a second time."""
+    words = words.rsplit("<character>", 1)[0]
+    paragraphs = [p.strip() for p in words.split("\n\n") if p.strip() and not p.strip().startswith("<")]
+    return paragraphs[-1] if paragraphs else ""
 
 
 def broken_rules(body):
@@ -181,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.bearer():
             self.answer(401, {"error": {"code": "subscription_sharing_invalid_user", "message": "no token"}})
             return
-        said = words.lower()
+        said = newest(words).lower()
         if "ineligible" in said:
             log({"path": url.path, "said": words[-60:], "answered": 403})
             self.answer(403, {"error": {"code": "subscription_sharing_user_not_eligible", "message": "This account can't share its plan."}})
@@ -195,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
             log({"path": url.path, "said": words[-60:], "answered": 503})
             self.answer(503, {"error": {"code": "subscription_sharing_usage_unavailable", "message": "Try again later."}})
             return
-        if "limit" in words.lower():
+        if "limit" in said:
             STATE["limit"] = True
         entry = {"path": url.path, "model": body.get("model"), "said": words[-200:], "instructions": bool(body.get("instructions")),
                  "roles": [i.get("role") or i.get("type") for i in body.get("input") or [] if isinstance(i, dict)],
@@ -204,7 +212,7 @@ class Handler(BaseHTTPRequestHandler):
             log({**entry, "broke": broke})
             self.answer(400, {"error": {"code": "subscription_sharing_unsupported_capability", "param": broke[0], "message": "not on the plan"}})
             return
-        if STATE["limit"] and "midstream" not in words.lower():
+        if STATE["limit"] and "midstream" not in said:
             log({**entry, "limit": True})
             self.answer(429, {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "The plan's usage limit for this app is reached."}})
             return

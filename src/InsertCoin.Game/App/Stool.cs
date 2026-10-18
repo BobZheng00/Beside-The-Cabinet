@@ -1735,6 +1735,7 @@ public partial class Stool : Node2D
     /// remarks, while reminders still come in the app's words (each request fails at once, see <see cref="ChatGptPlan.Client"/>).
     /// </summary>
     private PlanStop? _planCard;                            // what her card is telling of the plan now, if anything
+    private int _planCards;                                 // the plan's cards shown so far: which one _planCard belongs to
 
     private async Task TellPlan(PlanStop why)
     {
@@ -1753,6 +1754,7 @@ public partial class Stool : Node2D
         };
         Her.Play(Moment.Worry);
         _planCard = why;
+        var card = ++_planCards;
         bool pressed;
         try
         {
@@ -1760,7 +1762,7 @@ public partial class Stool : Node2D
         }
         finally
         {
-            if (_planCard == why)
+            if (_planCards == card)                         // not a newer card of the plan's, shown meanwhile
                 _planCard = null;
         }
         if (!pressed)

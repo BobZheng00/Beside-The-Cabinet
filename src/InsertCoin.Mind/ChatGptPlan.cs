@@ -174,7 +174,7 @@ public sealed class ChatGptPlan
                 ["resource"] = Resource,
             }, cancel);
         }
-        catch (TokenRefused)
+        catch (Exception e) when (e is TokenRefused || e is HttpRequestException { StatusCode: { } status } && (int)status is >= 400 and < 500)
         {
             throw new PlanSignInFailed("ChatGPT didn't accept the sign-in. Continue with ChatGPT to try again.");
         }
