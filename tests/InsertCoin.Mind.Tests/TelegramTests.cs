@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 
 namespace InsertCoin.Mind.Tests;
@@ -171,5 +172,109 @@ public class TelegramTests
         Assert.Contains("needs them at the PC", record);
         Assert.True(BuiltIn.OpenLink(_ => { }).AtThePc);
         Assert.False(BuiltIn.PrintMemo((_, _) => "").AtThePc);
+    }
+
+    private static readonly (string Text, string Data)[] MayI = [("Allow once", "once"), ("Always for leetcode.com", "always"), ("No", "no")],
+                                                         Counts = [("Yes", "yes"), ("Not yet", "no")];
+
+    /// <summary>Her question by text, sent through a bot to the stand-in Telegram at noon.</summary>
+    private static (Questions Questions, Task<string?> Asked, FakeTelegram Server) Asked((string Text, string Data)[] buttons)
+    {
+        var (bot, server) = Bot();
+        var questions = new Questions();
+        return (questions, questions.Ask("May I open leetcode.com?", buttons, (text, b) => bot.Send("42", text, b), Noon, CancellationToken.None), server);
+    }
+
+    /// <summary>What its button sends back when pressed, as the stand-in Telegram was given it.</summary>
+    private static string Button(FakeTelegram server, string data) =>
+        Regex.Match(server.Asked[0].Body, $"\"callback_data\":\"(\\w+:{data})\"").Groups[1].Value;
+
+    [Fact]
+    public async Task A_press_answers_her_question_by_text_with_its_button()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        questions.Pressed(Button(server, "always"));
+
+        Assert.Equal("always", await asked);
+        Assert.False(questions.Asking);
+        Assert.Single(server.Asked);
+    }
+
+    [Fact]
+    public async Task A_question_by_text_ends_unanswered_after_its_time_and_the_chat_says_so()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        questions.Lapse(Noon + Questions.Waits - TimeSpan.FromSeconds(1));
+        Assert.True(questions.Asking);
+        questions.Lapse(Noon + Questions.Waits);
+
+        Assert.Null(await asked);
+        Assert.False(questions.Asking);
+        Assert.Equal(TimeSpan.FromSeconds(120), Questions.Waits);         // as long as her card by the stool waits
+        Assert.Contains("inline_keyboard", server.Asked[0].Body);
+        Assert.Contains(Questions.Unanswered, server.Asked[1].Body);
+        Assert.DoesNotContain("inline_keyboard", server.Asked[1].Body);
+        questions.Pressed(Button(server, "once"));                      // too late: nothing more
+        Assert.Equal(2, server.Asked.Count);
+    }
+
+    [Theory]
+    [InlineData("Yes!", "once")]
+    [InlineData("ok, go ahead", "once")]
+    [InlineData("always", "always")]
+    [InlineData("No thanks.", "no")]
+    [InlineData("好的", "once")]
+    [InlineData("不要", "no")]
+    [InlineData("はい", "once")]
+    [InlineData("いいえ", "no")]
+    public async Task A_short_yes_always_or_no_typed_answers_her_question_as_its_button_would(string typed, string data)
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        Assert.True(questions.Typed(typed));
+
+        Assert.Equal(data, await asked);
+        Assert.Single(server.Asked);                                    // answered: the chat says nothing more
+    }
+
+    [Theory]
+    [InlineData("yes", "yes")]
+    [InlineData("yes, always", "yes")]
+    [InlineData("nope", "no")]
+    public async Task A_question_with_only_yes_and_no_takes_always_as_yes(string typed, string data)
+    {
+        var (questions, asked, _) = Asked(Counts);
+
+        Assert.True(questions.Typed(typed));
+        Assert.Equal(data, await asked);
+    }
+
+    [Fact]
+    public async Task Anything_else_sent_meanwhile_leaves_her_question_unanswered_and_is_a_new_message()
+    {
+        var (questions, asked, server) = Asked(MayI);
+        var (photo, sent, _) = Asked(Counts);
+
+        Assert.False(questions.Typed("what's that site for?"));
+        Assert.False(photo.Typed(null));                                // a photo or a file, typed nothing
+
+        Assert.Null(await asked);
+        Assert.Null(await sent);
+        Assert.Contains(Questions.Unanswered, server.Asked[1].Body);
+        Assert.False(new Questions().Typed("yes"));                     // with no question waiting, a yes is only a message
+    }
+
+    [Fact]
+    public void A_reminder_due_while_her_question_waits_still_goes_by_text_as_its_plain_line()
+    {
+        var reminder = new Telling("REMINDER", "note", "Reminder: call Mum.", Matters.Must, true, Noon, TimeSpan.FromMinutes(10));
+        var howDidItGo = new Telling("HOW DID IT GO", "Ask how the dentist went.", "", Matters.Should, true, Noon, TimeSpan.FromHours(3));
+
+        Assert.True(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Away)));
+        Assert.True(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Asleep)));
+        Assert.False(Reaching.GoesWhileAsking(howDidItGo, Reaching.Route(Matters.Should, true, Whereabouts.Away)));   // only her mind says it: it waits for her
+        Assert.False(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Here)));       // at the PC: it waits for her
     }
 }

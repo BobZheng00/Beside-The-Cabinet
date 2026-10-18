@@ -600,14 +600,18 @@ public partial class Stool : Node2D
     /// What she has to tell the player, once she is free, the most important first, by the routing (see
     /// <see cref="Reaching.Route"/>): at the PC as <see cref="Reaching.AtThePc"/> says (never cutting herself or them
     /// off), a text, or kept for when they are back. What is no longer worth saying is let go. What waits is looked at
-    /// once a second (asking Windows about calls takes a moment), anything new at once.
+    /// once a second (asking Windows about calls takes a moment), anything new at once. While she only waits on the
+    /// player's answer to a question by text, what goes to their phone with a plain line (a reminder) still goes, as that
+    /// line; the rest waits for her.
     /// </summary>
     private void PassOn()
     {
         var now = DateTimeOffset.Now;
-        if (Busy)
+        var asking = Phone?.Asking == true;
+        var held = Busy && !asking;
+        if (held)
             _quietFrom = now.AddSeconds(1.5);               // a breath after she stops before she starts again
-        if (_toTell.Count == 0 || Busy || now < _quietFrom || now < _nextPass)
+        if (_toTell.Count == 0 || held || now < _quietFrom || now < _nextPass)
             return;
         _nextPass = now.AddSeconds(1);
         foreach (var stale in _toTell.Where(t => !t.FreshAt(now)).ToList())
@@ -619,6 +623,8 @@ public partial class Stool : Node2D
         foreach (var telling in _toTell.OrderBy(t => t.Matters).ThenBy(t => t.At).ToList())
         {
             var route = Reaching.Route(telling.Matters, telling.Anywhere, where, CanText(), _settings.Now.Reach);
+            if (asking && !Reaching.GoesWhileAsking(telling, route))
+                continue;                                   // it waits for her, as her mind waits on the question
             switch (route.Way)
             {
                 case Way.Wait:
@@ -629,7 +635,7 @@ public partial class Stool : Node2D
                     continue;
                 case Way.Text:
                     _toTell.Remove(telling);
-                    _ = TextIt(telling, where);
+                    _ = TextIt(telling, where, herMind: !asking);
                     return;
             }
             if (Her is null || !_settings.Now.SpeechBubbles)
@@ -704,10 +710,16 @@ public partial class Stool : Node2D
     /// write them, told it goes as a text, else the plain line. What must reach them never waits long on her mind: after
     /// <see cref="Reaching.HerWordsWithin"/> the plain line goes, and her words don't follow.
     /// </summary>
-    private async Task TextIt(Telling telling, Whereabouts where)
+    /// <param name="herMind">False while her mind waits on a question by text: the plain line goes at once.</param>
+    private async Task TextIt(Telling telling, Whereabouts where, bool herMind = true)
     {
         string? words = null;
-        if (_chat.Ready && Her is not null && !telling.Plain && telling.Note.Length > 0)
+        if (!herMind && telling.Line.Length > 0)
+        {
+            GD.Print("Reaching: she waits on a question by text; the plain line goes meanwhile");
+            _chat.Said(telling.Line);                       // so she knows what reached them
+        }
+        else if (_chat.Ready && Her is not null && !telling.Plain && telling.Note.Length > 0)
         {
             _announcing = _texting = _chat.Tools.Away = true;
             try

@@ -154,7 +154,9 @@ bring it up in person.
 On Telegram you can text your companion back, from anywhere (Settings → Your phone, "Text with … on Telegram": make
 a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). They answer by text,
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
-reach them. What needs you at the PC (your screen, opening things) waits until you're back. What you texted while the
+reach them. A card by text waits two minutes, as on the PC: press a button, or type a short "yes", "always" or "no"
+(in Chinese, Japanese or Korean too); anything else you send leaves it unanswered, and then nothing it asked about is
+done (the chat says so). A reminder due meanwhile still reaches you. What needs you at the PC (your screen, opening things) waits until you're back. What you texted while the
 cabinet was closed (Telegram keeps it a day) they read when it next runs, and answer once. Only your chat is listened
 to. The chat goes through Telegram's servers and isn't end-to-end encrypted. Each profile needs a bot of its own, the
 demo too.

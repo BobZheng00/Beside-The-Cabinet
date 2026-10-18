@@ -231,6 +231,12 @@ public static class Reaching
         return phone ? route : route with { Way = route.Way == Way.Text ? Way.Wait : route.Way, TextIfGone = false };
     }
 
+    /// <summary>
+    /// While her mind waits on the player's answer to a question by text (see <see cref="Questions"/>), what still goes:
+    /// a text with a plain line (a reminder), as that line, so a question never holds it. The rest waits for her.
+    /// </summary>
+    public static bool GoesWhileAsking(Telling telling, Route route) => route.Way == Way.Text && telling.Line.Length > 0;
+
     /// <summary>How long into an absence her first chance to text something of her own comes, unless she planned one (to tune).</summary>
     public static readonly TimeSpan FirstChance = TimeSpan.FromMinutes(30);
 

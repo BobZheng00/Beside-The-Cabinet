@@ -140,6 +140,98 @@ public sealed class Telegram(HttpClient http, string token)
 }
 
 /// <summary>
+/// Her questions by text, as buttons under a message (her card: may she use a tool, does an activity count, her
+/// suggested change to a skill), the first button for yes and the last for no, any "always" between. What ends one: a
+/// press; a short yes, always or no typed instead, read as its button would be (see <see cref="SpokenAnswer"/>, in the
+/// app's languages, whichever the player writes in); anything else they send, which leaves it unanswered and goes to her
+/// as a new message; or <see cref="Waits"/> with none of these, as her card by the stool waits. Unanswered, nothing it
+/// asked about is done, and the chat says so. So a question never holds her replies, or the player's texts, for long.
+/// </summary>
+public sealed class Questions
+{
+    /// <summary>How long a question waits for an answer (to tune, as the card by her stool's 120 s).</summary>
+    public static readonly TimeSpan Waits = TimeSpan.FromSeconds(120);
+
+    /// <summary>What the chat says when a question ends unanswered.</summary>
+    public const string Unanswered = "(Left unanswered, so nothing was done.)";
+
+    private readonly Dictionary<string, (TaskCompletionSource<string?> Answer, DateTimeOffset Until, IReadOnlyList<(string Text, string Data)> Buttons)> _open = [];
+
+    /// <summary>A question waits for the player's answer.</summary>
+    public bool Asking => _open.Count > 0;
+
+    /// <summary>
+    /// Sends <paramref name="text"/> with its buttons through <paramref name="send"/>, and waits: the data of the button
+    /// its answer chose, or null when it went unanswered (or <paramref name="cancel"/> came first), the chat then told so.
+    /// </summary>
+    public async Task<string?> Ask(string text, IReadOnlyList<(string Text, string Data)> buttons,
+                                   Func<string, IReadOnlyList<(string Text, string Data)>?, Task> send, DateTimeOffset now, CancellationToken cancel)
+    {
+        var id = Guid.NewGuid().ToString("N")[..8];
+        var answer = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _open[id] = (answer, now + Waits, buttons);
+        string? answered;
+        try
+        {
+            await using (cancel.Register(() => answer.TrySetResult(null)))
+            {
+                await send(text, [.. buttons.Select(b => (b.Text, $"{id}:{b.Data}"))]);
+                answered = await answer.Task;
+            }
+        }
+        finally
+        {
+            _open.Remove(id);
+        }
+        if (answered is null)
+            await send(Unanswered, null);
+        return answered;
+    }
+
+    /// <summary>A button pressed, with the data it was sent with (see <see cref="Ask"/>); one of a question already ended does nothing.</summary>
+    public void Pressed(string? pressed)
+    {
+        if (pressed?.Split(':', 2) is [var id, var data])
+            End(id, data);
+    }
+
+    /// <summary>
+    /// The player sent something while a question waits (<paramref name="typed"/> null for a photo or a file): true when
+    /// it was a short yes, always or no, now the question's answer; otherwise the question ends unanswered, and false,
+    /// as it is a new message.
+    /// </summary>
+    public bool Typed(string? typed)
+    {
+        if (_open.Count == 0)
+            return false;
+        var answer = typed is null ? null : SpokenAnswer.Of(typed);
+        foreach (var (id, open) in _open.ToList())
+            End(id, answer switch
+            {
+                Answer.No => open.Buttons[^1].Data,
+                Answer.Always when open.Buttons.Any(b => b.Data == "always") => "always",
+                Answer.Once or Answer.Always => open.Buttons[0].Data,
+                _ => null,
+            });
+        return answer is not null;
+    }
+
+    /// <summary>What has waited its time by <paramref name="now"/> ends unanswered.</summary>
+    public void Lapse(DateTimeOffset now)
+    {
+        foreach (var (id, open) in _open.ToList())
+            if (now >= open.Until)
+                End(id, null);
+    }
+
+    private void End(string id, string? data)
+    {
+        if (_open.Remove(id, out var open))
+            open.Answer.TrySetResult(data);
+    }
+}
+
+/// <summary>
 /// Pairing her bot with the player's own chat: a code in the link they open, or the QR code they scan, which Telegram
 /// sends back as "/start code" when they press Start. Used once and good for ten minutes; after it, only that chat is
 /// listened to.
