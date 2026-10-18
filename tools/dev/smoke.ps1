@@ -269,7 +269,7 @@ function Start-StandIn([string]$name) {
   New-Item -ItemType Directory $profile | Out-Null
   '{ "SetUp": true, "Initials": "BOB", "Muted": true, "AlwaysOnTop": false, "WindowX": -4000, "WindowY": 100, "TalkKey": "Off" }' |
     Out-File -Encoding ascii (Join-Path $profile "settings.json")
-  $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam --lock=beside",
+  $p = [Backstage]::Start("`"$godotConsole`" --path `"$game`" --log-file `"$profile\godot.log`" -- --data=`"$profile`" --no-steam --lock=beside --test-run",
                           (Join-Path $Out "run-$name.log"), (Join-Path $Out "run-$name.err"))
   [pscustomobject]@{ Name = $name; Process = $p; Watch = (New-Object Unseen $p.Id) }
 }

@@ -53,6 +53,10 @@ foreach ($tool in @("shoot.ps1", "clip.ps1")) {
       $nestedExit -ne 0 -and $nested -match "The text: , Muted: false" -and -not $written) { "ok    $tool refuses settings the app couldn't read" }
   else { $failed++; "WRONG $tool on unreadable settings: direct '$direct', nested (exit $nestedExit) '$nested', settings.json written: $written" }
   if (Test-Path $seedOut) { Remove-Item $seedOut -Recurse -Force }
+  # and every copy it starts, hidden or not, is told it's a test run (--test-run), so settings it can't read leave it muted
+  $base = @(Select-String -Path $path -Pattern '^\$userArgs = ".*"')
+  if ($base.Count -eq 1 -and $base[0].Line -match '\s--test-run[\s"]') { "ok    $tool starts every copy with --test-run" }
+  else { $failed++; "WRONG $tool doesn't start every copy with --test-run: $($base.Line -join ' | ')" }
 }
 & $smoke -SelfCheck                                                   # the beside scenario's verdict on the player's lock
 if ($LASTEXITCODE -ne 0) { $failed++ }

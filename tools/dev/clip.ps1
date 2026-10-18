@@ -41,7 +41,7 @@ $seed | Out-File -Encoding ascii (Join-Path $profile "settings.json")
 $frames = Join-Path $Out "frames-$Tag"
 if (Test-Path $frames) { Remove-Item $frames -Recurse -Force }
 New-Item -ItemType Directory $frames | Out-Null
-$userArgs = "--data=`"$profile`" --no-steam --offscreen"
+$userArgs = "--data=`"$profile`" --no-steam --offscreen --test-run"
 if ($Script -ne "") { $userArgs += " --script=$Script" }
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 $count = [int]($Seconds * $Fps)

@@ -29,7 +29,7 @@
       "covers": ["src/InsertCoin.Game/App/AppSettings.cs", "src/InsertCoin.Adapters/JsonFileStore.cs"],
       "settings": ", \"Muted\": \"no\"",
       "shots": [6],
-      "expect": ["^Main: settings.json couldn't be read, so it was set aside and the defaults used \\(a test run's: muted\\)$"]
+      "expect": ["^Main: settings.json couldn't be read, so it was set aside and a test run's defaults used, sounds muted$"]
     },
     {
       "name": "firstrun",

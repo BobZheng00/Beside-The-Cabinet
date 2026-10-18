@@ -97,9 +97,11 @@ public partial class Main : Node2D
                 return;
             }
         }
-        _settingsFile = new SettingsFile(new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json")), testRun: Paper.OffScreen);
+        // --test-run (every test script passes it, hidden or not): a test copy, whose defaults keep it muted
+        var testRun = Paper.OffScreen || args.ContainsKey("test-run");
+        _settingsFile = new SettingsFile(new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json")), testRun);
         if (_settingsFile.Unreadable)
-            GD.Print($"Main: settings.json couldn't be read, so it was set aside and the defaults used{(Paper.OffScreen ? " (a test run's: muted)" : "")}");
+            GD.Print($"Main: settings.json couldn't be read, so it was set aside and {(testRun ? "a test run's" : "the")} defaults used, sounds {(_settingsFile.Now.Muted ? "muted" : "on")}");
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
         _rules = RulesOf(_settings);
         _state = _stateStore.Load() ?? LedgerState.New(DateTimeOffset.Now, _rules);

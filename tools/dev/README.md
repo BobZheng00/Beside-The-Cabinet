@@ -154,9 +154,11 @@ Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
 
 Settings seeded with `-Settings` (`', "AlwaysOnTop": true'`) need their quotes, so call `shoot.ps1` and `clip.ps1`
 directly in PowerShell: through a nested `powershell -File` the quotes are lost. Either script checks the settings.json
-it seeds is strict JSON and stops before launching, naming the bad text, if not. A test copy whose settings.json still
-can't be read (a value of the wrong kind, say) sets it aside and starts on a test run's defaults, muted, and says so in
-its log (`Main: settings.json couldn't be read…`); the player's own app starts on the usual defaults.
+it seeds is strict JSON and stops before launching, naming the bad text, if not (they need Windows PowerShell 5.1,
+`powershell.exe`, for that check, not pwsh 7). Every copy the test scripts start, hidden or not, is told it's a test
+run (`--test-run`; `--offscreen` implies it): one whose settings.json still can't be read (a value of the wrong kind,
+say) sets it aside and starts on a test run's defaults, muted, and says so in its log (`Main: settings.json couldn't be
+read…, sounds muted`); the player's own app and the demo start on the usual defaults.
 
 ## Checks and the smoke suite
 

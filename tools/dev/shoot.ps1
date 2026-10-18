@@ -99,7 +99,7 @@ if ($Bg -ne "none") {
   $form.Show(); [System.Windows.Forms.Application]::DoEvents()
 }
 
-$userArgs = "--data=`"$profile`" --no-steam"
+$userArgs = "--data=`"$profile`" --no-steam --test-run"                # hidden or not: settings it can't read leave it muted
 $shotDir = Join-Path $profile "shots"                                  # hidden, the app pictures its windows here when asked
 if ($Hidden) {
   if (Test-Path $shotDir) { Remove-Item $shotDir -Recurse -Force }
