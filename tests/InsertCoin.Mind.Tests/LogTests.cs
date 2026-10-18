@@ -230,7 +230,7 @@ public class LogTests
         version.Open();
         using var ask = version.CreateCommand();
         ask.CommandText = "PRAGMA user_version";
-        Assert.Equal(16L, (long)ask.ExecuteScalar()!);
+        Assert.Equal(17L, (long)ask.ExecuteScalar()!);
     }
 
     [Fact]
