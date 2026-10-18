@@ -44,18 +44,18 @@
     },
     {
       "name": "menu",
-      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice flipped there shows in the tray and on Settings → Voice, and flipped back on that page shows in the menu; its Settings… opens Settings.",
+      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice flipped off there shows on Settings → Voice, and ticked again on that page shows in the tray (the same menu: the only tray line, at the end, with Voice on); its Settings… opens Settings.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],
-      "script": "trayitems@2,menu@3,menupress:Voice@4,trayitems@5,menupress:Settings@6,settings:voice@7,settingsdo:Shino_speaks_aloud@10,menu@11",
-      "shots": [11, 15],
+      "script": "menu@3,menupress:Voice@4,menu@5,menupress:Settings@6,settings:voice@7,settingsdo:Shino_speaks_aloud@10,trayitems@11",
+      "shots": [11, 17],
       "window": "Settings",
       "expect": [
-        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
         "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
         "^Menu: pressed Voice$",
-        "^Tray: .*\\| Voice \\[ \\] \\|",
+        "^Menu: at .*\\| Voice \\[ \\] \\|",
         "^Menu: pressed Settings$",
-        "^Settings: \"Shino speaks aloud\" ticked$"
+        "^Settings: \"Shino speaks aloud\" ticked$",
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
       ],
       "forbid": ["^Menu: no entry"]
     },
