@@ -59,6 +59,7 @@ public partial class MindSettings : VBoxContainer
                                 "Your key stays on this PC, encrypted for your Windows account.");
         _now = Form.Result(this);
         ShowNow();
+        chat.Plan.Changed += PlanChanged;
 
         var grid = Form.Grid(this);
         _preset = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -122,10 +123,39 @@ public partial class MindSettings : VBoxContainer
     /// <summary>The line at the top: which provider she answers through now, or that she can't talk yet.</summary>
     private void ShowNow()
     {
-        if (_saved is { } provider)
+        if (OnPlan && _chat.Plan.Stopped is { } why)
+            Form.Say(_now, $"{_name} waits: " + why switch
+            {
+                PlanStop.Limit => "your ChatGPT plan's usage limit is reached.",
+                PlanStop.NotEligible => "this ChatGPT account can't share its plan with apps.",
+                _ => "signed out of ChatGPT.",
+            }, Paper.Bad);
+        else if (_saved is { } provider)
             Form.Say(_now, $"{_name} answers through {provider.Through}, with {provider.Model}.", Paper.Good);
+        else if (_protocol == Protocol.ChatGpt)
+            Form.Say(_now, $"Not connected: {_name} can't talk with you until you continue with ChatGPT.", Paper.Bad);
         else
             Form.Say(_now, $"Not connected: {_name} can't talk with you until this is filled in and saved.", Paper.Bad);
+    }
+
+    private bool _acting;                                   // signing in or disconnecting here: this page says how it went
+
+    /// <summary>The plan stopped, or works again, while the page shows: shown as it now stands (not what this page itself just did).</summary>
+    private void PlanChanged()
+    {
+        if (_acting)
+            return;
+        Callable.From(() =>
+        {
+            if (!IsInstanceValid(this))
+            {
+                _chat.Plan.Changed -= PlanChanged;
+                return;
+            }
+            ShowNow();
+            if (_plan.Visible)
+                ShowPlan();
+        }).CallDeferred();
     }
 
     private void Unsaved()
@@ -154,6 +184,7 @@ public partial class MindSettings : VBoxContainer
             field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = !plan;
         _hint.Visible = _buttons.Visible = !plan;
         _plan.Visible = plan;
+        ShowNow();
         if (plan)
             ShowPlan();
     }
@@ -243,7 +274,11 @@ public partial class MindSettings : VBoxContainer
         Form.Say(Form.Result(_plan), $"Connected as {plan.Email ?? "your ChatGPT account"}", Paper.Good);
         var grid = Form.Grid(_plan);
         _planModel = Form.Choice(grid, "Model", [_models.FirstOrDefault(m => m.Slug == _saved?.Model).Name ?? _saved?.Model ?? "…"], 0,
-                                 index => Use(_models.ElementAtOrDefault(index).Slug), wide: true);
+                                 index =>
+                                 {
+                                     if (OnPlan)                    // else kept for "Use your ChatGPT plan"
+                                         Use(_models.ElementAtOrDefault(index).Slug);
+                                 }, wide: true);
         var row = Form.Buttons(_plan);
         row.AddChild(new Label { Text = OnPlan ? "Using ChatGPT plan" : "Not in use yet", SizeFlagsVertical = SizeFlags.ShrinkCenter });
         Form.Button(row, "Manage usage", () => Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage)));
@@ -312,7 +347,15 @@ public partial class MindSettings : VBoxContainer
         Say("Sign in in your browser and allow plan usage, then come back here.", Paper.Faint);
         try
         {
-            await _chat.Plan.SignIn(Browse, signing.Token);
+            _acting = true;
+            try
+            {
+                await _chat.Plan.SignIn(Browse, signing.Token);
+            }
+            finally
+            {
+                _acting = false;
+            }
             var models = await _chat.Plan.Models(signing.Token);
             GD.Print($"ChatGPT: signed in, plan usage allowed; {models.Count} models offered");     // never the email or a token
             _models = models;
@@ -392,7 +435,16 @@ public partial class MindSettings : VBoxContainer
     /// <summary>Disconnect: the sign-in forgotten here and ended at ChatGPT; she has no mind until another is chosen.</summary>
     private async Task Disconnect()
     {
-        var told = await _chat.Plan.Disconnect();
+        _acting = true;
+        bool told;
+        try
+        {
+            told = await _chat.Plan.Disconnect();
+        }
+        finally
+        {
+            _acting = false;
+        }
         GD.Print($"ChatGPT: disconnected{(told ? "" : "; ChatGPT couldn't be told")}");
         if (OnPlan)
         {

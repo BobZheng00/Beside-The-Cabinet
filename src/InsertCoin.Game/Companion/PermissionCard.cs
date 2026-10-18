@@ -156,6 +156,13 @@ public partial class PermissionCard : Node2D
 
     private bool _clicksOnly;                                   // the card showing takes no spoken answer (see Choose)
 
+    /// <summary>Takes back what <see cref="Tell"/> is telling, when it no longer holds (the player disconnected, say).</summary>
+    public void Withdraw()
+    {
+        if (_clicksOnly)
+            _answer?.TrySetResult(Answer.None);
+    }
+
     /// <summary>See the change: opens or closes the exact lines (a dev action too).</summary>
     public void SeeChange()
     {

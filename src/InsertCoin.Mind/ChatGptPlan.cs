@@ -35,6 +35,14 @@ public sealed class PlanStopped(PlanStop why, bool told = false) : Exception(Cha
     public bool Told => told;
 }
 
+/// <summary>
+/// ChatGPT turned a request on the plan down for its sign-in or permission (401 or 403 with no code that says more),
+/// even with a fresh token: passing as far as can be told, so the sign-in is kept, and said in the plan's words.
+/// </summary>
+public sealed class PlanRefused(int status, Exception inner)
+    : HttpRequestException("ChatGPT turned this request down. Try again later; if it keeps happening, Disconnect and sign in again in Settings → Mind.",
+                           inner, (HttpStatusCode)status);
+
 /// <summary>Signing in with ChatGPT didn't finish; the message says why, plainly.</summary>
 public sealed class PlanSignInFailed(string message) : Exception(message);
 
@@ -112,6 +120,9 @@ public sealed class ChatGptPlan
     /// <summary>The plan just stopped answering, for this reason: the player is told once, plainly (not again until it worked in between).</summary>
     public event Action<PlanStop>? Stopping;
 
+    /// <summary>How things stand changed: signed in or out, stopped, or working again (after <see cref="Stopping"/>, when both come).</summary>
+    public event Action? Changed;
+
     /// <summary>What a request she couldn't make says, in the app's words: the plain line, with where to put it right.</summary>
     public static string Plainly(PlanStop why) => why switch
     {
@@ -154,11 +165,19 @@ public sealed class ChatGptPlan
         var (code, client) = await callback;
         if (client != ids.Client)
             SaveIds(ids with { Client = client });             // kept before the code is used: a failed exchange doesn't register the app again
-        var answer = await Token(new()
+        JsonNode answer;
+        try
         {
-            ["grant_type"] = "authorization_code", ["client_id"] = client, ["code"] = code, ["code_verifier"] = verifier, ["redirect_uri"] = redirect,
-            ["resource"] = Resource,
-        }, cancel);
+            answer = await Token(new()
+            {
+                ["grant_type"] = "authorization_code", ["client_id"] = client, ["code"] = code, ["code_verifier"] = verifier, ["redirect_uri"] = redirect,
+                ["resource"] = Resource,
+            }, cancel);
+        }
+        catch (TokenRefused)
+        {
+            throw new PlanSignInFailed("ChatGPT didn't accept the sign-in. Continue with ChatGPT to try again.");
+        }
         // granted scopes are listed unless they are all that was asked for (RFC 6749, 5.1)
         if ((string?)answer["scope"] is { } scope && !scope.Split(' ').Contains(PlanScope))
             throw new PlanSignInFailed("Signed in, but plan usage wasn't allowed. Continue with ChatGPT again, and allow it.");
@@ -166,6 +185,7 @@ public sealed class ChatGptPlan
         Keep();
         Stopped = null;
         _tryAgainAt = default;
+        Changed?.Invoke();
     }
 
     /// <summary>
@@ -226,7 +246,8 @@ public sealed class ChatGptPlan
                     return;
                 }
                 var client = query["client_id"] ?? saved;
-                if (query["code"] is not { Length: > 0 } code || client is null or "dynamic_agent_client")
+                // the app registered already: an answer for another registration isn't this sign-in's
+                if (query["code"] is not { Length: > 0 } code || client is null or "dynamic_agent_client" || (saved is not null && client != saved))
                 {
                     await Answer(stream, "200 OK", $"Sign-in didn't finish. You can close this tab and go back to {AppName}.", wait.Token);
                     came.TrySetException(new PlanSignInFailed("ChatGPT didn't finish registering the app. Try again."));
@@ -280,6 +301,7 @@ public sealed class ChatGptPlan
         var tokens = _tokens;
         Forget();
         Stopped = PlanStop.SignedOut;                              // their choice: nothing to tell them
+        Changed?.Invoke();
         if (tokens is null || LoadIds().Client is not { } client)
             return true;
         try
@@ -320,7 +342,7 @@ public sealed class ChatGptPlan
             {
                 Forget();                                           // a refresh token that's no good: only signing in again helps
                 throw Stop(PlanStop.SignedOut);
-            }
+            }                                                       // anything else (a 429, the network) is passing: the sign-in kept
             _tokens = Read(answer, tokens.Email);
             Keep();
             return _tokens.Access;
@@ -331,8 +353,12 @@ public sealed class ChatGptPlan
         }
     }
 
-    /// <summary>ChatGPT's token endpoint turned the request down (a 4xx): the code it gave, when it gave one.</summary>
-    private sealed class TokenRefused(int status, string? code) : Exception($"ChatGPT's sign-in said no ({status}{(code is null ? "" : $", {code}")}).");
+    /// <summary>ChatGPT's token endpoint no longer takes this grant (OpenAI's Errors and recovery: a refresh token that's no good).</summary>
+    private sealed class TokenRefused(string code) : Exception($"ChatGPT no longer accepts this sign-in ({code}).");
+
+    /// <summary>The codes that mean a grant is no good for good; any other refusal is passing.</summary>
+    private static readonly string[] Lapsed =
+        ["invalid_grant", "invalid_refresh_token", "token_expired", "refresh_token_expired", "refresh_token_invalidated", "refresh_token_reused"];
 
     private async Task<JsonNode> Token(Dictionary<string, string> form, CancellationToken cancel)
     {
@@ -346,9 +372,9 @@ public sealed class ChatGptPlan
         catch (JsonException)
         {
         }
-        if ((int)response.StatusCode is >= 400 and < 500)
-            throw new TokenRefused((int)response.StatusCode, CodeIn(answer));
-        response.EnsureSuccessStatusCode();                         // a 5xx: passing, the sign-in kept
+        if ((int)response.StatusCode is >= 400 and < 500 && CodeIn(answer) is { } code && Lapsed.Contains(code))
+            throw new TokenRefused(code);
+        response.EnsureSuccessStatusCode();                         // anything else (a 429, a 408, a 5xx): passing, the sign-in kept
         return answer ?? throw new HttpRequestException("ChatGPT's sign-in answered with something unreadable.");
     }
 
@@ -449,26 +475,34 @@ public sealed class ChatGptPlan
         Stopped = why;
         if (why == PlanStop.Limit)
             _tryAgainAt = _clock.GetUtcNow() + TryAgainAfter;
+        var told = news && Stopping is not null;
         if (news)
+        {
             Stopping?.Invoke(why);
-        return new PlanStopped(why, told: news && Stopping is not null);
+            Changed?.Invoke();
+        }
+        return new PlanStopped(why, told);
     }
 
-    /// <summary>What a failed request means for the plan, by OpenAI's error code (Errors and recovery): null for a passing failure, the sign-in kept.</summary>
-    private PlanStopped? Halt(string? code, int status) => code switch
+    /// <summary>It answered: whatever stopped it is over.</summary>
+    private void Works()
+    {
+        if (Stopped is null)
+            return;
+        Stopped = null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// What a failed request means for the plan, by OpenAI's error code (Errors and recovery): null for a passing failure,
+    /// the sign-in kept. Signing out is left to a refresh ChatGPT turns down for good (see <see cref="Access"/>).
+    /// </summary>
+    private PlanStopped? Halt(string? code) => code switch
     {
         "subscription_sharing_usage_limit_exceeded" => Stop(PlanStop.Limit),
         "subscription_sharing_user_not_eligible" => Stop(PlanStop.NotEligible),
-        "subscription_sharing_invalid_user" => SignedOut(),
-        _ when status == 401 => SignedOut(),
         _ => null,
     };
-
-    private PlanStopped SignedOut()
-    {
-        Forget();
-        return Stop(PlanStop.SignedOut);
-    }
 
     private static string? CodeIn(JsonNode? body) => body?["error"] switch
     {
@@ -529,8 +563,10 @@ public sealed class ChatGptPlan
                     }
                     catch (ClientResultException e)
                     {
-                        if (plan.Halt(CodeIn(e), e.Status) is { } stopped)
+                        if (plan.Halt(CodeIn(e)) is { } stopped)
                             throw stopped;
+                        if (e.Status is 401 or 403)                 // even with a fresh token: said in the plan's words, the sign-in kept
+                            throw new PlanRefused(e.Status, e);
                         throw;
                     }
                     started = true;
@@ -543,15 +579,15 @@ public sealed class ChatGptPlan
                         _ => null,
                     };
                     if (failed is not null)
-                        throw (Exception?)plan.Halt(failed, 0) ?? new HttpRequestException($"ChatGPT stopped the reply ({failed}).", null, HttpStatusCode.ServiceUnavailable);
-                    done |= update.RawRepresentation is StreamingResponseCompletedUpdate or StreamingResponseIncompleteUpdate;
+                        throw (Exception?)plan.Halt(failed) ?? new HttpRequestException($"ChatGPT stopped the reply ({failed}).", null, HttpStatusCode.ServiceUnavailable);
+                    done |= update.RawRepresentation is StreamingResponseCompletedUpdate;
                     yield return update;
                 }
                 if (again)
                     continue;
                 if (!done)                                          // only a completed response counts
                     throw new HttpRequestException("ChatGPT's reply stopped before it was finished.", null, HttpStatusCode.ServiceUnavailable);
-                plan.Stopped = null;                                // it works (again)
+                plan.Works();
                 yield break;
             }
         }

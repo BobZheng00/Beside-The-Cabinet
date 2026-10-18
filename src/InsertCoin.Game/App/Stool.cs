@@ -175,6 +175,11 @@ public partial class Stool : Node2D
         _permission = new PermissionCard();
         AddChild(_permission);
         _chat.Plan.Stopping += why => Callable.From(() => { _ = TellPlan(why); }).CallDeferred();
+        _chat.Plan.Changed += () => Callable.From(() =>
+        {
+            if (_planCard is { } shown && _chat.Plan.Stopped != shown)
+                _permission.Withdraw();                     // no longer so (signed in, disconnected, working again): the card goes
+        }).CallDeferred();
         _chat.AskPlayer = AskPlayer;
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
@@ -1729,6 +1734,8 @@ public partial class Stool : Node2D
     /// plainly, on her card, with what to do about it first. Until it works again she waits: no replies, check-ins or
     /// remarks, while reminders still come in the app's words (each request fails at once, see <see cref="ChatGptPlan.Client"/>).
     /// </summary>
+    private PlanStop? _planCard;                            // what her card is telling of the plan now, if anything
+
     private async Task TellPlan(PlanStop why)
     {
         GD.Print($"ChatGPT: {why switch { PlanStop.Limit => "the plan's usage limit is reached", PlanStop.NotEligible => "the account can't share its plan", _ => "signed out" }}; " +
@@ -1745,7 +1752,18 @@ public partial class Stool : Node2D
             _ => ("Signed out of ChatGPT", $"{name} can't use your ChatGPT plan until you sign in again. Reminders still come.", "Continue with ChatGPT"),
         };
         Her.Play(Moment.Worry);
-        if (!await _permission.Tell(what, detail, action, new Vector2(14, CardBottom), CancellationToken.None))
+        _planCard = why;
+        bool pressed;
+        try
+        {
+            pressed = await _permission.Tell(what, detail, action, new Vector2(14, CardBottom), CancellationToken.None);
+        }
+        finally
+        {
+            if (_planCard == why)
+                _planCard = null;
+        }
+        if (!pressed)
             return;
         if (why == PlanStop.Limit)
             Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage));

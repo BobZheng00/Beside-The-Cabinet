@@ -35,7 +35,7 @@ public class ChatGptPlanTests : IDisposable
         public List<(string Path, string Body, string? Bearer)> Asked { get; } = [];
         public string? Challenge, Nonce;
         public int Issued;
-        public bool RefusesRefresh, Revokes = true;
+        public bool RefusesRefresh, BusyRefreshing, Revokes = true;
         public Queue<HttpResponseMessage> Answers { get; } = new();
 
         public IEnumerable<string> Paths => Asked.Select(a => a.Path);
@@ -53,6 +53,8 @@ public class ChatGptPlanTests : IDisposable
                         return Json(HttpStatusCode.BadRequest, """{"error":"invalid_grant"}""");
                     if (form["grant_type"] == "refresh_token" && RefusesRefresh)
                         return Json(HttpStatusCode.BadRequest, """{"error":"invalid_grant","error_description":"refresh token reused"}""");
+                    if (form["grant_type"] == "refresh_token" && BusyRefreshing)
+                        return Json(HttpStatusCode.TooManyRequests, """{"error":"rate_limit_exceeded"}""");
                     Issued++;
                     var claims = Base64Url(Encoding.UTF8.GetBytes($$"""{"sub":"user-1","email":"player@example.com","nonce":"{{Nonce}}"}"""));
                     return Json(HttpStatusCode.OK, $$"""
@@ -95,7 +97,7 @@ public class ChatGptPlanTests : IDisposable
     }
 
     /// <summary>The player signs in: their "browser" goes to OpenAI's sign-in, which sends it back to the app's listener as OpenAI would.</summary>
-    private async Task<Uri> SignIn(ChatGptPlan plan, string? deny = null)
+    private async Task<Uri> SignIn(ChatGptPlan plan, string? deny = null, string client = "oaiapp_test")
     {
         Uri? opened = null;
         await plan.SignIn(async page =>
@@ -105,7 +107,7 @@ public class ChatGptPlanTests : IDisposable
             _openAi.Challenge = asked["code_challenge"];
             _openAi.Nonce = asked["nonce"];
             using var browser = new HttpClient();
-            var back = deny is null ? $"code=c-1&state={Uri.EscapeDataString(asked["state"]!)}&client_id=oaiapp_test&scope=openid"
+            var back = deny is null ? $"code=c-1&state={Uri.EscapeDataString(asked["state"]!)}&client_id={client}&scope=openid"
                                     : $"error={deny}&state={Uri.EscapeDataString(asked["state"]!)}";
             await browser.GetAsync($"{asked["redirect_uri"]}?{back}");
         }, CancellationToken.None);
@@ -343,6 +345,82 @@ public class ChatGptPlanTests : IDisposable
         Assert.False(plan.Connected);
         Assert.Null(_kept);
         Assert.DoesNotContain("/v1/responses", _openAi.Paths);
+    }
+
+    [Fact]
+    public async Task A_refresh_turned_down_for_a_passing_reason_keeps_the_sign_in()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        _openAi.BusyRefreshing = true;
+        _clock.Now = Noon.AddHours(2);
+
+        var failed = await Assert.ThrowsAnyAsync<HttpRequestException>(() => plan.Client("gpt-5.5").GetResponseAsync("Hello"));
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, failed.StatusCode);
+        Assert.True(plan.Connected);
+        Assert.Null(plan.Stopped);
+        Assert.Contains("rt-1", _kept);
+        _openAi.BusyRefreshing = false;
+        Assert.Equal("Hi there.", (await plan.Client("gpt-5.5").GetResponseAsync("Hello")).Text);
+    }
+
+    [Fact]
+    public async Task A_fresh_token_turned_down_again_is_said_in_the_plans_words_and_keeps_the_sign_in()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var refused = """{"error":{"code":"subscription_sharing_invalid_user","message":"no"}}""";
+        _openAi.Answers.Enqueue(Json(HttpStatusCode.Unauthorized, refused));
+        _openAi.Answers.Enqueue(Json(HttpStatusCode.Unauthorized, refused));
+
+        var failed = await Assert.ThrowsAsync<PlanRefused>(() => plan.Client("gpt-5.5").GetResponseAsync("Hello"));
+
+        Assert.StartsWith("ChatGPT turned this request down.", Trouble.Explain(failed));
+        Assert.True(plan.Connected);                                    // a refresh token that still works is kept
+        Assert.Null(plan.Stopped);
+        Assert.Contains("rt-2", _kept);
+    }
+
+    [Fact]
+    public async Task A_403_without_a_code_is_said_in_the_plans_words()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        _openAi.Answers.Enqueue(Json(HttpStatusCode.Forbidden, """{"detail":"region"}"""));
+
+        var failed = await Assert.ThrowsAsync<PlanRefused>(() => plan.Client("gpt-5.5").GetResponseAsync("Hello"));
+
+        Assert.DoesNotContain("API key", Trouble.Explain(failed));
+        Assert.Null(plan.Stopped);
+    }
+
+    [Fact]
+    public async Task Only_a_completed_response_is_a_reply()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        _openAi.Answers.Enqueue(Events(
+            ("response.created", """{"type":"response.created","sequence_number":0,"response":{"id":"resp_3","object":"response","created_at":1790000000,"status":"in_progress","model":"gpt-5.5","output":[]}}"""),
+            ("response.incomplete", """
+                {"type":"response.incomplete","sequence_number":1,"response":{"id":"resp_3","object":"response","created_at":1790000000,"status":"incomplete","model":"gpt-5.5","output":[],
+                 "incomplete_details":{"reason":"content_filter"}}}
+                """)));
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => plan.Client("gpt-5.5").GetResponseAsync("Hello"));
+    }
+
+    [Fact]
+    public async Task An_answer_for_another_registration_of_the_app_is_turned_down()
+    {
+        await SignIn(Plan());
+        var plan = Plan();
+
+        var failed = await Assert.ThrowsAsync<PlanSignInFailed>(() => SignIn(plan, client: "oaiapp_someone_else"));
+
+        Assert.Equal("ChatGPT didn't finish registering the app. Try again.", failed.Message);
+        Assert.Contains("oaiapp_test", File.ReadAllText(IdsFile));
+        Assert.DoesNotContain("oaiapp_someone_else", File.ReadAllText(IdsFile));
     }
 
     [Fact]

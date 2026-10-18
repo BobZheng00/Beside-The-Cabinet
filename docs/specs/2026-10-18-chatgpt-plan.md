@@ -126,8 +126,10 @@ Each step is usable on its own.
    tools; unit tests against a stand-in), Settings → Mind's ChatGPT plan, her card when the plan stops, and
    `tools/dev/mock_chatgpt.py` with the `chatgpt` smoke scenario. OpenAI's pages, read again that day, said a little
    more than above, and it is built their way: the model list comes as `models` (not `data`); a request turned down
-   with 401 is asked once more after a refresh, and the player is signed out only when the refresh is refused or the
-   fresh token is too ("re-sign-in only after confirmed revocation or a terminal refresh error"); Disconnect also ends
+   with 401 is asked once more after a refresh, and the player is signed out only when a refresh is turned down for good
+   (`invalid_grant` and the other terminal codes; "re-sign-in only after confirmed revocation or a terminal refresh
+   error"): a fresh token refused again, a 403 with no code, or a refresh turned down for a passing reason (a 429) is
+   said in the plan's words and the sign-in kept; only `response.completed` counts as a reply; Disconnect also ends
    the sign-in at OpenAI's revocation endpoint, and says so when that couldn't be confirmed; a sign-in that didn't
    allow plan usage isn't kept (nothing else here uses it). The ID token's email is read without checking its
    signature, as OpenID Connect allows for a token straight from the token endpoint over TLS (Core 1.0, 3.1.3.7); only

@@ -14,7 +14,10 @@ system items, none of the refused fields, no hosted tools. One that breaks them 
 subscription_sharing_unsupported_capability) and logged with "broke". Otherwise it gets the reply, streamed, ending
 with response.completed. Once the player's words say "limit", the plan's limit is reached: that request and every one
 after it get 429 subscription_sharing_usage_limit_exceeded (with "midstream" in the words too, the first comes as
-response.failed after the stream began). It stops when killed, or after --quit-after seconds.
+response.failed after the stream began). Words with "signedout" get 401 subscription_sharing_invalid_user, and every
+refresh after it invalid_grant, until the next sign-in (the player disconnected the app in ChatGPT); "ineligible", 403
+subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. It stops
+when killed, or after --quit-after seconds.
 """
 
 import argparse
@@ -144,8 +147,12 @@ class Handler(BaseHTTPRequestHandler):
                     self.answer(400, {"error": "invalid_grant"})
                     return
                 nonce = asked["nonce"]
+                STATE["signed_out"] = False                     # signed in again
             elif grant == "refresh_token":
-                log({"path": url.path, "grant": grant, "client_id": form.get("client_id")})
+                log({"path": url.path, "grant": grant, "client_id": form.get("client_id"), "refused": bool(STATE.get("signed_out"))})
+                if STATE.get("signed_out"):
+                    self.answer(400, {"error": "invalid_grant"})
+                    return
                 nonce = None
             else:
                 self.answer(400, {"error": "unsupported_grant_type"})
@@ -173,6 +180,20 @@ class Handler(BaseHTTPRequestHandler):
         broke = broken_rules(body)
         if not self.bearer():
             self.answer(401, {"error": {"code": "subscription_sharing_invalid_user", "message": "no token"}})
+            return
+        said = words.lower()
+        if "ineligible" in said:
+            log({"path": url.path, "said": words[-60:], "answered": 403})
+            self.answer(403, {"error": {"code": "subscription_sharing_user_not_eligible", "message": "This account can't share its plan."}})
+            return
+        if "signedout" in said:                                 # disconnected in ChatGPT: this and every refresh after it turned down
+            STATE["signed_out"] = True
+            log({"path": url.path, "said": words[-60:], "answered": 401})
+            self.answer(401, {"error": {"code": "subscription_sharing_invalid_user", "message": "Sign in again."}})
+            return
+        if "unavailable" in said:
+            log({"path": url.path, "said": words[-60:], "answered": 503})
+            self.answer(503, {"error": {"code": "subscription_sharing_usage_unavailable", "message": "Try again later."}})
             return
         if "limit" in words.lower():
             STATE["limit"] = True

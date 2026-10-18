@@ -74,7 +74,7 @@ this app's limit) and **Disconnect**. Everything your companion does then runs o
 remarks, texts and their memory's upkeep, still counted by purpose in Settings → Usage), and nothing is charged here.
 The sign-in is kept encrypted for your Windows account (`companion\chatgpt.bin`, never in settings.json or the log)
 and renewed before it lapses; Disconnect forgets it here and ends it at ChatGPT. When the plan's limit is reached,
-your account can't share its plan, or you are signed out (disconnected in ChatGPT, say), their card says so once,
+your account can't share its plan, or you are signed out (disconnected in ChatGPT, say), Settings → Mind shows it and their card says so once,
 plainly, with Manage usage or Continue with ChatGPT; meanwhile they wait (no replies, check-ins or remarks) while
 reminders still come, in the app's own words. Once the limit was reached they try the plan again every quarter of an
 hour, and whenever you write to them. ChatGPT being briefly unable to check your usage isn't a limit: the sign-in is
