@@ -25,6 +25,7 @@ public partial class SettingsWindow : Window
     private readonly Dictionary<string, Button> _entries = [];
     private readonly Dictionary<string, ScrollContainer> _made = [];
     private MarginContainer _area = null!;
+    private PanelContainer _sheet = null!;
     private string? _showing;
 
     /// <param name="open">The page to show first, or null for the first one.</param>
@@ -36,7 +37,7 @@ public partial class SettingsWindow : Window
         Transient = true;
         CloseRequested += QueueFree;
 
-        var sheet = new PanelContainer();
+        var sheet = _sheet = new PanelContainer();
         sheet.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(sheet);
         var row = new HBoxContainer();
@@ -146,6 +147,7 @@ public partial class SettingsWindow : Window
                 case { } button:
                     button.EmitSignal(BaseButton.SignalName.Pressed);
                     GD.Print($"Settings: \"{button.Text}\" pressed");
+                    LogFocus(root);
                     break;
                 default:
                     GD.PrintErr($"Settings: nothing called \"{label}\" on {where}");
@@ -185,9 +187,17 @@ public partial class SettingsWindow : Window
         {
             GD.Print($"Settings: \"{up.Text}\" pressed");
             up.EmitSignal(BaseButton.SignalName.Pressed);
+            LogFocus(page);
         }
         else
             GD.PrintErr($"Settings: no way up on {_showing}");
+    }
+
+    /// <summary>Dev: where keyboard focus is after a press, if on a button (the theme draws no focus ring to see it by).</summary>
+    private static void LogFocus(Node within)
+    {
+        if (within.GetViewport()?.GuiGetFocusOwner() is Button focused)
+            GD.Print($"Settings: keyboard focus on \"{focused.Text}\"");
     }
 
     /// <summary>Dev: the pointer resting on the control with this text on the page showing, so its hover tip shows; the real mouse never moves.</summary>
@@ -215,21 +225,28 @@ public partial class SettingsWindow : Window
 
     /// <summary>
     /// Dev: logs any page wider than the room it has (a row of buttons that doesn't fit, say: it would run off the
-    /// window's right edge), with the widest parts in it; then how many of the pages it measured (those made so far).
+    /// window's right edge), with the widest parts in it; then how many of the pages it measured (those made so far),
+    /// naming each page below a page that showed in one of them (a skill's).
     /// </summary>
     public void DevWidths()
     {
+        // a page too wide widens everything around it past the window's edge, so the room is the page showing's less that excess
+        if (_showing is null)
+            return;
+        var room = _made[_showing].Size.X - (_sheet.Size.X - GetVisibleRect().Size.X) - 14;
+        var below = new List<string>();
         foreach (var (id, made) in _made)
         {
             var page = PageOf(id)!;
-            var room = made.Size.X - 14;
+            if (Within(page).OfType<Button>().FirstOrDefault(b => b.Name == "Up") is { } up)
+                below.Add($"{id} {up.GetParent().GetChild<Label>(1).Text}");
             if (page.GetCombinedMinimumSize().X <= room)
                 continue;
             GD.PrintErr($"Settings: {id} needs {page.GetCombinedMinimumSize().X:0} px, has {room:0}");
             foreach (var part in Within(page).Where(c => c.IsVisibleInTree() && c.GetCombinedMinimumSize().X > room * 0.8f))
                 GD.PrintErr($"  {part.GetType().Name} {part.GetCombinedMinimumSize().X:0} px {(part as Label)?.Text ?? (part as Button)?.Text}");
         }
-        GD.Print($"Settings: {_made.Count} of {_pages.Count} pages measured");
+        GD.Print($"Settings: {_made.Count} of {_pages.Count} pages measured{(below.Count > 0 ? $", below them {string.Join(", ", below)}" : "")}");
     }
 
     private static IEnumerable<Control> Within(Node node) =>

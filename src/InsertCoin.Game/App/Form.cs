@@ -19,7 +19,7 @@ public static class Form
 
     /// <summary>
     /// A page below a page: first, top left, where it is ("‹ Skills › journal"), the page above it a button back up to
-    /// it; then its heading. Every page below a page starts this way.
+    /// it; then its heading, wrapped when long. Every page below a page starts this way.
     /// </summary>
     public static VBoxContainer Page(VBoxContainer page, string above, string heading, Action up)
     {
@@ -28,7 +28,11 @@ public static class Form
         page.AddChild(path);
         Button(path, $"‹ {above}", up).Name = "Up";             // the name finds it for dev actions (settingsup)
         path.AddChild(new Label { Text = $"› {heading}", ThemeTypeVariation = "Hint", ClipText = true, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
-        return Page(page, heading);
+        Page(page, heading);
+        var named = page.GetChild<Label>(-1);                  // a name the player gave can be long: it wraps, never widening the page
+        named.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        named.CustomMinimumSize = new Vector2(200, 0);
+        return page;
     }
 
     public static Label Subheading(Container parent, string text)

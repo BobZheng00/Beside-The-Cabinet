@@ -50,9 +50,11 @@ public partial class SkillSettings : VBoxContainer
         if (_open is not null && _skills.All().FirstOrDefault(s => s.Broken is null && _skills.KeyOf(s) == _open) is { } open)
         {
             SkillPage(open);
+            GD.Print($"Skills: {open.Name}'s page");
             return;
         }
         _open = null;
+        GD.Print("Skills: the list");
         Form.Page(this, "Skills");
         Form.Hint(this, $"What {_name} knows how to do your way. A skill is a folder with a SKILL.md in it: a name and a one-line description " +
                         "at its top, then the instructions, in the open Agent Skills format that other AI agents (Claude Code among them) read " +
@@ -135,7 +137,11 @@ public partial class SkillSettings : VBoxContainer
             else
                 row.AddChild(new Label { Text = skill.Name, SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true });
             if (skill.Broken is null)
-                Form.Button(row, "Settings ›", () => Show(key));
+            {
+                var settings = Form.Button(row, "Settings ›", () => Show(key));
+                if (key == _left)
+                    settings.GrabFocus();                   // back up from its page: keyboard focus where the player went down
+            }
             Form.Button(row, "Open", () => OS.ShellOpen(skill.Folder));
             var about = Form.Hint(Form.Indented(this), skill.Broken is not null ? $"Can't be used: {skill.Broken}."
                                                        : skill.Hint is null ? skill.Description
@@ -300,11 +306,16 @@ public partial class SkillSettings : VBoxContainer
     {
         if (key is not null && _open is null && Scroll() is { } scroll)
             _listAt = scroll.ScrollVertical;
-        (_open, _said) = (key, null);
+        (_left, _open, _said) = (_open, key, null);
         Fill();
-        GD.Print(_open is null ? "Skills: the list" : $"Skills: {_skills.All().First(s => _skills.KeyOf(s) == _open).Name}'s page");
+        _left = null;
+        if (_open is not null)
+            ((Button)FindChild("Up", true, false)).GrabFocus();     // down to a skill's page: keyboard focus on the way back up
         ScrollTo(key is null ? _listAt : 0);
     }
+
+    /// <summary>The skill whose page was just left, while the list is made again: its Settings › takes keyboard focus.</summary>
+    private string? _left;
 
     /// <summary>Where the list was scrolled to when a skill's page was opened.</summary>
     private int _listAt;

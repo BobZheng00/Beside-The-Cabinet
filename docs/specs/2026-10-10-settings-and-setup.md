@@ -180,7 +180,7 @@ SETTINGS app and a row of the switches: `2026-10-17-on-the-cabinet.md`. The tray
 the button or flips the tick with that text on the page showing; `settingsdo:<label>:<value>` sets the choice (by
 number, from 0) or the field next to that label. Underscores for spaces. `settingsscroll:600` scrolls the page
 showing; `settingswidths` logs any page made so far that is wider than its room (it would run off the window's
-right edge, as the old voice window's row of buttons did). "Start with Windows" is Windows' own setting, the same in
+right edge, as the old voice window's row of buttons did), a page below a page showing in one (a skill's) among them. "Start with Windows" is Windows' own setting, the same in
 a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes). `windoworder` logs
 the app's windows top first, as they are stacked on screen, "(on top)" on those above other apps. `welcome` opens the
 first run's Welcome again; `welcomedo:<label>[:<value>]` and `meetdo:<label>[:<value>]` are `settingsdo` on the

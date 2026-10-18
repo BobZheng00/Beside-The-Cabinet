@@ -2269,6 +2269,11 @@ public partial class Stool : Node2D
             case "memorycancel": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the book
             case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
             case "skillseed": SeedSkills(); break;          // skills in the app's folder and a vault's, to try the Skills page and her skill tool on
+            case "skillmake":                               // skillmake:a-name makes a skill of that name in the app's own skills folder (a long one, to try the pages' widths)
+                Directory.CreateDirectory(Path.Combine(_chat.Skills.Own, rest));
+                File.WriteAllText(Path.Combine(_chat.Skills.Own, rest, Skills.FileName), $"---\nname: {rest}\ndescription: A stand-in skill, made to try the Skills pages on.\n---\n\nNothing to do.\n");
+                GD.Print($"Skills: made {rest}");
+                break;
             case "skilllink":                               // links the seeded vault's skills folder on the open Skills page, as picking it there does
                 if (IsInstanceValid(_skillsPage) && _skillsPage!.IsVisibleInTree())
                     _skillsPage.DevLink(SeededVault());
