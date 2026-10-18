@@ -472,7 +472,8 @@ public partial class Stool : Node2D
     {
         if (Rest.ParseBedtime(time) is not { } bedtime)
             return "That isn't a bedtime the cabinet takes: a time from 20:00 to 03:30, like 23:30.";
-        var answer = await ConfirmOnCard($"Your bedtime: {Rest.Clock(bedtime)}?", "From tomorrow: a word half an hour before it, and play after it costs more until 04:00", cancel);
+        var answer = await _chat.Unhurried(() => ConfirmOnCard($"Your bedtime: {Rest.Clock(bedtime)}?",
+                                                               "From tomorrow: a word half an hour before it, and play after it costs more until 04:00", cancel));
         if (answer != true)
             return answer is false ? "The player said not that one. Take that lightly." : "The player didn't answer, so it isn't set.";
         _settings.Save(_settings.Now with { Bedtime = Rest.Clock(bedtime) });
@@ -1723,7 +1724,7 @@ public partial class Stool : Node2D
     private float CardBottom => _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? _chatBox.Tall + 8 : 0);
 
     /// <summary>She counts an activity: the player confirms it on her card ("I'm going to the gym" isn't "I went").</summary>
-    private Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel) => ConfirmOnCard(what, detail, cancel);
+    private Task<bool?> ConfirmActivity(string what, string detail, CancellationToken cancel) => _chat.Unhurried(() => ConfirmOnCard(what, detail, cancel));
 
     /// <summary>
     /// The player confirms something she does for them on her card (by text, buttons): yes, not yet, or null when they

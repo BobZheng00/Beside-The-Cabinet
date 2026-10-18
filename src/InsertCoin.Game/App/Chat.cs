@@ -225,8 +225,11 @@ public sealed class Chat : IDisposable
     private Task<Answer> AskFirst(Asking asking, CancellationToken cancel) =>
         AskPlayer is { } ask ? Unhurried(() => ask(asking, cancel)) : Task.FromResult(Answer.None);
 
-    /// <summary>Waits for the player's answer on a card with the reply's clock stopped.</summary>
-    private async Task<T> Unhurried<T>(Func<Task<T>> answer)
+    /// <summary>
+    /// Waits for the player's answer on a card with the reply's clock stopped (the card, or a question by text, has a
+    /// limit of its own): her tools that ask, an activity to count, a bedtime.
+    /// </summary>
+    internal async Task<T> Unhurried<T>(Func<Task<T>> answer)
     {
         var answering = _answering;
         answering?.CancelAfter(Timeout.InfiniteTimeSpan);

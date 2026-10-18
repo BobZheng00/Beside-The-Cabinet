@@ -245,7 +245,9 @@ Windows notification stays with the reminders.
   in English, Chinese, Japanese and Korean); anything else sent meanwhile (a photo too) ends it unanswered and is a
   new message. Unanswered, nothing it asked about is done, and the chat says so ("Left unanswered, so nothing was
   done."). While her mind waits on one, a text with a plain line (a reminder) still goes, as that line
-  (`Reaching.GoesWhileAsking`); the rest waits for her.
+  (`Reaching.GoesWhileAsking`); the rest waits for her. The reply's clock now stops while an activity to count or a
+  bedtime waits for an answer too (`Chat.Unhurried`), as it did for her tools: before, her reply gave up after 90 s,
+  so a card left unanswered lost what she said after it.
 - **Her texts while away** (step 2) go to the paired chat as messages from her, without her name in front.
 - **Settings → Your phone:** "Text with her on Telegram": paired, with Pair again and Forget it; or the steps (Open
   BotFather, paste the token and Check it: the bot is found and given her name and a description; then a QR code and
