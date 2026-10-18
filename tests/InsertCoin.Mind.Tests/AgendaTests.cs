@@ -73,6 +73,18 @@ public class AgendaTests
         // and an option the cabinet can't do
         Assert.Equal("12 | - | - | - | no reminder | stop repeating", Plain(Agenda.ParseChange("#12 | no reminder | stop repeating", Friday)));
         Assert.Equal("12 | - | - | - | every Monday", Plain(Agenda.ParseChange("#12 | every Monday", Friday)));
+        // even beside one it can, and however the pieces are set apart
+        Assert.Equal("12 | - | - | - | 1 hour before，每周", Plain(Agenda.ParseChange("#12 | 1 hour before，每周", Friday)));
+        Assert.Equal("12 | - | - | - | daily 提前一小时", Plain(Agenda.ParseChange("#12 | daily 提前一小时", Friday)));
+        Assert.Equal("12 | - | - | - | 1 hour before every Monday", Plain(Agenda.ParseChange("#12 | 1 hour before every Monday", Friday)));
+        Assert.Equal("12 | - | - | - | weekly and no reminder", Plain(Agenda.ParseChange("#12 | weekly and no reminder", Friday)));
+        Assert.Equal("12 | - | - | - | weekly; stop repeating", Plain(Agenda.ParseChange("#12 | weekly; stop repeating", Friday)));
+        Assert.Equal("12 | - | - | - | every other day", Plain(Agenda.ParseChange("#12 | every other day", Friday)));
+        Assert.Equal("12 | - | - | - | an hour and a half before", Plain(Agenda.ParseChange("#12 | an hour and a half before", Friday)));
+        // what it can do, in the words she may use for it
+        foreach (var options in new[] { "10 min before", "weekdays", "Monday to Friday", "at the time", "on weekdays", "every week",
+                                        "half an hour before、weekly", "a reminder 1 hour before and daily", "remind me；every day", "each weekday" })
+            Assert.Equal($"12 | - | {options} | - | -", Plain(Agenda.ParseChange($"#12 | {options}", Friday)));
 
         static string? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread, string? Unable)? c) =>
             c is { } x ? $"{x.Id} | {x.When?.At.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-"} | {x.Options ?? "-"} | {x.Unread ?? "-"} | {x.Unable ?? "-"}" : null;
@@ -243,6 +255,21 @@ public class AgendaTests
             "write it YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day). Tell the player briefly, then put it right or ask them.",
             "Your [cancel] didn't go through: it needs the item's number from the agenda, as in #12. Tell the player briefly, then put it right or ask them.",
         ], temp.Store.Through("shino", long.MaxValue, 10).Where(l => l.Speaker == Speaker.Cabinet).Select(l => l.Text));
+    }
+
+    [Fact]
+    public async Task A_change_with_words_the_cabinet_can_t_read_beside_ones_it_can_is_refused_whole()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | 30 min before，每周] Done."), "remind me half an hour before, every week", "", _ => { }, (_, _) => { });
+
+        var item = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (item.Before!.Value, item.Repeat));
+        Assert.Contains(temp.Store.Through("shino", long.MaxValue, 10),
+                        l => l.Speaker == Speaker.Cabinet && l.Text.Contains("the cabinet can't do \"30 min before，每周\" yet"));
     }
 
     [Fact]

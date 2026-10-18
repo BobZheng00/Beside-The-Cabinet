@@ -122,6 +122,11 @@ cache at a tenth of that or less.
   can do), so her next turn tells the player and puts it right or asks. A change works on the item as it is when the
   tag is read (a reminder may have gone off mid-reply and moved a repeat on). An item called off is done with for that
   reply: a `[plan]` that reuses its number is never changed by it, and calling it off again isn't reported as failing.
+  *Fifth round, 2026-10-18 (#52):* a change's options are split on ";" and full-width punctuation (，、；) as well as
+  commas, and words left over once the reminder and repeat are read ("every Monday" after "1 hour before", "no
+  reminder" after "weekly", Chinese or Japanese words) make it an option the cabinet can't do, so the whole change is
+  turned down rather than half made. Leads are read whole: "half an hour before" is 30 minutes and "a quarter of an
+  hour before" 15, never the "an hour before" inside them; "1.5 hours" or "half a day" isn't read as a lead at all.
 
 ## Second pass (decided with the player, 2026-10-04)
 

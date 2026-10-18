@@ -20,7 +20,18 @@ public class RemindersTests
         Assert.Equal((null, Repeat.Weekdays), Agenda.ParseOptions("every weekday"));
         Assert.Equal((null, Repeat.Daily), Agenda.ParseOptions("Every day"));
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("whenever"));
-        Assert.Equal((TimeSpan.FromMinutes(9999), Repeat.Once), Agenda.ParseOptions("99999999999 min before"));     // nonsense, without throwing
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("99999999999 min before"));     // nonsense, without throwing
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Once), Agenda.ParseOptions("10 min before"));
+        Assert.Equal((TimeSpan.Zero, Repeat.Once), Agenda.ParseOptions("at the time"));
+        Assert.Equal((null, Repeat.Weekdays), Agenda.ParseOptions("Monday to Friday"));
+        // a lead in other words is read whole, never by the part of it that looks like a lead of its own
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Once), Agenda.ParseOptions("half an hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Daily), Agenda.ParseOptions("a half-hour before, daily"));
+        Assert.Equal((TimeSpan.FromMinutes(15), Repeat.Once), Agenda.ParseOptions("a quarter of an hour before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("three quarters of an hour before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("half a day before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1.5 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("an hour and a half before"));
 
         var spec = Agenda.ParseDirection("2026-10-08 10:00 | Job interview | 1 hour before", remind: false, Friday)!;
         Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (spec.Before, spec.Repeat));

@@ -83,13 +83,13 @@ public static partial class Agenda
     /// <summary>
     /// Reads options as written after a direction's second bar or in upkeep's JSON: how long before to remind ("30
     /// min before", "an hour before", "1 day before") and whether it repeats ("daily", "weekdays", "weekly",
-    /// "monthly", "every day"…). Anything else is ignored.
+    /// "monthly", "every day"…). Anything else is ignored (<see cref="ParseChange"/> turns a change with it down).
     /// </summary>
     public static (TimeSpan? Before, Repeat Repeat) ParseOptions(string? options)
     {
         if (string.IsNullOrWhiteSpace(options))
             return (null, Repeat.Once);
-        var text = options.ToLowerInvariant().Replace("the day before", "1 day before").Replace("the night before", "1 day before");
+        var text = Plainer(options);
         var repeat = text switch
         {
             _ when WeekdaysWord().IsMatch(text) => Repeat.Weekdays,
@@ -129,12 +129,12 @@ public static partial class Agenda
         List<string> options = [], unread = [], unable = [];
         foreach (var part in parts.Skip(1).Select(p => p.Trim()).Where(p => p.Length > 0))
         {
-            var pieces = part.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+            var pieces = part.Split([',', ';', '，', '、', '；']).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
             if (when is null && ParseWhen(part, now, zone) is { } at)
                 when = at;
             else if (pieces.Any(SaysWhen))
                 unread.Add(part);
-            else if (pieces.Any(p => ParseOptions(p) is (null, Repeat.Once)))
+            else if (pieces.Any(p => ParseOptions(p) is (null, Repeat.Once) || Filler().Replace(Unknown(p), " ").Any(char.IsLetterOrDigit)))
                 unable.Add(part);
             else
                 options.Add(part);
@@ -144,13 +144,21 @@ public static partial class Agenda
     }
 
     /// <summary>Says a time or a day beyond the reminder and repeat <see cref="ParseOptions"/> reads ("daily at 9:00", "1 hour before tomorrow").</summary>
-    private static bool SaysWhen(string piece)
+    private static bool SaysWhen(string piece) => TimeWords().IsMatch(Unknown(piece));
+
+    /// <summary>What of an option is left once the reminder and repeat <see cref="ParseOptions"/> reads are taken out.</summary>
+    private static string Unknown(string piece)
     {
-        var rest = piece.ToLowerInvariant().Replace("the day before", "1 day before").Replace("the night before", "1 day before");
+        var rest = Plainer(piece);
         foreach (var known in new[] { WeekdaysWord(), DailyWord(), WeeklyWord(), MonthlyWord(), BeforeWords(), AtTheTime() })
             rest = known.Replace(rest, " ");
-        return TimeWords().IsMatch(rest);
+        return rest;
     }
+
+    /// <summary>Options in lower case, with the leads <see cref="BeforeWords"/> doesn't read ("half an hour before") put as it does.</summary>
+    private static string Plainer(string options) =>
+        HalfAnHour().Replace(QuarterOfAnHour().Replace(options.ToLowerInvariant(), "15 min"), "30 min")
+                    .Replace("the day before", "1 day before").Replace("the night before", "1 day before");
 
     /// <summary>
     /// A direction's payload, "2026-10-09 15:00 | the dentist" with optional "| 30 min before, weekly": what to put on
@@ -342,8 +350,17 @@ public static partial class Agenda
     private static partial Regex WeeklyWord();
     [GeneratedRegex(@"\bmonthly\b|\bevery\s+month\b|\beach\s+month\b")]
     private static partial Regex MonthlyWord();
-    [GeneratedRegex(@"(?<n>\d{1,4}|an?)\s*(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)\s*(before|early|ahead|earlier)")]
+    // a whole number on its own: never the end of "1.5 hours", "half a day" ("a day") or "three quarters of an hour"
+    [GeneratedRegex(@"(?<![\d.,]|\b(half|quarters?|of)[\s-]+)\b(?<n>\d{1,4}|an?)\s*(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)\s*(before|early|ahead|earlier)\b")]
     private static partial Regex BeforeWords();
+    [GeneratedRegex(@"\b(a\s+)?half[\s-]+(an\s+)?hour\b")]
+    private static partial Regex HalfAnHour();
+    [GeneratedRegex(@"\b(a\s+)?quarter[\s-]+(of\s+)?(an\s+)?hour\b")]
+    private static partial Regex QuarterOfAnHour();
+    // words around options that change nothing ("a reminder 10 min before and weekly", "on weekdays"); "every" and
+    // "each" only where what follows them is read: "every Monday" still leaves "monday"
+    [GeneratedRegex(@"\b(and|also|then|with|me|a|reminder|on|every|each|repeats?|repeating|it)\b")]
+    private static partial Regex Filler();
     [GeneratedRegex(@"\bat\s+the\s+time\b|\bon\s+time\b|\bremind\b")]
     private static partial Regex AtTheTime();
     // a time or day in words or numbers ("3pm", "9:00", "at 3", "tomorrow", "next Tuesday", "the 5th"), not a repeat's "every Monday"

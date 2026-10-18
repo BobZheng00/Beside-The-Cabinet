@@ -101,7 +101,8 @@ type, press Enter, and their answer streams into the bubble while they act it ou
   weekdays, weekly or monthly). Ask them to cancel something, move it or change its reminder and they do it in that
   reply, to that same item; an item from a calendar you linked stays as the calendar has it. A change the cabinet
   can't make (a time it can't read, an item that isn't there, stopping a repeat or removing a reminder, which it
-  can't do yet) is left undone, and their next reply says so. What is coming up in
+  can't do yet, or anything it can't read beside what it can, such as "every Monday") is left undone, all of it, and
+  their next reply says so. What is coming up in
   the next week, and what has just passed (so they can ask how it went), is in every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next
   time. The screen's AGENDA app shows what is coming up, following changes within a couple of seconds while it is
   open, and a click there opens the memory book's Agenda. A
