@@ -57,11 +57,33 @@ public partial class TrayIcon : Node
         Set(TrayMood.Fine, "Beside the Cabinet");
     }
 
-    /// <summary>Dev: opens the menu at this screen point, as a right click on the icon would.</summary>
-    public void DevShowMenu(Vector2I at) => _menu.Popup(new Rect2I(at, Vector2I.Zero));
+    /// <summary>
+    /// Opens this same menu at a screen point: a right click on her or the cabinet, so the two never differ. A test run
+    /// logs it instead: shown, a menu takes focus (and a hidden run's stopped answering).
+    /// </summary>
+    public void ShowMenu(Vector2I at)
+    {
+        if (Companion.Paper.OffScreen)
+            GD.Print($"Menu: at {at.X},{at.Y}: {DevItems()}");
+        else
+            _menu.Popup(new Rect2I(at, Vector2I.Zero));
+    }
 
-    /// <summary>Dev: the menu's entries as they are now, for the log.</summary>
-    public string DevItems() => string.Join(" | ", Enumerable.Range(0, _menu.ItemCount).Select(i => _menu.GetItemText(i)).Where(t => t.Length > 0));
+    /// <summary>Dev: the menu's entries as they are now, for the log; a switch says whether it is on ([x]) or off ([ ]).</summary>
+    public string DevItems() => string.Join(" | ", Enumerable.Range(0, _menu.ItemCount)
+        .Where(i => !_menu.IsItemSeparator(i))
+        .Select(i => _menu.GetItemText(i) + (_menu.IsItemCheckable(i) ? _menu.IsItemChecked(i) ? " [x]" : " [ ]" : "")));
+
+    /// <summary>Dev: presses the entry whose text starts with this, as a click on it would, and closes the menu; false when there is none.</summary>
+    public bool DevPress(string text)
+    {
+        var at = Enumerable.Range(0, _menu.ItemCount).FirstOrDefault(i => !_menu.IsItemSeparator(i) && _menu.GetItemText(i).StartsWith(text, StringComparison.OrdinalIgnoreCase), -1);
+        if (at < 0)
+            return false;
+        _menu.Hide();
+        OnMenu(_menu.GetItemId(at));
+        return true;
+    }
 
     /// <summary>Shows the switches as they are now (changed in Settings, say).</summary>
     public void Sync(bool muted, bool voice)

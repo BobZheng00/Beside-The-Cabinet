@@ -17,6 +17,8 @@ public partial class DesktopWindow : Node
     /// <summary>The press became a drag of the window.</summary>
     public event Action? DragStarted;
     /// <summary>The left button came up again, after <see cref="Clicked"/> if it was a click.</summary>
+    /// <summary>A right click on the window (on the cabinet or her: everywhere else clicks pass through), not on a control that keeps the mouse.</summary>
+    public event Action? RightClicked;
     public event Action? Released;
     /// <summary>Canvas point under the cursor, or null when outside the art.</summary>
     public event Action<Vector2?>? Hover;
@@ -109,6 +111,10 @@ public partial class DesktopWindow : Node
                 _pressed = _dragging = _grabbed = false;
                 if (pressed)
                     Released?.Invoke();
+                break;
+            // on the button coming up, as Windows' own context menus open
+            case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: false } when !_pressed && KeepsMouse?.Invoke(CursorCanvas()) != true:
+                RightClicked?.Invoke();
                 break;
             case InputEventMouseMotion when _pressed:
                 var mouse = DisplayServer.MouseGetPosition();

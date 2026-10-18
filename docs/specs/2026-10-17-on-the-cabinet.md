@@ -1,7 +1,7 @@
 # Settings and the switches, from the cabinet itself
 
-*Decided with the user, 2026-10-17 (`/pm:brainstorm #64`). Step 2, the CRT, is built (2026-10-18, #69); the order is
-at the end.*
+*Decided with the user, 2026-10-17 (`/pm:brainstorm #64`). Step 1, the right-click menu, is built (#68); step 2, the
+CRT, is built (2026-10-18, #69); the order is at the end.*
 
 ## Why
 
@@ -72,6 +72,8 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
 Each step is usable on its own.
 
 1. **The right-click menu** on her and the cabinet: the tray's menu, built once and shown in both places, at the pointer.
+   *Built (#68):* the tray's one `PopupMenu`, opened at the pointer when the cabinet window gets a right click (it
+   only does on her or the cabinet: everywhere else clicks pass through); dev actions `menu` and `menupress:`.
 2. **The CRT:** the SETTINGS app, and the quick-switch row on the home screen.
 3. **Settings → Memory:** the page with "Open the memory book…" and "Open Chat history…".
 

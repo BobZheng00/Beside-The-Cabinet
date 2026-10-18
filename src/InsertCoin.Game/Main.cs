@@ -233,6 +233,7 @@ public partial class Main : Node2D
             else if (_stool.Her?.Hits(p) == true || _stool.OnBubble(p))
                 _stool.Clicked(p);
         };
+        _window.RightClicked += () => _tray.ShowMenu(DisplayServer.MouseGetPosition());     // the tray's own menu, at the pointer
         _cabinet.CheckPressed += OnCheck;
         ApplySize();
         PlaceWindow();
@@ -647,6 +648,12 @@ public partial class Main : Node2D
             _ticket.DevPress(int.Parse(action["ticketpress:".Length..]));
             return;
         }
+        if (action.StartsWith("menupress:"))                // menupress:Voice presses the entry of the menu (hers and the tray's) that starts with that text
+        {
+            var entry = action["menupress:".Length..].Replace('_', ' ');
+            GD.Print(_tray.DevPress(entry) ? $"Menu: pressed {entry}" : $"Menu: no entry {entry}");
+            return;
+        }
         if (action.StartsWith("telegramat:"))
         {
             // telegramat:http://127.0.0.1:port talks to a stand-in Telegram, so that no real bot is needed; listening starts again there
@@ -698,6 +705,7 @@ public partial class Main : Node2D
             case "welcome": OpenWelcome(); break;                // the first run's welcome, again
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "windoworder": GD.Print($"Windows, top first: {_window.DevOrder()}"); break;     // the app's windows as they are stacked on screen
+            case "menu": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2); break;     // as if she or the cabinet were right-clicked mid-window (a test run never follows the pointer): logs it
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
             case "remindertry":                             // the "Try it" on Settings → Reminders

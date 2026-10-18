@@ -43,6 +43,23 @@
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
+      "name": "menu",
+      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice flipped there shows in the tray and on Settings → Voice, and flipped back on that page shows in the menu; its Settings… opens Settings.",
+      "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/VoiceSettings.cs"],
+      "script": "trayitems@2,menu@3,menupress:Voice@4,trayitems@5,menupress:Settings@6,settings:voice@7,settingsdo:Shino_speaks_aloud@10,menu@11",
+      "shots": [11, 15],
+      "window": "Settings",
+      "expect": [
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Menu: pressed Voice$",
+        "^Tray: .*\\| Voice \\[ \\] \\|",
+        "^Menu: pressed Settings$",
+        "^Settings: \"Shino speaks aloud\" ticked$"
+      ],
+      "forbid": ["^Menu: no entry"]
+    },
+    {
       "name": "chat",
       "about": "Saying something to the companion reaches their mind (the mock), and their reply shows in their bubble.",
       "covers": ["src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/App/Lines.cs", "src/InsertCoin.Game/Companion/SpeechBubble.cs", "src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Mind/*"],
