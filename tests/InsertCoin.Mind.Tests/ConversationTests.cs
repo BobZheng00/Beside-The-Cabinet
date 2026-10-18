@@ -27,6 +27,62 @@ public class ConversationTests
     }
 
     [Fact]
+    public async Task What_the_cabinet_tells_her_to_do_is_kept_as_an_instruction_and_still_reaches_her()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+        conversation.Witness("The player solved \"Two Sum\" (Easy).");
+        const string ask = "The player has no bedtime set. Ask them when they usually go to sleep.";
+        await conversation.Announce(new FakeModel("When do you usually turn in?"), ask, "", _ => { }, (_, _) => { });
+        await conversation.Answer(new FakeModel("[cancel: #99] Done, it's off."), "cancel the dentist", "", _ => { }, (_, _) => { });
+        await conversation.Answer(new FakeModel("Welcome back! I was thinking we could try the hard one."), "hi", "", _ => { }, (_, _) => { });
+        conversation.CutOff("Welcome back! ".Length);
+        var next = new FakeModel("Sorry!");
+        await conversation.Answer(next, "around midnight", "", _ => { }, (_, _) => { });
+
+        var lines = temp.Store.After("shino", 0);
+        Assert.Equal([ask, "Your [cancel: #99] didn't go through: there is no #99 on the agenda now. Tell the player briefly, then put it right or ask them.",
+                      "The player cut you off there. You hadn't said yet: \"I was thinking we could try the hard one.\""],
+                     lines.Where(l => l.Instruction).Select(l => l.Text));
+        // what happened at the cabinet, and what either of them said, are not
+        Assert.Contains(lines, l => l is { Speaker: Speaker.Cabinet, Instruction: false, Text: "The player solved \"Two Sum\" (Easy)." });
+        Assert.All(lines.Where(l => l.Speaker != Speaker.Cabinet), l => Assert.False(l.Instruction));
+        var sent = string.Join("\n", next.Requests.Single().Select(m => m.Text));
+        Assert.Contains($"[cabinet] {ask}", sent);
+        Assert.Contains("[cabinet] Your [cancel: #99] didn't go through", sent);
+    }
+
+    [Fact]
+    public void Lines_kept_before_instructions_were_marked_are_read_as_records()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "insert-coin-mind-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "memory.db");
+        using (var old = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            old.Open();
+            using var create = old.CreateCommand();
+            create.CommandText = """
+                CREATE TABLE lines (id INTEGER PRIMARY KEY, character TEXT NOT NULL, speaker TEXT NOT NULL, text TEXT NOT NULL, at TEXT NOT NULL);
+                INSERT INTO lines (character, speaker, text, at) VALUES ('shino', 'Cabinet', 'Reminders the player set are going off.', '2026-10-02T19:00:00.0000000+08:00');
+                PRAGMA user_version = 16;
+                """;
+            create.ExecuteNonQuery();
+        }
+        try
+        {
+            using var store = new MindStore(path);
+            Assert.False(Assert.Single(store.After("shino", 0)).Instruction);
+            Assert.True(store.Between("shino", store.Add("shino", Speaker.Cabinet, "Tell them.", Friday, instruction: true), long.MaxValue).Single().Instruction);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public async Task The_prompt_holds_persona_notes_history_and_the_cabinet_right_now()
     {
         using var temp = new TempStore();

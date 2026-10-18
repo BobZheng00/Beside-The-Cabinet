@@ -13,6 +13,8 @@ LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation
 for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
 Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.
+Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
+the cabinet rises for a moment or is kept on top ("Always on top" on Cabinet).
 
 At first run a Welcome asks three things: your name (what your companion calls you; your initials on the cabinet
 come from it), who keeps you company (seated on the stool as you pick, with how they sit), and their mind (provider,
@@ -441,7 +443,10 @@ upkeep; with the model's prices entered (from your provider's price page), the c
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes they work from above
 it). While it is open it follows the conversation: what either of you says comes in at the bottom within a second,
 and it stays at the end if you were there; if you have scrolled up, your place stays put and "New lines below" takes
-you down. Click one of your companion's replies (it lights up under the mouse) to see what they had in mind for it, and
+you down. What the app tells your companion to do (pass a reminder on, ask about your bedtime, put right an agenda
+change that didn't go through) isn't shown, only their answer; tick "Show what the app tells" them to see those
+lines too, each boxed and marked "App to" them (the tick is remembered; lines from before this version always
+show). Click one of your companion's replies (it lights up under the mouse) to see what they had in mind for it, and
 click it again or press Close to put it away. It comes in two groups: "Kept in mind for every reply" (their most
 important facts) and "Recalled for this reply" (what came back with what was just said: smaller facts, what used to be
 true, notes from their diary, old talk). Each says what it is in words ("About you", "About you two", "About" them,

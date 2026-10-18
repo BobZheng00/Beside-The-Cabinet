@@ -1,6 +1,6 @@
 {
-  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines); beside (first start hidden stand-ins for the player's own app, copies that aren't test runs: one holds a one-copy lock of their own, never the player's, a second must quit at once, and the scenario runs beside them). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass. Which run in a check (smoke.ps1 -Changed, as check.ps1 runs it): every scenario when a file matching one of all changed (shared code and the harness itself); each scenario whose covers match a changed file; and boot whenever a file matching app changed (anything the app runs). Patterns are wildcards on paths from the checkout's root, with forward slashes. READMEs never count (a character's persona.md does: the app reads it), so a change to tests or docs alone runs none; with no list of what changed (git couldn't say, or on main itself), every scenario runs.",
-  "all": ["src/InsertCoin.Game/Main.cs", "src/InsertCoin.Game/Main.tscn", "src/InsertCoin.Game/App/Stool.cs", "src/InsertCoin.Game/Companion/Paper.cs", "src/InsertCoin.Game/project.godot", "src/InsertCoin.Game/InsertCoin.Game.csproj", "src/InsertCoin.Game/Desktop/TestShots.cs", "src/InsertCoin.Game/App/AppSettings.cs", "src/InsertCoin.Adapters/JsonFileStore.cs", "src/InsertCoin.Core/*", "tools/dev/smoke.ps1", "tools/dev/shoot.ps1", "tools/dev/hidden.cs", "tools/dev/mock_mind.py", "tools/dev/smoke/*"],
+  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action; a shot whose window, or the scenario's window, isn't there or drawn yet waits for it, up to 10 s); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines); beside (first start hidden stand-ins for the player's own app, copies that aren't test runs: one holds a one-copy lock of their own, never the player's, a second must quit at once, and the scenario runs beside them). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass. Which run in a check (smoke.ps1 -Changed, as check.ps1 runs it): every scenario when a file matching one of all changed (shared code and the harness itself); each scenario whose covers match a changed file; and boot whenever a file matching app changed (anything the app runs). Patterns are wildcards on paths from the checkout's root, with forward slashes. READMEs never count (a character's persona.md does: the app reads it), so a change to tests or docs alone runs none; with no list of what changed (git couldn't say, or on main itself), every scenario runs.",
+  "all": ["src/InsertCoin.Game/Main.cs", "src/InsertCoin.Game/Main.tscn", "src/InsertCoin.Game/App/Stool.cs", "src/InsertCoin.Game/Companion/Paper.cs", "src/InsertCoin.Game/project.godot", "src/InsertCoin.Game/InsertCoin.Game.csproj", "src/InsertCoin.Game/Desktop/TestShots.cs", "src/InsertCoin.Game/App/AppSettings.cs", "src/InsertCoin.Adapters/JsonFileStore.cs", "src/InsertCoin.Core/*", "tools/dev/smoke.ps1", "tools/dev/shoot.ps1", "tools/dev/hidden.cs", "tools/dev/flat.ps1", "tools/dev/mock_mind.py", "tools/dev/smoke/*"],
   "app": ["src/*"],
   "ignore": [],
   "scenarios": [
@@ -127,6 +127,18 @@
       "expect": ["^Chat history: \\d new lines? shown, at the end", "^Chat history: \\d+ in mind for line", "^Chat history: \\d new lines? shown, below the player's place"]
     },
     {
+      "name": "chathistory-hidden",
+      "about": "Chat history leaves out what the app tells the companion (here a refused agenda change after each reply) and still follows the talk: a line the player says under the number of a hidden line taken back comes in, and after the chat is cleared with a line said at once, the history shows that line, not a blank window.",
+      "covers": ["src/InsertCoin.Game/App/ChatHistory.cs", "src/InsertCoin.Mind/MindStore.cs", "src/InsertCoin.Mind/Conversation.cs"],
+      "mind": true,
+      "mindReply": "[cancel: #99] Sure, I can do that.",
+      "mindRequests": 1,
+      "script": "nocall@1,memoryseed@1,chathistory@2,chat:hello_there@3,lineswap:said_where_a_hidden_line_was@8,lineclear:said_right_after_a_clear@13",
+      "shots": [7, 11, 17],
+      "window": "Chat with",
+      "expect": ["^Chat history: 2 new lines shown, at the end", "^Chat: line \\d+ kept after a lineswap", "^Chat history: 1 new line shown, at the end", "^Chat history: shown afresh"]
+    },
+    {
       "name": "crt",
       "about": "The CRT's small system opens, then its MEMOS app.",
       "covers": ["src/InsertCoin.Game/App/Crt/*", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/Cabinet/screen_quad.gdshader"],
@@ -169,6 +181,24 @@
       "shots": [8],
       "window": " - Beside the Cabinet memo",
       "desk": true
+    },
+    {
+      "name": "windows-above",
+      "about": "Settings and the memory book stay above the cabinet and the companion: while the cabinet rises for a moment and after it sinks back, with Always on top off, then with it on (ticked in Settings) and the cabinet rising again; then a ticket and the file dialog \"Add a character…\" opens are above them both.",
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
+      "script": "settings:cabinet@2,focuspaid:5@3,windoworder@4,windoworder@11,settingsdo:Always_on_top@12,memorybook@13,focuspaid:5@14,windoworder@15,ticket@16,pick@17,windoworder@19",
+      "shots": [22],
+      "expect": ["^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings, the cabinet$", "^Windows, top first: What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$"],
+      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|What \\S+ remembers|file dialog)", "^Windows, top first: .*(Settings|remembers).*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
+    },
+    {
+      "name": "windows-above-dialog",
+      "about": "With Always on top off, the file dialog \"Add a character…\" opens above Settings, and a ticket above both, while the cabinet rises for the dialog and after it sinks back.",
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
+      "script": "settings:characters@2,ticket@3,pick@4,windoworder@5,windoworder@11",
+      "shots": [14],
+      "expect": ["^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: (Beside the Cabinet ticket \\(on top\\), )?file dialog \"Add a character\", Settings, the cabinet$"],
+      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|file dialog)", "^Windows, top first: .*Settings.*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
     }
   ]
 }

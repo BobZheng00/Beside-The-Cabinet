@@ -43,6 +43,14 @@ Each page is short enough to read without scrolling much, and is named for what 
 - **A connection is the exception:** what connects her to something outside is used only when the player says so,
   since half of it is no use (and picking a provider to look at its server must not switch her over). Her provider has
   Test and Save; a calendar has Link it. The guides (below) take these over.
+- **Above the cabinet:** Settings and every other window the app opens for the player (the memory book, Chat history,
+  Meet, the phone card, a dialog, a memo's sheet) stays just above the cabinet and her while open, with Always on top
+  on or off: her rising for a moment doesn't cover it, and with Always on top on it is above other apps as the cabinet
+  is (the user, 2026-10-17: "i have to move it around to properly interact with it"). A file dialog one of them opens
+  (Add a character…) is above them, and a ticket above all. Each is only ever put just above the next one down, so
+  nothing else above the cabinet (the player's game) is covered, and none takes focus from the game for this.
+  *Built* (#74): `DesktopWindow.KeepWindowsAbove`, checked as it polls the mouse, since Godot's windows aren't owned
+  by the cabinet's in Windows' terms.
 - **The tray and the pages agree:** Mute sounds and Voice are in both, and a change in one shows in the other.
 - **A page below a page** (a skill's own page, under Skills) starts with where it is, top left: "‹ Skills › journal",
   the page above a button back up to it, then its heading (the user, 2026-10-17: "levels of navigation so it is more
@@ -173,6 +181,7 @@ the button or flips the tick with that text on the page showing; `settingsdo:<la
 number, from 0) or the field next to that label. Underscores for spaces. `settingsscroll:600` scrolls the page
 showing; `settingswidths` logs any page made so far that is wider than its room (it would run off the window's
 right edge, as the old voice window's row of buttons did), a page below a page showing in one (a skill's) among them. "Start with Windows" is Windows' own setting, the same in
-a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes). `welcome` opens the
+a test run: never flip it in one. `trayitems` logs the tray menu's entries as they are now (Getting started… comes and goes). `windoworder` logs
+the app's windows top first, as they are stacked on screen, "(on top)" on those above other apps. `welcome` opens the
 first run's Welcome again; `welcomedo:<label>[:<value>]` and `meetdo:<label>[:<value>]` are `settingsdo` on the
 Welcome and on "Meet …".

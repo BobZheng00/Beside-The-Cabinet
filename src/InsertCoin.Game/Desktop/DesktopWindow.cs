@@ -84,6 +84,7 @@ public partial class DesktopWindow : Node
         if (down && !_buttonDown && !over && !_pressed && Covered?.Invoke(DisplayServer.MouseGetPosition()) != true)
             PressedElsewhere?.Invoke();                     // a memo's sheet is the app's own: reading one is not pressing away
         _buttonDown = down;
+        KeepWindowsAbove();
     }
 
     public override void _Input(InputEvent e)
@@ -139,6 +140,91 @@ public partial class DesktopWindow : Node
             GetTree().CreateTimer(seconds).Timeout += () => SetTopmost(false);
     }
 
+    /// <summary>
+    /// Keeps the app's own windows the player opened (Settings, the memory book, Chat history, a dialog, a memo's sheet)
+    /// stacked just above the cabinet, with Windows' file dialogs the app opened above them, and above other apps exactly
+    /// when the cabinet is: Godot's windows aren't owned by the cabinet's in Windows' terms, so the cabinet rising, or
+    /// kept on top, would otherwise cover them. Tickets stay above them all. A window is only ever moved to just above
+    /// the next one down, so nothing else already above the cabinet (the player's game) is covered, and none is
+    /// activated. Popups (a list's choices, a hover tip) keep Godot's own order.
+    /// </summary>
+    private void KeepWindowsAbove()
+    {
+        HashSet<nint> kept = [], tickets = [];
+        foreach (var id in DisplayServer.GetWindowList())
+            if (id != DisplayServer.MainWindowId && !DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.Popup, id))
+                (DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.AlwaysOnTop, id) ? tickets : kept)
+                    .Add((nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, id));
+        List<nint> onTop = [], dialogs = [], windows = [];
+        for (var w = Win32.GetTopWindow(0); w != 0; w = Win32.GetWindow(w, Win32.GwHwndNext))
+            if (kept.Contains(w) && Win32.IsWindowVisible(w))
+                windows.Add(w);
+            else if (tickets.Contains(w) && Win32.IsWindowVisible(w))
+                onTop.Add(w);
+            else if (FileDialog(w))
+                dialogs.Add(w);
+        var top = Topmost(_hwnd);
+        // top first, each kind in the order it is in now, except that one Godot has just shown (not yet on top with the
+        // cabinet) is in front of the others
+        List<nint> wanted = [.. onTop, .. dialogs, .. windows.OrderBy(w => top && !Topmost(w) ? 0 : 1), _hwnd];
+        for (var i = wanted.Count - 2; i >= 0; i--)
+        {
+            var kind = top || tickets.Contains(wanted[i]);                  // a ticket is always kept on top
+            if (Topmost(wanted[i]) != kind || !Above(wanted[i], wanted[i + 1]))
+                PlaceAbove(wanted[i], wanted[i + 1], kind);
+        }
+    }
+
+    /// <summary>Puts the window just above another, among the windows kept on top or not, as the cabinet is.</summary>
+    private static void PlaceAbove(nint window, nint below, bool top)
+    {
+        const uint flags = Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate;
+        if (!top && Topmost(window))
+            Win32.SetWindowPos(window, Win32.HwndNoTopmost, 0, 0, 0, 0, flags);
+        var over = Win32.GetWindow(below, Win32.GwHwndPrev);
+        if (over == window)
+            return;
+        var after = over == 0 ? (top ? Win32.HwndTopmost : Win32.HwndTop)
+            : !top && Topmost(over) ? Win32.HwndTop                             // the one below heads the windows not kept on top
+            : over;                                                             // just under the window above it
+        Win32.SetWindowPos(window, after, 0, 0, 0, 0, flags);
+    }
+
+    private static bool Above(nint window, nint below)
+    {
+        for (var w = Win32.GetWindow(below, Win32.GwHwndPrev); w != 0; w = Win32.GetWindow(w, Win32.GwHwndPrev))
+            if (w == window)
+                return true;
+        return false;
+    }
+
+    /// <summary>One of Windows' own dialogs (a file dialog) the app opened and is showing.</summary>
+    private static bool FileDialog(nint window)
+    {
+        if (!Win32.IsWindowVisible(window) || Win32.GetWindowThreadProcessId(window, out var process) == 0 || process != System.Environment.ProcessId)
+            return false;
+        var kind = new System.Text.StringBuilder(16);
+        Win32.GetClassName(window, kind, kind.Capacity);
+        return kind.ToString() == "#32770";
+    }
+
+    /// <summary>The app's windows, top first, as they are stacked on screen; "(on top)" marks those kept above other apps.</summary>
+    public string DevOrder()
+    {
+        var own = DisplayServer.GetWindowList().Select(id => (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, id)).ToHashSet();
+        var names = new List<string>();
+        var title = new System.Text.StringBuilder(256);
+        for (var w = Win32.GetTopWindow(0); w != 0; w = Win32.GetWindow(w, Win32.GwHwndNext))
+            if (own.Contains(w) && Win32.IsWindowVisible(w) || FileDialog(w))
+            {
+                Win32.GetWindowText(w, title, title.Capacity);
+                names.Add((w == _hwnd ? "the cabinet" : own.Contains(w) ? title.ToString() : $"file dialog \"{title}\"") + (Topmost(w) ? " (on top)" : ""));
+            }
+        return string.Join(", ", names);
+    }
+
+    private static bool Topmost(nint window) => (Win32.GetWindowLongPtr(window, Win32.GwlExStyle) & Win32.WsExTopmost) != 0;
+
     private void SetClickThrough(bool clickThrough)
     {
         if (clickThrough == _clickThrough)
@@ -152,10 +238,17 @@ public partial class DesktopWindow : Node
     private static class Win32
     {
         public const int GwlExStyle = -20;
-        public const nint WsExTransparent = 0x20, WsExLayered = 0x80000;
-        public static readonly nint HwndTopmost = -1, HwndNoTopmost = -2;
+        public const nint WsExTransparent = 0x20, WsExLayered = 0x80000, WsExTopmost = 0x8;
+        public static readonly nint HwndTop = 0, HwndTopmost = -1, HwndNoTopmost = -2;
         public const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
+        public const uint GwHwndNext = 2, GwHwndPrev = 3;
         public const int VkLButton = 0x01, VkRButton = 0x02;
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(nint window);
+        [DllImport("user32.dll")] public static extern nint GetWindow(nint window, uint relation);
+        [DllImport("user32.dll")] public static extern nint GetTopWindow(nint parent);
+        [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(nint window, out int process);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetClassNameW")] public static extern int GetClassName(nint window, System.Text.StringBuilder text, int most);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetWindowTextW")] public static extern int GetWindowText(nint window, System.Text.StringBuilder text, int most);
         [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
         [DllImport("user32.dll")] public static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint hwnd, int index);

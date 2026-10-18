@@ -11,7 +11,7 @@ $cases = @(
   @{ files = "src/InsertCoin.Game/characters/shino/persona.md"; want = "boot" },
   @{ files = "src/InsertCoin.Game/App/MemoryBook.cs"; want = "boot,memory,agendacancel" },
   @{ files = "src/InsertCoin.Game/App/VoiceSettings.cs,docs/README.md"; want = "boot,settings" },
-  @{ files = "src/InsertCoin.Mind/MindStore.cs"; want = "boot,chat,memory,agendacancel,chathistory,reminder" },
+  @{ files = "src/InsertCoin.Mind/MindStore.cs"; want = "boot,chat,memory,agendacancel,chathistory,chathistory-hidden,reminder" },
   @{ files = "src/InsertCoin.Adapters/LeetCodeSource.cs"; want = "boot" },
   @{ files = "src/InsertCoin.Game/App/Crt/MemosApp.cs"; want = "boot,crt,memos" },
   @{ files = "src/InsertCoin.Game/Main.cs"; want = $every },

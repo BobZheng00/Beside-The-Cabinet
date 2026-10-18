@@ -37,7 +37,8 @@ from 0, or types in its field), `settingsscroll:600` (scrolls the page showing),
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
-showing in one, a skill's), `trayitems` (logs the tray menu's entries),
+showing in one, a skill's), `trayitems` (logs the tray menu's entries), `windoworder` (logs the app's windows top first, as they are stacked on
+screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`
@@ -50,7 +51,7 @@ item with those words is cancelled under the open book, as upkeep might), `ticke
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
-`chathistorydo:Below` presses "New lines below"; `chathistorydo:Close` closes it), `memoryseed` (a few notes, facts,
+`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
@@ -161,7 +162,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   `-Status` says what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` records QA's verdict on it. The pm
   plugin's gate wants both before a pull request is marked ready.
 - `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
-  `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. The report and shots go to
+  `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. A shot whose window (or the scenario's
+  named one) isn't there yet, or is one flat colour (nothing drawn yet), waits for it, up to 10 s, and the report's
+  notes say how long; a window still missing after that, or a cabinet shot still flat, fails the scenario. The report and shots go to
   `<main checkout>\.qa\smoke\<branch>`. One run at a time on this PC; the player's own copies of the app (their app,
   the demo) are never stopped and never block it: its test copies run beside them. The `beside` scenario shows it
   with stand-ins (hidden copies that aren't test runs, on throwaway profiles, started `--lock=beside`): one holds
