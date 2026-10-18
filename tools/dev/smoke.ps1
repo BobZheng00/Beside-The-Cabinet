@@ -299,19 +299,10 @@ try {
   if ($Prepare) { "Ready for test runs: $repo"; exit 0 }
 
   Add-Type -AssemblyName System.Drawing
-  function Test-Flat([string]$path) {
+  . (Join-Path $PSScriptRoot "flat.ps1")
+  function Test-FlatFile([string]$path) {
     $bmp = [System.Drawing.Bitmap]::FromFile($path)
-    try {
-      $first = $null
-      $stepX = [Math]::Max(1, [int]($bmp.Width / 24)); $stepY = [Math]::Max(1, [int]($bmp.Height / 24))
-      for ($x = 0; $x -lt $bmp.Width; $x += $stepX) {
-        for ($y = 0; $y -lt $bmp.Height; $y += $stepY) {
-          $c = $bmp.GetPixel($x, $y).ToArgb()
-          if ($null -eq $first) { $first = $c } elseif ($c -ne $first) { return $false }
-        }
-      }
-      return $true
-    } finally { $bmp.Dispose() }
+    try { Test-Flat $bmp } finally { $bmp.Dispose() }
   }
 
   $defaultForbid = @('\bERROR\b', 'Exception\b', 'SCRIPT ERROR')
@@ -391,13 +382,14 @@ try {
     foreach ($line in @($besideProblems)) { [void]$problems.Add($line) }
     foreach ($line in $said) {
       if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player") { [void]$problems.Add($line.Trim()) }
+      elseif ($line -match "(\S+\.png) .*; (waited .*)$") { $besideNotes += "$(Split-Path $Matches[1] -Leaf): $($Matches[2])" }   # a shot that waited for its window
     }
     # a test copy writes Godot's log into its own profile, never over the player's (in Godot's user folder)
     if (-not (Test-Path (Join-Path $Out "profile-$($s.name)\godot.log"))) { [void]$problems.Add("Godot's log isn't in the run's own profile") }
 
     $pngs = @(Get-ChildItem $Out -File | Where-Object { $_.Name -match ("^" + [regex]::Escape($s.name) + "-\d+\.png$") } | Sort-Object Name)
     if ($pngs.Count -lt $shots.Count) { [void]$problems.Add("only $($pngs.Count) of $($shots.Count) screenshots were taken") }
-    foreach ($p in $pngs) { if (Test-Flat $p.FullName) { [void]$problems.Add("$($p.Name) is one flat colour: nothing drawn") } }
+    foreach ($p in $pngs) { if (Test-FlatFile $p.FullName) { [void]$problems.Add("$($p.Name) is one flat colour: nothing drawn") } }
     $allShots = @(Get-ChildItem $Out -File | Where-Object { $_.Name -like "$($s.name)-*.png" } | Sort-Object Name | ForEach-Object { $_.FullName })
 
     $text = @()
