@@ -46,9 +46,11 @@ Each page is short enough to read without scrolling much, and is named for what 
 - **Above the cabinet:** Settings and every other window the app opens for the player (the memory book, Chat history,
   Meet, the phone card, a dialog, a memo's sheet) stays just above the cabinet and her while open, with Always on top
   on or off: her rising for a moment doesn't cover it, and with Always on top on it is above other apps as the cabinet
-  is (the user, 2026-10-17: "i have to move it around to properly interact with it"). It never takes focus from the
-  player's game for this. *Built* (#74): `DesktopWindow.KeepWindowsAbove`, checked as it polls the mouse, since
-  Godot's windows aren't owned by the cabinet's in Windows' terms.
+  is (the user, 2026-10-17: "i have to move it around to properly interact with it"). A file dialog one of them opens
+  (Add a character…) is above them, and a ticket above all. Each is only ever put just above the next one down, so
+  nothing else above the cabinet (the player's game) is covered, and none takes focus from the game for this.
+  *Built* (#74): `DesktopWindow.KeepWindowsAbove`, checked as it polls the mouse, since Godot's windows aren't owned
+  by the cabinet's in Windows' terms.
 - **The tray and the pages agree:** Mute sounds and Voice are in both, and a change in one shows in the other.
 - **A page below a page** (a skill's own page, under Skills) starts with where it is, top left: "‹ Skills › journal",
   the page above a button back up to it, then its heading (the user, 2026-10-17: "levels of navigation so it is more
