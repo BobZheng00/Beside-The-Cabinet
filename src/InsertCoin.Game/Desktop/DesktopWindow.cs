@@ -84,6 +84,7 @@ public partial class DesktopWindow : Node
         if (down && !_buttonDown && !over && !_pressed && Covered?.Invoke(DisplayServer.MouseGetPosition()) != true)
             PressedElsewhere?.Invoke();                     // a memo's sheet is the app's own: reading one is not pressing away
         _buttonDown = down;
+        KeepWindowsAbove();
     }
 
     public override void _Input(InputEvent e)
@@ -139,6 +140,56 @@ public partial class DesktopWindow : Node
             GetTree().CreateTimer(seconds).Timeout += () => SetTopmost(false);
     }
 
+    /// <summary>
+    /// Keeps the app's own windows the player opened (Settings, the memory book, Chat history, a dialog, a memo's sheet)
+    /// right above the cabinet, and above other apps exactly when the cabinet is: Godot's windows aren't owned by the
+    /// cabinet's in Windows' terms, so the cabinet rising, or kept on top, would otherwise cover them. Never activates
+    /// one. Popups (a list's choices, a hover tip) keep Godot's own order; a ticket is on top by itself.
+    /// </summary>
+    private void KeepWindowsAbove()
+    {
+        var top = Topmost(_hwnd);
+        foreach (var id in DisplayServer.GetWindowList())
+        {
+            if (id == DisplayServer.MainWindowId || DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.Popup, id)
+                || DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.AlwaysOnTop, id))
+                continue;
+            var window = (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, id);
+            if (!Win32.IsWindowVisible(window) || Topmost(window) == top && Above(window))
+                continue;
+            var over = Win32.GetWindow(_hwnd, Win32.GwHwndPrev);
+            var after = top ? Win32.HwndTopmost                                 // the top of the windows kept on top
+                : Topmost(window) ? Win32.HwndNoTopmost                         // back down with the cabinet, still above it
+                : over != 0 && !Topmost(over) ? over : Win32.HwndTop;           // just above the cabinet
+            Win32.SetWindowPos(window, after, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
+        }
+    }
+
+    private bool Above(nint window)
+    {
+        for (var w = Win32.GetWindow(_hwnd, Win32.GwHwndPrev); w != 0; w = Win32.GetWindow(w, Win32.GwHwndPrev))
+            if (w == window)
+                return true;
+        return false;
+    }
+
+    /// <summary>The app's windows, top first, as they are stacked on screen; "(on top)" marks those kept above other apps.</summary>
+    public string DevOrder()
+    {
+        var own = DisplayServer.GetWindowList().Select(id => (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, id)).ToHashSet();
+        var names = new List<string>();
+        var title = new System.Text.StringBuilder(256);
+        for (var w = Win32.GetTopWindow(0); w != 0; w = Win32.GetWindow(w, Win32.GwHwndNext))
+            if (own.Contains(w) && Win32.IsWindowVisible(w))
+            {
+                Win32.GetWindowText(w, title, title.Capacity);
+                names.Add((w == _hwnd ? "the cabinet" : title.ToString()) + (Topmost(w) ? " (on top)" : ""));
+            }
+        return string.Join(", ", names);
+    }
+
+    private static bool Topmost(nint window) => (Win32.GetWindowLongPtr(window, Win32.GwlExStyle) & Win32.WsExTopmost) != 0;
+
     private void SetClickThrough(bool clickThrough)
     {
         if (clickThrough == _clickThrough)
@@ -152,10 +203,15 @@ public partial class DesktopWindow : Node
     private static class Win32
     {
         public const int GwlExStyle = -20;
-        public const nint WsExTransparent = 0x20, WsExLayered = 0x80000;
-        public static readonly nint HwndTopmost = -1, HwndNoTopmost = -2;
+        public const nint WsExTransparent = 0x20, WsExLayered = 0x80000, WsExTopmost = 0x8;
+        public static readonly nint HwndTop = 0, HwndTopmost = -1, HwndNoTopmost = -2;
         public const uint SwpNoSize = 0x1, SwpNoMove = 0x2, SwpNoActivate = 0x10;
+        public const uint GwHwndNext = 2, GwHwndPrev = 3;
         public const int VkLButton = 0x01, VkRButton = 0x02;
+        [DllImport("user32.dll")] public static extern bool IsWindowVisible(nint window);
+        [DllImport("user32.dll")] public static extern nint GetWindow(nint window, uint relation);
+        [DllImport("user32.dll")] public static extern nint GetTopWindow(nint parent);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetWindowTextW")] public static extern int GetWindowText(nint window, System.Text.StringBuilder text, int most);
         [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
         [DllImport("user32.dll")] public static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int cx, int cy, uint flags);
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern nint GetWindowLongPtr(nint hwnd, int index);
