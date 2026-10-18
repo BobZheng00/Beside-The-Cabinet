@@ -56,16 +56,17 @@
     },
     {
       "name": "skills",
-      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken); a vault's skills folder linked on the page says how many skills it has and lists them (two, one with a hint); a skill's Settings › opens its own page, headed by where it is (‹ Skills › tea-timer, top left) and its name, and ‹ Skills goes back to the list where it was scrolled to; asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
+      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken); a vault's skills folder linked on the page says how many skills it has and lists them (two, one with a hint); a skill's Settings › opens its own page, headed by where it is (‹ Skills › tea-timer, top left) and its name, and ‹ Skills goes back to the list where it was scrolled to, keyboard focus on the way back each time (‹ Skills going down, the skill's Settings › coming up); a skill with a name too long for the window wraps it in its page's heading, and neither its page nor the list is wider than the window (settingswidths, there); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
       "covers": ["src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
       "mind": true,
       "mindReply": "Warm the pot first, then four minutes.",
       "mindRequests": 2,
-      "script": "nocall@1,skillseed@2,settings:skills@3,skilllink@5,chat:could_you_do_the_tea-timer_skill@8,settingsscroll:200@9,settingsdo:Settings@10,settingsup@14",
-      "shots": [7, 13, 15, 18],
+      "script": "nocall@1,skillseed@2,settings:skills@3,skilllink@5,chat:could_you_do_the_tea-timer_skill@8,settingsscroll:200@9,settingsdo:Settings@10,settingsup@14,skillmake:keeping-the-players-weekly-reading-list-and-every-book-note-tidy-and-in-order-across-the-whole-year@16,skillpage:keeping-the-players-weekly-reading-list-and-every-book-note-tidy@17,settingswidths@18,settingsup@20,settingswidths@21",
+      "shots": [7, 13, 15, 18, 21, 25],
       "window": "Settings",
       "desk": true,
-      "expect": ["^Skills: seeded; on: tea-timer$", "^Skills: Linked \\S.*\\\\skills: 2 skills in it\\.$", "^Settings: \"Settings \\S+\" pressed$", "^Skills: tea-timer's page$", "^Settings: \"\\S+ Skills\" pressed$", "^Skills: the list$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
+      "expect": ["^Skills: seeded; on: tea-timer$", "^Skills: Linked \\S.*\\\\skills: 2 skills in it\\.$", "^Settings: \"Settings \\S+\" pressed$", "^Skills: tea-timer's page$", "^Settings: keyboard focus on \"\\S+ Skills\"$", "^Settings: \"\\S+ Skills\" pressed$", "^Skills: the list$", "^Settings: keyboard focus on \"Settings \\S+\"$", "^Tools: she uses read_skill", "^Skills: she read tea-timer: \\d+ characters", "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply", "^Skills: keeping-the-players-weekly-reading-list-and-every-book-note-tidy's page$", "^Settings: \\d+ of \\d+ pages measured, below them skills \\S+ keeping-the-players-weekly-reading-list-and-every-book-note-tidy$", "^Settings: \\d+ of \\d+ pages measured$"],
+      "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
       "name": "skill-folders",
