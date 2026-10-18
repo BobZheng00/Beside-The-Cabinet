@@ -6,7 +6,12 @@ namespace InsertCoin.Mind;
 public enum Speaker { User, Her, Cabinet }
 
 /// <summary>One line of the conversation: something the user typed, something she said, or something the cabinet did.</summary>
-public sealed record Line(long Id, Speaker Speaker, string Text, DateTimeOffset At);
+/// <param name="Instruction">
+/// A cabinet line that tells her what to do rather than what happened (a reminder to pass on, the bedtime ask, a refused
+/// agenda change to put right): it reaches her as any cabinet line does, and the chat history leaves it out unless the
+/// player asks to see what the app tells her.
+/// </param>
+public sealed record Line(long Id, Speaker Speaker, string Text, DateTimeOffset At, bool Instruction = false);
 
 /// <summary>
 /// Something she knows: about the player (<see cref="MindStore.Shared"/> scope, every character knows it) or about
@@ -205,6 +210,10 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('passages') WHERE name = 'forgotten'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE passages ADD COLUMN forgotten INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 16;");
+        // version 17: a cabinet line can be an instruction to her (see Line.Instruction); older lines count as records
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('lines') WHERE name = 'instruction'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE lines ADD COLUMN instruction INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 17;");
         Run("""
             CREATE TABLE IF NOT EXISTS in_mind (line INTEGER NOT NULL, kind TEXT NOT NULL, id INTEGER NOT NULL, listed INTEGER NOT NULL, PRIMARY KEY (line, kind, id));
             CREATE INDEX IF NOT EXISTS in_mind_by_source ON in_mind (kind, id);
@@ -769,7 +778,7 @@ public sealed class MindStore : IDisposable
     /// <summary>The character's lines from <paramref name="first"/> to <paramref name="last"/>, oldest first.</summary>
     public IReadOnlyList<Line> Between(string character, long first, long last)
     {
-        using var command = Command("SELECT id, speaker, text, at FROM lines WHERE character = $c AND id >= $f AND id <= $l ORDER BY id",
+        using var command = Command("SELECT id, speaker, text, at, instruction FROM lines WHERE character = $c AND id >= $f AND id <= $l ORDER BY id",
             ("$c", character), ("$f", first), ("$l", last));
         return ReadLines(command);
     }
@@ -793,15 +802,16 @@ public sealed class MindStore : IDisposable
     public IReadOnlyList<Line> Through(string character, long id, int limit)
     {
         using var command = Command("""
-            SELECT id, speaker, text, at FROM (SELECT * FROM lines WHERE character = $c AND id <= $i ORDER BY id DESC LIMIT $n) ORDER BY id
+            SELECT id, speaker, text, at, instruction FROM (SELECT * FROM lines WHERE character = $c AND id <= $i ORDER BY id DESC LIMIT $n) ORDER BY id
             """, ("$c", character), ("$i", id), ("$n", limit));
         return ReadLines(command);
     }
 
-    public long Add(string character, Speaker speaker, string text, DateTimeOffset at)
+    /// <param name="instruction">A cabinet line telling her what to do (see <see cref="Line.Instruction"/>).</param>
+    public long Add(string character, Speaker speaker, string text, DateTimeOffset at, bool instruction = false)
     {
-        using var command = Command("INSERT INTO lines (character, speaker, text, at) VALUES ($c, $s, $t, $a) RETURNING id",
-            ("$c", character), ("$s", speaker.ToString()), ("$t", text), ("$a", Stamp(at)));
+        using var command = Command("INSERT INTO lines (character, speaker, text, at, instruction) VALUES ($c, $s, $t, $a, $n) RETURNING id",
+            ("$c", character), ("$s", speaker.ToString()), ("$t", text), ("$a", Stamp(at)), ("$n", instruction ? 1 : 0));
         return (long)command.ExecuteScalar()!;
     }
 
@@ -822,7 +832,7 @@ public sealed class MindStore : IDisposable
     /// <summary>The character's lines after the given id, oldest first.</summary>
     public IReadOnlyList<Line> After(string character, long id)
     {
-        using var command = Command("SELECT id, speaker, text, at FROM lines WHERE character = $c AND id > $i ORDER BY id", ("$c", character), ("$i", id));
+        using var command = Command("SELECT id, speaker, text, at, instruction FROM lines WHERE character = $c AND id > $i ORDER BY id", ("$c", character), ("$i", id));
         return ReadLines(command);
     }
 
@@ -831,7 +841,7 @@ public sealed class MindStore : IDisposable
         using var reader = command.ExecuteReader();
         var lines = new List<Line>();
         while (reader.Read())
-            lines.Add(new Line(reader.GetInt64(0), Enum.Parse<Speaker>(reader.GetString(1)), reader.GetString(2), Parse(reader.GetString(3))));
+            lines.Add(new Line(reader.GetInt64(0), Enum.Parse<Speaker>(reader.GetString(1)), reader.GetString(2), Parse(reader.GetString(3)), reader.GetInt64(4) != 0));
         return lines;
     }
 

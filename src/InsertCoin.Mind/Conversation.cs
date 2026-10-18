@@ -230,7 +230,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return built;
         }
         var seeing = handed.Any(a => !a.Text) && !Unseeing;
-        var line = store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, Kept(said, handed, [], seeing), now);
+        var line = store.Add(character, fromCabinet ? Speaker.Cabinet : Speaker.User, Kept(said, handed, [], seeing), now, instruction: fromCabinet);
 
         var reply = new StringBuilder();
         void Show(string piece)
@@ -375,7 +375,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         void Refused()
         {
             foreach (var why in refused)
-                store.Add(character, Speaker.Cabinet, why, _clock.GetLocalNow());
+                store.Add(character, Speaker.Cabinet, why, _clock.GetLocalNow(), instruction: true);
         }
     }
 
@@ -508,7 +508,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         if (unsaid.Length == 0)
             return null;
         store.Rewrite(last.Line, heard);
-        store.Add(character, Speaker.Cabinet, $"The player cut you off there. You hadn't said yet: \"{unsaid}\"", _clock.GetLocalNow());
+        store.Add(character, Speaker.Cabinet, $"The player cut you off there. You hadn't said yet: \"{unsaid}\"", _clock.GetLocalNow(), instruction: true);
         _lastReply = null;
         return unsaid;
     }

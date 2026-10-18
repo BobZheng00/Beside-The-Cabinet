@@ -2246,7 +2246,7 @@ public partial class Stool : Node2D
                     _memoryBook?.ShowTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
-            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Close
+            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Close
             case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
             case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Close presses that button in the memory book
             case "memorybooktype" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var typed]:   // memorybooktype:words:new_words types in that field, not leaving it
