@@ -245,7 +245,7 @@ Windows notification stays with the reminders.
   in English, Chinese, Japanese and Korean); anything else sent meanwhile (a photo too) ends it unanswered and is a
   new message. Only what the player sent after the question reached them bears on it (Telegram's date for each, to the
   second; the same second doesn't count): an "ok" to her last line, sent before, is an ordinary message and leaves it
-  open. Unanswered, nothing it asked about is done, and the chat says so ("Left unanswered, so nothing was done.").
+  open; one that never got through (Telegram unreachable) can't be answered by text, and lapses. Unanswered, nothing it asked about is done, and the chat says so ("Left unanswered, so nothing was done.").
   "Always" on a yes/no card is a yes, by text and said aloud at the PC alike. While her mind waits on one, a text with a plain line (a reminder) still goes, as that line
   (`Reaching.GoesWhileAsking`); the rest waits for her. The reply's clock now stops while an activity to count or a
   bedtime waits for an answer too (`Chat.Unhurried`), as it did for her tools: before, her reply gave up after 90 s,

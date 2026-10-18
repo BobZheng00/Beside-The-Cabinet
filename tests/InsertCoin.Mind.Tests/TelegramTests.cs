@@ -272,6 +272,32 @@ public class TelegramTests
     }
 
     [Fact]
+    public async Task A_question_that_never_got_through_is_answered_by_nothing_typed_and_lapses()
+    {
+        var (bot, server) = Bot(("sendMessage", HttpStatusCode.BadGateway, "<html>bad gateway</html>"));
+        var questions = new Questions();
+        DateTimeOffset? Send(string text, IReadOnlyList<(string Text, string Data)>? buttons)
+        {
+            try
+            {
+                return bot.Send("42", text, buttons).GetAwaiter().GetResult();
+            }
+            catch (TelegramException)
+            {
+                return null;                                            // as the cabinet's texting has it: not sent
+            }
+        }
+        var asked = questions.Ask("May I open leetcode.com?", MayI, (text, b) => Task.FromResult(Send(text, b)), Noon, CancellationToken.None);
+
+        Assert.False(questions.Typed("ok", Later));                      // meant for something else: they never got the question
+        Assert.True(questions.Asking);
+        questions.Lapse(Noon + Questions.Waits);
+
+        Assert.Null(await asked);
+        Assert.Contains("inline_keyboard", server.Asked[0].Body);
+    }
+
+    [Fact]
     public async Task What_the_player_sent_before_her_question_reached_them_never_answers_it()
     {
         var (questions, asked, server) = Asked(MayI);

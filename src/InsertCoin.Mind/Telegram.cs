@@ -78,7 +78,8 @@ public sealed class Telegram(HttpClient http, string token)
 
     /// <summary>
     /// A message to <paramref name="chat"/>, in parts if it is long; buttons go under the last (each sends back its data
-    /// when pressed). When Telegram dated it (its last part), by Telegram's clock, or null if it didn't say.
+    /// when pressed). When Telegram dated it (its last part), by Telegram's clock; when Telegram didn't say (a stand-in),
+    /// the PC's time to the second; null when there was nothing to send.
     /// </summary>
     public async Task<DateTimeOffset?> Send(string chat, string text, IReadOnlyList<(string Text, string Data)>? buttons = null, CancellationToken cancel = default)
     {
@@ -91,7 +92,9 @@ public sealed class Telegram(HttpClient http, string token)
                 : new { chat_id = chat, text = part, reply_markup = new { inline_keyboard = new[] { buttons.Select(b => new { text = b.Text, callback_data = b.Data }).ToArray() } } },
                 cancel);
         }
-        return sent is JsonObject message && (long?)message["date"] is { } date ? DateTimeOffset.FromUnixTimeSeconds(date) : null;
+        if (sent is null)
+            return null;
+        return DateTimeOffset.FromUnixTimeSeconds(sent is JsonObject message && (long?)message["date"] is { } date ? date : DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
     /// <summary>"Typing…" in the player's chat while she writes (Telegram shows it for a few seconds).</summary>
@@ -179,9 +182,9 @@ public sealed class Questions
 
     /// <summary>
     /// Sends <paramref name="text"/> with its buttons through <paramref name="send"/> (which says when Telegram dated
-    /// it, by Telegram's clock, as the player's messages are; else <paramref name="now"/> stands in), and waits: the data
-    /// of the button its answer chose, or null when it went unanswered (or <paramref name="cancel"/> came first), the
-    /// chat then told so.
+    /// it, by Telegram's clock, as the player's messages are; null when it didn't get through, and then nothing typed can
+    /// answer it, as they never got it), and waits from <paramref name="now"/>: the data of the button its answer chose,
+    /// or null when it went unanswered (or <paramref name="cancel"/> came first), the chat then told so.
     /// </summary>
     public async Task<string?> Ask(string text, IReadOnlyList<(string Text, string Data)> buttons,
                                    Func<string, IReadOnlyList<(string Text, string Data)>?, Task<DateTimeOffset?>> send, DateTimeOffset now,
@@ -195,8 +198,8 @@ public sealed class Questions
         {
             await using (cancel.Register(() => answer.TrySetResult(null)))
             {
-                var sent = await send(text, [.. buttons.Select(b => (b.Text, $"{id}:{b.Data}"))]);
-                open.Sent = sent ?? now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond));
+                if (await send(text, [.. buttons.Select(b => (b.Text, $"{id}:{b.Data}"))]) is { } sent)
+                    open.Sent = sent;
                 answered = await answer.Task;
             }
         }
