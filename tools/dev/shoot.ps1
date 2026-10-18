@@ -45,7 +45,14 @@ if ($Godot -eq "" -and -not $Exe) {
 New-Item -ItemType Directory $Out -Force | Out-Null
 # The app is stopped once the last shot is taken, so an action timed after it never runs (#82: it looked like a stall)
 $lastShot = ($Shots | Measure-Object -Maximum).Maximum
-$late = @($Script -split ',' | Where-Object { $_ -match '@([\d.]+)$' -and [double]$Matches[1] + 2 -gt $lastShot })
+$times = @($Script -split ',' | Where-Object { $_ -match '@([\d.]+)$' } | ForEach-Object { [double]$Matches[1] })
+$lastAction = ($times + 0 | Measure-Object -Maximum).Maximum
+# Through powershell -File, -Shots 6,9,11 arrives as one number, 6911: a run would hold the test lock for nothing. Refuse a
+# last shot more than a minute after the last action (the smoke scenarios leave at most 12 s)
+if ($lastShot -gt $lastAction + 2 + 60) {
+  throw "A shot at ${lastShot}s is over a minute after the script's last action: through powershell -File, -Shots 6,9,11 arrives as one number (6911). Call shoot.ps1 directly in PowerShell, or add a later action"
+}
+$late = @($Script -split ',' | Where-Object { $_ -match '@([\d.]+)$' -and [double]$Matches[1] + 2 -ge $lastShot })
 if ($late) { "warning: $($late -join ', ') would run after the last shot at ${lastShot}s (script times count from about 2 s after launch), when the app is stopped: add a later shot" }
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }

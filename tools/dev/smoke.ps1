@@ -381,7 +381,7 @@ try {
     $problems = New-Object System.Collections.ArrayList
     foreach ($line in @($besideProblems)) { [void]$problems.Add($line) }
     foreach ($line in $said) {
-      if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player") { [void]$problems.Add($line.Trim()) }
+      if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player|would run after the last shot") { [void]$problems.Add($line.Trim()) }
       elseif ($line -match "(\S+\.png) .*; (waited .*)$") { $besideNotes += "$(Split-Path $Matches[1] -Leaf): $($Matches[2])" }   # a shot that waited for its window
     }
     # a test copy writes Godot's log into its own profile, never over the player's (in Godot's user folder)
