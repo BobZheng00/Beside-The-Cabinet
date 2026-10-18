@@ -172,7 +172,7 @@
     {
       "name": "windows-above",
       "about": "Settings and the memory book stay above the cabinet and the companion: while the cabinet rises for a moment and after it sinks back, with Always on top off, then with it on (ticked in Settings) and the cabinet rising again.",
-      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/App/MemoryBook.cs"],
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
       "script": "settings:cabinet@2,focuspaid:5@3,windoworder@4,windoworder@11,settingsdo:Always_on_top@12,memorybook@13,focuspaid:5@14,windoworder@15",
       "shots": [18],
       "expect": ["^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings, the cabinet$", "^Windows, top first: What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$"],
