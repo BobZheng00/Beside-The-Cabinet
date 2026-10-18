@@ -58,7 +58,7 @@ public class AgendaTests
         Assert.Equal("12 | - | - | - | -", Plain(Agenda.ParseChange("#12", Friday)));
         Assert.Equal("12 | 2026-10-05 10:00 | - | - | -", Plain(Agenda.ParseChange(" 12 | 2026-10-05 10:00", Friday)));
         Assert.Equal("12 | 2026-10-05 10:00 | 1 hour before | - | -", Plain(Agenda.ParseChange("#12 | 1 hour before | 2026-10-05 10:00", Friday)));
-        Assert.Equal("12 | - | Monday to Friday, daily | - | -", Plain(Agenda.ParseChange("#12 | Monday to Friday | daily", Friday)));
+        Assert.Equal("12 | - | Monday to Friday, 1 hour before | - | -", Plain(Agenda.ParseChange("#12 | Monday to Friday | 1 hour before", Friday)));
         Assert.Null(Agenda.ParseChange("the dentist", Friday));
         Assert.Null(Agenda.ParseChange("#-3", Friday));
         Assert.Null(Agenda.ParseChange("", Friday));
@@ -83,6 +83,12 @@ public class AgendaTests
         Assert.Equal("12 | - | - | - | half a day before", Plain(Agenda.ParseChange("#12 | half a day before", Friday)));
         Assert.Equal("12 | - | - | - | 1.5 hours before", Plain(Agenda.ParseChange("#12 | 1.5 hours before", Friday)));
         Assert.Equal("12 | - | - | - | 1 hour before每周", Plain(Agenda.ParseChange("#12 | 1 hour before每周", Friday)));
+        Assert.Equal("12 | - | - | - | 1 week and 2 days before", Plain(Agenda.ParseChange("#12 | 1 week and 2 days before", Friday)));
+        // nor two leads or two repeats at once, whichever way they are set apart
+        Assert.Equal("12 | - | - | - | 1 hour before, 10 min before", Plain(Agenda.ParseChange("#12 | 1 hour before, 10 min before", Friday)));
+        Assert.Equal("12 | - | - | - | daily, weekly", Plain(Agenda.ParseChange("#12 | daily, weekly", Friday)));
+        Assert.Equal("12 | - | - | - | Monday to Friday | daily", Plain(Agenda.ParseChange("#12 | Monday to Friday | daily", Friday)));
+        Assert.Equal("12 | - | - | - | at the time | 30 min before", Plain(Agenda.ParseChange("#12 | at the time | 30 min before", Friday)));
         // what it can do, in the words she may use for it, applied as read
         foreach (var options in new[] { "10 min before", "weekdays", "Monday to Friday", "at the time", "on weekdays", "every week",
                                         "half an hour before、weekly", "a reminder 1 hour before and daily", "remind me；every day", "each weekday",

@@ -34,7 +34,7 @@ public sealed record Plan(long Id, string Text, DateTimeOffset At, bool AllDay, 
     /// my agenda"). Null when it has no reminder.
     /// </summary>
     public DateTimeOffset? RemindAt(TimeSpan? lead = null) =>
-        (Before ?? (AllDay ? null : lead)) is { } before ? (AllDay ? At + Agenda.MorningOf : At) - before : null;
+        (Before ?? (AllDay ? null : lead)) is { } before ? (AllDay ? At + Agenda.MorningOf : At) - (before < Agenda.LongestLead ? before : Agenda.LongestLead) : null;
 }
 
 /// <summary>What a direction or upkeep asks to put on the agenda.</summary>
@@ -61,6 +61,9 @@ public static partial class Agenda
 
     /// <summary>A reminder that came due more than this long ago was missed (the cabinet was closed): it is mentioned as such.</summary>
     public static readonly TimeSpan Missed = TimeSpan.FromMinutes(5);
+
+    /// <summary>The longest lead a reminder is read or kept with: any longer is nonsense, and would run off the calendar.</summary>
+    public static readonly TimeSpan LongestLead = TimeSpan.FromDays(9999);
 
     private static readonly string[] Formats = ["yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm", "yyyy-MM-ddTHH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss"];
 
@@ -113,6 +116,7 @@ public static partial class Agenda
                     _ => TimeSpan.FromDays(count),
                 };
             }
+            before = before < LongestLead ? before : LongestLead;
         }
         else if (AtTheTime().IsMatch(text))
             before = TimeSpan.Zero;
@@ -144,10 +148,14 @@ public static partial class Agenda
             else
                 options.Add(part);
         }
-        // what is applied is the options read together (see ParseOptions): never one that loses what a piece of them said
+        // what is applied is the options read together (see ParseOptions): only when that is what each piece said, and
+        // the pieces don't ask for two leads or two repeats ("1 hour before, 10 min before", "daily, weekly")
+        var read = options.SelectMany(Pieces).Select(p => ParseOptions(p)).ToList();
+        var leads = read.Select(r => r.Before).OfType<TimeSpan>().Distinct().ToList();
+        var repeats = read.Select(r => r.Repeat).Where(r => r != Repeat.Once).Distinct().ToList();
         var together = ParseOptions(Joined(options, ", "));
-        if (options.SelectMany(Pieces).Select(p => ParseOptions(p))
-                   .Any(p => p.Before is not null && together.Before is null || p.Repeat != Repeat.Once && together.Repeat == Repeat.Once))
+        if (leads.Count > 1 || repeats.Count > 1 || together.Before != leads.Cast<TimeSpan?>().FirstOrDefault()
+            || together.Repeat != repeats.FirstOrDefault(Repeat.Once))
             (unable, options) = ([.. unable, .. options], []);
         static string? Joined(List<string> list, string by) => list.Count > 0 ? string.Join(by, list) : null;
         static List<string> Pieces(string part) => [.. part.Split([',', ';', '，', '、', '；']).Select(p => p.Trim()).Where(p => p.Length > 0)];
@@ -365,10 +373,12 @@ public static partial class Agenda
     private static partial Regex WeeklyWord();
     [GeneratedRegex(@"\bmonthly\b|\bevery\s+month\b|\beach\s+month\b")]
     private static partial Regex MonthlyWord();
-    // whole amounts, one or more ("1 hour 30 min", "1 day and 2 hours"), never read from the end of a longer number
-    // ("1.5 hours", "99999 min") or of a fraction ("half a day", "a quarter of a day"); Chinese may touch it either side
-    [GeneratedRegex(@"(?<![a-z\d]|\d[.,]|\b(half|quarters?(\s+of)?)[\s-]+)((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z])" +
-                    @"(\s+(and\s+)?((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z]))*\s*(before(hand)?|early|ahead|earlier)(?![a-z])")]
+    // whole amounts, up to four ("1 hour 30 min", "1 day and 2 hours"), never read from the end of a longer number
+    // ("1.5 hours", "99999 min"), of a fraction ("half a day", "a quarter of a day") or of an amount it doesn't read
+    // ("1 week and 2 days", "1 hour, 30 min"); Chinese may touch it either side
+    [GeneratedRegex(@"(?<![a-z\d]|\d[.,]|\b(half|quarters?(\s+of)?)[\s-]+|(\d\s*|\ban?\s+)(m|mins?|minutes?|h|hrs?|hours?|d|days?|weeks?|months?|years?)\s*,?\s*(and\s+)?)" +
+                    @"((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z])" +
+                    @"(\s+(and\s+)?((?<n>\d{1,4})\s*|(?<n>an?)\s+)(?<unit>m|mins?|minutes?|h|hrs?|hours?|d|days?)(?![a-z])){0,3}\s*(before(hand)?|early|ahead|earlier)(?![a-z])")]
     private static partial Regex BeforeWords();
     [GeneratedRegex(@"\b(?<n>\d{1,3}|an?|one)\s+((?<unit>hours?|days?)\s+and\s+a\s+half|and\s+a\s+half\s+(?<unit>hours?|days?))\b")]
     private static partial Regex AndAHalf();

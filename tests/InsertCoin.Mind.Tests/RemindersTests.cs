@@ -42,6 +42,13 @@ public class RemindersTests
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("a quarter of a day before"));
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1.5 hours before"));
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1,5 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1 week and 2 days before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("half a day and 2 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1 hour, 30 min before"));
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Daily), Agenda.ParseOptions("every day, 10 min before"));
+        // a lead of many parts stops at four, and never past the longest
+        Assert.Equal((Agenda.LongestLead, Repeat.Once), Agenda.ParseOptions("9999 days 9999 days 9999 days 9999 days before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions(string.Concat(Enumerable.Repeat("9999 days ", 1100)) + "before"));
         // as before: a lead right after a comma or against other words, and "beforehand"
         Assert.Equal((TimeSpan.FromHours(1), Repeat.Weekly), Agenda.ParseOptions("weekly,1 hour before"));
         Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Daily), Agenda.ParseOptions("daily,30 min before"));
@@ -54,6 +61,16 @@ public class RemindersTests
         Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (spec.Before, spec.Repeat));
         spec = Agenda.ParseDirection("2026-10-03 08:00 | Take your vitamins | daily", remind: true, Friday)!;
         Assert.Equal((TimeSpan.Zero, Repeat.Daily), (spec.Before, spec.Repeat));
+    }
+
+    [Fact]
+    public void A_reminder_kept_with_a_lead_too_long_goes_off_the_longest_lead_ahead_without_breaking_the_agenda()
+    {
+        var odd = P("Dentist", Friday.AddDays(3), before: TimeSpan.FromDays(800_000));
+
+        Assert.Equal(Friday.AddDays(3) - Agenda.LongestLead, odd.RemindAt());
+        Assert.Single(Agenda.Due([odd], Friday));
+        Assert.Contains("Dentist", Agenda.Block([odd], Friday));
     }
 
     [Fact]
