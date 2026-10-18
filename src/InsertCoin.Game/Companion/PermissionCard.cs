@@ -8,7 +8,8 @@ namespace InsertCoin.Game.Companion;
 /// she wants to do and on what, always the real address whatever she said about it, with Allow once, Always (for
 /// that site) and No. Clicks only: a key pressed in another app never answers it. The same card confirms an activity
 /// she counts (see <see cref="Activities"/>): Yes, count it, or Not yet; and shows her suggested change to a skill (see
-/// <see cref="SkillChange"/>): Remember it or Not now, with See the change opening the exact lines.
+/// <see cref="SkillChange"/>): Remember it or Not now, with See the change opening the exact lines; and tells the player
+/// when their ChatGPT plan stops answering, with what to do about it (see <see cref="Tell"/>).
 /// </summary>
 public partial class PermissionCard : Node2D
 {
@@ -138,6 +139,23 @@ public partial class PermissionCard : Node2D
         return await Show(what, detail, bottomLeft, cancel) switch { Answer.Once or Answer.Always => true, Answer.No => false, _ => null };
     }
 
+    /// <summary>
+    /// Tells the player something with one thing to do about it, <paramref name="action"/>, and Close (the ChatGPT plan's
+    /// limit reached, say): true when they chose the action. Clicks only: the action may open their browser.
+    /// </summary>
+    public async Task<bool> Tell(string what, string detail, string action, Vector2 bottomLeft, CancellationToken cancel)
+    {
+        _once.Text = action;
+        _no.Text = "Close";
+        _always.Visible = false;
+        _see.Visible = false;
+        _detail.MaxLinesVisible = 3;
+        _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        return await Show(what, detail, bottomLeft, cancel, clicksOnly: true) == Answer.Once;
+    }
+
+    private bool _clicksOnly;                                   // the card showing takes no spoken answer (see Choose)
+
     /// <summary>See the change: opens or closes the exact lines (a dev action too).</summary>
     public void SeeChange()
     {
@@ -182,9 +200,10 @@ public partial class PermissionCard : Node2D
         GD.Print($"Card: the change's lines {_scroll.GetVScrollBar().MaxValue:0} px tall, shown {_scroll.Size.Y:0} px");
     }
 
-    private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel)
+    private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel, bool clicksOnly = false)
     {
         _answer?.TrySetResult(Answer.None);                    // one question at a time
+        _clicksOnly = clicksOnly;
         var answer = _answer = new TaskCompletionSource<Answer>(TaskCreationOptions.RunContinuationsAsynchronously);
         _what.Text = what;
         _detail.Text = detail;
@@ -223,5 +242,9 @@ public partial class PermissionCard : Node2D
     public bool Hits(Vector2 canvasPoint) => Visible && new Rect2(Position + _panel.Position, _panel.Size).Grow(4).HasPoint(canvasPoint);
 
     /// <summary>Answers the card showing as its buttons would: the player said it aloud (see <see cref="SpokenAnswer"/>), or a dev action.</summary>
-    public void Choose(Answer answer) => _answer?.TrySetResult(answer);
+    public void Choose(Answer answer)
+    {
+        if (!_clicksOnly)
+            _answer?.TrySetResult(answer);
+    }
 }

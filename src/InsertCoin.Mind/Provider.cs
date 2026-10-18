@@ -7,8 +7,11 @@ using OpenAI;
 
 namespace InsertCoin.Mind;
 
-/// <summary>The protocol a provider speaks. Most third-party and local servers speak OpenAI's.</summary>
-public enum Protocol { OpenAi, Anthropic }
+/// <summary>
+/// The protocol a provider speaks. Most third-party and local servers speak OpenAI's; the player's ChatGPT plan is
+/// signed in to rather than given a key (see <see cref="ChatGptPlan"/>).
+/// </summary>
+public enum Protocol { OpenAi, Anthropic, ChatGpt }
 
 /// <summary>
 /// Where her replies come from: the user's own provider, server address and model. The key is kept apart, encrypted
@@ -20,6 +23,7 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     public static readonly Preset[] Presets =
     [
         new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "", NeedsKey: true, "https://platform.openai.com/api-keys"),
+        new("ChatGPT plan", Protocol.ChatGpt, ChatGptPlan.Api, "", NeedsKey: false),
         new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-4-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
         new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "", NeedsKey: true, "https://openrouter.ai/settings/keys"),
         new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-chat", NeedsKey: true, "https://platform.deepseek.com/api_keys"),
@@ -38,8 +42,9 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
             : new Provider(Enum.TryParse<Protocol>(protocol, ignoreCase: true, out var p) ? p : Protocol.OpenAi, baseUrl.Trim(), model.Trim());
 
     // One retry: someone is looking at thinking dots, so a broken setup should say so in seconds, not after a minute of backoff.
-    public IChatClient Connect(string? key) => Protocol switch
+    public IChatClient Connect(string? key, ChatGptPlan? plan = null) => Protocol switch
     {
+        Protocol.ChatGpt => (plan ?? throw new InvalidOperationException("The ChatGPT plan needs its sign-in.")).Client(Model),
         Protocol.Anthropic => new AnthropicClient { ApiKey = key, BaseUrl = BaseUrl.TrimEnd('/'), Timeout = Timeout, MaxRetries = 1 }.AsIChatClient(Model),
         _ => OpenAi(key).GetChatClient(Model).AsIChatClient(),
     };
@@ -81,9 +86,16 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     public static string? ToolStarting(ChatResponseUpdate update) => update.RawRepresentation switch
     {
         OpenAI.Chat.StreamingChatCompletionUpdate piece => piece.ToolCallUpdates.FirstOrDefault(t => !string.IsNullOrEmpty(t.FunctionName))?.FunctionName,
+#pragma warning disable OPENAI001
+        OpenAI.Responses.StreamingResponseOutputItemAddedUpdate { Item: OpenAI.Responses.FunctionCallResponseItem call } => call.FunctionName,
+#pragma warning restore OPENAI001
         RawMessageStreamEvent @event when @event.TryPickContentBlockStart(out var start) && start.ContentBlock.TryPickToolUse(out var use) => use.Name,
         _ => null,
     };
+
+    /// <summary>What she answers through, in a few words: the server's host, or the player's ChatGPT plan.</summary>
+    public string Through => Protocol == Protocol.ChatGpt ? "your ChatGPT plan"
+                             : Uri.TryCreate(BaseUrl, UriKind.Absolute, out var server) ? server.Host : BaseUrl;
 
     /// <summary>A server on this PC (Ollama, LM Studio…): local models usually have small context windows.</summary>
     public bool IsLocal => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var url) && (url.IsLoopback || url.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase));

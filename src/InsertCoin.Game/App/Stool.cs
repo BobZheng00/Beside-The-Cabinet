@@ -174,6 +174,7 @@ public partial class Stool : Node2D
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _permission = new PermissionCard();
         AddChild(_permission);
+        _chat.Plan.Stopping += why => Callable.From(() => { _ = TellPlan(why); }).CallDeferred();
         _chat.AskPlayer = AskPlayer;
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
@@ -1723,6 +1724,39 @@ public partial class Stool : Node2D
         return answer;
     }
 
+    /// <summary>
+    /// The ChatGPT plan stopped answering her (its limit reached, signed out, an account that can't share it): said once,
+    /// plainly, on her card, with what to do about it first. Until it works again she waits: no replies, check-ins or
+    /// remarks, while reminders still come in the app's words (each request fails at once, see <see cref="ChatGptPlan.Client"/>).
+    /// </summary>
+    private async Task TellPlan(PlanStop why)
+    {
+        GD.Print($"ChatGPT: {why switch { PlanStop.Limit => "the plan's usage limit is reached", PlanStop.NotEligible => "the account can't share its plan", _ => "signed out" }}; " +
+                 "she waits, and reminders come in plain words");
+        if (Her is null)
+            return;
+        var name = HerName();
+        var (what, detail, action) = why switch
+        {
+            PlanStop.Limit => ("Usage limit reached", $"Review your plan or this app's limit in ChatGPT settings. {name} waits until it works again; reminders still come.",
+                               "Manage usage"),
+            PlanStop.NotEligible => ("ChatGPT plan not available", "This ChatGPT account can't share its plan with apps. Sign in with another, or use an API key in Settings → Mind.",
+                                     "Continue with ChatGPT"),
+            _ => ("Signed out of ChatGPT", $"{name} can't use your ChatGPT plan until you sign in again. Reminders still come.", "Continue with ChatGPT"),
+        };
+        Her.Play(Moment.Worry);
+        if (!await _permission.Tell(what, detail, action, new Vector2(14, CardBottom), CancellationToken.None))
+            return;
+        if (why == PlanStop.Limit)
+            Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage));
+        else
+        {
+            OpenSettings?.Invoke("mind");                   // signing in shows how it goes on her mind's page
+            if (IsInstanceValid(_mindPage))
+                _ = _mindPage!.ContinueWithChatGpt();
+        }
+    }
+
     /// <summary>Where her card stands: at the foot of the stool, above the slip and whatever waits on it.</summary>
     private float CardBottom => _cabinet.Skin.Canvas.Y - 14 - (_chatBox.IsOpen ? _chatBox.Tall + 8 : 0);
 
@@ -1893,7 +1927,7 @@ public partial class Stool : Node2D
             "on its site, name a model, Test and Save. Providers charge a little for each reply; one on this PC is free. About 5 minutes.",
             Needed: true, Done: provider is not null,
             provider is null ? $"Not connected: {her} can't talk with you yet."
-                : $"{her} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.");
+                : $"{her} answers through {provider.Through}, with {provider.Model}.");
         yield return new("voice", $"{her}'s voice",
             $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
             (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
@@ -1908,10 +1942,12 @@ public partial class Stool : Node2D
                     : $"Ready: hold {TalkKey.Keys.FirstOrDefault(k => k.Name == _settings.Now.TalkKey).Label ?? "the talk key"} in any app and speak.");
     }
 
+    private MindSettings? _mindPage;                        // the latest made, for her card's Continue with ChatGPT
+
     /// <summary>Her provider (used once saved), how she finds what to remember, and how much she keeps word for word; <paramref name="brief"/>, the provider alone.</summary>
     internal Control MindPage(bool brief = false)
     {
-        var page = new MindSettings();
+        var page = _mindPage = new MindSettings();
         page.Build(_chat, ChatProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow, brief);
         page.Saved += provider =>
         {
@@ -2171,6 +2207,11 @@ public partial class Stool : Node2D
                 _chatBox.DevSend(text);
                 break;
             case "chatbox": OpenChat(focus: false); break;
+            case "chatgptat":                               // chatgptat:http://127.0.0.1:port signs in and asks at a stand-in ChatGPT (tools/dev/mock_chatgpt.py)
+                ChatGptPlan.Issuer = rest;
+                ChatGptPlan.Api = rest + "/v1";
+                _chat.Connect(ChatProvider());
+                break;
             case "attach": Hand([rest]); break;             // attach:path as if dropped on her (a picture, a PDF, a text file)
             case "pastepicture":                            // pastepicture:path as if that picture had been pasted (the clipboard is left alone)
                 HandPicture(Image.LoadFromFile(rest), "pasted", photo: false);

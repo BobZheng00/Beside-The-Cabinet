@@ -8,9 +8,9 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → Her mind: the player's own AI provider, which she answers through (server, key and model, with a test;
-/// used once saved, so picking a provider to see its server never switches her over), how she finds what to remember,
-/// and how much of the conversation she keeps word for word. What she remembers is in the memory book (see
-/// <see cref="MemoryBook"/>).
+/// used once saved, so picking a provider to see its server never switches her over), or their ChatGPT plan (signed in
+/// to in their browser; used once signed in), how she finds what to remember, and how much of the conversation she
+/// keeps word for word. What she remembers is in the memory book (see <see cref="MemoryBook"/>).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public partial class MindSettings : VBoxContainer
@@ -37,7 +37,13 @@ public partial class MindSettings : VBoxContainer
     private Button _site = null!;
     private Label _siteRow = null!;                         // hidden with the button: a grid closes up over what is hidden
     private string _name = "";
-    private Label _now = null!, _result = null!;
+    private Label _hint = null!, _now = null!, _result = null!;
+    private HBoxContainer _buttons = null!;
+    private VBoxContainer _plan = null!;                    // the ChatGPT plan's part, shown in place of server, key and model
+    private Label? _planSaid;
+    private OptionButton? _planModel;
+    private IReadOnlyList<(string Slug, string Name)> _models = [];
+    private CancellationTokenSource? _signingIn;
     private Protocol _protocol;
     private Provider? _saved;
     private bool _unsaved;                                  // the fields changed since she last took them up
@@ -49,8 +55,8 @@ public partial class MindSettings : VBoxContainer
         _saved = current;
         _name = name;
         Form.Page(this, $"{name}'s mind");
-        Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
-                        "Your key stays on this PC, encrypted for your Windows account.");
+        _hint = Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
+                                "Your key stays on this PC, encrypted for your Windows account.");
         _now = Form.Result(this);
         ShowNow();
 
@@ -66,10 +72,14 @@ public partial class MindSettings : VBoxContainer
         _siteRow = Form.Row(grid, "", _site);
         _model = Form.Field(grid, "Model", null, "", typed: _ => Unsaved());
 
-        var buttons = Form.Buttons(this);
-        Form.Button(buttons, "Test", () => _ = Test());
-        Form.Button(buttons, "Save", Save, quiet: false);
-        _result = Form.Result(buttons);
+        _plan = new VBoxContainer();
+        _plan.AddThemeConstantOverride("separation", 10);
+        AddChild(_plan);
+
+        _buttons = Form.Buttons(this);
+        Form.Button(_buttons, "Test", () => _ = Test());
+        Form.Button(_buttons, "Save", Save, quiet: false);
+        _result = Form.Result(_buttons);
 
         // how she finds what to remember: a local model (by meaning, any language it knows) or shared words only
         if (!brief)
@@ -80,10 +90,11 @@ public partial class MindSettings : VBoxContainer
             UsePreset(Provider.Presets[index], keepFields: false);
             Unsaved();
         };
-        var match = current is null ? 0 : Array.FindIndex(Provider.Presets, p => p.Protocol == current.Protocol && p.BaseUrl == current.BaseUrl);
+        var match = current is null ? 0
+            : Array.FindIndex(Provider.Presets, p => p.Protocol == current.Protocol && (p.BaseUrl == current.BaseUrl || p.Protocol == Protocol.ChatGpt));
         _preset.Select(match >= 0 ? match : Provider.Presets.Length - 1);
         UsePreset(Provider.Presets[_preset.Selected], keepFields: current is not null);
-        if (current is not null)
+        if (current is not null && current.Protocol != Protocol.ChatGpt)
         {
             _protocol = current.Protocol;
             _url.Text = current.BaseUrl;
@@ -112,7 +123,7 @@ public partial class MindSettings : VBoxContainer
     private void ShowNow()
     {
         if (_saved is { } provider)
-            Form.Say(_now, $"{_name} answers through {(Uri.TryCreate(provider.BaseUrl, UriKind.Absolute, out var server) ? server.Host : provider.BaseUrl)}, with {provider.Model}.", Paper.Good);
+            Form.Say(_now, $"{_name} answers through {provider.Through}, with {provider.Model}.", Paper.Good);
         else
             Form.Say(_now, $"Not connected: {_name} can't talk with you until this is filled in and saved.", Paper.Bad);
     }
@@ -126,7 +137,8 @@ public partial class MindSettings : VBoxContainer
     private void UsePreset(Preset preset, bool keepFields)
     {
         _protocol = preset.Protocol;
-        if (!keepFields)
+        var plan = preset.Protocol == Protocol.ChatGpt;
+        if (!keepFields && !plan)
         {
             _url.Text = preset.BaseUrl;
             _model.Text = preset.ModelHint;
@@ -137,6 +149,13 @@ public partial class MindSettings : VBoxContainer
         _site.Text = preset.NeedsKey ? $"Get a key from {named}…" : $"Get {named}…";
         _site.Visible = _siteRow.Visible = preset.Site.Length > 0;
         _result.Text = "";
+        // the plan has no server, key or model to type, and nothing to test or save: it is signed in to
+        foreach (var field in new Control[] { _url, _key, _model })
+            field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = !plan;
+        _hint.Visible = _buttons.Visible = !plan;
+        _plan.Visible = plan;
+        if (plan)
+            ShowPlan();
     }
 
     private Provider? Chosen() => Provider.From(_protocol.ToString(), _url.Text, _model.Text);
@@ -190,5 +209,201 @@ public partial class MindSettings : VBoxContainer
         Saved?.Invoke(_saved);
         ShowNow();
         Form.Say(_result, _saved is null ? "Saved, without a provider." : "Saved.", _saved is null ? Paper.Bad : Paper.Good);
+    }
+
+    // ---- The ChatGPT plan ---------------------------------------------------------------------------------------------------
+
+    private bool OnPlan => _saved?.Protocol == Protocol.ChatGpt;
+
+    /// <summary>
+    /// The plan's part, as things stand: Continue with ChatGPT until signed in; then which account, the model from its
+    /// list, "Using ChatGPT plan" with Manage usage, and Disconnect (OpenAI's guidelines for apps on a player's plan).
+    /// </summary>
+    private void ShowPlan()
+    {
+        foreach (var child in _plan.GetChildren())
+        {
+            _plan.RemoveChild(child);
+            child.QueueFree();
+        }
+        var plan = _chat.Plan;
+        if (!plan.Connected)
+        {
+            _planModel = null;
+            Form.Hint(_plan, $"Use your ChatGPT plan: {_name}'s replies, check-ins, reminders and memory run on the usage included in your ChatGPT plan " +
+                             "(Plus or Pro), within the limit you set for this app in ChatGPT's settings. Nothing is charged here. " +
+                             "Continue with ChatGPT opens your browser to sign in.");
+            var signIn = Form.Buttons(_plan);
+            Form.Button(signIn, "Continue with ChatGPT", () => _ = ContinueWithChatGpt(), quiet: false);
+            _planSaid = Form.Result(signIn);
+            if (OnPlan)
+                Form.Say(_planSaid, $"Signed out of ChatGPT: sign in again, and {_name} uses your plan again.", Paper.Bad);
+            return;
+        }
+        Form.Say(Form.Result(_plan), $"Connected as {plan.Email ?? "your ChatGPT account"}", Paper.Good);
+        var grid = Form.Grid(_plan);
+        _planModel = Form.Choice(grid, "Model", [_models.FirstOrDefault(m => m.Slug == _saved?.Model).Name ?? _saved?.Model ?? "…"], 0,
+                                 index => Use(_models.ElementAtOrDefault(index).Slug), wide: true);
+        var row = Form.Buttons(_plan);
+        row.AddChild(new Label { Text = OnPlan ? "Using ChatGPT plan" : "Not in use yet", SizeFlagsVertical = SizeFlags.ShrinkCenter });
+        Form.Button(row, "Manage usage", () => Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage)));
+        if (!OnPlan)
+            Form.Button(row, "Use your ChatGPT plan", () => Use(_models.ElementAtOrDefault(_planModel?.Selected ?? 0).Slug), quiet: false);
+        Form.Button(row, "Disconnect", () => _ = Disconnect());
+        _planSaid = Form.Result(_plan);
+        if (plan.Stopped is { } why)
+            Say(ChatGptPlan.Plainly(why), Paper.Bad);
+        if (_models.Count > 0)
+            ShowModels();
+        else
+            _ = ListModels();
+    }
+
+    /// <summary>Says how the plan's part went, on its line, if the page is still there.</summary>
+    private void Say(string text, Color colour)
+    {
+        if (IsInstanceValid(_planSaid))
+            Form.Say(_planSaid!, text, colour);
+    }
+
+    /// <summary>Asks for the account's models, then shows them.</summary>
+    private async Task ListModels()
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            _models = await _chat.Plan.Models(timeout.Token);
+            if (IsInstanceValid(this))
+                ShowModels();
+        }
+        catch (Exception e)
+        {
+            Say(e is PlanStopped ? e.Message : "ChatGPT's list of models didn't come. Try again later.", Paper.Bad);
+        }
+    }
+
+    /// <summary>The account's models, in the choice: the one she uses chosen, or, when it is no longer offered, the first.</summary>
+    private void ShowModels()
+    {
+        if (!IsInstanceValid(_planModel))
+            return;
+        _planModel!.Clear();
+        foreach (var (_, name) in _models)
+            _planModel.AddItem(name);
+        if (_models.Count == 0)
+        {
+            Say("Your ChatGPT account offers no models to apps yet.", Paper.Bad);
+            return;
+        }
+        var at = Math.Max(0, _models.ToList().FindIndex(m => m.Slug == _saved?.Model));
+        _planModel.Select(at);
+        if (OnPlan && _models[at].Slug != _saved?.Model)
+            Use(_models[at].Slug);
+    }
+
+    /// <summary>
+    /// Continue with ChatGPT: the player signs in in their browser and allows plan usage; then she uses the plan, with
+    /// the first model their account offers. A test run opens no browser: the stand-in's sign-in is visited directly.
+    /// </summary>
+    public async Task ContinueWithChatGpt()
+    {
+        _signingIn?.Cancel();
+        using var signing = _signingIn = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+        Say("Sign in in your browser and allow plan usage, then come back here.", Paper.Faint);
+        try
+        {
+            await _chat.Plan.SignIn(Browse, signing.Token);
+            var models = await _chat.Plan.Models(signing.Token);
+            GD.Print($"ChatGPT: signed in, plan usage allowed; {models.Count} models offered");     // never the email or a token
+            _models = models;
+            if (models.Count > 0)
+                Use(OnPlan && models.Any(m => m.Slug == _saved!.Model) ? _saved!.Model : models[0].Slug);
+            if (!IsInstanceValid(this))
+                return;
+            ShowPlan();
+            Say(models.Count == 0 ? "Signed in, but your ChatGPT account offers no models to apps yet." : $"Signed in: {_name} uses your ChatGPT plan now.",
+                models.Count == 0 ? Paper.Bad : Paper.Good);
+        }
+        catch (OperationCanceledException) when (signing != _signingIn)
+        {
+            // Continue with ChatGPT pressed again: that sign-in goes on instead
+        }
+        catch (Exception e)
+        {
+            GD.Print($"ChatGPT: sign-in didn't finish ({e.GetType().Name})");
+            Say(e switch
+                {
+                    PlanSignInFailed or PlanStopped => e.Message,
+                    OperationCanceledException => "Sign-in took too long. Continue with ChatGPT to try again.",
+                    _ => "ChatGPT's sign-in couldn't be reached. Check your connection and try again.",
+                }, Paper.Bad);
+        }
+        finally
+        {
+            if (signing == _signingIn)
+                _signingIn = null;
+        }
+    }
+
+    /// <summary>Opens the sign-in in the player's browser (they asked, by pressing Continue with ChatGPT). A test run never does.</summary>
+    private static Task Browse(Uri page)
+    {
+        if (!Paper.OffScreen)
+        {
+            OS.ShellOpen(page.AbsoluteUri);
+            return Task.CompletedTask;
+        }
+        GD.Print(page.IsLoopback ? "ChatGPT: a test run opens no browser; the stand-in's sign-in is visited directly" : "ChatGPT: a test run opens no browser");
+        if (page.IsLoopback)
+            _ = Visit(page);
+        return Task.CompletedTask;
+
+        // the stand-in answers with a redirect to the app's listener, followed as a browser would
+        static async Task Visit(Uri page)
+        {
+            using var browser = new System.Net.Http.HttpClient();
+            try
+            {
+                using var _ = await browser.GetAsync(page);
+            }
+            catch (System.Net.Http.HttpRequestException e)
+            {
+                GD.PrintErr($"ChatGPT: the stand-in's sign-in couldn't be visited: {e.Message}");
+            }
+        }
+    }
+
+    /// <summary>She uses the plan from now on, with this model.</summary>
+    private void Use(string? slug)
+    {
+        if (string.IsNullOrEmpty(slug) || (OnPlan && slug == _saved!.Model))
+            return;
+        var first = !OnPlan;
+        _saved = new Provider(Protocol.ChatGpt, ChatGptPlan.Api, slug);
+        _unsaved = false;
+        Saved?.Invoke(_saved);
+        if (!IsInstanceValid(this))
+            return;
+        ShowNow();
+        if (first)
+            ShowPlan();                                     // "Using ChatGPT plan" now
+    }
+
+    /// <summary>Disconnect: the sign-in forgotten here and ended at ChatGPT; she has no mind until another is chosen.</summary>
+    private async Task Disconnect()
+    {
+        var told = await _chat.Plan.Disconnect();
+        GD.Print($"ChatGPT: disconnected{(told ? "" : "; ChatGPT couldn't be told")}");
+        if (OnPlan)
+        {
+            _saved = null;
+            Saved?.Invoke(null);
+        }
+        if (!IsInstanceValid(this))
+            return;
+        ShowNow();
+        ShowPlan();
+        Say(told ?"Disconnected: signed out of ChatGPT here and there."
+                                  : "Signed out here, but ChatGPT couldn't be told: disconnect the app in ChatGPT's settings too.", told ? Paper.Good : Paper.Bad);
     }
 }

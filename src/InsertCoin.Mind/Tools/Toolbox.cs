@@ -308,7 +308,7 @@ public sealed class Toolbox
     /// its error ("does not support tools", "No endpoints found that support tool use", "does not support Function Calling").
     /// </summary>
     public static bool Refuses(Exception e) =>
-        e is not OperationCanceledException && e is not TimeoutException
+        e is not OperationCanceledException && e is not TimeoutException && e is not PlanStopped
         && (e.Message.Contains("tool", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("function", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>

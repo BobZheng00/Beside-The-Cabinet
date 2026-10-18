@@ -65,7 +65,23 @@ starts relaxed, the others neat; the first run and "Meet …" ask it too.
 Your companion can also talk. In Settings → Mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
 local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
 provider's page for one), name a model, Test and Save. Then clicking them opens a slip at the foot of the stool:
-type, press Enter, and their answer streams into the bubble while they act it out. They remember:
+type, press Enter, and their answer streams into the bubble while they act it out.
+
+With ChatGPT Plus or Pro, pick **ChatGPT plan** instead and press **Continue with ChatGPT**: your browser opens on
+OpenAI's sign-in, you sign in and allow plan usage, and the page shows "Connected as" your account, the model (from
+the ones your account offers apps), "Using ChatGPT plan", **Manage usage** (ChatGPT's usage settings, where you set
+this app's limit) and **Disconnect**. Everything your companion does then runs on your plan (replies, check-ins,
+remarks, texts and their memory's upkeep, still counted by purpose in Settings → Usage), and nothing is charged here.
+The sign-in is kept encrypted for your Windows account (`companion\chatgpt.bin`, never in settings.json or the log)
+and renewed before it lapses; Disconnect forgets it here and ends it at ChatGPT. When the plan's limit is reached,
+your account can't share its plan, or you are signed out (disconnected in ChatGPT, say), their card says so once,
+plainly, with Manage usage or Continue with ChatGPT; meanwhile they wait (no replies, check-ins or remarks) while
+reminders still come, in the app's own words. Once the limit was reached they try the plan again every quarter of an
+hour, and whenever you write to them. ChatGPT being briefly unable to check your usage isn't a limit: the sign-in is
+kept and they try again. ([The design](specs/2026-10-18-chatgpt-plan.md); OpenAI's Sign in with ChatGPT is a
+preview.)
+
+They remember:
 
 - the conversation itself, one continuous thread per character. The newest part (Settings → Mind, "Word for word":
   32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
@@ -471,7 +487,7 @@ yours (a fact of theirs written over is kept under "Retired by the review", as c
 be read can't be saved: Close says so first, and a second Close closes without that one change. "Clear the chat" starts the conversation afresh and keeps what they remember;
 "Forget all with …" clears the conversation and everything about the two of you; "Forget all about me" clears what
 every character knows about you, and your agenda, and leaves the conversations. It stays in the profile folder
-(`companion\memory.db`); the key is encrypted for your Windows account. Without a provider they keep to their canned
+(`companion\memory.db`); the key and a ChatGPT sign-in are encrypted for your Windows account. Without a provider they keep to their canned
 lines.
 
 ## More in this folder

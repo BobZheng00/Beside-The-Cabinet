@@ -10,7 +10,7 @@ public static class Trouble
     /// <summary>What she says when the provider sent back nothing at all, asked twice (R1): not left as silence.</summary>
     public const string Empty = "The provider sent back an empty answer. Try sending that again.";
 
-    public static string Explain(Exception e) => Status(e) switch
+    public static string Explain(Exception e) => e is PlanStopped ? e.Message : Status(e) switch
     {
         HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → Mind.",
         HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → Mind.",

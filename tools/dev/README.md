@@ -75,7 +75,10 @@ Undo after it is refused),
 server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, idle),
 `later:now` (their plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
-Bot API), `paircode:CODE` (the next pairing code, for it to send back),
+Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
+stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → Mind,
+`settingsdo:Provider:1` and `settingsdo:Continue_with_ChatGPT`, and a test run visits the stand-in's sign-in itself,
+opening no browser),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (the voice's
@@ -201,6 +204,11 @@ What a commit must pass before its pull request is marked ready, run the same wa
 - `tools\dev\mock_mind.py <port>`: an OpenAI-compatible stand-in for the companion's mind with a fixed reply, logging
   each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
   "ChatModel": "mock"`, and needs no key.
+- `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
+  app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
+  and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream).
+  A run points at it with `chatgptat:`; a scenario with `"mind": "chatgpt"` starts it and writes its address for
+  `{mind}` in the script.
 - A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a
   window to capture, the desk, the mock mind, and log patterns it expects, forbids or ignores (the file's own
   `about` says how each works). Calibrate `expect` and `ignore` from real runs; never loosen `forbid` to make a run
