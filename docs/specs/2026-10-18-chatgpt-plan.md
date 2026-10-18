@@ -24,7 +24,8 @@ builds qualify now.
   `https://api.openai.com/v1`. Plan usage is a separate consent from signing in: the session can use the plan only if
   that scope was granted.
 - **Tokens** (OpenAI's Token reference): an access token for an hour, a refresh token for 30 days, replaced on each
-  refresh. A player who disconnects the app in ChatGPT is not announced: the next request or refresh fails.
+  refresh. A player who disconnects the app in ChatGPT is not announced (Errors and recovery): the next request or
+  refresh fails.
 - **Requests:** `POST https://api.openai.com/v1/responses` with the access token as a bearer token; `stream: true` and
   `store: false` on every request, the whole context sent each time. System message items are refused: `instructions`
   or developer messages instead. No `temperature`, `top_p`, `max_output_tokens`, `previous_response_id`,
@@ -133,4 +134,4 @@ Each step is usable on its own.
 - [UI/UX guidelines (OpenAI)](https://developers.openai.com/siwc/ui-ux-guidelines)
 - [Sign in with ChatGPT for developers: the OAuth flow, plan usage, and what it means for your API bill (DEV Community)](https://dev.to/hassann/sign-in-with-chatgpt-for-developers-the-oauth-flow-plan-usage-and-what-it-means-for-your-api-bill-48f7)
 - [OpenAI expands ChatGPT with apps and third-party sign-in (The Star)](https://www.thestar.com.my/tech/tech-news/2026/10/04/openai-expands-chatgpt-with-apps-and-third-party-sign-in)
-- [OpenClaw meets ChatGPT Plus: OpenAI's subscription path (explainx)](https://explainx.ai/blog/openclaw-chatgpt-plus-pro-openai-anthropic-subscription-2026), on Anthropic's change of February 2026
+- [OpenClaw meets ChatGPT Plus: OpenAI's subscription path (explainx)](https://explainx.ai/blog/openclaw-chatgpt-plus-pro-openai-anthropic-subscription-2026), on Anthropic's change of April 2026
