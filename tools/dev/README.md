@@ -100,7 +100,9 @@ only logged, never opened. Memos: `memo:title:text` (they type one and send it, 
 the hanging memo; `memohover:0` the top one on the side, `memohover:off`), `memocarry:a:b` (the hanging memo carried
 by hand to that spot on the side; `memocarry` alone, off the cabinet), `memosheet:colour:mint`, `memosheet:sticker:cat`,
 `memosheet:write:title:text` and `memosheet:tell` (a sheet's paper, sticker, fields and tick), `crt` (the screen's
-system opens; `crt:memos` an app too), `crtclick:x:y` (a click on the screen, in its own pixels), `crtmove:0:1` (an app
+system opens; `crt:memos` an app too; `crt:settings` opens Settings, as its icon does), `crtclick:x:y` (a click on the
+screen, in its own pixels; on the home screen's bar the switches are at 210, 260 and 310 across, 27 down: Mute sounds,
+Voice, Conversation, each flip logged as `Crt: VOICE off`), `crtmove:0:1` (an app
 moved, as holding and carrying it would), `crtaway` (a press away from the lifted screen), `crtclose` and
 `memorybook:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
 `focus:resume`, `focus:stop`), `focustool:start:50` (as their tool would), `standup` (they suggest standing up, as after a

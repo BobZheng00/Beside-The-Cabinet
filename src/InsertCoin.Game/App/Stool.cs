@@ -1098,6 +1098,9 @@ public partial class Stool : Node2D
     /// <summary>Starts or ends a conversation (the tray's switch): she listens after everything she says.</summary>
     public void Converse(bool on) => _listening.Converse(on);
 
+    /// <summary>A conversation is on.</summary>
+    public bool Conversing => _listening.Conversing;
+
     public override void _Process(double delta)
     {
         PassOn();

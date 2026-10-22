@@ -161,8 +161,13 @@ public partial class Main : Node2D
         AddChild(_crt);
         _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
         _crt.Build(_cabinet.Screen, [new FocusApp(_stool.Focus), new DoneApp(_stool.Activities, name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0, _stool.LogFromScreen),
-                                     _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)],
-                   _settings.CrtApps, order => SaveSettings(_settings with { CrtApps = order }), () => _window.WindowScale, _cabinet.Skin.Canvas);
+                                     _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda), new SettingsApp(() => OpenSettings(null))],
+                   _settings.CrtApps, order => SaveSettings(_settings with { CrtApps = order }),
+                   // the tray's switches, read afresh as the bar draws: a change anywhere shows on it
+                   [new CrtOs.Switch("MUTE SOUNDS", () => _settings.Muted, SetMuted, CrtOs.Speaker),
+                    new CrtOs.Switch("VOICE", () => _settings.Voice, _stool.SetVoice, CrtOs.Speech),
+                    new CrtOs.Switch("CONVERSATION", () => _stool.Conversing, _stool.Converse, CrtOs.Microphone)],
+                   () => _window.WindowScale, _cabinet.Skin.Canvas);
         // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
         _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();
         _stool.Notice += (title, line) => _ticket.Show(title, line, 10);
