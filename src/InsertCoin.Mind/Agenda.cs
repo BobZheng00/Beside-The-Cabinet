@@ -8,6 +8,14 @@ namespace InsertCoin.Mind;
 public enum Repeat { Once, Daily, Weekdays, Weekly, Monthly }
 
 /// <summary>
+/// Spike #105: how she sets the agenda in a reply. Tags: [plan], [remind], [change], [cancel] in her words, read after.
+/// ToolFirst: the agenda tool, whose result goes back to her before she says any more. SaidAsWritten: the tool, called
+/// with her line in the same reply; a call that went through ends the reply there, and only a failed one (or one with
+/// no words before it) goes back to her.
+/// </summary>
+public enum AgendaFlow { Tags, ToolFirst, SaidAsWritten }
+
+/// <summary>
 /// Something on the player's agenda: a plan, deadline, appointment or a plain reminder at <see cref="At"/> (a whole
 /// day when <see cref="AllDay"/>). With <see cref="Before"/> it has a reminder that long ahead of its time (zero: at
 /// the time; for a whole day, ahead of that morning); with <see cref="Repeat"/> it comes round again.

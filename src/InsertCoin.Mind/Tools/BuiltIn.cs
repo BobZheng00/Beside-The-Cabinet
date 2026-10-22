@@ -64,6 +64,29 @@ public static class BuiltIn
         "Focus sessions",
         OutsideApp: false);
 
+    public const string AgendaName = "agenda";
+
+    /// <summary>
+    /// Spike #105: her agenda as a tool, in place of [plan], [remind], [change] and [cancel]. It says what was done,
+    /// or why not, so nothing is dropped without her hearing of it. Built per reply by <see cref="Conversation"/>.
+    /// </summary>
+    /// <param name="act">Does it (add, change or cancel; the item's number; when; what; minutes before; repeat) and says what came of it.</param>
+    public static Tool Agenda(Func<string, long?, string?, string?, int?, string?, string> act) => new(
+        AIFunctionFactory.Create(
+            ([Description("add, change or cancel")] string action,
+             [Description("For change or cancel: the item's number in the <agenda> block (12 for #12)")] long? item = null,
+             [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. For a reminder, when it should go off. On a change, only if it moves")] string? when = null,
+             [Description("For add: what it is, a few words in the player's language")] string? what = null,
+             [Description("Minutes ahead of it to remind them: 0 at the time, 60 an hour before, 1440 a day before. Leave it out for no reminder of its own (on a change, to keep it as it is)")] int? minutes_before = null,
+             [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null) =>
+                act(action.Trim().ToLowerInvariant(), item, when, what, minutes_before, repeat),
+            AgendaName,
+            "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. The cabinet " +
+            "reminds them at the time, by itself, even when they are away. Add something new, or change or cancel an item already on the <agenda> by its " +
+            "number. It says what was done, or why not."),
+        "Agenda",
+        OutsideApp: false);
+
     /// <summary>
     /// The player's music app, through Windows' media controls: one of their saved playlists from its beginning, play
     /// (what was playing carries on), pause, skip. It acts outside the app, so she asks first.
