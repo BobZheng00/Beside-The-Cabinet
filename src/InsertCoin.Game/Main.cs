@@ -706,6 +706,7 @@ public partial class Main : Node2D
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "windoworder": GD.Print($"Windows, top first: {_window.DevOrder()}"); break;     // the app's windows as they are stacked on screen
             case "menu": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2); break;     // as if she or the cabinet were right-clicked mid-window (a test run never follows the pointer): logs it
+            case "menuopen": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2, evenInTest: true); break;     // as menu, and shows it (no screenshots until it closes)
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
             case "remindertry":                             // the "Try it" on Settings → Reminders

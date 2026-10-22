@@ -49,14 +49,16 @@ public partial class TrayIcon : Node
 
     /// <summary>
     /// Opens the right-click menu (the tray's entries, kept the same way) at a screen point: a right click on her or the
-    /// cabinet. A test run logs it instead: shown, a menu takes focus (and a hidden run's stopped answering).
+    /// cabinet. A test run logs it, and shows it only when <paramref name="evenInTest"/>: while it shows, a hidden run
+    /// takes no screenshots (#88).
     /// </summary>
-    public void ShowMenu(Vector2I at)
+    public void ShowMenu(Vector2I at, bool evenInTest = false)
     {
         if (Companion.Paper.OffScreen)
         {
             GD.Print($"Menu: at {at.X},{at.Y}: {Items(_onCabinet)}");
-            return;
+            if (!evenInTest)
+                return;
         }
         // sized for that screen's DPI, as the app's other windows are, so it reads as large as the tray's
         _onCabinet.ContentScaleFactor = DisplayServer.ScreenGetDpi(DisplayServer.GetScreenFromRect(new Rect2(at, Vector2.One))) / 96f;

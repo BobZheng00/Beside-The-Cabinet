@@ -73,9 +73,11 @@ Each step is usable on its own.
 
 1. **The right-click menu** on her and the cabinet: the tray's menu, built once and shown in both places, at the pointer.
    *Built (#68):* opened at the pointer when the cabinet window gets a right click (it only does on her or the
-   cabinet: everywhere else clicks pass through); dev actions `menu` and `menupress:`. It is a second `PopupMenu`
+   cabinet: everywhere else clicks pass through); dev actions `menu`, `menuopen` and `menupress:`. It is a second `PopupMenu`
    made by the same code as the tray's and kept in step with it, drawn by the app: Windows' own menu, which the tray
    shows, holds the app still while it is open, and the user wanted her voice and motion to carry on (2026-10-18).
+   Like every popup of the app's, it is kept above the cabinet and the app's windows while it shows, and on top of
+   other apps when they are (Always on top): it opened under them before (the user, 2026-10-21).
 2. **The CRT:** the SETTINGS app, and the quick-switch row on the home screen.
 3. **Settings → Memory:** the page with "Open the memory book…" and "Open Chat history…".
 
