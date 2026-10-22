@@ -66,6 +66,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>Her skills switched on now, named with her tools (see <see cref="Mind.Skills"/>); set before each reply.</summary>
     public IReadOnlyList<Skill> Skills { get; set; } = [];
 
+    /// <summary>Spike #105: how she sets the agenda (tags unless a toolbox is there to carry the agenda tool).</summary>
+    public AgendaFlow AgendaFlow { get; set; } = AgendaFlow.Tags;
+
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
 
@@ -211,6 +214,57 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             ChangePlan(item, change.When, null, change.Options, remind: false);
             return null;
         }
+        // spike #105: the agenda as a tool, put in the toolbox for this reply, as it works on the agenda this reply shows
+        var agendaWent = false;                             // the agenda tool's latest call went through
+        if (tools is not null)
+        {
+            if (AgendaFlow == AgendaFlow.Tags)
+                tools.Take(BuiltIn.AgendaName);
+            else
+                tools.Put(BuiltIn.Agenda(Agendum));
+            offered = tools.Offered;
+        }
+        string Agendum(string action, long? id, string? when, string? what, int? minutes, string? repeat)
+        {
+            agendaWent = false;
+            var again = Repeat.Once;
+            if (repeat is { Length: > 0 } r && !(Enum.TryParse(r.Trim(), ignoreCase: true, out again) && Enum.IsDefined(again)))
+                return $"Not done: the cabinet can't repeat \"{r}\": once, daily, weekdays, weekly or monthly.";
+            if (minutes < 0)
+                return "Not done: minutes_before is how many minutes ahead to remind them (0 at the time).";
+            // shortcut: an offset or Z on the time is dropped and its wall-clock time kept, as models add one by habit; check on real runs
+            (DateTimeOffset At, bool AllDay)? at = null;
+            if (when is { Length: > 0 } && (at = Agenda.ParseWhen(System.Text.RegularExpressions.Regex.Replace(when.Trim(), @"(Z|[+-]\d\d:?\d\d)$", ""), now, _clock.LocalTimeZone)) is null)
+                return $"Not done: the cabinet can't read \"{when}\" as a time: write it YYYY-MM-DDTHH:MM (YYYY-MM-DD for a whole day).";
+            TimeSpan? before = minutes is { } m ? TimeSpan.FromMinutes(m) : null;
+            switch (action)
+            {
+                case "add":
+                    if (at is not { } a)
+                        return "Not added: it needs when it is.";
+                    if (what?.Trim() is not { Length: >= 2 } text)
+                        return "Not added: it needs what it is.";
+                    if (AddPlan(new PlanSpec(a.At, a.AllDay, text, before, again), now) is not { } added)
+                        return $"Not added: {a.At.ToString(a.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", Prompt.English)} is already past.";
+                    agendaWent = true;
+                    return $"Added #{added}: {Described(added)}.";
+                case "change" or "cancel":
+                    if (id is not { } n)
+                        return "Not done: it needs the item's number from the agenda.";
+                    var name = numbered.TryGetValue(n, out var was) ? was.Text : "";
+                    var options = string.Join(", ", new[] { before is { } b ? Agenda.Describe(b) : null, again != Repeat.Once ? again.ToString().ToLowerInvariant() : null }.OfType<string>());
+                    var payload = $"#{n}" + (at is { } t ? " | " + t.At.ToString(t.AllDay ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", Prompt.English) : "") + (options.Length > 0 ? $" | {options}" : "");
+                    if (ChangeAgenda(action == "cancel", payload) is { } why)
+                        return $"Not done: {why}.";
+                    agendaWent = true;
+                    return action == "cancel" ? $"Cancelled #{n}: {name}." : $"Changed #{n}: {Described(n)}.";
+                default:
+                    return $"Not done: \"{action}\" isn't add, change or cancel.";
+            }
+        }
+        string Described(long id) => store.Agenda().FirstOrDefault(p => p.Id == id) is not { } p ? $"#{id}" :
+            $"{p.Text}, {p.Label}" + (p.Before is { } b ? b == TimeSpan.Zero ? ", reminder at the time" : $", reminder {Agenda.Describe(b)}" : "")
+                                   + (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : "");
         // what she always has in mind, and what of it went in, kept with her reply beside what recall brought (see MindStore.InMind)
         var listed = new List<Fact>();
         var (aboutPlayer, aboutUs, aboutHer) = (Known(MindStore.Shared, listed), Known(character, listed), Known(MindStore.Herself(character), listed));
@@ -221,7 +275,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills);
+                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills,
+                                     agendaFlow: withTools ? AgendaFlow : AgendaFlow.Tags);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -265,6 +320,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
+        // flow C: the reply ends after a round of agenda calls that all went through, with her words before them; ending
+        // at an earlier call of the round would leave the rest unmade (FunctionInvokingChatClient stops there)
+        var roundWent = true;
+        bool Ends(FunctionInvocationContext call)
+        {
+            if (call.FunctionCallIndex == 0)
+                roundWent = true;
+            roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
+            return AgendaFlow == AgendaFlow.SaidAsWritten && roundWent && call.FunctionCallIndex == call.FunctionCount - 1 && reply.Length > toolsDone;
+        }
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {
             var afterTool = false;
@@ -312,7 +377,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 {
                     var sent = Messages(withTools, seeing);
                     if (withTools)
-                        await Stream(Calling(client, tools!), sent, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
+                        await Stream(Calling(client, tools!, Ends), sent, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
                     else
                         await Stream(client, sent, ReplyOptions);
                     // nothing at all came back, as a busy provider sometimes answers (R1): asked once more, unless a tool was
@@ -432,15 +497,19 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// they want that), the model carries on with the result, up to <see cref="Toolbox.Rounds"/> times. Calls run
     /// where this reply runs (the app's main thread, where the slip and the store live), not where the response came in.
     /// </summary>
-    private FunctionInvokingChatClient Calling(IChatClient client, Toolbox tools)
+    private FunctionInvokingChatClient Calling(IChatClient client, Toolbox tools, Func<FunctionInvocationContext, bool>? ends = null)
     {
         var here = SynchronizationContext.Current is null ? TaskScheduler.Current : TaskScheduler.FromCurrentSynchronizationContext();
         var done = new HashSet<string>();                   // the calls made in this reply
         return new FunctionInvokingChatClient(client)
         {
             MaximumIterationsPerRequest = Toolbox.Rounds,
-            FunctionInvoker = (call, cancel) =>
-                new ValueTask<object?>(Task.Factory.StartNew(() => Use(tools, call, done, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap()),
+            FunctionInvoker = async (call, cancel) =>
+            {
+                var result = await Task.Factory.StartNew(() => Use(tools, call, done, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap();
+                call.Terminate |= ends?.Invoke(call) == true;   // spike #105, flow C: no request after it
+                return result;
+            },
         };
     }
 
