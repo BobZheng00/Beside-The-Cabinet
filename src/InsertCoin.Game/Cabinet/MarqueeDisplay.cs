@@ -21,7 +21,7 @@ public partial class MarqueeDisplay : Polygon2D
     // ---- Timings, in seconds ----
     private const double GlowUp = 0.06;          // a dot coming on, from dark to full
     private const double FadeOut = 0.22;         // a dot going out, from full to dark (an LED's afterglow; longer smears a scroll)
-    private const double Clear = 0.22;           // a change: the old text fades out, the board dark this long
+    private const double Clear = FadeOut;        // a change: the board goes dark while the old text fades out
     private const double WipeColumn = 0.009;     // then the new one is drawn in, this long a column (the board's 75: 0.7 s)
     private const double Settle = 0.18;          // the pointer stays on a button this long before its name shows
     private const double BackToRest = 0.6;       // and off them this long before INSERT COIN comes back (crossing the gaps between buttons)
