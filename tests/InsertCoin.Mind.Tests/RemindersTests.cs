@@ -20,12 +20,57 @@ public class RemindersTests
         Assert.Equal((null, Repeat.Weekdays), Agenda.ParseOptions("every weekday"));
         Assert.Equal((null, Repeat.Daily), Agenda.ParseOptions("Every day"));
         Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("whenever"));
-        Assert.Equal((TimeSpan.FromMinutes(9999), Repeat.Once), Agenda.ParseOptions("99999999999 min before"));     // nonsense, without throwing
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("99999999999 min before"));     // nonsense, without throwing
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Once), Agenda.ParseOptions("10 min before"));
+        Assert.Equal((TimeSpan.Zero, Repeat.Once), Agenda.ParseOptions("at the time"));
+        Assert.Equal((null, Repeat.Weekdays), Agenda.ParseOptions("Monday to Friday"));
+        // a lead in other words is read whole, never by the part of it that looks like a lead of its own
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Once), Agenda.ParseOptions("half an hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Daily), Agenda.ParseOptions("a half-hour before, daily"));
+        Assert.Equal((TimeSpan.FromMinutes(15), Repeat.Once), Agenda.ParseOptions("a quarter of an hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(45), Repeat.Once), Agenda.ParseOptions("three quarters of an hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(45), Repeat.Once), Agenda.ParseOptions("three-quarter hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(90), Repeat.Once), Agenda.ParseOptions("an hour and a half before"));
+        Assert.Equal((TimeSpan.FromMinutes(90), Repeat.Once), Agenda.ParseOptions("one and a half hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(90), Repeat.Once), Agenda.ParseOptions("1 hour 30 min before"));
+        Assert.Equal((TimeSpan.FromMinutes(90), Repeat.Once), Agenda.ParseOptions("1 hour 30 minutes before"));
+        Assert.Equal((TimeSpan.FromMinutes(90), Repeat.Once), Agenda.ParseOptions("1 hour and 30 minutes before"));
+        Assert.Equal((TimeSpan.FromHours(26), Repeat.Once), Agenda.ParseOptions("1 day and 2 hours before"));
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Once), Agenda.ParseOptions("a reminder of 30 min before"));
+        // what isn't read whole isn't read at all
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("half a day before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("a quarter of a day before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1.5 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1,5 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1 week and 2 days before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("half a day and 2 hours before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions("1 hour, 30 min before"));
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Daily), Agenda.ParseOptions("every day, 10 min before"));
+        // a lead of many parts stops at four, and never past the longest
+        Assert.Equal((Agenda.LongestLead, Repeat.Once), Agenda.ParseOptions("9999 days 9999 days 9999 days 9999 days before"));
+        Assert.Equal((null, Repeat.Once), Agenda.ParseOptions(string.Concat(Enumerable.Repeat("9999 days ", 1100)) + "before"));
+        // as before: a lead right after a comma or against other words, and "beforehand"
+        Assert.Equal((TimeSpan.FromHours(1), Repeat.Weekly), Agenda.ParseOptions("weekly,1 hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(30), Repeat.Daily), Agenda.ParseOptions("daily,30 min before"));
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Once), Agenda.ParseOptions("10 minutes beforehand"));
+        Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), Agenda.ParseOptions("1 hour before每周"));
+        Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), Agenda.ParseOptions("每周1 hour before"));
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Weekly), Agenda.ParseOptions("weekly and 10 min early"));
 
         var spec = Agenda.ParseDirection("2026-10-08 10:00 | Job interview | 1 hour before", remind: false, Friday)!;
         Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (spec.Before, spec.Repeat));
         spec = Agenda.ParseDirection("2026-10-03 08:00 | Take your vitamins | daily", remind: true, Friday)!;
         Assert.Equal((TimeSpan.Zero, Repeat.Daily), (spec.Before, spec.Repeat));
+    }
+
+    [Fact]
+    public void A_reminder_kept_with_a_lead_too_long_goes_off_the_longest_lead_ahead_without_breaking_the_agenda()
+    {
+        var odd = P("Dentist", Friday.AddDays(3), before: TimeSpan.FromDays(800_000));
+
+        Assert.Equal(Friday.AddDays(3) - Agenda.LongestLead, odd.RemindAt());
+        Assert.Single(Agenda.Due([odd], Friday));
+        Assert.Contains("Dentist", Agenda.Block([odd], Friday));
     }
 
     [Fact]

@@ -58,7 +58,7 @@ public class AgendaTests
         Assert.Equal("12 | - | - | - | -", Plain(Agenda.ParseChange("#12", Friday)));
         Assert.Equal("12 | 2026-10-05 10:00 | - | - | -", Plain(Agenda.ParseChange(" 12 | 2026-10-05 10:00", Friday)));
         Assert.Equal("12 | 2026-10-05 10:00 | 1 hour before | - | -", Plain(Agenda.ParseChange("#12 | 1 hour before | 2026-10-05 10:00", Friday)));
-        Assert.Equal("12 | - | Monday to Friday, daily | - | -", Plain(Agenda.ParseChange("#12 | Monday to Friday | daily", Friday)));
+        Assert.Equal("12 | - | Monday to Friday, 1 hour before | - | -", Plain(Agenda.ParseChange("#12 | Monday to Friday | 1 hour before", Friday)));
         Assert.Null(Agenda.ParseChange("the dentist", Friday));
         Assert.Null(Agenda.ParseChange("#-3", Friday));
         Assert.Null(Agenda.ParseChange("", Friday));
@@ -73,6 +73,34 @@ public class AgendaTests
         // and an option the cabinet can't do
         Assert.Equal("12 | - | - | - | no reminder | stop repeating", Plain(Agenda.ParseChange("#12 | no reminder | stop repeating", Friday)));
         Assert.Equal("12 | - | - | - | every Monday", Plain(Agenda.ParseChange("#12 | every Monday", Friday)));
+        // even beside one it can, and however the pieces are set apart
+        Assert.Equal("12 | - | - | - | 1 hour before，每周", Plain(Agenda.ParseChange("#12 | 1 hour before，每周", Friday)));
+        Assert.Equal("12 | - | - | - | daily 提前一小时", Plain(Agenda.ParseChange("#12 | daily 提前一小时", Friday)));
+        Assert.Equal("12 | - | - | - | 1 hour before every Monday", Plain(Agenda.ParseChange("#12 | 1 hour before every Monday", Friday)));
+        Assert.Equal("12 | - | - | - | weekly and no reminder", Plain(Agenda.ParseChange("#12 | weekly and no reminder", Friday)));
+        Assert.Equal("12 | - | - | - | weekly; stop repeating", Plain(Agenda.ParseChange("#12 | weekly; stop repeating", Friday)));
+        Assert.Equal("12 | - | - | - | every other day", Plain(Agenda.ParseChange("#12 | every other day", Friday)));
+        Assert.Equal("12 | - | - | - | half a day before", Plain(Agenda.ParseChange("#12 | half a day before", Friday)));
+        Assert.Equal("12 | - | - | - | 1.5 hours before", Plain(Agenda.ParseChange("#12 | 1.5 hours before", Friday)));
+        Assert.Equal("12 | - | - | - | 1 hour before每周", Plain(Agenda.ParseChange("#12 | 1 hour before每周", Friday)));
+        Assert.Equal("12 | - | - | - | 1 week and 2 days before", Plain(Agenda.ParseChange("#12 | 1 week and 2 days before", Friday)));
+        // nor two leads or two repeats at once, whichever way they are set apart
+        Assert.Equal("12 | - | - | - | 1 hour before, 10 min before", Plain(Agenda.ParseChange("#12 | 1 hour before, 10 min before", Friday)));
+        Assert.Equal("12 | - | - | - | daily, weekly", Plain(Agenda.ParseChange("#12 | daily, weekly", Friday)));
+        Assert.Equal("12 | - | - | - | Monday to Friday | daily", Plain(Agenda.ParseChange("#12 | Monday to Friday | daily", Friday)));
+        Assert.Equal("12 | - | - | - | at the time | 30 min before", Plain(Agenda.ParseChange("#12 | at the time | 30 min before", Friday)));
+        // what it can do, in the words she may use for it, applied as read
+        foreach (var options in new[] { "10 min before", "weekdays", "Monday to Friday", "at the time", "on weekdays", "every week",
+                                        "half an hour before、weekly", "a reminder 1 hour before and daily", "remind me；every day", "each weekday",
+                                        "weekly,1 hour before", "daily,30 min before", "10 minutes beforehand", "a reminder of 30 min before",
+                                        "1 hour 30 min before", "1 day and 2 hours before", "an hour and a half before" })
+        {
+            Assert.Equal($"12 | - | {options} | - | -", Plain(Agenda.ParseChange($"#12 | {options}", Friday)));
+            var pieces = options.Split([',', '、', '；']).Select(p => Agenda.ParseOptions(p)).ToList();
+            var applied = Agenda.ParseOptions(options);
+            Assert.Equal(pieces.Select(p => p.Before).FirstOrDefault(b => b is not null), applied.Before);
+            Assert.Equal(pieces.Select(p => p.Repeat).FirstOrDefault(r => r != Repeat.Once), applied.Repeat);
+        }
 
         static string? Plain((long Id, (DateTimeOffset At, bool AllDay)? When, string? Options, string? Unread, string? Unable)? c) =>
             c is { } x ? $"{x.Id} | {x.When?.At.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "-"} | {x.Options ?? "-"} | {x.Unread ?? "-"} | {x.Unable ?? "-"}" : null;
@@ -243,6 +271,21 @@ public class AgendaTests
             "write it YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day). Tell the player briefly, then put it right or ask them.",
             "Your [cancel] didn't go through: it needs the item's number from the agenda, as in #12. Tell the player briefly, then put it right or ask them.",
         ], temp.Store.Through("shino", long.MaxValue, 10).Where(l => l.Speaker == Speaker.Cabinet).Select(l => l.Text));
+    }
+
+    [Fact]
+    public async Task A_change_with_words_the_cabinet_can_t_read_beside_ones_it_can_is_refused_whole()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", On(3, 10), allDay: false, TimeSpan.FromHours(1), Friday, "shino");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(new FakeModel($"[change: #{dentist} | 30 min before，每周] Done."), "remind me half an hour before, every week", "", _ => { }, (_, _) => { });
+
+        var item = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((TimeSpan.FromHours(1), Repeat.Once), (item.Before!.Value, item.Repeat));
+        Assert.Contains(temp.Store.Through("shino", long.MaxValue, 10),
+                        l => l.Speaker == Speaker.Cabinet && l.Text.Contains("the cabinet can't do \"30 min before，每周\" yet"));
     }
 
     [Fact]
