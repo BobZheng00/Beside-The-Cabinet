@@ -30,6 +30,10 @@ says where things stand today); this page keeps the story. Update it at each mil
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
+**Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
+power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
+the plan, a backup (an API key or a local model) asked for when the plan runs out, first in Getting started.
+
 **Next: Settings from the cabinet** (the user, 2026-10-17: opening Settings and the memory book from the tray had
 become "a bit annoying"). Spec `docs/specs/2026-10-17-on-the-cabinet.md`: a right-click on her or the cabinet shows
 the tray's menu; a SETTINGS app and a row of switches on the CRT; a Memory page in Settings leading to the memory book

@@ -317,6 +317,9 @@ item is and what replaces it, stays private (`private/personal-review.md`, git-i
 - [ ] **The Steamworks SDK** (achievements, Workshop) stays out of the public repository: Valve's SDK terms limit
   redistributing it (to check when the time comes); a public build simply goes without it.
 - [ ] **Steam Direct:** $100 per app; Valve takes 30%.
+- [ ] **Her mind on a ChatGPT plan** (`docs/specs/2026-10-18-chatgpt-plan.md`): OpenAI's plan usage is self-serve for
+  open-source apps that run locally; a paid app joins OpenAI's waitlist first (the user, 2026-10-18: build now,
+  waitlist before Steam). The Steam build hides ChatGPT plan until OpenAI approves it.
 - [ ] **What Steam adds** over the free GitHub build, as Mate Engine and Mindustry do: automatic updates, Workshop
   characters and voices, cloud saves, perhaps cosmetic extras. Mate Engine's set-up, the closest to ours: free on
   GitHub, $3.99 on Steam with accessories, event messages, Workshop and automatic updates; its code under AGPL-3.0 with
