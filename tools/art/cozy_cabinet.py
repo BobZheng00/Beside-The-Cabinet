@@ -283,6 +283,9 @@ def screen_face():
 
 
 BULBS = [18 + i * 22.4 for i in range(11)]      # hood-local x of each marquee bulb
+# The marquee's lit pixel display, in marquee-local units (x, y, width, height): the game lights its dots (INSERT COIN,
+# or the name of the CRT's button under the pointer), so the art draws only its dark panel, in the dots' proportion (75 x 15).
+DISPLAY = (20, 15, 220, 44)
 
 
 def marquee_face():
@@ -290,21 +293,15 @@ def marquee_face():
     dim = "".join(path(on(hood, circle(x, 10, 4.2, 18)), "#7A6A9E", THIN) for x in BULBS)
     lit = "".join(path(on(hood, circle(x, 10, 4.2, 18)), "#FFE27A", THIN) for x in BULBS[::2])
     sign = rrect(12, 8, W - 24, L - 16, 6)
-    doodles = f"""<g stroke="{OUT}" stroke-linejoin="round">
-      <path transform="translate(-118 2) scale(0.78) translate(112 -20)" d="M-112 20 q-12 0 -12 -10 q0 -10 11 -10 q3 -10 14 -9 q9 -8 19 1 q11 -1 11 10 q8 2 6 10 q-2 8 -11 8 z" fill="#FFFFFF" stroke-width="2.5"/>
-      <path d="M92 -16 a10 10 0 1 0 8 17 a8 8 0 1 1 -8 -17 z" fill="#FFF3C4" stroke-width="2.5"/>
-      <path d="M72 14 l2.6 5.6 6 .8 -4.4 4.2 1 6 -5.2 -2.8 -5.2 2.8 1 -6 -4.4 -4.2 6 -.8 z" fill="#FFF3C4" stroke-width="2"/>
-      <circle cx="-34" cy="-20" r="2.5" fill="#FFF3C4" stroke="none"/><circle cx="46" cy="-18" r="2.2" fill="#FFF3C4" stroke="none"/>
-    </g>
-    <text x="14" y="9" text-anchor="middle" font-family="{ROUND}" font-size="25"
-          font-weight="700" fill="#FFFFFF" stroke="#8E2F7E" stroke-width="6" paint-order="stroke" letter-spacing="1.5">INSERT COIN</text>"""
-    glow = path(on(marquee, rrect(30, 16, W - 60, L - 32, 10)), "#FFD0F2", 'opacity="0.55" filter="url(#softGlow)"')
+    x, y, w, h = DISPLAY
+    panel = path(on(marquee, rrect(x - 3, y - 3, w + 6, h + 6, 4)), "#221A33", THIN)
+    glow = path(on(marquee, rrect(x + 10, y + 4, w - 20, h - 8, 8)), "#FF8EDB", 'opacity="0.3" filter="url(#softGlow)"')
     return f"""<g id="marquee">
   {face(hood, "#2E2542")}{dim}{layer("bulbs", lit)}
   {face(marquee, "#3A2E52")}
   {path(on(marquee, sign), "url(#sign)", THIN)}
+  {panel}
   {clip("signClip", on(marquee, sign))}
-  <g clip-path="url(#signClip)">{marquee.decal(W / 2, L / 2, f'<g transform="translate({W / 2} {L / 2})">{doodles}</g>')}</g>
   {layer("marquee-glow", f'<g clip-path="url(#signClip)">{glow}</g>')}
 </g>"""
 
@@ -670,6 +667,7 @@ def export_skin(art_dir, skin_dir, render=True):
     pressed = sub(CAM(sub(cap_centre, mul(cp_top.n, 4))), CAM(cap_centre))
     door = Plane((-XI + 72, BODY_TOP[1] - 24, BODY_TOP[0] - 5), (1, 0, 0), (0, -1, 0), 104)
     stack = sub(CAM(add(centre, (0, 3, 0))), CAM(centre))
+    dx, dy, dw, dh = DISPLAY
     skin = {
         "id": "cozy", "name": "Cozy", "scale": SCALE, "canvas": [width, height],
         "layers": {n: f"{n}.png" for n in ["base"] + LAYERS},
@@ -685,7 +683,8 @@ def export_skin(art_dir, skin_dir, render=True):
             "printer": {"slot": pts2(on(body, [(176, 160), (228, 160), (228, 169), (176, 169)])), "ticket": pt(top_mid),
                         # paper path for the session receipt: a strip hanging from the slot (TL, TR, BR, BL) and its size
                         "receipt": pts2(on(body, [(179, 166), (225, 166), (225, 268), (179, 268)])), "receiptSize": [46, 102]},
-            "marquee": pts2(on(marquee, [(12, 8), (W - 12, 8), (W - 12, marquee.length - 8), (12, marquee.length - 8)])),
+            # the marquee's pixel display (TL, TR, BR, BL), where the game lights its dots
+            "marquee": pts2(on(marquee, [(dx, dy), (dx + dw, dy), (dx + dw, dy + dh), (dx, dy + dh)])),
             # memos stuck on the right side panel: the panel's local rectangle and where its corners fall (TL, TR, BR, BL),
             # the area a memo's centre may be in, spots for the Pin button (a, b, tilt), and a memo's paper and tape
             "memos": {"side": pts2(on(right_side, [(0, 0), (SIDE_SIZE[0], 0), SIDE_SIZE, (0, SIDE_SIZE[1])])),

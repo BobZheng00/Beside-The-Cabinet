@@ -59,9 +59,24 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
 - **The switches** (`CrtOs.Switch`): three round toggles on the home screen's bar, between the time and the power
   mark: a speaker (crossed out while muted), a speech bubble (Voice) and a microphone (Conversation), filled pink when
   on. Icons only, at every cabinet size: three labelled toggles don't fit the bar beside the time and the power mark,
-  and at the smallest cabinet their labels would be too small to read. The name of the one under the pointer shows in
-  place of the time. Each reads its state where the tray's comes from (the settings, the conversation) every frame
+  and at the smallest cabinet their labels would be too small to read. The name of the one under the pointer showed
+  in place of the time until #109 put it on the marquee (below). Each reads its state where the tray's comes from (the settings, the conversation) every frame
   the bar is drawn, and flips it through the same calls as the tray, so a change anywhere shows everywhere.
+
+## Built: names on the marquee (2026-10-22, #109)
+
+The user, trying the switches: "i can tell the icon apart, but not the text, i would suggest we display the hovered
+button text on the insert coin bar above the crt. maybe make it a pixel screen", then choosing a lit pixel display
+("let's try a lit pixel display and see how it goes"): a trial, judged by eye.
+
+- **The marquee is a lit pixel display** (`Cabinet/MarqueeDisplay.cs`, `marquee_dots.gdshader`): the art draws a dark
+  panel in the sign (`tools/art/cozy_cabinet.py`, `DISPLAY`; the skin's `marquee` anchor is its corners), and the game
+  lights a board of 75 by 15 round dots on it, in the marquee's perspective. Letters are five dots by seven, as on a
+  dot-matrix sign; twelve fit. Dots too small to tell apart (the small cabinet) run together into solid letters.
+- **INSERT COIN at rest; the name of the CRT's button under the pointer** (a quick switch, an app, SETTINGS) while
+  there is one, and INSERT COIN again when it leaves. Only those buttons, not other hover tips (the PM's choice). A
+  name too long for the board shows its start, then scrolls through a column at a time, round and round.
+- **The time stays on the CRT's bar** whatever is under the pointer. The bulbs above (`MarqueeLights`) are unchanged.
 
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close

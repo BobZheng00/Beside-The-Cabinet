@@ -181,6 +181,14 @@
       "expect": ["^Crt: VOICE off$", "^Crt: SETTINGS opens its window$"]
     },
     {
+      "name": "marquee",
+      "about": "The marquee's pixel display reads INSERT COIN, then the name of the CRT's button under the pointer (the Voice switch, the FOCUS app), then INSERT COIN again once the pointer leaves.",
+      "covers": ["src/InsertCoin.Game/Cabinet/MarqueeDisplay.cs", "src/InsertCoin.Game/Cabinet/marquee_dots.gdshader", "src/InsertCoin.Game/App/Crt/CrtOs.cs"],
+      "script": "crt@2,crthover:260:27@4,crthover:118:110@7,crthover:off@10",
+      "shots": [8, 11, 14],
+      "expect": ["^Marquee: VOICE$", "^Marquee: FOCUS$", "^Marquee: INSERT COIN$"]
+    },
+    {
       "name": "agendaapp",
       "about": "The CRT's AGENDA app follows the agenda while it is open: the job interview the seed put there leaves it when the companion takes it off, without reopening it.",
       "covers": ["src/InsertCoin.Game/App/Crt/AgendaApp.cs"],
