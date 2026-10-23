@@ -77,6 +77,14 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   there is one, and INSERT COIN again when it leaves. Only those buttons, not other hover tips (the PM's choice). A
   name too long for the board shows its start, then scrolls through a column at a time, round and round.
 - **The time stays on the CRT's bar** whatever is under the pointer. The bulbs above (`MarqueeLights`) are unchanged.
+- **It behaves as an LED sign does** (round 2, the user trying it: "the text appear and switch too fast, which does not
+  really looks like pixel display (still more like some rgb display)"): one pink LED colour, hotter in each dot's
+  middle, with unlit dots faintly there; each dot glows up over 0.06 s and fades over 0.22 s; a change fades the old
+  text out (0.22 s), then draws the new one in a column at a time from the left (0.7 s across the board); a name shows
+  once the pointer has stayed on its button 0.18 s, INSERT COIN once it has been off them 0.6 s (so crossing the gaps
+  between buttons doesn't bring it back), and a change waits for the one under way. The timings are named constants
+  at the top of `MarqueeDisplay`. A slide in from the side was tried first: at a pace that keeps up with the pointer
+  the afterglow smeared it into a blur.
 
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close
