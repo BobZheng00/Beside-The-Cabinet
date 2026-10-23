@@ -361,7 +361,7 @@ public class AgendaTests
               {"op": "update", "id": {{exam}}, "when": "2026-10-12"},
               {"op": "cancel", "id": {{party}}},
               {"op": "add", "when": "2026-10-06 15:00", "text": "Dentist appointment"},
-              {"op": "add", "when": "2026-10-06", "text": "Dentist at 15:00 today", "remind": true},
+              {"op": "add", "when": "2026-10-06", "text": "Dentist at 15:00 today", "remind": "at_the_time"},
               {"op": "add", "when": "someday", "text": "Learn to juggle"},
               {"op": "cancel", "id": 999}]}
             """);
@@ -372,6 +372,21 @@ public class AgendaTests
         Assert.Contains("They go in \"plans\", not in facts.", model.Requests[1][0].Text);
         Assert.Equal([("Dentist at 15:00 today", "Tue 6 Oct", true), ("Dentist appointment", "Tue 6 Oct 15:00", false), ("Calculus exam", "Mon 12 Oct", false)],
                      store.Agenda().Select(p => (p.Text, p.Label, p.Remind)));
+    }
+
+    [Fact]
+    public void Upkeep_s_plans_take_the_agenda_tool_s_reminder_and_only_a_repeat_from_its_list()
+    {
+        var digestion = Upkeep.Parse("""
+            {"facts": [], "plans": [
+              {"op": "add", "when": "2026-10-06 15:00", "text": "Dentist", "remind": "before", "minutes_before": 10},
+              {"op": "add", "when": "2026-10-05 07:00", "text": "Gym", "remind": "at_the_time", "repeat": "weekly"},
+              {"op": "add", "when": "2026-10-07", "text": "Mia's birthday", "remind": "none", "minutes_before": 0},
+              {"op": "add", "when": "2026-10-08 09:00", "text": "Yoga", "remind": "none", "repeat": "every other week"}]}
+            """)!;
+
+        Assert.Equal([(false, "10 min before"), (true, "weekly"), (false, ""), (false, "")], digestion.Plans.Select(p => (p.Remind, p.Options)));
+        Assert.Equal((TimeSpan.FromMinutes(10), Repeat.Once), Agenda.ParseOptions(digestion.Plans[0].Options));
     }
 
     [Fact]

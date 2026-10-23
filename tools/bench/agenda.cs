@@ -1,10 +1,10 @@
-// Spike #105: her agenda set three ways, the same requests put to her in each, side by side.
-//   tags   [plan], [remind], [change], [cancel] in her words, read after (what is built)
-//   tool   the agenda tool; its result goes back to her before she says more (B)
-//   said   the agenda tool called with her line; a call that went through ends the reply (C)
+// Her agenda set two ways, the same requests put to her in each, side by side (spike #105, then #114 built the tool):
+//   tool   the agenda tool, said as written: called with her line, a call that went through ends the reply (as built)
+//   tags   [plan], [remind], [change], [cancel] in her words, read after: what she does with a provider without tools
+// (the spike's third way, the tool's result always going back to her first, is on the branch spike-105-agenda-tool-flow)
 //
 //     dotnet run tools/bench/agenda.cs -- --out <folder> [--mock <base url> --protocol openai|anthropic | --from <profile folder>]
-//                                         [--flows tags,tool,said] [--cards shino,plain] [--cases id,id] [--again]
+//                                         [--flows tags,tool] [--cards shino,plain] [--cases id,id] [--again]
 //
 // --mock runs on a stand-in (tools/bench/agenda_mock.py); --from runs on that profile's provider, its key read where it is
 // kept, encrypted, and billed to whoever owns it: only when they offer. Each reply starts from a fresh memory (with the
@@ -27,7 +27,7 @@ var options = Args(args);
 var output = Directory.CreateDirectory(options["out"]).FullName;
 var results = Path.Combine(output, "agenda.jsonl");
 var json = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-var flows = options.GetValueOrDefault("flows", "tags,tool,said").Split(',');
+var flows = options.GetValueOrDefault("flows", "tags,tool").Split(',');
 var cards = options.GetValueOrDefault("cards", "shino,plain").Split(',');
 
 Provider provider;
@@ -94,10 +94,9 @@ async Task<Result> Run(string card, string flow, Case c)
     using var store = new MindStore(Path.Combine(folder, "memory.db"));
     foreach (var (text, when) in c.Agenda)
         store.AddPlan(text, Agenda.ParseWhen(when, now, zone)!.Value.At, false, null, now.AddDays(-2), card);
-    var conversation = new Conversation(store, card, personas[card], new Clock(now, zone))
-    {
-        AgendaFlow = flow switch { "tool" => AgendaFlow.ToolFirst, "said" => AgendaFlow.SaidAsWritten, _ => AgendaFlow.Tags },
-    };
+    var conversation = new Conversation(store, card, personas[card], new Clock(now, zone));
+    var tools = Tools();
+    tools.Refused = flow == "tags";
     var counting = new Counting(model);
     var clock = Stopwatch.StartNew();
     long? first = null;
@@ -111,7 +110,7 @@ async Task<Result> Run(string card, string flow, Case c)
             if (piece.Trim().Length > 0)
                 first ??= clock.ElapsedMilliseconds;
             shown.Add(piece);
-        }, (name, payload) => directions.Add(payload is null ? name : $"{name}: {payload}"), tools: Tools(), cancel: new CancellationTokenSource(TimeSpan.FromMinutes(3)).Token);
+        }, (name, payload) => directions.Add(payload is null ? name : $"{name}: {payload}"), tools: tools, cancel: new CancellationTokenSource(TimeSpan.FromMinutes(3)).Token);
     }
     catch (Exception e)
     {

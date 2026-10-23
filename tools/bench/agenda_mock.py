@@ -1,15 +1,21 @@
-"""A stand-in model for spike #105 (tools/bench/agenda.cs): her agenda set by tags or by the agenda tool, so the flows'
-mechanics can be tried on both protocols without a real provider or key.
+"""A stand-in model for her agenda (tools/bench/agenda.cs, and hidden test runs of the app): her agenda set by tags or by
+the agenda tool, so its mechanics can be tried on both protocols without a real provider or key.
 
 Speaks OpenAI's chat completions (/v1/chat/completions) and Anthropic's messages (/v1/messages), streamed, with usage.
 - With the agenda tool offered, by what the player said: a line, then a call ("vitamins", "gym"/"健身", "friday",
   "牙医", "moved", "off"); "bank" calls with a time the cabinet can't read; "birthday" calls with no words before it.
 - After a tool result: "It's on your agenda." for one that went through, "Hm, that didn't take. What time exactly?" else.
 - Without it (tags): the same line with a [plan] or [remind] in front.
+Dates count from the day in her <now> block (the bench's Wednesday 21 October 2026, or the app's today): "tomorrow",
+the next Monday, Friday, Saturday or Wednesday after it. A request that isn't streamed (upkeep) gets "{}".
 Every request is logged, with its size, to agenda-mock.jsonl in the folder given (default: here).
+
+A hidden run of the app on it (the profile settings; "ChatProtocol": "Anthropic" and ".../v1" alike):
+    "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:8795/v1", "ChatModel": "mock"
 
     python agenda_mock.py 8795 [log folder]
 """
+import datetime
 import json
 import re
 import sys
@@ -50,29 +56,34 @@ def plan(body, anthropic):
     """What to say, and the calls to make."""
     result = tool_result(body, anthropic)
     if result is not None:
-        return ("Hm, that didn't take. What time exactly?" if "Not " in result else "It's on your agenda."), []
-    line = said(body)
+        return ("Hm, that didn't take. What time exactly?" if "Not " in result or "didn't work" in result else "It's on your agenda."), []
+    line = said(body).rsplit("</cabinet>", 1)[-1]  # the player's words, after the cabinet's blocks (the earlier lines come before)
     whole = json.dumps(body, ensure_ascii=False)
     item = (re.findall(r"- #(\d+) ", whole) or ["1"])[0]
     offered = [t.get("name") or (t.get("function") or {}).get("name") for t in body.get("tools") or []]
     agenda = "agenda" in offered
-    def add(when, what, minutes=None, repeat=None):
-        arguments = {"action": "add", "when": when, "what": what}
+    def add(when, what, remind, minutes=None, repeat=None):
+        arguments = {"action": "add", "remind": remind, "when": when, "what": what}
         if minutes is not None:
             arguments["minutes_before"] = minutes
         if repeat:
             arguments["repeat"] = repeat
         return ("agenda", arguments)
+    found = re.search(r"<now>\\n\w+ (\d+ \w+ \d{4})", whole)
+    today = datetime.datetime.strptime(found.group(1), "%d %B %Y").date() if found else datetime.date(2026, 10, 21)
+    def day(weekday=None):                  # tomorrow, or the next of that weekday (0 Monday) after today
+        return str(today + datetime.timedelta(days=1 if weekday is None else (weekday - today.weekday() - 1) % 7 + 1))
+    tomorrow, monday, wednesday, friday, saturday = day(), day(0), day(2), day(4), day(5)
     table = [
-        ("vitamins", "Nine tomorrow, vitamins. Noted.", "[remind: 2026-10-22 09:00 | Take your vitamins]", [add("2026-10-22T09:00", "Take your vitamins", 0)]),
-        ("gym", "Mondays at seven, gym, an hour's warning.", "[plan: 2026-10-26 07:00 | Gym | 1 hour before, weekly]", [add("2026-10-26T07:00", "Gym", 60, "weekly")]),
-        ("健身", "每周一早上七点，健身房。", "[remind: 2026-10-26 07:00 | 去健身房 | weekly]", [add("2026-10-26T07:00", "去健身房", 0, "weekly")]),
-        ("friday", "Friday, half three, dentist.", "[plan: 2026-10-23 15:30 | Dentist | 10 min before]", [add("2026-10-23T15:30", "Dentist", 10)]),
-        ("牙医", "下周三下午三点，看牙医。", "[plan: 2026-10-28 15:00 | 看牙医 | 1 hour before]", [add("2026-10-28T15:00", "看牙医", 60)]),
-        ("bank", "The bank, Monday morning.", "[remind: Monday 9am | Call the bank]", [add("Monday 9am", "Call the bank", 0)]),
-        ("birthday", "", "[plan: 2026-10-24 | Mia's birthday]", [add("2026-10-24", "Mia's birthday")]),
-        ("moved", "Monday, same time.", f"[change: #{item} | 2026-10-26 15:30]", [("agenda", {"action": "change", "item": int(item), "when": "2026-10-26T15:30"})]),
-        ("is off", "Off it comes.", f"[cancel: #{item}]", [("agenda", {"action": "cancel", "item": int(item)})]),
+        ("vitamins", "Nine tomorrow, vitamins. Noted.", f"[remind: {tomorrow} 09:00 | Take your vitamins]", [add(f"{tomorrow}T09:00", "Take your vitamins", "at_the_time")]),
+        ("gym", "Mondays at seven, gym, an hour's warning.", f"[plan: {monday} 07:00 | Gym | 1 hour before, weekly]", [add(f"{monday}T07:00", "Gym", "before", 60, "weekly")]),
+        ("健身", "每周一早上七点，健身房。", f"[remind: {monday} 07:00 | 去健身房 | weekly]", [add(f"{monday}T07:00", "去健身房", "at_the_time", None, "weekly")]),
+        ("friday", "Friday, half three, dentist.", f"[plan: {friday} 15:30 | Dentist | 10 min before]", [add(f"{friday}T15:30", "Dentist", "before", 10)]),
+        ("牙医", "下周三下午三点，看牙医。", f"[plan: {wednesday} 15:00 | 看牙医 | 1 hour before]", [add(f"{wednesday}T15:00", "看牙医", "before", 60)]),
+        ("bank", "The bank, Monday morning.", "[remind: Monday 9am | Call the bank]", [add("Monday 9am", "Call the bank", "at_the_time")]),
+        ("birthday", "", f"[plan: {saturday} | Mia's birthday]", [add(saturday, "Mia's birthday", "none")]),
+        ("moved", "Monday, same time.", f"[change: #{item} | {monday} 15:30]", [("agenda", {"action": "change", "remind": "keep", "item": int(item), "when": f"{monday}T15:30"})]),
+        ("is off", "Off it comes.", f"[cancel: #{item}]", [("agenda", {"action": "cancel", "remind": "keep", "item": int(item)})]),
     ]
     for word, words, tag, calls in table:
         if word in line:
@@ -91,8 +102,10 @@ class Handler(BaseHTTPRequestHandler):
         with LOG.open("a", encoding="utf-8") as f:
             f.write(json.dumps({"path": self.path, "bytes": len(raw), "tools": len(body.get("tools") or []),
                                 "said": said(body)[-80:], "reply": text, "calls": calls}, ensure_ascii=False) + "\n")
-        if not body.get("stream"):
-            self._json({"error": {"message": "only streamed replies here"}}, 400)
+        if not body.get("stream"):             # upkeep and her notes: nothing to keep
+            self._json({"id": "x", "object": "chat.completion", "model": "mock", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{}"}, "finish_reason": "stop"}]}
+                       if not anthropic else {"id": "msg_x", "type": "message", "role": "assistant", "model": "mock", "content": [{"type": "text", "text": "{}"}],
+                                              "stop_reason": "end_turn", "usage": {"input_tokens": 1, "output_tokens": 1}})
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -100,6 +113,9 @@ class Handler(BaseHTTPRequestHandler):
         time.sleep(0.3)
         prompt = len(raw) // 4
         (self._anthropic if anthropic else self._openai)(body, text, calls, prompt)
+
+    def do_GET(self):
+        self._json({"object": "list", "data": [{"id": "mock", "object": "model"}]})
 
     def _send(self, data, event=None):
         self.wfile.write(((f"event: {event}\n" if event else "") + f"data: {json.dumps(data, ensure_ascii=False)}\n\n").encode())

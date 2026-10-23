@@ -38,7 +38,8 @@ public partial class AbilitySettings : VBoxContainer
                         "switched off stays off. Every use is in the chat history. Two exceptions: what's on the Privacy page, and the rest " +
                         "of a reply once a page or search results have been read, since a page could try to talk its reader into things.");
         Form.Subheading(this, "Built in");
-        AddChild(Choices(tools.All.Where(t => t.Source == Tool.BuiltIn && !t.Private)));
+        // her agenda is how she keeps the player's plans, as before it was a tool: not an ability to switch off
+        AddChild(Choices(tools.All.Where(t => t.Source == Tool.BuiltIn && !t.Private && t.Name != BuiltIn.AgendaName)));
         Form.Hint(this, chat.WebSearch is { } searching
             ? $"{name} searches the web {searching}."
             : $"{name} can't search the web: your provider has no search of its own that this app can use. The SearXNG add-on gives one.");

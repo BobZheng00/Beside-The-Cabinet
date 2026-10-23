@@ -129,6 +129,22 @@ cache at a tenth of that or less.
   said. Leads are read whole: "half an hour before" is 30 minutes, "three quarters of an hour" 45, "an hour and a
   half" or "1 hour 30 min" 90, "1 day and 2 hours" 26 hours, never the last part inside them; what still can't be read
   whole ("1.5 hours", "half a day") isn't read as a lead at all.
+  *Changed 2026-10-22 (#114, from spike #105): the agenda is a tool.* Where the provider takes tools, the tags above
+  are no longer offered (they stay, read as before, for a provider without tools, `Toolbox.Refused`): `BuiltIn.Agenda`
+  adds, changes or cancels, by the same numbers and with the same refusals. On a real model the tags set the wrong
+  thing silently in 5 of 20 replies (both cancels missed, three items put at their reminder's time); the tool got
+  every cancel, change and "10 min before" right, and its only false claims were about reminders, so the reminder is
+  a required choice (`remind`: none, at_the_time, before with `minutes_before`, or keep on a change) and every result
+  names it ("no reminder"; the player's own lead when that gives one); "reminds them by itself" is gone from what she
+  is told. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other
+  week") or a time it can't read is turned down with its reason. *Said as written* (flow C), in code
+  (`Conversation.Reply`, `Ends`): she says what she is putting down and calls the tool in the same reply; when every
+  call of the round was an agenda call that went through and words came before them, the reply ends there (one
+  request; `FunctionInvocationContext.Terminate`, set only on the round's last call, as an earlier one would skip the
+  rest unmade). A failure, a call with no words before it, or a round with another tool goes back to her, so she
+  speaks once. Upkeep's plans take the same fields (`remind`, `minutes_before`, a `repeat` from the list), and "when"
+  is always the thing's own time. Her body: the note-taking gesture (pad and pencil) as the call goes out, not the
+  working pose of other tools. `tools/bench/agenda.cs` compares it with the tags on a stand-in or a real provider.
 
 ## Second pass (decided with the player, 2026-10-04)
 

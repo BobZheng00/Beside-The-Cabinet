@@ -67,23 +67,26 @@ public static class BuiltIn
     public const string AgendaName = "agenda";
 
     /// <summary>
-    /// Spike #105: her agenda as a tool, in place of [plan], [remind], [change] and [cancel]. It says what was done,
-    /// or why not, so nothing is dropped without her hearing of it. Built per reply by <see cref="Conversation"/>.
+    /// Her agenda as a tool, in place of the [plan], [remind], [change] and [cancel] she writes when the provider has no
+    /// tools. Whether to remind the player is always chosen (none, at the time, or minutes before), and what it says back
+    /// always names the reminder, so she never takes one for granted (spike #105: every false claim was about one). It
+    /// says what was done, or why not, so nothing is dropped without her hearing of it. Built per reply by
+    /// <see cref="Conversation"/>, as it works on the agenda that reply shows.
     /// </summary>
-    /// <param name="act">Does it (add, change or cancel; the item's number; when; what; minutes before; repeat) and says what came of it.</param>
-    public static Tool Agenda(Func<string, long?, string?, string?, int?, string?, string> act) => new(
+    /// <param name="act">Does it (the action; the reminder; the item's number; when; what; minutes before; repeat) and says what came of it.</param>
+    public static Tool Agenda(Func<string, string, long?, string?, string?, int?, string?, string> act) => new(
         AIFunctionFactory.Create(
             ([Description("add, change or cancel")] string action,
+             [Description("Whether to remind them: none, at_the_time, before (with minutes_before), or keep (on a change or cancel: as it is)")] string remind,
              [Description("For change or cancel: the item's number in the <agenda> block (12 for #12)")] long? item = null,
-             [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. For a reminder, when it should go off. On a change, only if it moves")] string? when = null,
-             [Description("For add: what it is, a few words in the player's language")] string? what = null,
-             [Description("Minutes ahead of it to remind them: 0 at the time, 60 an hour before, 1440 a day before. Leave it out for no reminder of its own (on a change, to keep it as it is)")] int? minutes_before = null,
+             [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. On a change, only if it moves")] string? when = null,
+             [Description("What it is, a few words in the player's language (on a change, only to rename it)")] string? what = null,
+             [Description("With remind before: how many minutes ahead (10, 60 for an hour, 1440 for a day)")] int? minutes_before = null,
              [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null) =>
-                act(action.Trim().ToLowerInvariant(), item, when, what, minutes_before, repeat),
+                act(action.Trim().ToLowerInvariant(), remind.Trim().ToLowerInvariant().Replace('_', ' '), item, when, what, minutes_before, repeat),
             AgendaName,
-            "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. The cabinet " +
-            "reminds them at the time, by itself, even when they are away. Add something new, or change or cancel an item already on the <agenda> by its " +
-            "number. It says what was done, or why not."),
+            "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. Add " +
+            "something new, or change or cancel an item already on the <agenda> by its number. It says what was done, the reminder included, or why not."),
         "Agenda",
         OutsideApp: false);
 

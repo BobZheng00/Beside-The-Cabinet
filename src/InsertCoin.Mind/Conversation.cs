@@ -66,9 +66,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>Her skills switched on now, named with her tools (see <see cref="Mind.Skills"/>); set before each reply.</summary>
     public IReadOnlyList<Skill> Skills { get; set; } = [];
 
-    /// <summary>Spike #105: how she sets the agenda (tags unless a toolbox is there to carry the agenda tool).</summary>
-    public AgendaFlow AgendaFlow { get; set; } = AgendaFlow.Tags;
-
     /// <summary>The whole conversation, searchable.</summary>
     public History History => _history ??= new History(store, character, persona.Name);
 
@@ -113,6 +110,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     {
         var now = _clock.GetLocalNow();
         var folded = store.Folded(character);
+        Equip(tools);
         var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
                                 voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known, skills: Skills);
@@ -195,12 +193,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 return "it needs the item's number from the agenda, as in #12";
             if (cancelled.Contains(change.Id))
                 return null;
-            if (!numbered.TryGetValue(change.Id, out var listedItem))
-                return $"there is no #{change.Id} on the agenda now";
-            if (listedItem.Source is not null)
-                return $"#{change.Id} is from their calendar, which decides it";
-            if (store.Agenda().FirstOrDefault(p => p.Id == change.Id) is not { } item)
-                return $"#{change.Id} is no longer on the agenda";
+            var (item, why) = Changeable(change.Id);
+            if (item is null)
+                return why;
             if (cancel)
             {
                 store.DeletePlan(item.Id);
@@ -214,57 +209,99 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             ChangePlan(item, change.When, null, change.Options, remind: false);
             return null;
         }
-        // spike #105: the agenda as a tool, put in the toolbox for this reply, as it works on the agenda this reply shows
+        // an item she was shown that she may change, as it is now; or why not
+        (Plan? Item, string? Why) Changeable(long id) =>
+            !numbered.TryGetValue(id, out var listedItem) ? (null, $"there is no #{id} on the agenda now")
+            : listedItem.Source is not null ? (null, $"#{id} is from their calendar, which decides it")
+            : store.Agenda().FirstOrDefault(p => p.Id == id) is { } item ? (item, null)
+            : (null, $"#{id} is no longer on the agenda");
+        // the agenda tool, working on this reply's agenda; the [plan] and the rest above stay for a provider without tools.
+        // The same tool every reply, so the list offered stays the same and the cached start of the prompt holds.
         var agendaWent = false;                             // the agenda tool's latest call went through
-        if (tools is not null)
+        _agendum = Agendum;
+        if (Equip(tools))
+            offered = tools!.Offered;
+        string Agendum(string action, string remind, long? id, string? when, string? what, int? minutes, string? repeat)
         {
-            if (AgendaFlow == AgendaFlow.Tags)
-                tools.Take(BuiltIn.AgendaName);
-            else
-                tools.Put(BuiltIn.Agenda(Agendum));
-            offered = tools.Offered;
-        }
-        string Agendum(string action, long? id, string? when, string? what, int? minutes, string? repeat)
-        {
-            agendaWent = false;
-            var again = Repeat.Once;
-            if (repeat is { Length: > 0 } r && !(Enum.TryParse(r.Trim(), ignoreCase: true, out again) && Enum.IsDefined(again)))
-                return $"Not done: the cabinet can't repeat \"{r}\": once, daily, weekdays, weekly or monthly.";
-            if (minutes < 0)
-                return "Not done: minutes_before is how many minutes ahead to remind them (0 at the time).";
+            Repeat? again = null;
+            if (repeat is { Length: > 0 } r)
+                if (Enum.TryParse<Repeat>(r.Trim(), ignoreCase: true, out var read) && Enum.IsDefined(read) && !char.IsDigit(r.Trim()[0]))
+                    again = read;
+                else
+                    return $"Not done: the cabinet can't repeat \"{r}\": once, daily, weekdays, weekly or monthly.";
+            TimeSpan? before = null;
+            var keep = false;
+            switch (remind)
+            {
+                case "none":
+                    break;
+                case "at the time":
+                    before = TimeSpan.Zero;
+                    break;
+                case "before" when minutes > 0:
+                    before = TimeSpan.FromMinutes(minutes.Value);
+                    break;
+                case "before":
+                    return "Not done: a reminder before needs minutes_before, how many minutes ahead (10, 60 for an hour, 1440 for a day).";
+                case "keep" when action != "add":
+                    keep = true;
+                    break;
+                default:
+                    return $"Not done: remind is none, at_the_time or before (with minutes_before){(action == "add" ? "" : ", or keep")}, not \"{remind}\".";
+            }
             // shortcut: an offset or Z on the time is dropped and its wall-clock time kept, as models add one by habit; check on real runs
             (DateTimeOffset At, bool AllDay)? at = null;
             if (when is { Length: > 0 } && (at = Agenda.ParseWhen(System.Text.RegularExpressions.Regex.Replace(when.Trim(), @"(Z|[+-]\d\d:?\d\d)$", ""), now, _clock.LocalTimeZone)) is null)
                 return $"Not done: the cabinet can't read \"{when}\" as a time: write it YYYY-MM-DDTHH:MM (YYYY-MM-DD for a whole day).";
-            TimeSpan? before = minutes is { } m ? TimeSpan.FromMinutes(m) : null;
+            var renamed = what?.Trim() is { Length: >= 2 } words ? words : null;
             switch (action)
             {
                 case "add":
                     if (at is not { } a)
                         return "Not added: it needs when it is.";
-                    if (what?.Trim() is not { Length: >= 2 } text)
+                    if (renamed is null)
                         return "Not added: it needs what it is.";
-                    if (AddPlan(new PlanSpec(a.At, a.AllDay, text, before, again), now) is not { } added)
+                    if (again is null or Repeat.Once && (a.AllDay ? a.At.AddDays(1) : a.At) <= now
+                        || AddPlan(new PlanSpec(a.At, a.AllDay, renamed, before, again ?? Repeat.Once), now) is not { } added)
                         return $"Not added: {a.At.ToString(a.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", Prompt.English)} is already past.";
                     agendaWent = true;
                     return $"Added #{added}: {Described(added)}.";
                 case "change" or "cancel":
                     if (id is not { } n)
                         return "Not done: it needs the item's number from the agenda.";
-                    var name = numbered.TryGetValue(n, out var was) ? was.Text : "";
-                    var options = string.Join(", ", new[] { before is { } b ? Agenda.Describe(b) : null, again != Repeat.Once ? again.ToString().ToLowerInvariant() : null }.OfType<string>());
-                    var payload = $"#{n}" + (at is { } t ? " | " + t.At.ToString(t.AllDay ? "yyyy-MM-dd" : "yyyy-MM-dd HH:mm", Prompt.English) : "") + (options.Length > 0 ? $" | {options}" : "");
-                    if (ChangeAgenda(action == "cancel", payload) is { } why)
-                        return $"Not done: {why}.";
+                    var name = numbered.TryGetValue(n, out var was) ? was.Text : $"#{n}";
+                    if (action == "cancel")
+                    {
+                        if (ChangeAgenda(true, $"#{n}") is { } why)
+                            return $"Not done: {why}.";
+                        agendaWent = true;
+                        return $"Cancelled #{n}: {name}, off the agenda with any reminder it had.";
+                    }
+                    if (cancelled.Contains(n))
+                        return $"Not done: #{n} was called off in this reply.";
+                    var (item, whyNot) = Changeable(n);
+                    if (item is null)
+                        return $"Not done: {whyNot}.";
+                    var moved = at ?? (item.At, item.AllDay);
+                    store.UpdatePlan(item.Id, renamed ?? item.Text, moved.At, moved.AllDay, keep ? item.Before : before, again ?? item.Repeat);
                     agendaWent = true;
-                    return action == "cancel" ? $"Cancelled #{n}: {name}." : $"Changed #{n}: {Described(n)}.";
+                    return $"Changed #{n}: {Described(n)}.";
                 default:
                     return $"Not done: \"{action}\" isn't add, change or cancel.";
             }
         }
-        string Described(long id) => store.Agenda().FirstOrDefault(p => p.Id == id) is not { } p ? $"#{id}" :
-            $"{p.Text}, {p.Label}" + (p.Before is { } b ? b == TimeSpan.Zero ? ", reminder at the time" : $", reminder {Agenda.Describe(b)}" : "")
-                                   + (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : "");
+        // what an item now is, its reminder always named (for a timed item without one, the player's own lead may give it one)
+        string Described(long id)
+        {
+            if (store.Agenda().FirstOrDefault(p => p.Id == id) is not { } p)
+                return $"#{id}";
+            var lead = ReminderLead();
+            var reminder = p.RemindAt(lead) is not { } goesOff ? "no reminder"
+                : p.AllDay ? $"reminder {goesOff.ToString("ddd d MMM HH:mm", Prompt.English)}"
+                : p.Before is { } b ? $"reminder {Agenda.Describe(b)}"
+                : $"reminder {Agenda.Describe(lead!.Value)}, as the player has for everything on their agenda";
+            return $"{p.Text}, {p.Label}{(p.AllDay ? " (whole day)" : "")}, {reminder}" + (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : "");
+        }
         // what she always has in mind, and what of it went in, kept with her reply beside what recall brought (see MindStore.InMind)
         var listed = new List<Fact>();
         var (aboutPlayer, aboutUs, aboutHer) = (Known(MindStore.Shared, listed), Known(character, listed), Known(MindStore.Herself(character), listed));
@@ -275,8 +312,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
             var built = Prompt.Build(persona, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills,
-                                     agendaFlow: withTools ? AgendaFlow : AgendaFlow.Tags);
+                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills);
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));
@@ -320,15 +356,18 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
-        // flow C: the reply ends after a round of agenda calls that all went through, with her words before them; ending
-        // at an earlier call of the round would leave the rest unmade (FunctionInvokingChatClient stops there)
+        // said as written (spike #105, flow C): what she says as she writes it down is all she says of it, so the reply
+        // ends after a round of agenda calls that all went through with her words before them. A failure, a call with no
+        // words before it, or a round with another tool in it goes back to her. Only the round's last call can end it:
+        // ending at an earlier one would leave the rest unmade (FunctionInvokingChatClient stops there).
         var roundWent = true;
         bool Ends(FunctionInvocationContext call)
         {
             if (call.FunctionCallIndex == 0)
                 roundWent = true;
             roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
-            return AgendaFlow == AgendaFlow.SaidAsWritten && roundWent && call.FunctionCallIndex == call.FunctionCount - 1 && reply.Length > toolsDone;
+            agendaWent = false;                             // read once: a call refused before it ran (made twice, say) never counts
+            return roundWent && call.FunctionCallIndex == call.FunctionCount - 1 && !string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone));
         }
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {
@@ -507,7 +546,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             FunctionInvoker = async (call, cancel) =>
             {
                 var result = await Task.Factory.StartNew(() => Use(tools, call, done, cancel), cancel, TaskCreationOptions.DenyChildAttach, here).Unwrap();
-                call.Terminate |= ends?.Invoke(call) == true;   // spike #105, flow C: no request after it
+                call.Terminate |= ends?.Invoke(call) == true;   // no request after it (said as written)
                 return result;
             },
         };
@@ -550,6 +589,22 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             ? piece : " " + piece;
 
     private (long Line, string Streamed)? _lastReply;      // her latest reply as it streamed in (untrimmed), and its line
+
+    private Func<string, string, long?, string?, string?, int?, string?, string>? _agendum;    // the agenda tool's work, for the reply under way
+    private Tool? _agendaTool;
+
+    /// <summary>Her agenda tool (see <see cref="BuiltIn.Agenda"/>): one for the conversation, doing the work of the reply under way.</summary>
+    private Tool AgendaTool => _agendaTool ??= BuiltIn.Agenda((action, remind, id, when, what, minutes, repeat) =>
+        _agendum?.Invoke(action, remind, id, when, what, minutes, repeat) ?? "Not done: the agenda is only there while you reply.");
+
+    /// <summary>Puts her agenda tool in <paramref name="tools"/> if it isn't there yet; true when it was put in.</summary>
+    private bool Equip(Toolbox? tools)
+    {
+        if (tools is null || tools.All.Contains(AgendaTool))
+            return false;
+        tools.Put(AgendaTool);
+        return true;
+    }
 
     /// <summary>Her reply, kept as her line, with what she had in mind for it (see <see cref="MindStore.InMind"/>).</summary>
     private string Keep(string streamed, IEnumerable<Origin> inMind)
