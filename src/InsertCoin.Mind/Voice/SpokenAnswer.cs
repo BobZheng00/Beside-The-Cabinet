@@ -3,7 +3,8 @@ namespace InsertCoin.Mind;
 /// <summary>
 /// An answer to her card said aloud: while the card asks (may she open this, look at the screen, count that), a short
 /// "yes", "always" or "no" answers it as its buttons would. Anything longer is something else to say to her, so it
-/// stays a message (and, as before, counts as no answer to the card).
+/// stays a message (and, as before, counts as no answer to the card). The same words typed answer her questions by
+/// text (see <see cref="Questions"/>).
 /// </summary>
 public static class SpokenAnswer
 {

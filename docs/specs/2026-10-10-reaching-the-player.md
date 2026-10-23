@@ -239,6 +239,17 @@ Windows notification stays with the reminders.
   confirm, a bedtime) come as buttons; a memo comes as a message and prints too; what needs the PC (`Tool.AtThePc`:
   the screen, window titles, opening a link or an app) is turned down when called (`Toolbox.Away`), the tool list
   staying the same so the provider's cache holds.
+- **Her questions by text** (`Questions`, in the Mind library, with tests; #57, 2026-10-18): the first button is yes,
+  the last no. One waits `Questions.Waits` (120 s, as the card by her stool) and then ends unanswered; a short yes,
+  always or no typed instead answers it as its button would (`SpokenAnswer`, the same words as an answer said aloud,
+  in English, Chinese, Japanese and Korean); anything else sent meanwhile (a photo too) ends it unanswered and is a
+  new message. Only what the player sent after the question reached them bears on it (Telegram's date for each, to the
+  second; the same second doesn't count): an "ok" to her last line, sent before, is an ordinary message and leaves it
+  open; one that never got through (Telegram unreachable) can't be answered by text, and lapses. Unanswered, nothing it asked about is done, and the chat says so ("Left unanswered, so nothing was done.").
+  "Always" on a yes/no card is a yes, by text and said aloud at the PC alike. While her mind waits on one, a text with a plain line (a reminder) still goes, as that line
+  (`Reaching.GoesWhileAsking`); the rest waits for her. The reply's clock now stops while an activity to count or a
+  bedtime waits for an answer too (`Chat.Unhurried`), as it did for her tools: before, her reply gave up after 90 s,
+  so a card left unanswered lost what she said after it.
 - **Her texts while away** (step 2) go to the paired chat as messages from her, without her name in front.
 - **Settings → Your phone:** "Text with her on Telegram": paired, with Pair again and Forget it; or the steps (Open
   BotFather, paste the token and Check it: the bot is found and given her name and a description; then a QR code and

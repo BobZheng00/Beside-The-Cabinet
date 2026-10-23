@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 
 namespace InsertCoin.Mind.Tests;
@@ -171,5 +172,155 @@ public class TelegramTests
         Assert.Contains("needs them at the PC", record);
         Assert.True(BuiltIn.OpenLink(_ => { }).AtThePc);
         Assert.False(BuiltIn.PrintMemo((_, _) => "").AtThePc);
+    }
+
+    private static readonly (string Text, string Data)[] MayI = [("Allow once", "once"), ("Always for leetcode.com", "always"), ("No", "no")],
+                                                         Counts = [("Yes", "yes"), ("Not yet", "no")];
+
+    /// <summary>When Telegram dated her question, by its own clock (a second off the PC's), and a while after.</summary>
+    private static readonly DateTimeOffset Delivered = Noon.AddSeconds(1), Later = Noon.AddSeconds(8);
+
+    /// <summary>Her question by text, sent at noon through a bot to the stand-in Telegram, which dates it <see cref="Delivered"/>.</summary>
+    private static (Questions Questions, Task<string?> Asked, FakeTelegram Server) Asked((string Text, string Data)[] buttons)
+    {
+        var (bot, server) = Bot(("sendMessage", HttpStatusCode.OK, $$$"""{"ok":true,"result":{"message_id":7,"date":{{{Delivered.ToUnixTimeSeconds()}}}}}"""));
+        var questions = new Questions();
+        // sent before Ask returns, so that the test goes on with the question already out
+        return (questions, questions.Ask("May I open leetcode.com?", buttons, (text, b) => Task.FromResult(bot.Send("42", text, b).GetAwaiter().GetResult()),
+                                         Noon, CancellationToken.None), server);
+    }
+
+    /// <summary>What its button sends back when pressed, as the stand-in Telegram was given it.</summary>
+    private static string Button(FakeTelegram server, string data) =>
+        Regex.Match(server.Asked[0].Body, $"\"callback_data\":\"(\\w+:{data})\"").Groups[1].Value;
+
+    [Fact]
+    public async Task A_press_answers_her_question_by_text_with_its_button()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        questions.Pressed(Button(server, "always"));
+
+        Assert.Equal("always", await asked);
+        Assert.False(questions.Asking);
+        Assert.Single(server.Asked);
+    }
+
+    [Fact]
+    public async Task A_question_by_text_ends_unanswered_after_its_time_and_the_chat_says_so()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        questions.Lapse(Noon + Questions.Waits - TimeSpan.FromSeconds(1));
+        Assert.True(questions.Asking);
+        questions.Lapse(Noon + Questions.Waits);
+
+        Assert.Null(await asked);
+        Assert.False(questions.Asking);
+        Assert.Equal(TimeSpan.FromSeconds(120), Questions.Waits);         // as long as her card by the stool waits
+        Assert.Contains("inline_keyboard", server.Asked[0].Body);
+        Assert.Contains(Questions.Unanswered, server.Asked[1].Body);
+        Assert.DoesNotContain("inline_keyboard", server.Asked[1].Body);
+        questions.Pressed(Button(server, "once"));                      // too late: nothing more
+        Assert.Equal(2, server.Asked.Count);
+    }
+
+    [Theory]
+    [InlineData("Yes!", "once")]
+    [InlineData("ok, go ahead", "once")]
+    [InlineData("always", "always")]
+    [InlineData("No thanks.", "no")]
+    [InlineData("好的", "once")]
+    [InlineData("不要", "no")]
+    [InlineData("はい", "once")]
+    [InlineData("いいえ", "no")]
+    public async Task A_short_yes_always_or_no_typed_answers_her_question_as_its_button_would(string typed, string data)
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        Assert.True(questions.Typed(typed, Later));
+
+        Assert.Equal(data, await asked);
+        Assert.Single(server.Asked);                                    // answered: the chat says nothing more
+    }
+
+    [Theory]
+    [InlineData("yes", "yes")]
+    [InlineData("yes, always", "yes")]
+    [InlineData("nope", "no")]
+    public async Task A_question_with_only_yes_and_no_takes_always_as_yes(string typed, string data)
+    {
+        var (questions, asked, _) = Asked(Counts);
+
+        Assert.True(questions.Typed(typed, Later));
+        Assert.Equal(data, await asked);
+    }
+
+    [Fact]
+    public async Task Anything_else_sent_meanwhile_leaves_her_question_unanswered_and_is_a_new_message()
+    {
+        var (questions, asked, server) = Asked(MayI);
+        var (photo, sent, _) = Asked(Counts);
+
+        Assert.False(questions.Typed("what's that site for?", Later));
+        Assert.False(photo.Typed(null, Later));                         // a photo or a file, typed nothing
+
+        Assert.Null(await asked);
+        Assert.Null(await sent);
+        Assert.Contains(Questions.Unanswered, server.Asked[1].Body);
+        Assert.False(new Questions().Typed("yes", Later));              // with no question waiting, a yes is only a message
+    }
+
+    [Fact]
+    public async Task A_question_that_never_got_through_is_answered_by_nothing_typed_and_lapses()
+    {
+        var (bot, server) = Bot(("sendMessage", HttpStatusCode.BadGateway, "<html>bad gateway</html>"));
+        var questions = new Questions();
+        DateTimeOffset? Send(string text, IReadOnlyList<(string Text, string Data)>? buttons)
+        {
+            try
+            {
+                return bot.Send("42", text, buttons).GetAwaiter().GetResult();
+            }
+            catch (TelegramException)
+            {
+                return null;                                            // as the cabinet's texting has it: not sent
+            }
+        }
+        var asked = questions.Ask("May I open leetcode.com?", MayI, (text, b) => Task.FromResult(Send(text, b)), Noon, CancellationToken.None);
+
+        Assert.False(questions.Typed("ok", Later));                      // meant for something else: they never got the question
+        Assert.True(questions.Asking);
+        questions.Lapse(Noon + Questions.Waits);
+
+        Assert.Null(await asked);
+        Assert.Contains("inline_keyboard", server.Asked[0].Body);
+    }
+
+    [Fact]
+    public async Task What_the_player_sent_before_her_question_reached_them_never_answers_it()
+    {
+        var (questions, asked, server) = Asked(MayI);
+
+        Assert.False(questions.Typed("ok", Noon.AddSeconds(-3)));        // "ok" to her last line, sent before the question
+        Assert.False(questions.Typed("yes", Delivered));                 // the same second: can't be told apart, so not an answer
+        Assert.False(questions.Typed("what's that site for?", Delivered));
+        Assert.True(questions.Asking);                                   // still open: those are ordinary messages
+        Assert.True(questions.Typed("no", Later));
+
+        Assert.Equal("no", await asked);
+        Assert.Single(server.Asked);
+    }
+
+    [Fact]
+    public void A_reminder_due_while_her_question_waits_still_goes_by_text_as_its_plain_line()
+    {
+        var reminder = new Telling("REMINDER", "note", "Reminder: call Mum.", Matters.Must, true, Noon, TimeSpan.FromMinutes(10));
+        var howDidItGo = new Telling("HOW DID IT GO", "Ask how the dentist went.", "", Matters.Should, true, Noon, TimeSpan.FromHours(3));
+
+        Assert.True(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Away)));
+        Assert.True(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Asleep)));
+        Assert.False(Reaching.GoesWhileAsking(howDidItGo, Reaching.Route(Matters.Should, true, Whereabouts.Away)));   // only her mind says it: it waits for her
+        Assert.False(Reaching.GoesWhileAsking(reminder, Reaching.Route(Matters.Must, true, Whereabouts.Here)));       // at the PC: it waits for her
     }
 }

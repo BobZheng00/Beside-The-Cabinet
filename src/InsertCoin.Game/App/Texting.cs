@@ -29,7 +29,7 @@ public partial class Texting : Node
     private string? _token, _chat;
     private (string Code, DateTimeOffset Issued)? _pairing;
     private CancellationTokenSource? _stop;
-    private readonly Dictionary<string, TaskCompletionSource<string?>> _asking = [];
+    private readonly Questions _questions = new();
 
     /// <summary>A chat to text with: a bot set up and paired.</summary>
     public bool Linked => _bot is not null && _chat is not null;
@@ -56,18 +56,19 @@ public partial class Texting : Node
         return code;
     }
 
-    /// <summary>A message to the player; if Telegram can't be reached, the log says so.</summary>
-    public async Task Send(string text, IReadOnlyList<(string Text, string Data)>? buttons = null)
+    /// <summary>A message to the player, and when Telegram dated it; if Telegram can't be reached, the log says so (and null).</summary>
+    public async Task<DateTimeOffset?> Send(string text, IReadOnlyList<(string Text, string Data)>? buttons = null)
     {
         if (_bot is not { } bot || _chat is not { } chat || text.Length == 0)
-            return;
+            return null;
         try
         {
-            await bot.Send(chat, text, buttons);
+            return await bot.Send(chat, text, buttons);
         }
         catch (Exception e) when (e is TelegramException or HttpRequestException or TaskCanceledException)
         {
             GD.PrintErr($"Texting: could not send: {e.Message}");
+            return null;
         }
     }
 
@@ -78,24 +79,17 @@ public partial class Texting : Node
             _ = bot.Typing(chat).ContinueWith(t => t.Exception, TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    /// <summary>A question with buttons under it: the data of the one pressed, or null when none was, before <paramref name="cancel"/>.</summary>
-    public async Task<string?> Ask(string text, IReadOnlyList<(string Text, string Data)> buttons, CancellationToken cancel)
-    {
-        if (!Linked)
-            return null;
-        var asked = Guid.NewGuid().ToString("N")[..8];
-        var answer = _asking[asked] = new TaskCompletionSource<string?>();
-        await using var _ = cancel.Register(() => answer.TrySetResult(null));
-        await Send(text, [.. buttons.Select(b => (b.Text, $"{asked}:{b.Data}"))]);
-        try
-        {
-            return await answer.Task;
-        }
-        finally
-        {
-            _asking.Remove(asked);
-        }
-    }
+    /// <summary>
+    /// A question with buttons under it, the first for yes and the last for no (see <see cref="Questions"/>): the data
+    /// of the one its answer chose, or null when it went unanswered.
+    /// </summary>
+    public async Task<string?> Ask(string text, IReadOnlyList<(string Text, string Data)> buttons, CancellationToken cancel) =>
+        Linked ? await _questions.Ask(text, buttons, Send, DateTimeOffset.Now, cancel) : null;
+
+    /// <summary>A question of hers waits for the player's answer by text.</summary>
+    public bool Asking => _questions.Asking;
+
+    public override void _Process(double delta) => _questions.Lapse(DateTimeOffset.Now);
 
     private async Task Listen(Telegram bot, CancellationToken stop)
     {
@@ -173,12 +167,16 @@ public partial class Texting : Node
                 {
                     GD.PrintErr($"Texting: could not answer a press: {e.Message}");
                 }
-                if (update.Pressed?.Split(':', 2) is [var asked, var data] && _asking.TryGetValue(asked, out var answer))
-                    answer.TrySetResult(data);
+                _questions.Pressed(update.Pressed);
                 continue;
             }
             if (update.Text?.StartsWith("/start", StringComparison.Ordinal) == true)
                 continue;                                   // Start pressed again
+            if (_questions.Typed(update.File is null ? update.Text : null, update.At))
+            {
+                GD.Print("Texting: the player typed their answer to her question");
+                continue;                                   // anything else leaves her question unanswered, and is a new message
+            }
             if (update.File is { } file)
                 try
                 {
