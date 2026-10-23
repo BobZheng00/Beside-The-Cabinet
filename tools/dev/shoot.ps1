@@ -10,7 +10,8 @@
 # -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
 # -Shots    seconds after launch at which to capture. A shot whose window isn't there yet, or not drawn yet (one flat
 #           colour), waits for it, up to -Wait seconds, and says how long it waited (not when the app has quit); a shot
-#           taken late, after an earlier one waited, says when it was taken
+#           taken late, after an earlier one waited, says when it was taken. The app is stopped after the last one, so
+#           an action timed later never runs (the run warns of it)
 # -Wait     the longest a shot waits for its window, and the -Window one, to show and be drawn (default 10)
 # -Bg       colour of the backdrop put behind the transparent window, or "none" for the bare desktop
 # -Settings extra JSON members for settings.json, starting with a comma (', "SetUp": false' for a first run)
@@ -42,6 +43,17 @@ if ($Godot -eq "" -and -not $Exe) {
   $Godot = $editor -replace '\.exe$', '_console.exe'
 }
 New-Item -ItemType Directory $Out -Force | Out-Null
+# The app is stopped once the last shot is taken, so an action timed after it never runs (#82: it looked like a stall)
+$lastShot = ($Shots | Measure-Object -Maximum).Maximum
+$times = @($Script -split ',' | Where-Object { $_ -match '@([\d.]+)$' } | ForEach-Object { [double]$Matches[1] })
+$lastAction = ($times + 0 | Measure-Object -Maximum).Maximum
+# Through powershell -File, -Shots 6,9,11 arrives as one number, 6911: a run would hold the test lock for nothing. Refuse a
+# lone shot more than a minute after the last action (the smoke scenarios leave at most 12 s); several shots can't be that
+if ($Shots.Count -eq 1 -and $lastShot -gt $lastAction + 2 + 60) {
+  throw "A shot at ${lastShot}s is over a minute after the script's last action: through powershell -File, -Shots 6,9,11 arrives as one number (6911). Call shoot.ps1 directly in PowerShell, or for a long wait add a later action that only logs, such as trayitems@$([int]$lastShot - 3)"
+}
+$late = @($Script -split ',' | Where-Object { $_ -match '@([\d.]+)$' -and [double]$Matches[1] + 2 -ge $lastShot })
+if ($late) { "warning: $($late -join ', ') would run after the last shot at ${lastShot}s (script times count from about 2 s after launch), when the app is stopped: add a later shot" }
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
 if (Test-Path (Join-Path $profile "companion")) { Remove-Item (Join-Path $profile "companion") -Recurse -Force }   # her memory starts fresh too
