@@ -59,8 +59,11 @@ if ($Model -ne "") {
 }
 if ($Hidden) { $X = -4000; $Y = 100; $Bg = "none" }
 $onTop = if ($Hidden) { "false" } else { "true" }
-"{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": $onTop, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }" |
-  Out-File -Encoding ascii (Join-Path $profile "settings.json")
+$seed = "{ `"SetUp`": true, `"Initials`": `"BOB`", `"Muted`": true, `"AlwaysOnTop`": $onTop, `"Size`": `"$Size`", `"WindowX`": $X, `"WindowY`": $Y $Settings }"
+# Settings the app can't read would start it on its defaults, not on what the run asked for: stop instead
+. (Join-Path $PSScriptRoot "seed.ps1")
+Assert-Seed $seed $Settings "shoot.ps1"
+$seed | Out-File -Encoding ascii (Join-Path $profile "settings.json")
 
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot "flat.ps1")
@@ -96,7 +99,7 @@ if ($Bg -ne "none") {
   $form.Show(); [System.Windows.Forms.Application]::DoEvents()
 }
 
-$userArgs = "--data=`"$profile`" --no-steam"
+$userArgs = "--data=`"$profile`" --no-steam --test-run"                # hidden or not: settings it can't read leave it muted
 $shotDir = Join-Path $profile "shots"                                  # hidden, the app pictures its windows here when asked
 if ($Hidden) {
   if (Test-Path $shotDir) { Remove-Item $shotDir -Recurse -Force }

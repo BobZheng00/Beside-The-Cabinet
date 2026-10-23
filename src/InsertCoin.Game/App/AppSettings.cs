@@ -128,9 +128,24 @@ public sealed record CheckInChoices(string CheckIns, int QuietFrom, int QuietUnt
 }
 
 /// <summary>The settings as saved in settings.json, shared by the parts of the app that change them: each change is saved at once.</summary>
-public sealed class SettingsFile(JsonFileStore<AppSettings> store)
+public sealed class SettingsFile
 {
-    public AppSettings Now { get; private set; } = store.Load() ?? new AppSettings();
+    private readonly JsonFileStore<AppSettings> store;
+
+    /// <summary>A test run's defaults keep it muted: a test never makes a sound, even on settings it couldn't read.</summary>
+    public SettingsFile(JsonFileStore<AppSettings> store, bool testRun = false)
+    {
+        this.store = store;
+        var there = File.Exists(store.Path);
+        var loaded = store.Load();
+        Unreadable = there && loaded is null;
+        Now = loaded ?? new AppSettings { Muted = testRun };
+    }
+
+    public AppSettings Now { get; private set; }
+
+    /// <summary>settings.json was there but couldn't be read (nor its backup): it was set aside and the defaults used.</summary>
+    public bool Unreadable { get; }
 
     /// <summary>A change was saved, by any part of the app: for what shows a setting in two places (the tray's Voice, and Settings).</summary>
     public event Action? Changed;
