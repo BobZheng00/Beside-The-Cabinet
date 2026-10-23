@@ -71,8 +71,8 @@ if (options.TryGetValue("cases", out var only))
     cases = [.. cases.Where(c => only.Split(',').Contains(c.Id))];
 
 var done = File.Exists(results) && !options.ContainsKey("again")
-    ? File.ReadLines(results).Select(l => JsonDocument.Parse(l).RootElement).Where(r => !r.TryGetProperty("error", out var e) || e.ValueKind == JsonValueKind.Null)
-          .Select(r => $"{r.GetProperty("card").GetString()}/{r.GetProperty("flow").GetString()}/{r.GetProperty("case").GetString()}").ToHashSet()
+    ? File.ReadLines(results).Select(l => JsonSerializer.Deserialize<Result>(l)!).Where(r => r.Error is null)
+          .Select(r => $"{r.Card}/{r.Flow}/{r.Case}").ToHashSet()
     : [];
 foreach (var card in cards)
     foreach (var flow in flows)
