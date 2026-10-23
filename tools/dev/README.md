@@ -28,8 +28,12 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 bubble clicked), `nocall` (another app's microphone doesn't count as a call), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `hum` (a tune in their
 head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
-(as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `tray:x:y` (open the tray
-menu at that screen point), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
+(as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
+were right-clicked at the window's middle: the menu with the tray's entries; a test run never shows it, as it would take focus,
+and logs `Menu: at x,y:` and its entries instead, a switch with `[x]` when on and `[ ]` when off), `menuopen` (as `menu`,
+and shows it too, for `windoworder` to list it as "a popup"; a hidden run takes no screenshots until it closes, #88), `menupress:Voice`
+(presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
+`menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
@@ -37,7 +41,7 @@ from 0, or types in its field), `settingsscroll:600` (scrolls the page showing),
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
-showing in one, a skill's), `trayitems` (logs the tray menu's entries), `windoworder` (logs the app's windows top first, as they are stacked on
+showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
 screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"),

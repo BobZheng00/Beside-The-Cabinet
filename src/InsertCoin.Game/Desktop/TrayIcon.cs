@@ -22,28 +22,18 @@ public partial class TrayIcon : Node
     };
 
     private StatusIndicator _indicator = null!;
-    private PopupMenu _menu = null!;
+    private PopupMenu _menu = null!, _onCabinet = null!;
     private readonly Dictionary<TrayMood, Texture2D> _icons = [];
     private TrayMood? _mood;
 
+    /// <summary>The tray's menu (Windows' own, shown by the icon) and the one a right click on her or the cabinet opens.</summary>
+    private PopupMenu[] Menus => [_menu, _onCabinet];
+
     public void Build(bool muted, bool voice)
     {
-        _menu = new PopupMenu();
-        _menu.IdPressed += OnMenu;
-        AddChild(_menu);
-        _menu.AddItem("Show cabinet", ShowId);
-        _menu.AddItem("Settings…", SettingsId);
-        _menu.AddSeparator();
-        _menu.AddItem("Memory book…", MemoryId);
-        _menu.AddItem("Chat history…", HistoryId);
-        _menu.AddItem("Write a memo…", MemoId);
-        _menu.AddItem("Check LeetCode now", CheckId);
-        _menu.AddSeparator();
-        _menu.AddCheckItem("Mute sounds", MuteId);
-        _menu.AddCheckItem("Voice", VoiceId);
-        _menu.AddCheckItem("Conversation (keeps listening)", ConversationId);
-        _menu.AddSeparator();
-        _menu.AddItem("Quit", QuitId);
+        _menu = Menu();
+        // drawn by the app, not Windows' own menu: that one holds the app still while open, her voice and motion too
+        _onCabinet = Menu();
         Sync(muted, voice);
 
         foreach (var (mood, tint) in Tint)
@@ -57,34 +47,67 @@ public partial class TrayIcon : Node
         Set(TrayMood.Fine, "Beside the Cabinet");
     }
 
-    /// <summary>Dev: opens the menu at this screen point, as a right click on the icon would.</summary>
-    public void DevShowMenu(Vector2I at) => _menu.Popup(new Rect2I(at, Vector2I.Zero));
+    /// <summary>
+    /// Opens the right-click menu (the tray's entries, kept the same way) at a screen point: a right click on her or the
+    /// cabinet. A test run logs it, and shows it only when <paramref name="evenInTest"/>: while it shows, a hidden run
+    /// takes no screenshots (#88).
+    /// </summary>
+    public void ShowMenu(Vector2I at, bool evenInTest = false)
+    {
+        if (Companion.Paper.OffScreen)
+        {
+            GD.Print($"Menu: at {at.X},{at.Y}: {Items(_onCabinet)}");
+            if (!evenInTest)
+                return;
+        }
+        // sized for that screen's DPI, as the app's other windows are, so it reads as large as the tray's
+        _onCabinet.ContentScaleFactor = DisplayServer.ScreenGetDpi(DisplayServer.GetScreenFromRect(new Rect2(at, Vector2.One))) / 96f;
+        _onCabinet.Popup(new Rect2I(at, Vector2I.Zero));
+    }
 
-    /// <summary>Dev: the menu's entries as they are now, for the log.</summary>
-    public string DevItems() => string.Join(" | ", Enumerable.Range(0, _menu.ItemCount).Select(i => _menu.GetItemText(i)).Where(t => t.Length > 0));
+    /// <summary>Dev: the tray menu's entries as they are now, for the log; a switch says whether it is on ([x]) or off ([ ]).</summary>
+    public string DevItems() => Items(_menu);
+
+    private static string Items(PopupMenu menu) => string.Join(" | ", Enumerable.Range(0, menu.ItemCount)
+        .Where(i => !menu.IsItemSeparator(i))
+        .Select(i => menu.GetItemText(i) + (menu.IsItemCheckable(i) ? menu.IsItemChecked(i) ? " [x]" : " [ ]" : "")));
+
+    /// <summary>Dev: presses the entry of the right-click menu whose text starts with this, as a click on it would, and closes it; false when there is none.</summary>
+    public bool DevPress(string text)
+    {
+        var at = Enumerable.Range(0, _onCabinet.ItemCount).FirstOrDefault(i => !_onCabinet.IsItemSeparator(i) && _onCabinet.GetItemText(i).StartsWith(text, StringComparison.OrdinalIgnoreCase), -1);
+        if (at < 0)
+            return false;
+        _onCabinet.Hide();
+        OnMenu(_onCabinet.GetItemId(at));
+        return true;
+    }
 
     /// <summary>Shows the switches as they are now (changed in Settings, say).</summary>
     public void Sync(bool muted, bool voice)
     {
-        _menu.SetItemChecked(_menu.GetItemIndex(MuteId), muted);
-        _menu.SetItemChecked(_menu.GetItemIndex(VoiceId), voice);
+        Check(MuteId, muted);
+        Check(VoiceId, voice);
     }
 
     /// <summary>Shows "Getting started…" under Settings… while anything is left of it, and takes it away once nothing is.</summary>
     public void ShowStart(bool left)
     {
-        var at = _menu.GetItemIndex(StartId);
-        if (left && at < 0)
+        foreach (var menu in Menus)
         {
-            _menu.AddItem("Getting started…", StartId);
-            _menu.SetItemIndex(_menu.GetItemIndex(StartId), _menu.GetItemIndex(SettingsId) + 1);
+            var at = menu.GetItemIndex(StartId);
+            if (left && at < 0)
+            {
+                menu.AddItem("Getting started…", StartId);
+                menu.SetItemIndex(menu.GetItemIndex(StartId), menu.GetItemIndex(SettingsId) + 1);
+            }
+            else if (!left && at >= 0)
+                menu.RemoveItem(at);
         }
-        else if (!left && at >= 0)
-            _menu.RemoveItem(at);
     }
 
     /// <summary>Shows whether a conversation is on (it ends by itself after a quiet while, or by the talk key).</summary>
-    public void SetConversation(bool on) => _menu.SetItemChecked(_menu.GetItemIndex(ConversationId), on);
+    public void SetConversation(bool on) => Check(ConversationId, on);
 
     public void Set(TrayMood mood, string tooltip)
     {
@@ -115,11 +138,38 @@ public partial class TrayIcon : Node
         }
     }
 
+    /// <summary>The menu's entries, the one place both menus are made from.</summary>
+    private PopupMenu Menu()
+    {
+        var menu = new PopupMenu();
+        menu.IdPressed += OnMenu;
+        AddChild(menu);
+        menu.AddItem("Show cabinet", ShowId);
+        menu.AddItem("Settings…", SettingsId);
+        menu.AddSeparator();
+        menu.AddItem("Memory book…", MemoryId);
+        menu.AddItem("Chat history…", HistoryId);
+        menu.AddItem("Write a memo…", MemoId);
+        menu.AddItem("Check LeetCode now", CheckId);
+        menu.AddSeparator();
+        menu.AddCheckItem("Mute sounds", MuteId);
+        menu.AddCheckItem("Voice", VoiceId);
+        menu.AddCheckItem("Conversation (keeps listening)", ConversationId);
+        menu.AddSeparator();
+        menu.AddItem("Quit", QuitId);
+        return menu;
+    }
+
+    private void Check(int id, bool on)
+    {
+        foreach (var menu in Menus)
+            menu.SetItemChecked(menu.GetItemIndex(id), on);
+    }
+
     private bool Toggle(int id)
     {
-        var index = _menu.GetItemIndex(id);
-        var now = !_menu.IsItemChecked(index);
-        _menu.SetItemChecked(index, now);
+        var now = !_menu.IsItemChecked(_menu.GetItemIndex(id));
+        Check(id, now);
         return now;
     }
 

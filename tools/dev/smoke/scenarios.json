@@ -51,6 +51,24 @@
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
+      "name": "menu",
+      "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice turned off there shows in the tray's menu (its only line with Voice off); ticking it again on Settings → Voice shows in the right-click menu (its only line with Voice on, the last); its Settings… opens Settings.",
+      "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],
+      "script": "trayitems@2,menupress:Voice@4,trayitems@5,menu@6,menupress:Settings@7,settings:voice@8,settingsdo:Shino_speaks_aloud@11,menu@12",
+      "shots": [12, 18],
+      "window": "Settings",
+      "expect": [
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Menu: pressed Voice$",
+        "^Tray: .*\\| Voice \\[ \\] \\|",
+        "^Menu: at .*\\| Voice \\[ \\] \\|",
+        "^Menu: pressed Settings$",
+        "^Settings: \"Shino speaks aloud\" ticked$",
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
+      ],
+      "forbid": ["^Menu: no entry"]
+    },
+    {
       "name": "chat",
       "about": "Saying something to the companion reaches their mind (the mock), and their reply shows in their bubble.",
       "covers": ["src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/App/Lines.cs", "src/InsertCoin.Game/Companion/SpeechBubble.cs", "src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Mind/*"],
@@ -216,6 +234,17 @@
       "shots": [14],
       "expect": ["^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: (Beside the Cabinet ticket \\(on top\\), )?file dialog \"Add a character\", Settings, the cabinet$"],
       "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|file dialog)", "^Windows, top first: .*Settings.*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
+    },
+    {
+      "name": "menu-above",
+      "about": "The right-click menu, shown, opens above the cabinet with Always on top on (as the profile starts), then above Settings and the cabinet; with Always on top unticked in Settings, above them still, and no longer on top of other apps once it has closed.",
+      "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/Desktop/TrayIcon.cs"],
+      "settings": ", \"AlwaysOnTop\": true",
+      "script": "menuopen@2,windoworder@3,menupress:Settings@4,settings:cabinet@5,windoworder@6,menuopen@7,windoworder@8,menupress:Settings@9,settingsdo:Always_on_top@10,menuopen@11,windoworder@12,menupress:Settings@13,windoworder@14",
+      "shots": [17],
+      "window": "Settings",
+      "expect": ["^Windows, top first: a popup \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: a popup \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: a popup( \\(on top\\))?, Settings, the cabinet$", "^Windows, top first: Settings, the cabinet$"],
+      "forbid": ["^Windows, top first: .+, a popup"]
     }
   ]
 }

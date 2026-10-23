@@ -18,6 +18,8 @@ public partial class DesktopWindow : Node
     public event Action? DragStarted;
     /// <summary>The left button came up again, after <see cref="Clicked"/> if it was a click.</summary>
     public event Action? Released;
+    /// <summary>A right click on the window (on the cabinet or her: everywhere else clicks pass through), not on a control that keeps the mouse.</summary>
+    public event Action? RightClicked;
     /// <summary>Canvas point under the cursor, or null when outside the art.</summary>
     public event Action<Vector2?>? Hover;
     /// <summary>Anything solid besides the art's opaque pixels (things drawn live), tested with a canvas point.</summary>
@@ -110,6 +112,10 @@ public partial class DesktopWindow : Node
                 if (pressed)
                     Released?.Invoke();
                 break;
+            // on the button coming up, as Windows' own context menus open
+            case InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: false } when !_pressed && KeepsMouse?.Invoke(CursorCanvas()) != true:
+                RightClicked?.Invoke();
+                break;
             case InputEventMouseMotion when _pressed:
                 var mouse = DisplayServer.MouseGetPosition();
                 if (!_dragging && (mouse - _pressAt).LengthSquared() > 16)
@@ -146,18 +152,22 @@ public partial class DesktopWindow : Node
     /// when the cabinet is: Godot's windows aren't owned by the cabinet's in Windows' terms, so the cabinet rising, or
     /// kept on top, would otherwise cover them. Tickets stay above them all. A window is only ever moved to just above
     /// the next one down, so nothing else already above the cabinet (the player's game) is covered, and none is
-    /// activated. Popups (a list's choices, a hover tip) keep Godot's own order.
+    /// activated. A popup showing (the right-click menu, a list's choices, a hover tip) is above them all, on
+    /// top when they are: otherwise it would open under the cabinet kept on top.
     /// </summary>
     private void KeepWindowsAbove()
     {
-        HashSet<nint> kept = [], tickets = [];
+        HashSet<nint> kept = [], tickets = [], popups = [];
         foreach (var id in DisplayServer.GetWindowList())
-            if (id != DisplayServer.MainWindowId && !DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.Popup, id))
-                (DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.AlwaysOnTop, id) ? tickets : kept)
+            if (id != DisplayServer.MainWindowId)
+                (DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.Popup, id) ? popups
+                    : DisplayServer.WindowGetFlag(DisplayServer.WindowFlags.AlwaysOnTop, id) ? tickets : kept)
                     .Add((nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, id));
-        List<nint> onTop = [], dialogs = [], windows = [];
+        List<nint> menus = [], onTop = [], dialogs = [], windows = [];
         for (var w = Win32.GetTopWindow(0); w != 0; w = Win32.GetWindow(w, Win32.GwHwndNext))
-            if (kept.Contains(w) && Win32.IsWindowVisible(w))
+            if (popups.Contains(w) && Win32.IsWindowVisible(w))
+                menus.Add(w);
+            else if (kept.Contains(w) && Win32.IsWindowVisible(w))
                 windows.Add(w);
             else if (tickets.Contains(w) && Win32.IsWindowVisible(w))
                 onTop.Add(w);
@@ -166,10 +176,10 @@ public partial class DesktopWindow : Node
         var top = Topmost(_hwnd);
         // top first, each kind in the order it is in now, except that one Godot has just shown (not yet on top with the
         // cabinet) is in front of the others
-        List<nint> wanted = [.. onTop, .. dialogs, .. windows.OrderBy(w => top && !Topmost(w) ? 0 : 1), _hwnd];
+        List<nint> wanted = [.. menus, .. onTop, .. dialogs, .. windows.OrderBy(w => top && !Topmost(w) ? 0 : 1), _hwnd];
         for (var i = wanted.Count - 2; i >= 0; i--)
         {
-            var kind = top || tickets.Contains(wanted[i]);                  // a ticket is always kept on top
+            var kind = top || tickets.Contains(wanted[i]) || popups.Contains(wanted[i]);     // a ticket and a popup are always kept on top
             if (Topmost(wanted[i]) != kind || !Above(wanted[i], wanted[i + 1]))
                 PlaceAbove(wanted[i], wanted[i + 1], kind);
         }
@@ -218,7 +228,7 @@ public partial class DesktopWindow : Node
             if (own.Contains(w) && Win32.IsWindowVisible(w) || FileDialog(w))
             {
                 Win32.GetWindowText(w, title, title.Capacity);
-                names.Add((w == _hwnd ? "the cabinet" : own.Contains(w) ? title.ToString() : $"file dialog \"{title}\"") + (Topmost(w) ? " (on top)" : ""));
+                names.Add((w == _hwnd ? "the cabinet" : own.Contains(w) ? (title.Length > 0 ? title.ToString() : "a popup") : $"file dialog \"{title}\"") + (Topmost(w) ? " (on top)" : ""));
             }
         return string.Join(", ", names);
     }
