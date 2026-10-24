@@ -2323,7 +2323,7 @@ public partial class Stool : Node2D
                     _memoryBook?.ShowTab(rest);
                 break;
             case "chathistory": OpenChatHistory(); break;
-            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Close
+            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Lines, Close
             case "lineswap":                                // lineswap:words: the newest line taken back and the player's words kept under its number, at once
             case "lineclear":                               // lineclear:words: the chat cleared and the player's words kept, at once
                 if (OnStool() is not { } seated)

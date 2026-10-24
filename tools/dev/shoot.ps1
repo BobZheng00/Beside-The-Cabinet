@@ -8,7 +8,8 @@
 #   tools\dev\shoot.ps1 -Model C:\some\character.glb -Settings ', "Companion": "character"'
 #
 # -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
-# -Shots    seconds after launch at which to capture. A shot whose window isn't there yet, or not drawn yet (one flat
+# -Shots    seconds after launch at which to capture, as on a quiet PC: when the script's clock starts later than 2 s in
+#           (a busy PC), every shot moves on with it, staying as far after the actions as it was meant to. A shot whose window isn't there yet, or not drawn yet (one flat
 #           colour), waits for it, up to -Wait seconds, and says how long it waited (not when the app has quit); a shot
 #           taken late, after an earlier one waited, says when it was taken. The app is stopped after the last one, so
 #           an action timed later never runs (the run warns of it)
@@ -220,6 +221,19 @@ function Drop($shot) {
 }
 
 $t0 = Get-Date; $i = 0
+# Shots are timed from launch as on a quiet PC, where the script's clock starts about $lead s in. A busy PC that takes
+# longer to get there moves them on with it (the app marks when its clock starts), so each lands as far after the
+# actions as it was meant to and the app isn't stopped before the last of them (#108, #116).
+$lead = 2
+$started = Join-Path $profile "script-started"
+if ($Script -ne "") {
+  while (-not (Test-Path $started) -and -not $p.HasExited -and ((Get-Date) - $t0).TotalSeconds -lt 60) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
+  if (Test-Path $started) {
+    $behind = ((Get-Item $started).LastWriteTime.AddSeconds(-$lead) - $t0).TotalSeconds
+    if ($behind -gt 0) { $t0 = $t0.AddSeconds($behind) }
+    if ($behind -ge 0.5) { "the script's clock started $("{0:0.0}" -f ($behind + $lead))s after launch: shots moved $("{0:0.0}" -f $behind)s on with it" }
+  }
+}
 foreach ($s in $Shots) {
   while (((Get-Date) - $t0).TotalSeconds -lt $s) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
   # A busy PC runs a few seconds behind: what isn't there or drawn yet is waited for, up to -Wait seconds, then taken as

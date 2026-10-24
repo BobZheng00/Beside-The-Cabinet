@@ -55,7 +55,7 @@ item with those words is cancelled under the open book, as upkeep might), `ticke
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
-`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
+`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Lines` logs the lines it shows, in order, and whether the player is at the end (`Chat history shows, at the end: …`, each line's words between ` | `); `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
@@ -215,3 +215,10 @@ What a commit must pass before its pull request is marked ready, run the same wa
   window to capture, the desk, the mock mind, and log patterns it expects, forbids or ignores (the file's own
   `about` says how each works). Calibrate `expect` and `ignore` from real runs; never loosen `forbid` to make a run
   pass.
+- Timing on a busy PC (#108, #116): script times count from the end of the app's start (`Main._Ready`, about 2 s after
+  launch on a quiet PC), shot times from launch. A busy PC took longer to get there, so a last shot timed a beat after
+  the last action came before it, and the app was stopped before that action ran or showed. The app now marks when the
+  script's clock starts (`script-started` in the profile), and `shoot.ps1` moves every shot on by however much later
+  than 2 s that was. An `expect` on what a window shows checks it once things settle (`chathistorydo:Lines`, what
+  Chat history shows, in order), not how many of its one-second refreshes it took: the player's line and the reply
+  come in a few hundred milliseconds apart, so a refresh may fall between them.

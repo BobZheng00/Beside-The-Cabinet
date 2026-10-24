@@ -555,7 +555,8 @@ public partial class ChatHistory : Window
     /// Dev: "Reply" clicks her newest reply shown that kept something ("Reply:words", the newest with those words in
     /// it; "Reply:2", the second newest), opening or closing what she had in mind; "Forget:words" and "Edit:words:new words" act on the memory
     /// showing whose words have those in them, as the buttons would; "Top" scrolls to the top, as the player might;
-    /// "Below" presses "New lines below"; "Instructions" flips "Show what the app tells …"; "Close" closes the window.
+    /// "Below" presses "New lines below"; "Instructions" flips "Show what the app tells …"; "Lines" logs the lines shown, in order, and whether the player is at
+    /// the end; "Close" closes the window.
     /// </summary>
     public void DevPress(string what)
     {
@@ -568,6 +569,14 @@ public partial class ChatHistory : Window
         if (parts[0] == "Instructions")
         {
             _showInstructions.ButtonPressed = !_showInstructions.ButtonPressed;
+            return;
+        }
+        if (parts[0] == "Lines")
+        {
+            // what the player sees now, in order, however many refreshes it took to come in
+            var said = _shown.Values.ToDictionary(s => (Node)s.Row, s => s.Words.Text);
+            var rows = _lines.GetChildren().Where(said.ContainsKey).Select(row => said[row]);
+            GD.Print($"Chat history shows, {(AtEnd() ? "at the end" : "scrolled up")}: {string.Join(" | ", rows)}");
             return;
         }
         if (parts[0] == "Top")
