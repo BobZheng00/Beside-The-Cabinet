@@ -22,9 +22,13 @@ from a study (not ours); **untested** = not tried here. No billed run was made f
   (under 1,000 characters for the setting, under 3,000 tokens for everything). The jailbreak (破限) usually lives in a
   separate preset, not in the card.
 - **Recommendation:** grow each default to about 1,200 to 2,000 tokens in labelled prose sections, about half of it
-  example exchanges set in this app's own moments, a few of them in Chinese. Keep them as `persona.md` (the prompt text
-  comes out the same as from a card); a `card.json` only if a lorebook or a note of her own after each turn proves
-  needed. Measure the new card against the old with the manner check before shipping it. Shino's outline is at the end.
+  example exchanges set in this app's own moments. Keep them as `persona.md` (the prompt text comes out the same as from
+  a card); a `card.json` only if a lorebook or a note of her own after each turn proves needed. Measure the new card
+  against the old with the manner check before shipping it. Shino's outline is at the end.
+- **The user's choices, 2026-10-24** (after reading this note's summary): new default cards, Shino first, written with
+  them; **a separate Chinese card for each character**, not the Chinese examples in the one card this note recommended
+  (what that leaves open is under "To decide together"); and for #132, the card's post-history note marked as the card
+  author's, with the cabinet's own line after it.
 - **The importer** keeps the app's rules in charge of what she *does* (tool permissions and soft enforcement are code),
   but a shared card's post-history text lands in the strongest place in the prompt, inside a block the base text says
   comes from the cabinet (parked: #132, #133).
@@ -127,7 +131,10 @@ unread: the page didn't load; the split from its search summary). Their limits a
   [details](https://arxiv.org/html/2310.00746v3)) gave GPT-4 a role description with catchphrases plus retrieved example
   exchanges. Written as earlier turns of the chat (user, assistant), the examples won 63% of GPT-4-judged comparisons on
   their Chinese set, against 30% for the same examples pasted into the prompt as text and 9% for none. Catchphrases in
-  the description helped word choice; the examples helped syntax and tone.
+  the description helped word choice; the examples helped syntax and tone. Note which is which for us: `persona.md` and
+  `ToPersona` put examples in the system text, which is the 30% condition, not the 63% one. Examples in the text still
+  beat none by a wide margin. Examples as earlier chat turns are an option for the card design session to weigh
+  (section 5).
 - **What a profile should cover** (read). CharacterGLM ([Zhou et al.](https://arxiv.org/abs/2311.16832)) splits a
   character into *attributes* (identity, interests, views, experiences, relationships) and *behaviours* (how they speak,
   show feeling and interact), and reports its gains in consistency, human-likeness and engagement. That split is a good
@@ -191,7 +198,8 @@ long card is a large share of a small model's context.
 voice block handles a voice in a third. The risk is the examples: a card whose examples are all in Chinese pulls an
 English conversation towards Chinese turns of phrase, and the other way round. Two or three examples in the second
 language reduce that, and give her a Chinese manner of her own (语气词, register) rather than a translation of her
-English one.
+English one. (For our defaults the user chose a separate Chinese card instead, under "To decide together"; this still
+applies to cards players import.)
 
 ## 5. What it means for this app
 
@@ -205,10 +213,14 @@ roughly half of it examples:
 | Who they are | name, pronouns, age range, one line on looks (the model shows the rest) | 2–3 lines |
 | They and the player | what they are to the player, why they sit there, what they want for them | 3–4 lines |
 | Personality | four or five traits, each with what they *do*; one planned contrast and when each side shows | a paragraph |
-| How they talk | sentence length, register, words they use and avoid, how they use the player's name, one or two verbal habits used sparingly; the same for Chinese | a paragraph |
+| How they talk | sentence length, register, words they use and avoid, how they use the player's name, one or two verbal habits used sparingly | a paragraph |
 | What they think | tastes and opinions (games, shows, habits, small dislikes), so they have takes of their own | a few lines |
 | In the cabinet's moments | what they *do* when a reminder goes off, a focus session starts or ends, the player has played long, solves something, vents, comes back, says no | a line each |
-| Example exchanges | eight to ten short exchanges in the moments above, six or seven in English and two or three in Chinese, each with different wording | about half |
+| Example exchanges | eight to ten short exchanges in the moments above, each with different wording | about half |
+
+The Chinese card (the user's choice) has the same sections, written in Chinese for a Chinese conversation: how they
+talk in Chinese and their Chinese examples go there, not in the English card. This note first recommended two or three
+Chinese examples in the one card; the reasoning is in section 4.
 
 Nothing about the app's rules (soft enforcement, tags, tools): the base text has those, and repeating them in the card is
 where contradictions creep in. The card says *how they'd* do what the app asks, which is the card's business under
@@ -226,9 +238,18 @@ own is the first thing to try, and that is the time for `card.json`. Built-in ch
 
 One trap: `persona.md` has no placeholder filling, so its examples write "Player:" rather than `{{user}}`.
 
+### Examples as text, or as chat turns?
+
+For the card design session to weigh. RoleLLM's best result (63%) gave the examples as earlier user and assistant
+turns; in the system text, as `persona.md` does, they scored 30% (none: 9%). Turns would need code: a few fixed
+exchanges sent ahead of the real conversation, marked so they aren't taken for it. The costs: she may treat them as
+things the player really said (a memory of a focus session that never happened), her notes and recall must skip them,
+and they sit between the system text and the history, so they would change the cached prefix's shape. Examples in the
+text first, measured; turns only if the manner check shows her manner still thin.
+
 ### Measuring it
 
-The manner check (`tools/bench/manner.cs`, on the spike-125 branch, landing with #127) runs about 20 moments in English
+The manner check (`tools/bench/manner.cs`, on the `spike-125-lean-base` branch, landing with #127) runs about 20 moments in English
 and Chinese with `--cards shino,plain`, reading Shino from `persona.md`. To compare cards, add the new text as a third
 persona (`shino-new`), and count, beside its habits (stock openers, the date said back, bookkeeping narrated, offers of
 help, ending on a question, length):
@@ -258,9 +279,10 @@ A sketch of the sections, not a finished card: the words are to be written with 
    - Honest: tells them when she thinks a plan won't work.
 4. **How she talks.** Short sentences, casual; uses their name now and then, not every line; reacts first, details
    after; never the assistant register ("Certainly", "Here's what I…", lists). One verbal habit, sparingly (to be chosen
-   with the user). In Chinese: spoken, light 语气词 (嘛, 啦, 哦) not on every line, no 书面语; calls them by name, not 您.
+   with the user). (How she talks in Chinese goes in her Chinese card: spoken, light 语气词 such as 嘛, 啦, 哦 not on
+   every line, no 书面语, calls them by name, not 您.)
 5. **What she thinks.** Favourite kinds of games and why; a game she thinks is overrated; her view of all-nighters;
-   one small dislike. These give her opinions to share, in place of the questions she ends on today (#127's 79%).
+   one small dislike. These give her opinions to share, in place of the questions she ends on (79% of conversational replies with #127's lean text, 54% with today's).
 6. **In the cabinet's moments.** What she does, not what she says: a reminder going off (gets their attention, then the
    thing itself, no fuss about the reminder); a focus session (sees them off, then leaves them be; at the end, asks what
    they got through); too long in a game (notices, teases once, lets it go); a LeetCode solve (wants to know which
@@ -268,10 +290,11 @@ A sketch of the sections, not a finished card: the words are to be written with 
    long); a "no" from the player (takes it lightly, doesn't ask again).
 7. **Example exchanges** (eight to ten; two shown here only for shape, each to be rewritten):
    - Player: "ok I'm doing a 50 min focus" / Shino: "Go. I'll be quiet. Mostly." (a focus session starts)
-   - Player: "终于过了这道题" / Shino: "哪道？快说你是怎么想到的。" (a solve, in Chinese)
+   - Player: "finally got it accepted" / Shino: "Which one? Tell me how you cracked it." (a solve)
 
    The rest: a reminder, a long game, a vent, a return after a day, a refusal, an opinion asked for, each worded
-   differently from the others and from these.
+   differently from the others and from these. Her Chinese card has its own, such as Player: "终于过了这道题" /
+   Shino: "哪道？快说你是怎么想到的。" (a solve).
 8. **Optional, later:** a one-line note after each turn, if the manner check shows her fading (then as `card.json`).
 
 Fumiriya's follows the same outline with his own contrast (dry and brief, but notices everything) and his own examples.
@@ -280,10 +303,23 @@ Fumiriya's follows the same outline with his own contrast (dry and brief, but no
 
 1. **Write the new defaults?** Recommended: Shino first, as a sectioned `persona.md` of about 1,500 tokens, measured
    against today's with the manner check (one billed run, about 270k tokens), then Fumiriya.
-2. **Chinese examples in the English card, or a Chinese card?** Recommended: two or three Chinese examples in the one
-   card; a separate Chinese card only if the Chinese moments in the manner check read as translated.
+   *Decided by the user, 2026-10-24:* new default cards, Shino first, written with them.
+2. **Chinese examples in the English card, or a Chinese card?** This note recommended two or three Chinese examples in
+   the one card, and a separate Chinese card only if the Chinese moments in the manner check read as translated.
+   *Decided by the user, 2026-10-24: a separate Chinese card for each character.* What that leaves open, since none of
+   it exists today:
+   - **How the app picks the Chinese card.** The persona sits in the cached system message, but her reply language
+     follows the player's last message. Picking per message would break the cache and swap her character
+     mid-conversation, so the choice is probably made per conversation or by a setting. Which one is the user's to say.
+   - **A second file and a lookup for it.** `Character.Persona` reads only `res://characters/<id>/persona.md`; the
+     Chinese card needs a name of its own (for example `persona.zh.md`) and code to find it.
+   - **The manner check** reads one `persona.md` for both its English and Chinese moments; its Chinese moments would run
+     with the Chinese card.
+   - **What moves there:** the Chinese parts of Shino's outline (how she talks in Chinese, her Chinese examples) and the
+     section table's Chinese examples, as marked above.
 3. **A shared card's post-history text** (#132): keep it at the end but say it is the card's, cap it lower, or move it
-   before the cabinet's last line. A behaviour choice for the user.
+   before the cabinet's last line. *Decided by the user, 2026-10-24:* the post-history note marked as the card author's,
+   with the cabinet's own line after it (the first and third options together).
 
 Sources:
 - [Character Card V2 specification](https://github.com/malfoyslastname/character-card-spec-v2/blob/main/spec_v2.md)
