@@ -3,6 +3,7 @@ large); the build ships whichever are present.
 
     python tools/models/fetch.py                  # all of them
     python tools/models/fetch.py small            # only the small memory model (a lighter build)
+    python tools/models/fetch.py check            # which an export would carry (build.cmd runs it; nothing is fetched)
 
 multilingual  memory search: multilingual-e5-small (intfloat, MIT), about 100 languages, 113 MB
 small         memory search: bge-small-zh-v1.5 (BAAI, MIT), Chinese first and fair English, 23 MB
@@ -60,7 +61,35 @@ def fetch(key):
     (target / "LICENSE.txt").write_text(licence, encoding="utf-8")
 
 
+def check():
+    """Says which models an export would carry, and fails (exit 1) when none is there or one is there only in part:
+    an emptied or half-fetched folder, which would otherwise ship quietly without memory search or her ears. A model
+    whose folder is absent is left out on purpose (a lighter build), and only said."""
+    root = Path(__file__).resolve().parents[2] / "src" / "InsertCoin.Game" / "models"
+    have, problems = [], []
+    for key, (folder, _, files, _) in MODELS.items():
+        # its LICENSE.txt too: release.py takes the notices from it
+        missing = [name for name in [*files.values(), "LICENSE.txt"]
+                   if not (root / folder / name).is_file() or (root / folder / name).stat().st_size == 0]
+        if not missing:
+            have.append(folder)
+        elif (root / folder).exists():
+            problems.append(f"models/{folder} lacks {', '.join(missing)} (python tools/models/fetch.py {key})")
+        else:
+            print(f"leaves out {folder} (python tools/models/fetch.py {key} adds it)")
+    if not have and not problems:
+        problems.append("models/ holds none of them (python tools/models/fetch.py fetches them all)")
+    if have:
+        print(f"carries {', '.join(have)}")
+    for problem in problems:
+        print(problem)
+    if problems:
+        sys.exit("The models folder lacks files fetch.py puts there: fetch them (a download), then build again.")
+
+
 def main():
+    if sys.argv[1:] == ["check"]:
+        return check()
     wanted = sys.argv[1:] or list(MODELS)
     for key in wanted:
         if key not in MODELS:

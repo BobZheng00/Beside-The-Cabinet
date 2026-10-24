@@ -24,6 +24,11 @@ python tools/models/fetch.py                             # local models -> src/I
 The models are optional: without the memory models the companion recalls by shared words only, and without
 SenseVoice (`fetch.py listening`, 240 MB) they can't be talked to aloud. `build.cmd` fetches all three when the folder is
 missing; `python tools/models/fetch.py small` beforehand gives a lighter build with only the small memory model.
+`build.cmd` and `release.py` stop, saying what's missing, when the folder holds none of them or one only in part (an
+emptied or half-fetched folder, or one without its `LICENSE.txt`, which the release's notices come from);
+`python tools/models/fetch.py check` says the same without building. A worktree needs none of its own: run
+from source there, the app reads the main checkout's; `build.cmd` there fetches nothing and stops, since an export
+needs its own.
 
 ## Running it
 

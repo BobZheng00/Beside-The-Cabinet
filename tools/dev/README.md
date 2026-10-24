@@ -193,7 +193,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   scenario fails if a stand-in took the player's lock, and notes in the report whether it stayed free (or that the
   player's own app holds it, which is no failure). `smoke.ps1 -SelfCheck` (run by `pick-check.ps1`) checks that
   judgement on made-up copies. `-List` says what each scenario checks, `-Only boot,chat` runs some. In a worktree
-  it borrows the main checkout's `GODOT` and models.
+  it borrows the main checkout's `GODOT`, and the app, run from source, reads the main checkout's models by
+  itself: a worktree holds no link to them, so `git worktree remove` (with `--force` or not) or `Remove-Item -Recurse`
+  can't touch them. `smoke.ps1 -Prepare`, and every smoke run, removes a link an older `-Prepare` made (#122).
 - Which scenarios a check runs (`smoke.ps1 -Changed`, from `git diff origin/main...HEAD`): every one when shared code
   or the harness changed (the file's `all`: `Main.cs`, `Stool.cs`, `project.godot`, Core, `smoke.ps1`, `shoot.ps1`,
   `mock_mind.py`, the scenarios…), each one whose `covers` match a changed file, and `boot` whenever anything the app
