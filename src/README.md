@@ -38,6 +38,7 @@ The project uses the Compatibility renderer: Forward+ cannot do transparent wind
 | `run.cmd` | Same as the app, but run from source through the Godot editor binary (debug build, dev keys on). |
 | `demo.cmd` | Demo profile (`%APPDATA%\InsertCoin-demo`), Steam ignored. Safe to play with. |
 | `firstrun.cmd` | A first run, as a new player sees it: a fresh profile every time (`%APPDATA%\InsertCoin-firstrun`, emptied at each start), Steam ignored. Quit the demo first. |
+| `update.cmd` | After pull requests are merged: brings this folder up to GitHub's `main`, builds the code `run.cmd` and `demo.cmd` start, and rebuilds the standalone app (`build.cmd`). Quit the app first. It changes nothing if the folder isn't on `main` or has changes of its own. |
 
 ### Standalone build
 
