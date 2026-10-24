@@ -9,7 +9,8 @@
 #
 # -Script   dev actions "action@seconds,..." (see README.md here); times count from app start, about 2 s after launch
 # -Shots    seconds after launch at which to capture, as on a quiet PC: when the script's clock starts later than 2 s in
-#           (a busy PC), every shot moves on with it, staying as far after the actions as it was meant to. A shot whose window isn't there yet, or not drawn yet (one flat
+#           (a busy PC), every shot moves on with it, staying as far after the actions as it was meant to (an app built
+#           before it marked that is timed from launch, about 10 s after its first log line, and the run says so). A shot whose window isn't there yet, or not drawn yet (one flat
 #           colour), waits for it, up to -Wait seconds, and says how long it waited (not when the app has quit); a shot
 #           taken late, after an earlier one waited, says when it was taken. The app is stopped after the last one, so
 #           an action timed later never runs (the run warns of it)
@@ -227,7 +228,15 @@ $t0 = Get-Date; $i = 0
 $lead = 2
 $started = Join-Path $profile "script-started"
 if ($Script -ne "") {
-  while (-not (Test-Path $started) -and -not $p.HasExited -and ((Get-Date) - $t0).TotalSeconds -lt 60) { Start-Sleep -Milliseconds 50; [System.Windows.Forms.Application]::DoEvents() }
+  # an app built before it marked its clock never does: once its code is running (a line of its own, "Main: …"), it gets 10 s more
+  $until = $t0.AddSeconds(60); $running = $false
+  while (-not (Test-Path $started) -and -not $p.HasExited -and (Get-Date) -lt $until) {
+    if (-not $running -and (@($log, (Join-Path $profile "godot.log")) | Where-Object { (Test-Path $_) -and (Select-String -LiteralPath $_ -Pattern "^[A-Za-z]+: " -Quiet) })) {
+      $running = $true; $until = (Get-Date).AddSeconds(10)
+    }
+    Start-Sleep -Milliseconds 100; [System.Windows.Forms.Application]::DoEvents()
+  }
+  if (-not (Test-Path $started) -and -not $p.HasExited) { "the app never said when the script's clock started (built before it did?): shots timed from launch" }
   if (Test-Path $started) {
     $behind = ((Get-Item $started).LastWriteTime.AddSeconds(-$lead) - $t0).TotalSeconds
     if ($behind -gt 0) { $t0 = $t0.AddSeconds($behind) }

@@ -386,7 +386,7 @@ try {
     foreach ($line in $said) {
       if ($line -match "no app process|no window yet|shoot.ps1 failed|no window titled|seen by the player|would run after the last shot") { [void]$problems.Add($line.Trim()) }
       elseif ($line -match "(\S+\.png) .*; (waited .*)$") { $besideNotes += "$(Split-Path $Matches[1] -Leaf): $($Matches[2])" }   # a shot that waited for its window
-      elseif ($line -match "^the script's clock started") { $besideNotes += $line.Trim() }   # a busy PC: the shots moved on with it
+      elseif ($line -match "^the script's clock started|^the app never said when") { $besideNotes += $line.Trim() }   # how its shots were timed, when not as usual
     }
     # a test copy writes Godot's log into its own profile, never over the player's (in Godot's user folder)
     if (-not (Test-Path (Join-Path $Out "profile-$($s.name)\godot.log"))) { [void]$problems.Add("Godot's log isn't in the run's own profile") }

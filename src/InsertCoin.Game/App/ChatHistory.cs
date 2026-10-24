@@ -573,9 +573,9 @@ public partial class ChatHistory : Window
         }
         if (parts[0] == "Lines")
         {
-            // what the player sees now, in order, however many refreshes it took to come in
-            var said = _shown.Values.ToDictionary(s => (Node)s.Row, s => s.Words.Text);
-            var rows = _lines.GetChildren().Where(said.ContainsKey).Select(row => said[row]);
+            // what the player sees now, in order, however many refreshes it took to come in: every row in the list (see
+            // Row), not what is kept of them, so a line shown twice is listed twice
+            var rows = _lines.GetChildren().OfType<PanelContainer>().Select(frame => frame.GetChildOrNull<HBoxContainer>(0)?.GetChildOrNull<Label>(2)?.Text).OfType<string>();
             GD.Print($"Chat history shows, {(AtEnd() ? "at the end" : "scrolled up")}: {string.Join(" | ", rows)}");
             return;
         }
