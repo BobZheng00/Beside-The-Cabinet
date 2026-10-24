@@ -1,2 +1,4 @@
 # Godot rewrites .import files with LF when it imports a fresh checkout: checked out with LF too, they stay unchanged.
 *.import text eol=lf
+# Batch files need CRLF for cmd.exe to find their labels, whatever the checkout's autocrlf.
+*.cmd text eol=crlf
