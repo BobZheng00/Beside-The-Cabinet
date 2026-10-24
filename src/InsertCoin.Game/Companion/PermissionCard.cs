@@ -9,7 +9,8 @@ namespace InsertCoin.Game.Companion;
 /// that site) and No. Clicks only: a key pressed in another app never answers it. The same card confirms an activity
 /// she counts (see <see cref="Activities"/>): Yes, count it, or Not yet; and shows her suggested change to a skill (see
 /// <see cref="SkillChange"/>): Remember it or Not now, with See the change opening the exact lines; and tells the player
-/// when their ChatGPT plan stops answering, with what to do about it (see <see cref="Tell"/>).
+/// when their ChatGPT plan stops answering, with what to do about it (see <see cref="Tell"/>), or asks whether she carries
+/// on with their backup meanwhile (see <see cref="AskOver"/>).
 /// </summary>
 public partial class PermissionCard : Node2D
 {
@@ -88,7 +89,7 @@ public partial class PermissionCard : Node2D
                 Text = text, ThemeTypeVariation = look, FocusMode = Control.FocusModeEnum.None, MouseDefaultCursorShape = Control.CursorShape.PointingHand,
             };
             button.AddThemeFontSizeOverride("font_size", 14);
-            button.Pressed += () => _answer?.TrySetResult(answer);
+            button.Pressed += () => Pressed(answer);
             return button;
         }
     }
@@ -141,11 +142,12 @@ public partial class PermissionCard : Node2D
 
     /// <summary>
     /// Tells the player something with one thing to do about it, <paramref name="action"/>, and Close (the ChatGPT plan's
-    /// limit reached, say): true when they chose the action. Clicks only: the action may open their browser.
+    /// limit reached, say), or with Close alone (no action): true when they chose the action. Clicks only: the action may
+    /// open their browser.
     /// </summary>
-    public async Task<bool> Tell(string what, string detail, string action, Vector2 bottomLeft, CancellationToken cancel)
+    public async Task<bool> Tell(string what, string detail, string? action, Vector2 bottomLeft, CancellationToken cancel)
     {
-        _once.Text = action;
+        _once.Text = action ?? "";
         _no.Text = "Close";
         _always.Visible = false;
         _see.Visible = false;
@@ -154,7 +156,39 @@ public partial class PermissionCard : Node2D
         return await Show(what, detail, bottomLeft, cancel, clicksOnly: true) == Answer.Once;
     }
 
+    /// <summary>
+    /// Asks whether she carries on with the player's backup while their ChatGPT plan has stopped: Yes or Not now, with
+    /// <paramref name="aside"/> (Manage usage, say), which does <paramref name="doAside"/> and leaves the question open.
+    /// Clicks only, so a yes is the player's own, and it waits at the PC until answered: true for Yes; false for Not now,
+    /// or when it is taken back (see <see cref="Withdraw"/>).
+    /// </summary>
+    public async Task<bool> AskOver(string what, string detail, string aside, Action doAside, Vector2 bottomLeft)
+    {
+        _once.Text = "Yes";
+        _no.Text = "Not now";
+        _always.Text = aside;
+        _always.TooltipText = "";
+        _always.Visible = true;
+        _see.Visible = false;
+        _detail.MaxLinesVisible = 3;
+        _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        return await Show(what, detail, bottomLeft, CancellationToken.None, clicksOnly: true, aside: doAside, waits: false) == Answer.Once;
+    }
+
     private bool _clicksOnly;                                   // the card showing takes no spoken answer (see Choose)
+    private Action? _aside;                                     // its middle button does this instead of answering (see AskOver)
+
+    /// <summary>A button pressed: the answer, or the card's aside, which leaves the question open.</summary>
+    private void Pressed(Answer answer)
+    {
+        if (answer == Answer.Always && _aside is { } aside)
+            aside();
+        else
+            _answer?.TrySetResult(answer);
+    }
+
+    /// <summary>Dev: presses the card's button for this answer, as a click would (clicks-only cards too).</summary>
+    public void Press(Answer answer) => Pressed(answer);
 
     /// <summary>Takes back what <see cref="Tell"/> is telling, when it no longer holds (the player disconnected, say).</summary>
     public void Withdraw()
@@ -207,10 +241,14 @@ public partial class PermissionCard : Node2D
         GD.Print($"Card: the change's lines {_scroll.GetVScrollBar().MaxValue:0} px tall, shown {_scroll.Size.Y:0} px");
     }
 
-    private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel, bool clicksOnly = false)
+    /// <param name="waits">False: it waits for its answer however long that takes, not <see cref="Waits"/>.</param>
+    private async Task<Answer> Show(string what, string detail, Vector2 bottomLeft, CancellationToken cancel, bool clicksOnly = false, Action? aside = null,
+                                    bool waits = true)
     {
         _answer?.TrySetResult(Answer.None);                    // one question at a time
         _clicksOnly = clicksOnly;
+        _aside = aside;
+        _once.Visible = _once.Text.Length > 0;
         var answer = _answer = new TaskCompletionSource<Answer>(TaskCreationOptions.RunContinuationsAsynchronously);
         _what.Text = what;
         _detail.Text = detail;
@@ -228,7 +266,8 @@ public partial class PermissionCard : Node2D
         _tween.Parallel().TweenProperty(this, "modulate:a", 1f, 0.12);
 
         await using var called = cancel.Register(() => answer.TrySetResult(Answer.None));
-        GetTree().CreateTimer(Waits).Timeout += () => answer.TrySetResult(Answer.None);
+        if (waits)
+            GetTree().CreateTimer(Waits).Timeout += () => answer.TrySetResult(Answer.None);
         var given = await answer.Task;
         if (_answer == answer)
         {

@@ -136,7 +136,7 @@ public partial class Stool : Node2D
         _chat.Skills.Linked = settings.Now.SkillFolders;
         _chat.Skills.Off = settings.Now.SkillsOff.ToHashSet();
         _chat.Notes.Grants = settings.Now.SkillGrants;
-        _chat.Connect(ChatProvider());
+        _chat.Connect(ChatProvider(), BackupProvider());
         _chatBox = new ChatBox();
         AddChild(_chatBox);
         _chatBox.Submitted += said => _ = Ask(said);
@@ -180,6 +180,11 @@ public partial class Stool : Node2D
             if (_planCard is { } shown && _chat.Plan.Stopped != shown)
                 _permission.Withdraw();                     // no longer so (signed in, disconnected, working again): the card goes
         }).CallDeferred();
+        _chat.Backup.Back += () =>
+        {
+            if (_chat.BackupProvider is not null)           // still set: it was what she carried on with
+                Callable.From(() => { _ = TellBack(); }).CallDeferred();
+        };
         _chat.AskPlayer = AskPlayer;
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
@@ -1623,6 +1628,9 @@ public partial class Stool : Node2D
 
     private Provider? ChatProvider() => Provider.From(_settings.Now.ChatProtocol, _settings.Now.ChatBaseUrl, _settings.Now.ChatModel);
 
+    /// <summary>The backup behind the ChatGPT plan (Settings → Mind), if one is set.</summary>
+    private Provider? BackupProvider() => Provider.From(_settings.Now.BackupProtocol, _settings.Now.BackupBaseUrl, _settings.Now.BackupModel);
+
     /// <summary>Opens the slip at the foot of the stool for the user to type to her, once she can answer.</summary>
     /// <param name="focus">Bring the window forward for typing (the user clicked her); dev actions leave focus alone.</param>
     internal void OpenChat(bool focus = true)
@@ -1731,50 +1739,88 @@ public partial class Stool : Node2D
 
     /// <summary>
     /// The ChatGPT plan stopped answering her (its limit reached, signed out, an account that can't share it): said once,
-    /// plainly, on her card, with what to do about it first. Until it works again she waits: no replies, check-ins or
-    /// remarks, while reminders still come in the app's words (each request fails at once, see <see cref="ChatGptPlan.Client"/>).
+    /// plainly, on her card, with what to do about it first; with a backup set, the card asks whether she carries on with
+    /// it, and nothing goes to it without a yes. Until then (or after Not now, or with no backup) she waits: no replies,
+    /// check-ins or remarks, while reminders still come in the app's words (each request fails at once, see
+    /// <see cref="ChatGptPlan.Client"/>). After a yes she carries on with the backup until the plan works again.
     /// </summary>
     private PlanStop? _planCard;                            // what her card is telling of the plan now, if anything
     private int _planCards;                                 // the plan's cards shown so far: which one _planCard belongs to
 
     private async Task TellPlan(PlanStop why)
     {
+        var backup = _chat.BackupProvider?.Name;
         GD.Print($"ChatGPT: {why switch { PlanStop.Limit => "the plan's usage limit is reached", PlanStop.NotEligible => "the account can't share its plan", _ => "signed out" }}; " +
-                 "she waits, and reminders come in plain words");
-        if (Her is null)
+                 (_chat.OnBackup ? "she carries on with the backup" : backup is null ? "she waits, and reminders come in plain words"
+                                                                      : "she asks before carrying on with the backup, and waits meanwhile; reminders come in plain words"));
+        if (Her is null || _chat.OnBackup)
             return;
         var name = HerName();
-        var (what, detail, action) = why switch
-        {
-            PlanStop.Limit => ("Usage limit reached", $"Review your plan or this app's limit in ChatGPT settings. {name} waits until it works again; reminders still come.",
-                               "Manage usage"),
-            PlanStop.NotEligible => ("ChatGPT plan not available", "This ChatGPT account can't share its plan with apps. Sign in with another, or use an API key in Settings → Mind.",
-                                     "Continue with ChatGPT"),
-            _ => ("Signed out of ChatGPT", $"{name} can't use your ChatGPT plan until you sign in again. Reminders still come.", "Continue with ChatGPT"),
-        };
         Her.Play(Moment.Worry);
         _planCard = why;
         var card = ++_planCards;
+        _chat.PlanTold = true;
+        var where = new Vector2(14, CardBottom);
         bool pressed;
         try
         {
-            pressed = await _permission.Tell(what, detail, action, new Vector2(14, CardBottom), CancellationToken.None);
+            if (backup is not null)
+            {
+                var (question, aside) = why switch
+                {
+                    PlanStop.Limit => ($"The ChatGPT plan's limit is reached. Carry on with {backup} until it resets?", "Manage usage"),
+                    PlanStop.NotEligible => ($"This ChatGPT account can't share its plan. Carry on with {backup} meanwhile?", "Continue with ChatGPT"),
+                    _ => ($"Signed out of ChatGPT. Carry on with {backup} until you sign in again?", "Continue with ChatGPT"),
+                };
+                var yes = await _permission.AskOver(question, $"{name} waits until you answer; reminders still come.", aside, PutRight, where);
+                if (yes)
+                    _chat.Backup.Allow();
+                GD.Print(yes ? $"ChatGPT: the player said yes; she carries on with the backup ({backup}) until the plan works again"
+                             : "ChatGPT: not now; she waits on the plan");
+                return;
+            }
+            var (what, detail, action) = why switch
+            {
+                PlanStop.Limit => ("Usage limit reached", $"Review your plan or this app's limit in ChatGPT settings. {name} waits until it works again; reminders still come.",
+                                   "Manage usage"),
+                PlanStop.NotEligible => ("ChatGPT plan not available", "This ChatGPT account can't share its plan with apps. Sign in with another, or use an API key in Settings → Mind.",
+                                         "Continue with ChatGPT"),
+                _ => ("Signed out of ChatGPT", $"{name} can't use your ChatGPT plan until you sign in again. Reminders still come.", "Continue with ChatGPT"),
+            };
+            pressed = await _permission.Tell(what, detail, action, where, CancellationToken.None);
         }
         finally
         {
             if (_planCards == card)                         // not a newer card of the plan's, shown meanwhile
+            {
                 _planCard = null;
+                _chat.PlanTold = false;
+            }
         }
-        if (!pressed)
-            return;
-        if (why == PlanStop.Limit)
-            Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage));
-        else
+        if (pressed)
+            PutRight();
+
+        void PutRight()
         {
-            OpenSettings?.Invoke("mind");                   // signing in shows how it goes on her mind's page
-            if (IsInstanceValid(_mindPage))
-                _ = _mindPage!.ContinueWithChatGpt();
+            if (why == PlanStop.Limit)
+                Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage));
+            else
+            {
+                OpenSettings?.Invoke("mind");               // signing in shows how it goes on her mind's page
+                if (IsInstanceValid(_mindPage))
+                    _ = _mindPage!.ContinueWithChatGpt();
+            }
         }
+    }
+
+    /// <summary>The plan answered again after she carried on with the backup: she is back on it, said once on her card.</summary>
+    private async Task TellBack()
+    {
+        GD.Print("ChatGPT: the plan answers again; she is back on it, and the backup goes unused");
+        if (Her is null)
+            return;
+        await _permission.Tell("Back on your ChatGPT plan", $"{HerName()} answers through your ChatGPT plan again, not {_chat.BackupProvider?.Name ?? "the backup"}.",
+                               null, new Vector2(14, CardBottom), CancellationToken.None);
     }
 
     /// <summary>Where her card stands: at the foot of the stool, above the slip and whatever waits on it.</summary>
@@ -1968,11 +2014,16 @@ public partial class Stool : Node2D
     internal Control MindPage(bool brief = false)
     {
         var page = _mindPage = new MindSettings();
-        page.Build(_chat, ChatProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow, brief);
+        page.Build(_chat, ChatProvider(), BackupProvider(), HerName(), _settings.Now.MemorySearch, _settings.Now.ChatWindow, brief);
         page.Saved += provider =>
         {
             _settings.Save(_settings.Now with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
-            _chat.Connect(provider);
+            _chat.Connect(provider, BackupProvider());
+        };
+        page.BackupSaved += backup =>
+        {
+            _settings.Save(_settings.Now with { BackupProtocol = backup?.Protocol.ToString(), BackupBaseUrl = backup?.BaseUrl, BackupModel = backup?.Model });
+            _chat.Connect(ChatProvider(), backup);
         };
         page.SearchChosen += search =>
         {
@@ -2230,8 +2281,9 @@ public partial class Stool : Node2D
             case "chatgptat":                               // chatgptat:http://127.0.0.1:port signs in and asks at a stand-in ChatGPT (tools/dev/mock_chatgpt.py)
                 ChatGptPlan.Issuer = rest;
                 ChatGptPlan.Api = rest + "/v1";
-                _chat.Connect(ChatProvider());
+                _chat.Connect(ChatProvider(), BackupProvider());
                 break;
+            case "plantry": _chat.Plan.TryAgain(); break;  // the ChatGPT plan's next try comes now, not a quarter of an hour on
             case "attach": Hand([rest]); break;             // attach:path as if dropped on her (a picture, a PDF, a text file)
             case "pastepicture":                            // pastepicture:path as if that picture had been pasted (the clipboard is left alone)
                 HandPicture(Image.LoadFromFile(rest), "pasted", photo: false);
@@ -2312,9 +2364,9 @@ public partial class Stool : Node2D
                 var note = text.Split(':', 2);
                 _memos.Print(note[0], note.Length > 1 ? note[1] : note[0], by: null);
                 break;
-            case "allow": _permission.Choose(Answer.Once); break;       // answers the card she asks with, as its buttons would
-            case "always": _permission.Choose(Answer.Always); break;
-            case "deny": _permission.Choose(Answer.No); break;
+            case "allow": _permission.Press(Answer.Once); break;        // presses the card's buttons, as a click would: its first,
+            case "always": _permission.Press(Answer.Always); break;     // its second (Always, or the plan card's Manage usage),
+            case "deny": _permission.Press(Answer.No); break;           // its last
             case "seechange" when rest == "end": _permission.SeeChangeEnd(); break;     // seechange:end opens it and scrolls to the end of the lines
             case "seechange": _permission.SeeChange(); break;  // presses See the change on her suggested change to a skill
             case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, diary, memos, forget; retired)

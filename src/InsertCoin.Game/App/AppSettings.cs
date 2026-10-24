@@ -41,6 +41,9 @@ public sealed record AppSettings
     public string? ChatProtocol { get; init; }          // OpenAi or Anthropic: how to talk to the user's provider
     public string? ChatBaseUrl { get; init; }           // the provider's server; the API key is stored apart, encrypted
     public string? ChatModel { get; init; }
+    public string? BackupProtocol { get; init; }        // the backup behind the ChatGPT plan, used only after the player's yes; its key is stored apart, encrypted
+    public string? BackupBaseUrl { get; init; }
+    public string? BackupModel { get; init; }
     public string? MemorySearch { get; init; }         // a local model's name, "words" for shared words only; unset: the best one present
     public int? ChatWindow { get; init; }               // tokens of the conversation she keeps word for word; unset: what suits the provider
     public bool Voice { get; init; } = true;            // false: she stays text-only even with a voice

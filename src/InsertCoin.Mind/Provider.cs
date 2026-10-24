@@ -97,6 +97,9 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     public string Through => Protocol == Protocol.ChatGpt ? "your ChatGPT plan"
                              : Uri.TryCreate(BaseUrl, UriKind.Absolute, out var server) ? server.Host : BaseUrl;
 
+    /// <summary>Its name, for the player: its preset's ("OpenRouter", "Ollama"), or else the server's host, or "the model on this PC".</summary>
+    public string Name => Presets.FirstOrDefault(p => p.Protocol == Protocol && p.BaseUrl == BaseUrl)?.Name.Split(" (")[0] ?? (IsLocal ? "the model on this PC" : Through);
+
     /// <summary>A server on this PC (Ollama, LM Studio…): local models usually have small context windows.</summary>
     public bool IsLocal => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var url) && (url.IsLoopback || url.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase));
 

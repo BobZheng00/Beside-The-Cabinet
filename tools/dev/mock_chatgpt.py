@@ -16,8 +16,12 @@ with response.completed. Once the player's words say "limit", the plan's limit i
 after it get 429 subscription_sharing_usage_limit_exceeded (with "midstream" in the words too, the first comes as
 response.failed after the stream began). Words with "signedout" get 401 subscription_sharing_invalid_user, and every
 refresh after it invalid_grant, until the next sign-in (the player disconnected the app in ChatGPT); "ineligible", 403
-subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. It stops
-when killed, or after --quit-after seconds.
+subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. Words with
+"reset" lift the limit again (the plan works once more), and that request is answered on the plan.
+
+It also stands in for the player's backup behind the plan: an OpenAI-compatible server at /backup/v1 (chat
+completions, streamed or not, answering --backup-reply, no key needed), each request logged with "backup": true. It
+stops when killed, or after --quit-after seconds.
 """
 
 import argparse
@@ -180,6 +184,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if url.path == "/backup/v1/chat/completions":
+            body = json.loads(raw or "{}")
+            said = next((m.get("content") for m in reversed(body.get("messages") or []) if m.get("role") == "user"), "")
+            said = said if isinstance(said, str) else " ".join(p.get("text", "") for p in said or [] if isinstance(p, dict))
+            log({"path": url.path, "backup": True, "model": body.get("model"), "said": said[-200:], "stream": bool(body.get("stream"))})
+            self.backup(body.get("model") or "backup-mock", ARGS.backup_reply, bool(body.get("stream")))
+            return
         if url.path != "/v1/responses":
             self.answer(404, {"error": "not found"})
             return
@@ -205,6 +216,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if "limit" in said:
             STATE["limit"] = True
+        if "reset" in said:
+            STATE["limit"] = False                              # the plan's limit lifted: it answers again
         entry = {"path": url.path, "model": body.get("model"), "said": words[-200:], "instructions": bool(body.get("instructions")),
                  "roles": [i.get("role") or i.get("type") for i in body.get("input") or [] if isinstance(i, dict)],
                  "tools": [t.get("name") or t.get("type") for t in body.get("tools") or []]}
@@ -218,6 +231,31 @@ class Handler(BaseHTTPRequestHandler):
             return
         log({**entry, "limit": STATE["limit"]})
         self.stream(body.get("model") or "gpt-mock", ARGS.reply, failed=STATE["limit"])
+
+    def backup(self, model, text, streamed):
+        """The backup's answer, as an OpenAI-compatible server gives one: chat completion chunks, or one whole completion."""
+        usage = {"prompt_tokens": 800, "completion_tokens": 12, "total_tokens": 812}
+        if not streamed:
+            self.answer(200, {"id": "chatcmpl-backup", "object": "chat.completion", "created": int(time.time()), "model": model,
+                              "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}], "usage": usage})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+
+        def send(delta, finish=None, extra=None):
+            chunk = {"id": "chatcmpl-backup", "object": "chat.completion.chunk", "created": int(time.time()), "model": model,
+                     "choices": [{"index": 0, "delta": delta, "finish_reason": finish}], **(extra or {})}
+            self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send({"role": "assistant", "content": ""})
+        for i in range(0, len(text), 12):
+            send({"content": text[i:i + 12]})
+            time.sleep(0.02)
+        send({}, "stop", {"usage": usage})
+        self.wfile.write(b"data: [DONE]\n\n")
+        self.wfile.flush()
 
     def stream(self, model, text, failed):
         self.send_response(200)
@@ -255,6 +293,7 @@ def main():
     parser.add_argument("port", type=int)
     parser.add_argument("--log")
     parser.add_argument("--reply", default="Hi! It's good to see you.")
+    parser.add_argument("--backup-reply", default="Still here, on the backup.")
     parser.add_argument("--quit-after", type=float)
     ARGS = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)

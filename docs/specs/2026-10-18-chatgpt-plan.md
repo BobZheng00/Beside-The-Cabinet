@@ -137,6 +137,19 @@ Each step is usable on its own.
    an hour on, or at once when the player writes to her, and says nothing when it works again.
 2. **The backup:** a backup provider on the same page, the ask-first card when the plan runs out, back to the plan by
    herself.
+   *Built 2026-10-23* (#91): Settings → Mind's **Backup (optional)** under the plan (None, or any provider but the
+   plan: server, key and model, Test, Save backup; its key in `companion\backup-key.bin` through `KeyStore`, the rest in
+   settings.json as `BackupProtocol`, `BackupBaseUrl`, `BackupModel`). `PlanBackup` in the mind puts the backup behind
+   the plan's client: a request the plan turns down, or doesn't make while it waits, goes to the backup only once the
+   player said yes (`Allow`), and before any of the plan's answer was shown; the yes lasts until the plan answers again
+   (its own quarter-hourly try; while on the backup, the player's words don't bring the try forward), when she is back
+   on it, said once on her card ("Back on your ChatGPT plan"). The card asking is clicks only and waits at the PC
+   until answered (no two-minute lapse), with Yes, Not now and Manage usage (Continue with ChatGPT when signed out or
+   not eligible, worded for each: "Signed out of ChatGPT. Carry on with <backup> until you sign in again?"), which
+   leaves the question open. While either of the plan's cards is up, a request it stops says nothing more in her bubble
+   (QA on #98: it was said again with each message). A request that stopped the plan isn't answered again after the
+   yes: the player's next words go to the backup, with the earlier ones in the conversation. Asking by text when the
+   player is away stays open (it waits at the PC).
 3. **Getting started** offers Continue with ChatGPT first.
 
 ## Sources

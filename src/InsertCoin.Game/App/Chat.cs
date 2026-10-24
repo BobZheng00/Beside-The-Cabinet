@@ -27,7 +27,7 @@ public sealed class Chat : IDisposable
     public const string WordsOnly = "words";
 
     private IChatClient? _client, _talk;                // _talk: her replies, cached where the provider needs asking (see Provider.ForConversation)
-    private Provider? _provider;
+    private Provider? _provider, _backup;               // _backup: what she carries on with past the ChatGPT plan, after a yes (see Backup)
     private int? _window;
     private readonly Queue<(long Input, long Cached)> _usage = new();
     private Conversation? _conversation;
@@ -52,6 +52,8 @@ public sealed class Chat : IDisposable
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
         var signIn = new KeyStore(Path.Combine(folder, "chatgpt.bin"));
         Plan = new ChatGptPlan(signIn.Load(), signIn.Save, Path.Combine(folder, "chatgpt.json"));
+        Backup = new PlanBackup(Plan);
+        BackupKeys = new KeyStore(Path.Combine(folder, "backup-key.bin"));
         Skills = new Skills(Path.Combine(dataDir, "skills"));
         _readSkill = BuiltIn.ReadSkill(ReadSkill);
         _changeSkill = BuiltIn.ChangeSkill(ChangeSkill);
@@ -84,6 +86,19 @@ public sealed class Chat : IDisposable
 
     /// <summary>The player's ChatGPT plan: their sign-in, and her mind on it when they chose it (Settings → Mind).</summary>
     public ChatGptPlan Plan { get; }
+
+    /// <summary>What she carries on with when the plan stops, once the player says yes; its key is kept apart from the main one.</summary>
+    public PlanBackup Backup { get; }
+    public KeyStore BackupKeys { get; }
+
+    /// <summary>The backup set behind the ChatGPT plan, while she is on the plan; null: none.</summary>
+    public Provider? BackupProvider => _backup;
+
+    /// <summary>She carries on with the backup, the player having said yes, until the plan works again.</summary>
+    public bool OnBackup => Backup.Allowed && _backup is not null;
+
+    /// <summary>Her card is telling the player of the plan now, or asking about the backup: a request the plan stops adds nothing in her bubble.</summary>
+    public bool PlanTold { get; set; }
 
     /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
     public Skills Skills { get; }
@@ -275,15 +290,22 @@ public sealed class Chat : IDisposable
     /// <summary>What her voice makes of her latest reply (whether it is subtitled, say); null once she was cut off.</summary>
     public Speech? Speech => _speech;
 
-    /// <summary>Uses this provider (with the stored key) from now on, or none.</summary>
-    public void Connect(Provider? provider)
+    /// <summary>
+    /// Uses this provider (with the stored key) from now on, or none; on the ChatGPT plan, with <paramref name="backup"/>
+    /// (with its own key) behind it, for after the player's yes (see <see cref="Backup"/>).
+    /// </summary>
+    public void Connect(Provider? provider, Provider? backup = null)
     {
         _client?.Dispose();
         _provider = provider;
-        // every request counted (see Metered, and the chat settings' Usage tab): her replies apart from her upkeep
+        // every request counted (see Metered, and the chat settings' Usage tab): her replies apart from her upkeep, each under the model that answered
         var timed = provider?.Connect(Keys.Load(), Plan) is { } client ? new Timed(client, Used) : null;
-        _client = timed is null ? null : new Metered(timed, Store, provider!.Model, "upkeep");
-        _talk = timed is null ? null : new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies");
+        var spare = provider?.Protocol == Protocol.ChatGpt && backup?.Connect(BackupKeys.Load()) is { } other ? new Timed(other, Used) : null;
+        _backup = spare is null ? null : backup;
+        IChatClient Behind(IChatClient onPlan, Func<IChatClient, IChatClient> shaped, string purpose) =>
+            spare is null ? onPlan : Backup.Over(onPlan, new Metered(shaped(spare), Store, backup!.Model, purpose));
+        _client = timed is null ? null : Behind(new Metered(timed, Store, provider!.Model, "upkeep"), c => c, "upkeep");
+        _talk = timed is null ? null : Behind(new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies"), c => backup!.ForConversation(c), "replies");
         _usage.Clear();
         Tools.Refused = false;                          // a new provider or model may take tools
         Tools.HostedRefused = false;
@@ -489,8 +511,8 @@ public sealed class Chat : IDisposable
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
-        if (!fromCabinet)
-            Plan.TryAgain();                                // the player's own words try the plan again, past its limit
+        if (!fromCabinet && !OnBackup)
+            Plan.TryAgain();                                // the player's own words try the plan again, past its limit (on the backup: each quarter hour)
         _shot = null;
         InFront = handed ?? [];
         var client = _talk;
@@ -525,7 +547,7 @@ public sealed class Chat : IDisposable
                 fromCabinet ? (c, note, s, t, d, k, tools, h) => conversation.Announce(c, note, s, t, d, k, tools, h, call is null ? null : WordFirst.Called, texting)
                             : (c, words, s, t, d, k, tools, h) => conversation.Answer(c, words, s, t, d, k, tools, h, aside, texting);
             Replied = null;
-            var model = _provider?.Model ?? "";
+            var model = (OnBackup ? _backup!.Model : _provider?.Model) ?? "";
             conversation.Unseeing = CantSee(model);
             // her call, asked for on its own while the remark is written: one reply asked for both came back as the call alone
             var calling = call is null ? null : conversation.Call(client, Tools, answering.Token);
@@ -656,7 +678,7 @@ public sealed class Chat : IDisposable
             else if (Here() && !texting)                    // a text that failed shows nothing: the plain line goes instead
             {
                 view.Play(Moment.Worry);
-                if (e is not PlanStopped { Told: true })    // her card is saying it, once
+                if (e is not PlanStopped stopped || !(stopped.Told || PlanTold))   // her card is saying it, once
                     view.Continue(Trouble.Explain(e));
             }
         }
