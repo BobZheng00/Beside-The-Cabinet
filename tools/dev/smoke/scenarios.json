@@ -1,5 +1,5 @@
 {
-  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action; a shot whose window, or the scenario's window, isn't there or drawn yet waits for it, up to 10 s); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (point the profile at tools/dev/mock_mind.py); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines); beside (first start hidden stand-ins for the player's own app, copies that aren't test runs: one holds a one-copy lock of their own, never the player's, a second must quit at once, and the scenario runs beside them). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass. Which run in a check (smoke.ps1 -Changed, as check.ps1 runs it): every scenario when a file matching one of all changed (shared code and the harness itself); each scenario whose covers match a changed file; and boot whenever a file matching app changed (anything the app runs). Patterns are wildcards on paths from the checkout's root, with forward slashes. READMEs never count (a character's persona.md does: the app reads it), so a change to tests or docs alone runs none; with no list of what changed (git couldn't say, or on main itself), every scenario runs.",
+  "about": "The smoke suite run by tools/dev/smoke.ps1. Each scenario is one hidden test run through shoot.ps1. Fields: name; about (what it checks, for the player); script (dev actions, tools/dev/README.md: times from app start, about 2 s after launch); shots (seconds after launch to capture: a beat after the last action; a shot whose window, or the scenario's window, isn't there or drawn yet waits for it, up to 10 s); settings (extra settings.json members, starting with a comma); window (also capture this window, by part of its title); desk (also capture every window where it sits); mind (true: point the profile at tools/dev/mock_mind.py; \"chatgpt\": start tools/dev/mock_chatgpt.py, a stand-in ChatGPT plan, instead, for the scenario to sign in to, its address written {mind} in the script); mindReply; mindRequests (the least the mock must be asked); expect (regexes, case-sensitive, that some log line must match); forbid (more regexes no log line may match, on top of ERROR, Exception and SCRIPT ERROR); ignore (regexes for known harmless lines); beside (first start hidden stand-ins for the player's own app, copies that aren't test runs: one holds a one-copy lock of their own, never the player's, a second must quit at once, and the scenario runs beside them). The top-level ignore applies to every scenario. Calibrate expect and ignore from real runs; never loosen forbid to make a run pass. Which run in a check (smoke.ps1 -Changed, as check.ps1 runs it): every scenario when a file matching one of all changed (shared code and the harness itself); each scenario whose covers match a changed file; and boot whenever a file matching app changed (anything the app runs). Patterns are wildcards on paths from the checkout's root, with forward slashes. READMEs never count (a character's persona.md does: the app reads it), so a change to tests or docs alone runs none; with no list of what changed (git couldn't say, or on main itself), every scenario runs.",
   "all": ["src/InsertCoin.Game/Main.cs", "src/InsertCoin.Game/Main.tscn", "src/InsertCoin.Game/App/Stool.cs", "src/InsertCoin.Game/Companion/Paper.cs", "src/InsertCoin.Game/project.godot", "src/InsertCoin.Game/InsertCoin.Game.csproj", "src/InsertCoin.Game/Desktop/TestShots.cs", "src/InsertCoin.Game/App/AppSettings.cs", "src/InsertCoin.Adapters/JsonFileStore.cs", "src/InsertCoin.Core/*", "tools/dev/smoke.ps1", "tools/dev/shoot.ps1", "tools/dev/hidden.cs", "tools/dev/flat.ps1", "tools/dev/seed.ps1", "tools/dev/mock_mind.py", "tools/dev/smoke/*"],
   "app": ["src/*"],
   "ignore": [],
@@ -79,6 +79,43 @@
       "shots": [8, 12],
       "desk": true,
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
+    },
+    {
+      "name": "chatgpt",
+      "about": "The player signs in with ChatGPT (a stand-in: no browser opens) on Settings → Mind and sees which account and model; the companion answers on the plan, within its rules; once the plan's limit is reached their card says so once, with Manage usage, the Mind page shows it, and a reminder still comes in plain words; Disconnect takes the card back and the page asks to continue with ChatGPT.",
+      "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
+      "mind": "chatgpt",
+      "mindReply": "Hi! I'm on your ChatGPT plan now.",
+      "mindRequests": 5,
+      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Continue_with_ChatGPT@4,chat:hello_there@8,chat:that_is_my_limit@13,remindin:2:stretch_your_legs@15,settingsdo:Disconnect@21",
+      "shots": [9, 12, 17, 26],
+      "window": "Settings",
+      "desk": true,
+      "expect": [
+        "^ChatGPT: a test run opens no browser; the stand-in's sign-in is visited directly",
+        "^ChatGPT: signed in, plan usage allowed; 2 models offered",
+        "^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply",
+        "^ChatGPT: the plan's usage limit is reached; she waits, and reminders come in plain words",
+        "^Reminders: 1 going off",
+        "^ChatGPT: disconnected$"
+      ],
+      "forbid": ["^ChatGPT: sign-in didn't finish"]
+    },
+    {
+      "name": "chatgpt-signedout",
+      "about": "Signed in with ChatGPT (a stand-in), the player disconnects the app in ChatGPT itself: the next request and its refresh are turned down, the companion's card says they're signed out, with Continue with ChatGPT, and the Mind page, open all along, shows them signed out; signing in again there takes the card back and the page says the companion answers through the plan again.",
+      "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
+      "mind": "chatgpt",
+      "mindRequests": 5,
+      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Continue_with_ChatGPT@4,chat:you_are_signedout@8,settings:abilities@11,settings:mind@12,settingsdo:Continue_with_ChatGPT@14",
+      "shots": [14, 19],
+      "window": "Settings",
+      "desk": true,
+      "expect": [
+        "^ChatGPT: signed in, plan usage allowed; 2 models offered",
+        "^ChatGPT: signed out; she waits, and reminders come in plain words"
+      ],
+      "forbid": ["^ChatGPT: sign-in didn't finish"]
     },
     {
       "name": "skills",

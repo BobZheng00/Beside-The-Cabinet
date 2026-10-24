@@ -351,17 +351,20 @@ try {
         $probe = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
         $probe.Start(); $mindPort = $probe.LocalEndpoint.Port; $probe.Stop()
       }
-      $mockArgs = @("`"$(Join-Path $PSScriptRoot 'mock_mind.py')`"", "$mindPort", "--log", "`"$mindLog`"", "--reply", "`"$reply`"",
+      # "mind": "chatgpt" is a stand-in ChatGPT plan instead, signed in to by the scenario (its script's {mind} is the address)
+      $chatGpt = "$($s.mind)" -eq "chatgpt"
+      $mockScript = if ($chatGpt) { 'mock_chatgpt.py' } else { 'mock_mind.py' }
+      $mockArgs = @("`"$(Join-Path $PSScriptRoot $mockScript)`"", "$mindPort", "--log", "`"$mindLog`"", "--reply", "`"$reply`"",
                     "--quit-after", "$quit")
       $mock = Start-Process $py.Source -ArgumentList $mockArgs -PassThru -WindowStyle Hidden
       Start-Sleep -Milliseconds 800
       if ($mock.HasExited) { Add-Result $s "FAIL" @("the mock mind didn't start on port $mindPort (taken?)") @() @() 0; continue }
-      $settings += ', "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:' + $mindPort + '/v1", "ChatModel": "mock"'
+      if (-not $chatGpt) { $settings += ', "ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:' + $mindPort + '/v1", "ChatModel": "mock"' }
     }
 
     $shots = @($s.shots | ForEach-Object { [double]$_ })
     $shootArgs = @{ Hidden = $true; Tag = "" + $s.name; Out = $Out; Shots = [double[]]$shots }
-    if ($s.script) { $shootArgs.Script = "" + $s.script }
+    if ($s.script) { $shootArgs.Script = ("" + $s.script).Replace("{mind}", "http://127.0.0.1:$mindPort") }
     if ($settings -ne "") { $shootArgs.Settings = $settings }
     if ($s.window) { $shootArgs.Window = "" + $s.window }
     if ($s.desk) { $shootArgs.Desk = $true }

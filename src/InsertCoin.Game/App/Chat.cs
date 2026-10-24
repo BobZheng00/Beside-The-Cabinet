@@ -50,6 +50,8 @@ public sealed class Chat : IDisposable
         var folder = Path.Combine(dataDir, "companion");
         Store = new MindStore(Path.Combine(folder, "memory.db"));
         Keys = new KeyStore(Path.Combine(folder, "key.bin"));
+        var signIn = new KeyStore(Path.Combine(folder, "chatgpt.bin"));
+        Plan = new ChatGptPlan(signIn.Load(), signIn.Save, Path.Combine(folder, "chatgpt.json"));
         Skills = new Skills(Path.Combine(dataDir, "skills"));
         _readSkill = BuiltIn.ReadSkill(ReadSkill);
         _changeSkill = BuiltIn.ChangeSkill(ChangeSkill);
@@ -79,6 +81,9 @@ public sealed class Chat : IDisposable
 
     public MindStore Store { get; }
     public KeyStore Keys { get; }
+
+    /// <summary>The player's ChatGPT plan: their sign-in, and her mind on it when they chose it (Settings → Mind).</summary>
+    public ChatGptPlan Plan { get; }
 
     /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
     public Skills Skills { get; }
@@ -245,7 +250,7 @@ public sealed class Chat : IDisposable
     }
 
     /// <summary>Opens a page in the player's browser. A test run (off screen) only says so: it never opens anything or takes focus.</summary>
-    private static void OpenPage(Uri page)
+    internal static void OpenPage(Uri page)
     {
         if (Paper.OffScreen)
         {
@@ -276,7 +281,7 @@ public sealed class Chat : IDisposable
         _client?.Dispose();
         _provider = provider;
         // every request counted (see Metered, and the chat settings' Usage tab): her replies apart from her upkeep
-        var timed = provider?.Connect(Keys.Load()) is { } client ? new Timed(client, Used) : null;
+        var timed = provider?.Connect(Keys.Load(), Plan) is { } client ? new Timed(client, Used) : null;
         _client = timed is null ? null : new Metered(timed, Store, provider!.Model, "upkeep");
         _talk = timed is null ? null : new Metered(provider!.ForConversation(timed), Store, provider.Model, "replies");
         _usage.Clear();
@@ -484,6 +489,8 @@ public sealed class Chat : IDisposable
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
+        if (!fromCabinet)
+            Plan.TryAgain();                                // the player's own words try the plan again, past its limit
         _shot = null;
         InFront = handed ?? [];
         var client = _talk;
@@ -649,7 +656,8 @@ public sealed class Chat : IDisposable
             else if (Here() && !texting)                    // a text that failed shows nothing: the plain line goes instead
             {
                 view.Play(Moment.Worry);
-                view.Continue(Trouble.Explain(e));
+                if (e is not PlanStopped { Told: true })    // her card is saying it, once
+                    view.Continue(Trouble.Explain(e));
             }
         }
         finally

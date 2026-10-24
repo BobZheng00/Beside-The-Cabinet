@@ -1,6 +1,6 @@
 # Her mind on the player's ChatGPT plan
 
-*Decided with the user, 2026-10-18 (`/pm:brainstorm #87`). Nothing built yet; the order is at the end. What OpenAI
+*Decided with the user, 2026-10-18 (`/pm:brainstorm #87`). Step 1 built (#90, see Order); the order is at the end. What OpenAI
 offers is from its developer docs as read that day (Sources): the builder reads them again before building, since the
 feature is a preview.*
 
@@ -119,6 +119,22 @@ Each step is usable on its own.
    a provider that speaks to the Responses API within its rules, the model list, Settings → Her mind's ChatGPT plan
    with Connected as / Using ChatGPT plan / Manage usage / Disconnect, the limit and signed-out messages (waiting, with
    reminders still coming plainly). A stand-in server for tests.
+   *Built 2026-10-18* (#90): `ChatGptPlan` in the mind (the sign-in on a `TcpListener` at 127.0.0.1 on a free port,
+   the tokens and email in `companion\chatgpt.bin` through `KeyStore`, the client id and host id in
+   `companion\chatgpt.json`; a `DelegatingChatClient` over the OpenAI library's Responses client turns the opening
+   system message into `instructions`, later ones into developer messages, and drops the refused fields and hosted
+   tools; unit tests against a stand-in), Settings → Mind's ChatGPT plan, her card when the plan stops, and
+   `tools/dev/mock_chatgpt.py` with the `chatgpt` smoke scenario. OpenAI's pages, read again that day, said a little
+   more than above, and it is built their way: the model list comes as `models` (not `data`); a request turned down
+   with 401 is asked once more after a refresh, and the player is signed out only when a refresh is turned down for good
+   (`invalid_grant` and the other terminal codes; "re-sign-in only after confirmed revocation or a terminal refresh
+   error"): a fresh token refused again, a 403 with no code, or a refresh turned down for a passing reason (a 429) is
+   said in the plan's words and the sign-in kept; only `response.completed` counts as a reply; Disconnect also ends
+   the sign-in at OpenAI's revocation endpoint, and says so when that couldn't be confirmed; a sign-in that didn't
+   allow plan usage isn't kept (nothing else here uses it). The ID token's email is read without checking its
+   signature, as OpenID Connect allows for a token straight from the token endpoint over TLS (Core 1.0, 3.1.3.7); only
+   the email is shown from it. Until step 2, after a limit she tries the plan again with the next request a quarter of
+   an hour on, or at once when the player writes to her, and says nothing when it works again.
 2. **The backup:** a backup provider on the same page, the ask-first card when the plan runs out, back to the plan by
    herself.
 3. **Getting started** offers Continue with ChatGPT first.
