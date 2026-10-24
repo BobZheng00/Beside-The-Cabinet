@@ -1785,13 +1785,15 @@ public partial class Stool : Node2D
                 {
                     // a yes is for the backup it named: asked again, while she still waits on the plan
                     var again = _chat.OnPlan && _chat.Plan.Stopped is not null;
-                    GD.Print($"ChatGPT: the backup changed while the card asked; {(again ? "asked again" : "she no longer answers through the plan")}");
+                    GD.Print("ChatGPT: the backup changed while the card asked; " +
+                             (again ? "asked again" : _chat.OnPlan ? "the plan works again meanwhile" : "she no longer answers through the plan"));
                     if (again)
                         Callable.From(() => { if (_chat.OnPlan && _chat.Plan.Stopped is { } still) _ = TellPlan(still); }).CallDeferred();
                     return;
                 }
                 GD.Print(yes ? $"ChatGPT: the player said yes; she carries on with the backup ({backup}) until the plan works again"
-                             : "ChatGPT: not now; she waits on the plan");
+                         : !_chat.OnPlan ? "ChatGPT: the card is taken back: she no longer answers through the plan"
+                         : "ChatGPT: not now; she waits on the plan");
                 if (!yes)
                     return;
                 _chat.Backup.Allow();
@@ -2039,6 +2041,8 @@ public partial class Stool : Node2D
         {
             _settings.Save(_settings.Now with { ChatProtocol = provider?.Protocol.ToString(), ChatBaseUrl = provider?.BaseUrl, ChatModel = provider?.Model });
             _chat.Connect(provider, BackupProvider());
+            if (!_chat.OnPlan && _planCard is not null)
+                _permission.Withdraw();                     // she no longer answers through the plan: its card (telling or asking) goes
         };
         page.BackupSaved += backup =>
         {

@@ -18,7 +18,8 @@ response.failed after the stream began). Words with "signedout" get 401 subscrip
 refresh after it invalid_grant, until the next sign-in (the player disconnected the app in ChatGPT); "ineligible", 403
 subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. Words with
 "reset" lift the limit again (the plan works once more), and that request is answered on the plan. Words with "notebook"
-get a call of her print_memo tool, and the request that brings its result reaches the limit (a turn stopped part-way).
+get a call of her print_memo tool, and the request that brings its result reaches the limit (a turn stopped part-way);
+the backup calls print_memo too ("Notebook again") for such words, so a turn asked again after the yes would show.
 
 It also stands in for the player's backup behind the plan: an OpenAI-compatible server at /backup/v1 (chat
 completions, streamed or not, answering --backup-reply, no key needed), each request logged with "backup": true. It
@@ -190,6 +191,10 @@ class Handler(BaseHTTPRequestHandler):
             said = next((m.get("content") for m in reversed(body.get("messages") or []) if m.get("role") == "user"), "")
             said = said if isinstance(said, str) else " ".join(p.get("text", "") for p in said or [] if isinstance(p, dict))
             log({"path": url.path, "backup": True, "model": body.get("model"), "said": said[-200:], "stream": bool(body.get("stream"))})
+            answered = any(m.get("role") == "tool" for m in body.get("messages") or [])
+            if "notebook" in newest(said).lower() and body.get("tools") and not answered and body.get("stream"):
+                self.backup_call(body.get("model") or "backup-mock", "print_memo", {"title": "Notebook again", "text": "- a memo from the backup"})
+                return
             self.backup(body.get("model") or "backup-mock", ARGS.backup_reply, bool(body.get("stream")))
             return
         if url.path != "/v1/responses":
@@ -262,6 +267,25 @@ class Handler(BaseHTTPRequestHandler):
             send({"content": text[i:i + 12]})
             time.sleep(0.02)
         send({}, "stop", {"usage": usage})
+        self.wfile.write(b"data: [DONE]\n\n")
+        self.wfile.flush()
+
+    def backup_call(self, model, name, arguments):
+        """The backup calling one of her tools, as chat completion chunks stream a tool call."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+
+        def send(delta, finish=None):
+            chunk = {"id": "chatcmpl-backup-call", "object": "chat.completion.chunk", "created": int(time.time()), "model": model,
+                     "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send({"role": "assistant", "content": None, "tool_calls": [{"index": 0, "id": "call_backup", "type": "function",
+                                                                    "function": {"name": name, "arguments": ""}}]})
+        send({"tool_calls": [{"index": 0, "function": {"arguments": json.dumps(arguments)}}]})
+        send({}, "tool_calls")
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
