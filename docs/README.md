@@ -80,7 +80,17 @@ your account can't share its plan, or you are signed out (disconnected in ChatGP
 plainly, with Manage usage or Continue with ChatGPT; meanwhile they wait (no replies, check-ins or remarks) while
 reminders still come, in the app's own words. Once the limit was reached they try the plan again every quarter of an
 hour, and whenever you write to them. ChatGPT being briefly unable to check your usage isn't a limit: the sign-in is
-kept and they try again. ([The design](specs/2026-10-18-chatgpt-plan.md); OpenAI's Sign in with ChatGPT is a
+kept and they try again.
+
+Under the plan, **Backup (optional)** takes an API key provider or a model on this PC, set up as above (Test, then
+**Save backup**; its key is encrypted apart, in `companion\backup-key.bin`). When the plan's limit is reached, or you
+are signed out, their card asks instead: "The ChatGPT plan's limit is reached. Carry on with <the backup> until it
+resets?", with **Yes**, **Manage usage** (or **Continue with ChatGPT** when signed out) and **Not now**. Nothing goes
+to the backup without your Yes; the card waits at the PC until you answer, and meanwhile, or after Not now, they wait
+as above. After Yes they answer what you wrote while the card asked, and everything they do goes to the backup (a
+model on this PC keeps 8k tokens word for word), while they try the plan again every quarter of an hour;
+as soon as it answers they are back on it, and their card says so once. The next time the plan stops, you're asked
+again, and a Yes counts only for the backup it named: saving another, or none, asks again. ([The design](specs/2026-10-18-chatgpt-plan.md); OpenAI's Sign in with ChatGPT is a
 preview.)
 
 They remember:
