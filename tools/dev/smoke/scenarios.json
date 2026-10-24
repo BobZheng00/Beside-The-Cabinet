@@ -119,12 +119,12 @@
     },
     {
       "name": "chatgpt-backup",
-      "about": "On Settings → Mind with the ChatGPT plan (a stand-in), the player sets a backup (a model on this PC, the stand-in's own) and signs in; the companion answers on the plan; once its limit is reached their card asks whether to carry on with the backup, with Yes, Manage usage and Not now, and their bubble doesn't say it again; after Yes the backup answers; when the plan answers again (its next try brought forward) the companion is back on it and their card says so once.",
+      "about": "On Settings → Mind with the ChatGPT plan (a stand-in), the player sets a backup (a model on this PC, the stand-in's own) and signs in; the companion answers on the plan; once its limit is reached their card asks whether to carry on with the backup, with Yes, Manage usage and Not now, and their bubble doesn't say it again; after Yes the backup answers what they wrote while the card asked, then what they write next, keeping a model on this PC's smaller window; when the plan answers again (its next try brought forward) the companion is back on it and their card says so once.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Mind/PlanBackup.cs", "src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindReply": "Hi! I'm on your ChatGPT plan.",
       "mindRequests": 6,
-      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Backup:6@3.5,settingsdo:Server:{mind}/backup/v1@4,settingsdo:Model:backup-mock@4.5,settingsdo:Save_backup@5,settingsdo:Continue_with_ChatGPT@5.5,chat:hello_there@9,chat:that_is_my_limit@13,chat:anyone_there@15,allow@17,chat:are_you_still_there@18,plantry@22,chat:has_it_reset@22",
+      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsdo:Provider:1@3,settingsdo:Backup:6@3.5,settingsdo:Server:{mind}/backup/v1@4,settingsdo:Model:backup-mock@4.5,settingsdo:Save_backup@5,settingsdo:Continue_with_ChatGPT@5.5,chat:hello_there@9,chat:that_is_my_limit@13,chat:anyone_there@15,allow@17,chat:are_you_still_there@19.5,plantry@22,chat:has_it_reset@22",
       "shots": [9, 19, 24, 28],
       "window": "Settings",
       "desk": true,
@@ -133,6 +133,9 @@
         "^ChatGPT: signed in, plan usage allowed; 2 models offered",
         "^ChatGPT: the plan's usage limit is reached; she asks before carrying on with the backup, and waits meanwhile",
         "^ChatGPT: the player said yes; she carries on with the backup \\(the model on this PC\\) until the plan works again",
+        "^Chat: on the backup; she keeps 8000 tokens word for word$",
+        "^Chat: what the player wrote when the plan stopped is asked again, on the backup$",
+        "^Chat: on the ChatGPT plan; she keeps 32000 tokens word for word$",
         "^ChatGPT: the plan answers again; she is back on it, and the backup goes unused"
       ],
       "forbid": ["^ChatGPT: sign-in didn't finish", "^ChatGPT: not now"]

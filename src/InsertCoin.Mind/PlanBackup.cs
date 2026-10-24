@@ -45,6 +45,21 @@ public sealed class PlanBackup
         Allowing?.Invoke();
     }
 
+    /// <summary>The yes was taken back: the backup it named was changed or removed, so the player is asked again (if the plan still waits).</summary>
+    public event Action? Forgot;
+
+    /// <summary>
+    /// The backup the player said yes to is no longer the one behind the plan (another saved, or none): a yes is for the
+    /// backup it named, so she waits on the plan again until asked anew.
+    /// </summary>
+    public void Forget()
+    {
+        if (!Allowed)
+            return;
+        Allowed = false;
+        Forgot?.Invoke();
+    }
+
     /// <summary>
     /// Her mind on the plan, <paramref name="onPlan"/>, with <paramref name="backup"/> behind it: a request the plan
     /// turns down, or doesn't make while it waits, goes to the backup instead, but only after the player's yes.
@@ -68,22 +83,40 @@ public sealed class PlanBackup
         public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
                                                                                              [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            // the plan's updates that show nothing (its response.created comes first, before a limit reached part-way) are
+            // held until one that does: a request the plan stops before that goes to the backup whole
+            var held = new List<ChatResponseUpdate>();
             await using (var plan = base.GetStreamingResponseAsync(messages, options, cancellationToken).GetAsyncEnumerator(cancellationToken))
             {
-                var started = false;
+                bool shown = false, stopped = false;
                 while (true)
                 {
                     try
                     {
                         if (!await plan.MoveNextAsync())
-                            yield break;
+                            break;
                     }
-                    catch (PlanStopped) when (!started && backup.Allowed)
+                    catch (PlanStopped) when (!shown && backup.Allowed)
                     {
-                        break;                              // nothing of the plan's shown yet: the backup answers it whole
+                        stopped = true;
+                        break;
                     }
-                    started = true;
+                    if (!shown && plan.Current.Contents.Count == 0)
+                    {
+                        held.Add(plan.Current);
+                        continue;
+                    }
+                    shown = true;
+                    foreach (var waiting in held)
+                        yield return waiting;
+                    held.Clear();
                     yield return plan.Current;
+                }
+                if (!stopped)
+                {
+                    foreach (var waiting in held)
+                        yield return waiting;
+                    yield break;
                 }
             }
             await foreach (var update in other.GetStreamingResponseAsync(messages, options, cancellationToken))

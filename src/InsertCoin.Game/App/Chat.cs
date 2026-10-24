@@ -54,6 +54,14 @@ public sealed class Chat : IDisposable
         Plan = new ChatGptPlan(signIn.Load(), signIn.Save, Path.Combine(folder, "chatgpt.json"));
         Backup = new PlanBackup(Plan);
         BackupKeys = new KeyStore(Path.Combine(folder, "backup-key.bin"));
+        Backup.Allowing += Switched;
+        Backup.Back += Switched;
+        Backup.Forgot += Switched;
+        Plan.Changed += () =>
+        {
+            if (Plan.Stopped is null)
+                _unanswered = null;                         // the plan works again: nothing waits on a yes
+        };
         Skills = new Skills(Path.Combine(dataDir, "skills"));
         _readSkill = BuiltIn.ReadSkill(ReadSkill);
         _changeSkill = BuiltIn.ChangeSkill(ChangeSkill);
@@ -99,6 +107,34 @@ public sealed class Chat : IDisposable
 
     /// <summary>Her card is telling the player of the plan now, or asking about the backup: a request the plan stops adds nothing in her bubble.</summary>
     public bool PlanTold { get; set; }
+
+    /// <summary>
+    /// She went over to the backup, back to the plan, or the yes was taken back: each model gets its own try with her
+    /// tools (one that turned them down mustn't leave the other without them), and its own conversation window.
+    /// </summary>
+    private void Switched()
+    {
+        Tools.Refused = false;
+        Tools.HostedRefused = false;
+        UseWindow(_window);
+        GD.Print($"Chat: {(OnBackup ? "on the backup" : "on the ChatGPT plan")}; she keeps {Window} tokens word for word");
+    }
+
+    private (string Said, IReadOnlyList<Attachment> Handed, long Line)? _unanswered;
+
+    /// <summary>
+    /// What the player wrote that the plan stopped on, unanswered while her card asks about the backup: after their yes
+    /// it is taken back from the conversation, to be asked again (on the backup) as they wrote it. Null when there's none.
+    /// </summary>
+    public (string Said, IReadOnlyList<Attachment> Handed)? TakeUnanswered()
+    {
+        if (_unanswered is not { } waiting)
+            return null;
+        _unanswered = null;
+        Store.RemoveLine(waiting.Line);
+        GD.Print("Chat: what the player wrote when the plan stopped is asked again, on the backup");
+        return (waiting.Said, waiting.Handed);
+    }
 
     /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
     public Skills Skills { get; }
@@ -301,7 +337,10 @@ public sealed class Chat : IDisposable
         // every request counted (see Metered, and the chat settings' Usage tab): her replies apart from her upkeep, each under the model that answered
         var timed = provider?.Connect(Keys.Load(), Plan) is { } client ? new Timed(client, Used) : null;
         var spare = provider?.Protocol == Protocol.ChatGpt && backup?.Connect(BackupKeys.Load()) is { } other ? new Timed(other, Used) : null;
+        var before = _backup;
         _backup = spare is null ? null : backup;
+        if (_backup != before)
+            Backup.Forget();                                // a yes is for the backup it named
         IChatClient Behind(IChatClient onPlan, Func<IChatClient, IChatClient> shaped, string purpose) =>
             spare is null ? onPlan : Backup.Over(onPlan, new Metered(shaped(spare), Store, backup!.Model, purpose));
         _client = timed is null ? null : Behind(new Metered(timed, Store, provider!.Model, "upkeep"), c => c, "upkeep");
@@ -355,7 +394,7 @@ public sealed class Chat : IDisposable
             _conversation.Window = Window;
     }
 
-    public int Window => _window ?? _provider?.DefaultWindow ?? Prompt.DefaultWindow;
+    public int Window => _window ?? (OnBackup ? _backup! : _provider)?.DefaultWindow ?? Prompt.DefaultWindow;
 
     /// <summary>Of the input her last replies read, the share the provider served from its cache (by its own count), and over how many replies; null before any.</summary>
     public (double Share, int Replies)? Cached =>
@@ -513,6 +552,8 @@ public sealed class Chat : IDisposable
             return;
         if (!fromCabinet && !OnBackup)
             Plan.TryAgain();                                // the player's own words try the plan again, past its limit (on the backup: each quarter hour)
+        if (!fromCabinet)
+            _unanswered = null;                             // newer words: those are the ones to answer
         _shot = null;
         InFront = handed ?? [];
         var client = _talk;
@@ -663,6 +704,10 @@ public sealed class Chat : IDisposable
         catch (Exception e)
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
+            // the player's words the plan stopped on while her card asks about the backup: answered after their yes
+            if (!fromCabinet && !texting && e is PlanStopped { } halted && (halted.Told || PlanTold) && _backup is not null
+                && Store.Through(conversation.Character, long.MaxValue, 1) is [{ Speaker: Speaker.User } line])
+                _unanswered = (said, handed ?? [], line.Id);
             if (Here() && fallback is not null)
             {
                 if (fallback.Length > 0)

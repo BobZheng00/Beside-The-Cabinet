@@ -596,4 +596,88 @@ public class ChatGptPlanTests : IDisposable
 
         Assert.False(backup.Allowed);
     }
+
+    /// <summary>The limit reached part-way: response.created, then response.failed.</summary>
+    private static HttpResponseMessage LimitReachedPartWay() => Events(
+        ("response.created", """{"type":"response.created","sequence_number":0,"response":{"id":"resp_2","object":"response","created_at":1790000000,"status":"in_progress","model":"gpt-5.5","output":[]}}"""),
+        ("response.failed", """
+            {"type":"response.failed","sequence_number":1,"response":{"id":"resp_2","object":"response","created_at":1790000000,"status":"failed","model":"gpt-5.5","output":[],
+             "error":{"code":"subscription_sharing_usage_limit_exceeded","message":"limit"}}}
+            """));
+
+    [Fact]
+    public async Task A_limit_reached_part_way_comes_after_an_update_from_the_plan_with_nothing_to_show()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        _openAi.Answers.Enqueue(LimitReachedPartWay());
+        var before = new List<ChatResponseUpdate>();
+
+        await Assert.ThrowsAsync<PlanStopped>(async () =>
+        {
+            await foreach (var update in plan.Client("gpt-5.5").GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hello")]))
+                before.Add(update);
+        });
+
+        Assert.NotEmpty(before);                                        // the library hands over response.created first
+        Assert.All(before, update => Assert.Empty(update.Contents));
+        Assert.Equal("resp_2", before[0].ResponseId);
+    }
+
+    [Fact]
+    public async Task A_limit_reached_part_way_through_the_plans_next_try_goes_to_the_backup_after_a_yes()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        backup.Allow();
+        _clock.Now = Noon.AddMinutes(16);
+        _openAi.Answers.Enqueue(LimitReachedPartWay());
+
+        var updates = new List<ChatResponseUpdate>();
+        await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Later")]))
+            updates.Add(update);
+
+        Assert.Equal("From the backup.", string.Concat(updates.Select(u => u.Text)));
+        Assert.All(updates, update => Assert.NotEqual("resp_2", update.ResponseId));      // nothing of the plan's
+        Assert.Single(spare.Requests);
+    }
+
+    [Fact]
+    public void The_plan_keeps_the_full_window_even_at_a_stand_in_while_a_backup_on_this_pc_keeps_a_small_one()
+    {
+        Assert.Equal(Prompt.DefaultWindow, new Provider(Protocol.ChatGpt, "http://127.0.0.1:8798/v1", "gpt-mock").DefaultWindow);
+        Assert.Equal(Prompt.LocalWindow, new Provider(Protocol.OpenAi, "http://localhost:11434/v1", "qwen3").DefaultWindow);
+        Assert.Equal("Ollama", new Provider(Protocol.OpenAi, "http://localhost:11434/v1", "qwen3").Name);
+        Assert.Equal("the model on this PC", new Provider(Protocol.OpenAi, "http://127.0.0.1:8798/backup/v1", "mock").Name);
+        Assert.Equal("api.example.com", new Provider(Protocol.OpenAi, "https://api.example.com/v1", "m").Name);
+    }
+
+    [Fact]
+    public async Task A_yes_is_for_the_backup_it_named_and_once_taken_back_nothing_more_goes_to_the_backup()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var forgot = 0;
+        backup.Forgot += () => forgot++;
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        backup.Allow();
+        await client.GetResponseAsync("On the backup");
+
+        backup.Forget();                                                // another backup saved, or none
+        backup.Forget();
+
+        Assert.False(backup.Allowed);
+        Assert.Equal(1, forgot);
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("And now?"));
+        Assert.Single(spare.Requests);
+    }
 }

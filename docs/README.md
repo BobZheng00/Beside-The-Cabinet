@@ -87,9 +87,10 @@ Under the plan, **Backup (optional)** takes an API key provider or a model on th
 are signed out, their card asks instead: "The ChatGPT plan's limit is reached. Carry on with <the backup> until it
 resets?", with **Yes**, **Manage usage** (or **Continue with ChatGPT** when signed out) and **Not now**. Nothing goes
 to the backup without your Yes; the card waits at the PC until you answer, and meanwhile, or after Not now, they wait
-as above. After Yes everything they do goes to the backup, while they try the plan again every quarter of an hour;
+as above. After Yes they answer what you wrote while the card asked, and everything they do goes to the backup (a
+model on this PC keeps 8k tokens word for word), while they try the plan again every quarter of an hour;
 as soon as it answers they are back on it, and their card says so once. The next time the plan stops, you're asked
-again. ([The design](specs/2026-10-18-chatgpt-plan.md); OpenAI's Sign in with ChatGPT is a
+again, and a Yes counts only for the backup it named: saving another, or none, asks again. ([The design](specs/2026-10-18-chatgpt-plan.md); OpenAI's Sign in with ChatGPT is a
 preview.)
 
 They remember:

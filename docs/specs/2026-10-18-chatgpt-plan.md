@@ -147,9 +147,12 @@ Each step is usable on its own.
    until answered (no two-minute lapse), with Yes, Not now and Manage usage (Continue with ChatGPT when signed out or
    not eligible, worded for each: "Signed out of ChatGPT. Carry on with <backup> until you sign in again?"), which
    leaves the question open. While either of the plan's cards is up, a request it stops says nothing more in her bubble
-   (QA on #98: it was said again with each message). A request that stopped the plan isn't answered again after the
-   yes: the player's next words go to the backup, with the earlier ones in the conversation. Asking by text when the
-   player is away stays open (it waits at the PC).
+   (QA on #98: it was said again with each message). After the yes, what the player wrote while the card asked (the
+   latest) is taken back from the conversation and asked again, on the backup, so they needn't write it twice. A yes is
+   for the backup it named: saving another backup, or none, or leaving the plan takes it back, and while the plan still
+   waits the card asks again. Each change-over gives her tools a fresh try (a local backup that turned them down leaves
+   the plan with them) and the conversation window that suits the model now answering (8k for a backup on this PC).
+   Asking by text when the player is away stays open (it waits at the PC).
 3. **Getting started** offers Continue with ChatGPT first.
 
 ## Sources

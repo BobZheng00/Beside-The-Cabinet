@@ -335,6 +335,7 @@ public partial class MindSettings : VBoxContainer
         _backupKey.Text = "";
         UseBackup(_backupPreset.Selected, keepFields: true);
         BackupSaved?.Invoke(backup);
+        ShowNow();                                          // a yes doesn't carry over to another backup: she may be waiting again
         GD.Print(backup is null ? "Settings: no backup behind the ChatGPT plan" : $"Settings: the backup behind the ChatGPT plan is {backup.Name}");
         Form.Say(_backupSaid, backup is null ? "Saved, without a backup." : $"Saved. When the plan stops, {_name} asks before using {backup.Name}.", Paper.Good);
     }

@@ -185,6 +185,12 @@ public partial class Stool : Node2D
             if (_chat.BackupProvider is not null)           // still set: it was what she carried on with
                 Callable.From(() => { _ = TellBack(); }).CallDeferred();
         };
+        _chat.Backup.Forgot += () => Callable.From(() =>
+        {
+            GD.Print("ChatGPT: the backup changed after the yes; the yes is taken back");
+            if (_chat.Plan.Stopped is { } why)
+                _ = TellPlan(why);                          // still waiting on the plan: asked again, for the backup now set (or told plainly, with none)
+        }).CallDeferred();
         _chat.AskPlayer = AskPlayer;
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
@@ -1642,7 +1648,8 @@ public partial class Stool : Node2D
         _chatBox.Open(new Vector2(14, _cabinet.Skin.Canvas.Y - ChatBox.Height - 14), $"Say something to {_chat.Conversation!.Persona.Name}…");
     }
 
-    internal async Task Ask(string said)
+    /// <param name="given">What goes with it, asked again (see <see cref="Chat.TakeUnanswered"/>); else what waits on the slip.</param>
+    internal async Task Ask(string said, IReadOnlyList<Attachment>? given = null)
     {
         if (Her is null)
             return;
@@ -1652,7 +1659,7 @@ public partial class Stool : Node2D
             _texted = false;
         }
         _lastTalked = DateTimeOffset.Now;
-        var handed = _chatBox.TakeHanded();                 // what waits on the slip goes with it, typed or said
+        var handed = given ?? _chatBox.TakeHanded();        // what waits on the slip goes with it, typed or said
         _listening.Drop();
         await Interrupt();                                  // asking something new cuts off what she was still saying
         _chatBox.SetWaiting(true);
@@ -1772,11 +1779,22 @@ public partial class Stool : Node2D
                     PlanStop.NotEligible => ($"This ChatGPT account can't share its plan. Carry on with {backup} meanwhile?", "Continue with ChatGPT"),
                     _ => ($"Signed out of ChatGPT. Carry on with {backup} until you sign in again?", "Continue with ChatGPT"),
                 };
+                var asked = _chat.BackupProvider;
                 var yes = await _permission.AskOver(question, $"{name} waits until you answer; reminders still come.", aside, PutRight, where);
-                if (yes)
-                    _chat.Backup.Allow();
+                if (yes && _chat.BackupProvider != asked)
+                {
+                    GD.Print("ChatGPT: the backup changed while the card asked; asked again");      // a yes is for the backup it named
+                    if (_chat.Plan.Stopped is { } still)
+                        Callable.From(() => { _ = TellPlan(still); }).CallDeferred();
+                    return;
+                }
                 GD.Print(yes ? $"ChatGPT: the player said yes; she carries on with the backup ({backup}) until the plan works again"
                              : "ChatGPT: not now; she waits on the plan");
+                if (!yes)
+                    return;
+                _chat.Backup.Allow();
+                if (_chat.OnBackup && _chat.TakeUnanswered() is { } waiting)
+                    _ = Ask(waiting.Said, waiting.Handed);  // what they wrote when the plan stopped: answered now, on the backup
                 return;
             }
             var (what, detail, action) = why switch
