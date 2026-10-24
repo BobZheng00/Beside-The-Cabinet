@@ -152,18 +152,17 @@ public class ToolTests
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
         await conversation.Answer(model, "hi again", "", _ => { }, (_, _) => { }, tools: tools);
 
-        Assert.Equal(["jot", "open_link"], model.Options[0]!.Tools!.Select(t => t.Name));
+        Assert.Equal(["agenda", "jot", "open_link"], model.Options[0]!.Tools!.Select(t => t.Name));
         Assert.Same(model.Options[0]!.Tools, model.Options[1]!.Tools);                  // the same list: the cached prompt start holds
         Assert.Contains("Your abilities", model.Requests[0][0].Text);
         tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Off });
-        Assert.Equal(["jot"], tools.Offered!.Select(t => t.Name));
-        tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Off, ["jot"] = Permission.Off });
-        Assert.Null(tools.Offered);
+        Assert.Equal(["agenda", "jot"], tools.Offered!.Select(t => t.Name));
 
+        // with every ability switched off she still keeps the player's agenda with its tool
+        tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Off, ["jot"] = Permission.Off });
         var plain = new FakeToolModel(["Hi!"]);
         await conversation.Answer(plain, "hi", "", _ => { }, (_, _) => { }, tools: tools);
-        Assert.Null(plain.Options[0]!.Tools);
-        Assert.DoesNotContain("Your abilities", plain.Requests[0][0].Text);              // nothing to use: not told about it
+        Assert.Equal(["agenda"], plain.Options[0]!.Tools!.Select(t => t.Name));
     }
 
     [Fact]

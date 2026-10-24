@@ -120,11 +120,15 @@ They remember:
 - your agenda: plans, exams and appointments with their dates, which your companion writes down when you mention
   them (or upkeep does later), and reminders you ask for ("remind me at 9 to call Mum", "an hour before the
   interview", "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on
-  weekdays, weekly or monthly). Ask them to cancel something, move it or change its reminder and they do it in that
-  reply, to that same item; an item from a calendar you linked stays as the calendar has it. A change the cabinet
-  can't make (a time it can't read, an item that isn't there, stopping a repeat or removing a reminder, which it
-  can't do yet, or anything it can't read beside what it can, such as "every Monday") is left undone, all of it, and
-  their next reply says so. What is coming up in
+  weekdays, weekly or monthly). Ask them to cancel something, move it, rename it, change or remove its reminder or
+  stop it repeating, and they do it in that reply, to that same item; an item from a calendar you linked stays as the
+  calendar has it. They write it down as they say it ("Friday, half three, the dentist"), with a quick note on a pad,
+  and that line is all they say about it; something they set always has a reminder chosen (none, at the time, or
+  some time before), so they never promise one that isn't there. What the cabinet can't do (a time it can't read, a
+  repeat it doesn't have such as every other week, an item that isn't there) is left undone, and they hear at once
+  and say so in the same reply. With a provider whose model has no tools, they write it into their reply instead,
+  and a change that can't be made, or that has something the cabinet can't read beside what it can (such as "every
+  Monday"), is left undone, all of it, and their next reply says so. What is coming up in
   the next week, and what has just passed (so they can ask how it went), is in every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next
   time. The screen's AGENDA app shows what is coming up, following changes within a couple of seconds while it is
   open, and a click there opens the memory book's Agenda. A

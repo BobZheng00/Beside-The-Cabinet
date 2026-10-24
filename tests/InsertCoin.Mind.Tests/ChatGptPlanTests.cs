@@ -409,6 +409,63 @@ public class ChatGptPlanTests : IDisposable
         Assert.Null(plan.Stopped);
     }
 
+    /// <summary>Her line, then a call to <paramref name="tool"/> with <paramref name="arguments"/> (JSON), as OpenAI streams them on the plan.</summary>
+    private static HttpResponseMessage SaidThenCalled(string text, string tool, string arguments)
+    {
+        var quoted = System.Text.Json.JsonSerializer.Serialize(arguments);
+        return Events(
+            ("response.created", """{"type":"response.created","sequence_number":0,"response":{"id":"resp_t","object":"response","created_at":1790000000,"status":"in_progress","model":"gpt-5.5","output":[]}}"""),
+            ("response.output_item.added", """{"type":"response.output_item.added","sequence_number":1,"output_index":0,"item":{"id":"msg_t","type":"message","status":"in_progress","role":"assistant","content":[]}}"""),
+            ("response.output_text.delta", $$"""{"type":"response.output_text.delta","sequence_number":2,"item_id":"msg_t","output_index":0,"content_index":0,"delta":"{{text}}"}"""),
+            ("response.output_item.done", $$$"""{"type":"response.output_item.done","sequence_number":3,"output_index":0,"item":{"id":"msg_t","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"{{{text}}}","annotations":[]}]}}"""),
+            ("response.output_item.added", $$$"""{"type":"response.output_item.added","sequence_number":4,"output_index":1,"item":{"id":"fc_t","type":"function_call","status":"in_progress","call_id":"call_t","name":"{{{tool}}}","arguments":""}}"""),
+            ("response.function_call_arguments.delta", """{"type":"response.function_call_arguments.delta","sequence_number":5,"item_id":"fc_t","output_index":1,"delta":""" + quoted + "}"),
+            ("response.function_call_arguments.done", """{"type":"response.function_call_arguments.done","sequence_number":6,"item_id":"fc_t","output_index":1,"arguments":""" + quoted + "}"),
+            ("response.output_item.done", $$"""{"type":"response.output_item.done","sequence_number":7,"output_index":1,"item":{"id":"fc_t","type":"function_call","status":"completed","call_id":"call_t","name":"{{tool}}","arguments":""" + quoted + "}}"),
+            ("response.completed", $$$$"""
+                {"type":"response.completed","sequence_number":8,"response":{"id":"resp_t","object":"response","created_at":1790000000,"status":"completed","model":"gpt-5.5",
+                 "output":[{"id":"msg_t","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"{{{{text}}}}","annotations":[]}]},
+                           {"id":"fc_t","type":"function_call","status":"completed","call_id":"call_t","name":"{{{{tool}}}}","arguments":{{{{quoted}}}}}],
+                 "usage":{"input_tokens":120,"input_tokens_details":{"cached_tokens":100},"output_tokens":20,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":140}}}
+                """));
+    }
+
+    [Fact]
+    public async Task On_the_plan_her_agenda_call_after_her_words_ends_the_reply_with_one_request()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "hana", new Persona("Hana", "Hana is calm."), _clock);
+        _openAi.Answers.Enqueue(SaidThenCalled("Friday, half three, the dentist.", "agenda",
+            """{"action":"add","remind":"before","minutes_before":10,"when":"2026-10-23T15:30","what":"Dentist"}"""));
+
+        var answer = await conversation.Answer(plan.Client("gpt-5.5"), "dentist friday at 3:30, remind me 10 min before", "", _ => { }, (_, _) => { }, tools: new Toolbox([]));
+
+        Assert.Equal("Friday, half three, the dentist.", answer);
+        Assert.Single(_openAi.Paths, p => p == "/v1/responses");
+        var item = Assert.Single(temp.Store.Agenda());
+        Assert.Equal(("Dentist", TimeSpan.FromMinutes(10)), (item.Text, item.Before));
+    }
+
+    [Fact]
+    public async Task On_the_plan_an_agenda_call_that_fails_goes_back_to_her()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "hana", new Persona("Hana", "Hana is calm."), _clock);
+        _openAi.Answers.Enqueue(SaidThenCalled("The bank, Monday.", "agenda", """{"action":"add","remind":"none","when":"Monday 9am","what":"Call the bank"}"""));
+        _openAi.Answers.Enqueue(Streamed("What time, exactly?"));
+
+        var answer = await conversation.Answer(plan.Client("gpt-5.5"), "remind me to call the bank monday", "", _ => { }, (_, _) => { }, tools: new Toolbox([]));
+
+        Assert.Equal("The bank, Monday. What time, exactly?", answer);
+        Assert.Equal(2, _openAi.Paths.Count(p => p == "/v1/responses"));
+        Assert.Contains("as a time: write it", _openAi.Asked.Last(a => a.Path == "/v1/responses").Body);   // her failed call's reason, sent back to her
+        Assert.Empty(temp.Store.Agenda());
+    }
+
     [Fact]
     public async Task Only_a_completed_response_is_a_reply()
     {

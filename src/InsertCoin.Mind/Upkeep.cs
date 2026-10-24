@@ -8,7 +8,8 @@ namespace InsertCoin.Mind;
 public sealed record FactChange(string Op, long? Id, string? About, string? Text, int? Importance);
 
 /// <summary>One change to the agenda upkeep asks for: add an item, update one, or cancel one.</summary>
-/// <param name="Options">How long before to remind and how it repeats, as words (see <see cref="Agenda.ParseOptions"/>).</param>
+/// <param name="Remind">A reminder at its time ("remind": "at_the_time").</param>
+/// <param name="Options">How long before to remind ("remind": "before", with its minutes) and how it repeats, as words (see <see cref="Agenda.ParseOptions"/>).</param>
 public sealed record PlanChange(string Op, long? Id, string? When, string? Text, bool Remind, string? Options = null);
 
 /// <summary>Facts a review folds into one (one id: a rewrite).</summary>
@@ -70,8 +71,9 @@ public static class Upkeep
                   {"op": "update", "id": 12, "text": "...", "importance": 6},
                   {"op": "delete", "id": 5}],
                  "plans": [
-                  {"op": "add", "when": "2026-10-06 15:00", "text": "a short title", "remind": true, "before": "1 hour"},
-                  {"op": "add", "when": "2026-10-05 08:00", "text": "a short title", "remind": true, "repeat": "daily"},
+                  {"op": "add", "when": "2026-10-06 15:00", "text": "a short title", "remind": "before", "minutes_before": 60},
+                  {"op": "add", "when": "2026-10-05 08:00", "text": "a short title", "remind": "at_the_time", "repeat": "daily"},
+                  {"op": "add", "when": "2026-10-09", "text": "a short title", "remind": "none"},
                   {"op": "update", "id": 3, "when": "2026-10-12", "text": "a short title"},
                   {"op": "cancel", "id": 4}],
                  "threads": [
@@ -81,7 +83,7 @@ public static class Upkeep
 
                 Facts are short, standalone statements in the third person, in the language the conversation is in. "about": "player" for the player's life, goals, likes, habits and people; "us" for what is between the player and {{persona.Name}}: nicknames, promises, jokes, how they like to talk; "her" for what {{persona.Name}} has told the player about herself: her past, likes, opinions and habits. Importance: 1-3 trivia, 4-6 useful, 7-9 important (goals, strong likes and dislikes), 10 essential (their name). Her notes keep what happened and when; facts are what lasts beyond the day: who the player is, the people in their life, what they like, want and usually do. Don't make a fact of a one-off event unless it changes something that lasts (a new job, a move). Update a known fact when the notes change it, delete one that is no longer true, and never add one that is already known. Each fact is one thing, in one sentence of at most {{FactWords}} words: two things are two facts. Leave out the cabinet's numbers (time banked, streaks, tokens): they are always on screen. If nothing is worth keeping, give an empty list.
 
-                Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn any relative date ("tomorrow", "next Friday") into a date from the day of the note. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "remind": true only when the player asked to be reminded: with "before" ("10 min", "1 hour", "1 day") when they asked to be reminded that long ahead, else "when" is when the reminder goes off. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
+                Plans are things ahead with a date: appointments, exams, deadlines, trips. They go in "plans", not in facts. "when" is "YYYY-MM-DD HH:MM", or "YYYY-MM-DD" for a whole day; turn any relative date ("tomorrow", "next Friday") into a date from the day of the note. Add what the agenda below does not have yet, update an item the conversation moves or changes, and cancel one that is called off. "when" is when the thing itself is. Every add says "remind": "none" unless the player asked to be reminded, then "at_the_time", or "before" with "minutes_before" (10, 60 for an hour, 1440 for a day) when they asked to be reminded that long ahead. "repeat" ("daily", "weekdays", "weekly", "monthly") only for something that recurs. If there are none, give an empty list.
 
                 Threads are what is going on in the player's life with no date, that a friend would ask about a few days later: a worry, a decision, something they are waiting for, someone who is ill, a project under way. Open one for such a thing that is neither a thread nor on the agenda yet; update one when the notes bring news of it, its text as things stand now; close one that is settled. Most notes open none.
                 """),
@@ -117,9 +119,14 @@ public static class Upkeep
                         p.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var n) ? n : null,
                         Text(p, "when"),
                         Text(p, "text")?.Trim(),
-                        p.TryGetProperty("remind", out var r) && r.ValueKind == JsonValueKind.True,
-                        string.Join(", ", new[] { Text(p, "before") is { Length: > 0 } b ? (b.Contains("before") ? b : b + " before") : null, Text(p, "repeat") }
-                                              .Where(o => o is not null))));
+                        Text(p, "remind")?.Replace('_', ' ').Trim().ToLowerInvariant() == "at the time",
+                        string.Join(", ", new[]
+                        {
+                            Text(p, "remind")?.Trim().ToLowerInvariant() == "before" && p.TryGetProperty("minutes_before", out var m) && m.ValueKind == JsonValueKind.Number
+                                && m.TryGetInt32(out var minutes) && minutes > 0 ? $"{minutes} min before" : null,
+                            // only a repeat from the list: "every other week" is no repeat at all, rather than weekly (#101)
+                            Text(p, "repeat")?.Trim().ToLowerInvariant() is "daily" or "weekdays" or "weekly" or "monthly" ? Text(p, "repeat")!.Trim().ToLowerInvariant() : null,
+                        }.Where(o => o is not null))));
             var threads = new List<ThreadChange>();
             if (root.TryGetProperty("threads", out var open) && open.ValueKind == JsonValueKind.Array)
                 foreach (var t in open.EnumerateArray().Where(t => t.ValueKind == JsonValueKind.Object))
