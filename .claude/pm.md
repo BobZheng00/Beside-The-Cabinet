@@ -33,7 +33,7 @@ work here (its rules, how the code reads, where things are); `private/notes.md`,
   and shows no tray icon or notices): never stop the user's copy. BLOCKED (exit 3) now means only that another test
   run held the lock too long: retry later.
 - In a worktree, before test runs of your own: `powershell -NoProfile -ExecutionPolicy Bypass -File
-  tools/dev/smoke.ps1 -Prepare` (where Godot is, the main checkout's models, the import, the build).
+  tools/dev/smoke.ps1 -Prepare` (where Godot is, the import, the build).
 - Aimed runs: `tools\dev\shoot.ps1 -Hidden -Out <worktree>\.qa\shots -Tag <name> -Script "action@s,..." -Shots s,...`
   with the dev actions in tools/dev/README.md. Run it with the PowerShell tool, so arrays survive. Read the
   screenshots. `-Window "<title>"` captures one of the app's own windows too (without its title bar).
@@ -50,9 +50,11 @@ work here (its rules, how the code reads, where things are); `private/notes.md`,
   release builds. Releases to share are made only with `tools/export/release.py` (it keeps GPL code out).
 - Compare with main's latest smoke run in `<main checkout>\.qa\smoke\main\`. After visible changes merge, refresh it:
   run smoke.ps1 in the main checkout on main (with no options it runs every scenario).
-- A worktree's `src\InsertCoin.Game\models` is a link to the main checkout's models. Before removing a worktree,
-  remove that link first (`cmd /c rmdir "<worktree>\src\InsertCoin.Game\models"`), then `git worktree remove`.
-  Never delete a worktree with `Remove-Item -Recurse`, which can follow the link.
+- A worktree holds no models: run from source in a worktree, the app reads the main checkout's
+  `src\InsertCoin.Game\models` by itself, so removing a worktree any way (`git worktree remove`, with `--force` or
+  not) can't touch them. A worktree prepared before #122 had a link there, which `git worktree remove --force`
+  followed, emptying the main checkout's models: `smoke.ps1 -Prepare` (and every smoke run) removes such a link;
+  in a worktree that hasn't run one since, `cmd /c rmdir "<worktree>\src\InsertCoin.Game\models"` first.
 - Look for what a player would notice: text cut off or running off a window, overlapping windows, blank or black
   areas, the wrong language or American spelling, a control that does nothing, the companion called "she" or "her"
   in the app's own words or in the READMEs (their name, or "they").

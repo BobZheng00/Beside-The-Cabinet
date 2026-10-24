@@ -6,12 +6,13 @@
 # (--offscreen): it runs beside the player's own copies (their app, the demo) on a profile of its own, without the
 # app's one-copy lock, and leaves their tray, notices, talk key, mouse and microphone alone. This script never stops
 # anything of the user's.
-# Works the same in a worktree: it borrows the main checkout's GODOT setting and models when the worktree has none.
+# Works the same in a worktree: it borrows the main checkout's GODOT setting when the worktree has none, and the app
+# itself finds the main checkout's models (a worktree holds no link to them).
 #
 #   tools\dev\smoke.ps1                      # every scenario
 #   tools\dev\smoke.ps1 -Only boot,chat      # some of them (from bash: -Only "boot,chat")
 #   tools\dev\smoke.ps1 -List                # the scenarios and what each one checks
-#   tools\dev\smoke.ps1 -Prepare             # only make this checkout ready for test runs (GODOT, models, import, build)
+#   tools\dev\smoke.ps1 -Prepare             # only make this checkout ready for test runs (GODOT, import, build)
 #   tools\dev\smoke.ps1 -Changed             # only those the branch's changes since origin/main need (check.ps1 runs this)
 #   tools\dev\smoke.ps1 -Changed -Explain    # which those are, and why each other one is skipped, without running any
 #
@@ -27,12 +28,15 @@
 # -SelfCheck only check, on made-up copies of the app, how "beside" judges whose the player's lock is; then stop
 # -Port      the mock mind's port (default: a free one for each scenario, so another agent's mock on 8797 can't answer)
 # -Prepare   in a worktree, before shoot.ps1 or clip.ps1 runs of your own: copies the main checkout's private\local.cmd
-#            (where Godot is), links its models, imports the project and builds the game; then stops
+#            (where Godot is), removes a link to its models left by an older -Prepare, imports the project and builds
+#            the game; then stops
 # Test runs take turns: shoot.ps1 and clip.ps1 take the same lock (Local\InsertCoinSmoke), so an agent's own run waits
 # for a smoke run and the other way round. Copies of the app left over from a killed test run (started --offscreen)
 # are stopped; nothing else is.
-# A worktree's models folder is a link to the main checkout's: delete a worktree with git worktree remove (or
-# `cmd /c rmdir` the link first), never with Remove-Item -Recurse, which can follow the link.
+# A worktree has no models folder of its own: run from source, the app reads the main checkout's (ModelFiles). An older
+# -Prepare linked them in (a junction), and git worktree remove --force followed that link and emptied the main
+# checkout's models (#122): -Prepare, and every smoke run, now remove such a link (cmd /c rmdir, which takes only the
+# link), so any way of removing a worktree (git worktree remove, --force or not, Remove-Item -Recurse) is safe.
 # Output: <Out>\report.md and report.json, <scenario>-<n>.png per shot (-window, -desk as shoot.ps1 makes them),
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
 # A scenario with "beside" also starts stand-ins for the player's own app first (hidden copies that aren't test runs,
@@ -208,7 +212,7 @@ foreach ($s in $suite.scenarios) {
 }
 if ($Changed -and $scenarios.Count -eq 0) { Finish 0 }               # nothing to run: no build, no lock, no app
 
-# --- GODOT, models and Godot's import, borrowed from the main checkout in a worktree -----------------------------
+# --- GODOT and Godot's import, borrowed from the main checkout in a worktree -------------------------------------
 function Read-Godot([string]$checkout) {
   $local = Join-Path $checkout "private\local.cmd"
   if (-not (Test-Path $local)) { return "" }
@@ -230,11 +234,10 @@ if (-not $env:GODOT) {
 }
 $godotConsole = $env:GODOT -replace '\.exe$', '_console.exe'
 
-$models = Join-Path $game "models"
-$mainModels = Join-Path $main "src\InsertCoin.Game\models"
-if (-not (Test-Path $models) -and ($repo -ne $main) -and (Test-Path $mainModels)) {
-  New-Item -ItemType Junction -Path $models -Target $mainModels | Out-Null      # a link, not a 380 MB copy
-  "Linked the main checkout's models into this worktree."
+$models = Get-Item -Force (Join-Path $game "models") -ErrorAction SilentlyContinue
+if ($models -and ($repo -ne $main) -and ($models.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+  cmd /c rmdir "$($models.FullName)"                     # the link only, never what it points to
+  "Removed this worktree's link to the main checkout's models: the app finds them by itself."
 }
 
 if (-not $NoBuild) {

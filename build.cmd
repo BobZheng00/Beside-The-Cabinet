@@ -10,4 +10,6 @@ if not defined GODOT (
 if not exist "%~dp0builds\BesideTheCabinet" mkdir "%~dp0builds\BesideTheCabinet"
 rem her local models: memory search and ears (all by default; "python tools\models\fetch.py small" beforehand makes a lighter build)
 if not exist "%~dp0src\InsertCoin.Game\models" python "%~dp0tools\models\fetch.py"
+rem an emptied or half-fetched models folder would ship the app without them: say what's missing and stop
+python "%~dp0tools\models\fetch.py" check || exit /b 1
 "%GODOT:.exe=_console.exe%" --headless --path "%~dp0src\InsertCoin.Game" --export-release "Windows Desktop" "%~dp0builds\BesideTheCabinet\BesideTheCabinet.exe"
