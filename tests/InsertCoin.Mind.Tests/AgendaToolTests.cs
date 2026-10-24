@@ -305,18 +305,80 @@ public class AgendaToolTests
         Assert.Equal(("Gym", TimeSpan.FromHours(1), Repeat.Weekly), (plan.Text, plan.Before, plan.Repeat));
     }
 
-    [Fact]
-    public async Task With_tools_she_is_told_of_the_agenda_tool_and_not_the_tags()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("ja")]                                      // her voice's paragraph has an example of its own
+    [InlineData("en")]
+    public async Task With_tools_she_is_told_of_the_agenda_tool_and_not_the_tags(string? voice)
     {
         using var temp = new TempStore();
         var (conversation, tools) = Set(temp);
+        conversation.VoiceLanguage = voice;
         var model = new FakeToolModel(["Hi!"]);
 
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
 
+        var told = string.Join("\n", model.Requests[0].Select(m => m.Text));
         Assert.Contains(model.Options[0]!.Tools!, t => t.Name == BuiltIn.AgendaName);
-        Assert.Contains("with the agenda tool", model.Requests[0][0].Text);
-        Assert.DoesNotContain("[plan:", model.Requests[0][0].Text);
+        Assert.Contains("with the agenda tool", told);
+        Assert.DoesNotContain("[plan", told);
+        Assert.DoesNotContain("[remind", told);
+        if (voice is not null)
+            Assert.Contains("[look] [say: ...]", told);
+    }
+
+    [Fact]
+    public void Without_tools_her_voice_s_example_still_shows_a_plan_before_what_she_says()
+    {
+        var told = Prompt.Build(Shino, "", "", null, [], "", "hi", voiceLanguage: "ja")[0].Text;
+
+        Assert.Contains("[plan: ...] [say: ...]", told);
+        Assert.Contains("[plan: YYYY-MM-DD HH:MM | what it is]", told);
+    }
+
+    [Fact]
+    public async Task A_plan_tag_she_writes_beside_the_agenda_call_is_not_set_twice()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist appointment] Friday, half three, the dentist.",
+            Agenda("dentist", ("action", "add"), ("when", "2026-10-23T15:30"), ("what", "Dentist"), ("remind", "before"), ("minutes_before", 10))]);
+
+        var answer = await conversation.Answer(model, "dentist friday at 3:30, remind me 10 min before", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Friday, half three, the dentist.", answer);
+        var plan = Assert.Single(temp.Store.Agenda());
+        Assert.Equal(TimeSpan.FromMinutes(10), plan.Before);
+    }
+
+    [Fact]
+    public async Task A_plan_tag_she_writes_anyway_with_tools_is_set()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist] Friday, half three, the dentist."]);
+
+        await conversation.Answer(model, "dentist friday at 3:30", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Dentist", Assert.Single(temp.Store.Agenda()).Text);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]                                     // a provider without tools: the tags are all she has
+    public async Task A_plan_tag_the_cabinet_can_t_read_is_told_to_her_after_her_reply(bool withTools)
+    {
+        using var temp = new TempStore();
+        var (conversation, _) = Set(temp);
+        var model = new FakeToolModel(["[remind: Monday 9am | Call the bank] The bank, Monday morning."]);
+
+        await conversation.Answer(model, "remind me to call the bank monday", "", _ => { }, (_, _) => { }, tools: withTools ? new Toolbox([]) : null);
+
+        Assert.Empty(temp.Store.Agenda());
+        var lines = temp.Store.After("shino", 0);
+        Assert.Equal(Speaker.Her, lines[^2].Speaker);
+        Assert.Equal((Speaker.Cabinet, true), (lines[^1].Speaker, lines[^1].Instruction));
+        Assert.StartsWith("Your [remind: Monday 9am | Call the bank] didn't go through: the cabinet can't read it", lines[^1].Text);
     }
 
     [Fact]

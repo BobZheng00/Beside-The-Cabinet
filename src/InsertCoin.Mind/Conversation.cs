@@ -215,7 +215,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             : listedItem.Source is not null ? (null, $"#{id} is from their calendar, which decides it")
             : store.Agenda().FirstOrDefault(p => p.Id == id) is { } item ? (item, null)
             : (null, $"#{id} is no longer on the agenda");
-        // the agenda tool, working on this reply's agenda; the [plan] and the rest above stay for a provider without tools.
+        // the agenda tool, working on this reply's agenda; the [plan] and the rest are what a provider without tools is
+        // told, and are still read when she writes one anyway.
         // The same tool every reply, so the list offered stays the same and the cached start of the prompt holds.
         var agendaWent = false;                             // the agenda tool's latest call went through
         _agendum = Agendum;
@@ -342,8 +343,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             if (name == "saw" && payload?.Trim() is { Length: > 0 } saw)
                 seen.Add(saw);
-            if (name is "plan" or "remind" && payload is not null && Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
-                AddPlan(plan, now);
+            // also when tools are offered and she writes one anyway: what she said she put down is put down (AddPlan merges
+            // it with the same thing the agenda tool just added), and one the cabinet can't read is told to her, not dropped
+            if (name is "plan" or "remind" && payload is not null)
+                if (Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
+                    AddPlan(plan, now);
+                else
+                    refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: the cabinet can't read it as YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day) | what it is. Tell the player briefly, then put it right or ask them.");
             // "[cancel: #12]" and "[change: #12 | ...]": that same item called off, moved or reminded of differently
             if (name is "cancel" or "change" && ChangeAgenda(name == "cancel", payload ?? "") is { } why)
                 refused.Add($"Your [{name}{(payload is null ? "" : $": {payload.Trim()}")}] didn't go through: {why}. Tell the player briefly, then put it right or ask them.");

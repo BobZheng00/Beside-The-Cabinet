@@ -130,7 +130,9 @@ cache at a tenth of that or less.
   half" or "1 hour 30 min" 90, "1 day and 2 hours" 26 hours, never the last part inside them; what still can't be read
   whole ("1.5 hours", "half a day") isn't read as a lead at all.
   *Changed 2026-10-22 (#114, from spike #105): the agenda is a tool.* Where the provider takes tools, the tags above
-  are no longer offered (they stay, read as before, for a provider without tools, `Toolbox.Refused`): `BuiltIn.Agenda`
+  are no longer offered, in her instructions or her voice's example (they stay for a provider without tools,
+  `Toolbox.Refused`; one she writes anyway is still applied, merged with the same thing the tool just added, and one
+  the cabinet can't read is told to her after her reply, as a refused change is): `BuiltIn.Agenda`
   adds, changes or cancels, by the same numbers and with the same refusals. On a real model the tags set the wrong
   thing silently in 5 of 20 replies (both cancels missed, three items put at their reminder's time); the tool got
   every cancel, change and "10 min before" right, and its only false claims were about reminders, so the reminder is

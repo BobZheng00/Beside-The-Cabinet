@@ -62,7 +62,7 @@ public static class Prompt
 
             INSERT COIN is there for a good balance of work, life and games: the player earns time for their games by doing good things (solving problems, focusing, their own activities) and spends it playing. The cabinet keeps the numbers and shows them on its screen; the <cabinet> block has what matters now. It never closes a game: you encourage and remind, in your own manner, never threatening or lecturing.
 
-            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage)}
+            How you talk: your words appear in a small speech bubble, so answer in one to three short sentences (under 40 words). Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage, tools)}
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.{(tools ? Abilities(asking ?? [], known ?? []) + SkillsHad(skills ?? []) : "")}
 
@@ -190,7 +190,7 @@ public static class Prompt
     /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
     /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
     /// </summary>
-    private static string Voice(string? language)
+    private static string Voice(string? language, bool tools = false)
     {
         if (language is null)
             return "";
@@ -215,8 +215,10 @@ public static class Prompt
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
                $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard, so a sentence without one, or what of it a [say] leaves out, is silent; " +
                $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
-               $"Do it in every reply, short ones too, and after a [note], [plan] or [remind] at the start " +
-               $"(\"[plan: ...] [say: ...] ...\"). When you write all of it in {name}, leave [say] out.{letters}";
+               // with tools her agenda is the agenda tool: an example with [plan] in it would teach her the tags again
+               $"Do it in every reply, short ones too, and after a stage direction at the start " +
+               (tools ? "(\"[look] [say: ...] ...\")" : "or a [plan] or [remind] (\"[plan: ...] [say: ...] ...\")") +
+               $". When you write all of it in {name}, leave [say] out.{letters}";
     }
 
     /// <summary>
