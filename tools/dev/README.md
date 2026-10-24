@@ -211,7 +211,8 @@ What a commit must pass before its pull request is marked ready, run the same wa
 - `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
   and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;
-  "reset" lifts it again). It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key).
+  "reset" lifts it again; "notebook": a memo written on the plan, then the limit on the request bringing its result).
+  It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key).
   A run points at it with `chatgptat:`; a scenario with `"mind": "chatgpt"` starts it and writes its address for
   `{mind}` in the script.
 - A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a

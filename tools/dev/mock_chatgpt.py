@@ -17,7 +17,8 @@ after it get 429 subscription_sharing_usage_limit_exceeded (with "midstream" in 
 response.failed after the stream began). Words with "signedout" get 401 subscription_sharing_invalid_user, and every
 refresh after it invalid_grant, until the next sign-in (the player disconnected the app in ChatGPT); "ineligible", 403
 subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. Words with
-"reset" lift the limit again (the plan works once more), and that request is answered on the plan.
+"reset" lift the limit again (the plan works once more), and that request is answered on the plan. Words with "notebook"
+get a call of her print_memo tool, and the request that brings its result reaches the limit (a turn stopped part-way).
 
 It also stands in for the player's backup behind the plan: an OpenAI-compatible server at /backup/v1 (chat
 completions, streamed or not, answering --backup-reply, no key needed), each request logged with "backup": true. It
@@ -225,6 +226,13 @@ class Handler(BaseHTTPRequestHandler):
             log({**entry, "broke": broke})
             self.answer(400, {"error": {"code": "subscription_sharing_unsupported_capability", "param": broke[0], "message": "not on the plan"}})
             return
+        if "notebook" in said and not STATE["limit"]:
+            if any(isinstance(i, dict) and i.get("type") == "function_call_output" for i in body.get("input") or []):
+                STATE["limit"] = True                           # the memo is written: the request with its result reaches the limit
+            else:
+                log({**entry, "tool_call": "print_memo"})
+                self.call(body.get("model") or "gpt-mock", "print_memo", {"title": "Notebook", "text": "- a memo from the plan"})
+                return
         if STATE["limit"] and "midstream" not in said:
             log({**entry, "limit": True})
             self.answer(429, {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "The plan's usage limit for this app is reached."}})
@@ -256,6 +264,29 @@ class Handler(BaseHTTPRequestHandler):
         send({}, "stop", {"usage": usage})
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
+
+    def call(self, model, name, arguments):
+        """A reply on the plan that calls one of her tools, as the Responses API streams a function call."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        args = json.dumps(arguments)
+        response = {"id": "resp_call", "object": "response", "created_at": int(time.time()), "status": "in_progress", "model": model, "output": []}
+        item = {"id": "fc_mock", "type": "function_call", "status": "in_progress", "call_id": "call_mock", "name": name, "arguments": ""}
+        done = {**item, "status": "completed", "arguments": args}
+
+        def send(kind, payload):
+            self.wfile.write(f"event: {kind}\ndata: {json.dumps({'type': kind, **payload})}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send("response.created", {"sequence_number": 0, "response": response})
+        send("response.output_item.added", {"sequence_number": 1, "output_index": 0, "item": item})
+        send("response.function_call_arguments.delta", {"sequence_number": 2, "item_id": "fc_mock", "output_index": 0, "delta": args})
+        send("response.function_call_arguments.done", {"sequence_number": 3, "item_id": "fc_mock", "output_index": 0, "arguments": args})
+        send("response.output_item.done", {"sequence_number": 4, "output_index": 0, "item": done})
+        send("response.completed", {"sequence_number": 5, "response": {**response, "status": "completed", "output": [done],
+             "usage": {"input_tokens": 900, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 30,
+                       "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 930}}})
 
     def stream(self, model, text, failed):
         self.send_response(200)

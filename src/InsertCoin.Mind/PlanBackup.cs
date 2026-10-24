@@ -48,12 +48,16 @@ public sealed class PlanBackup
     /// <summary>The yes was taken back: the backup it named was changed or removed, so the player is asked again (if the plan still waits).</summary>
     public event Action? Forgot;
 
+    private int _backups;                                   // the backups set so far: which one a client was made over
+
     /// <summary>
-    /// The backup the player said yes to is no longer the one behind the plan (another saved, or none): a yes is for the
-    /// backup it named, so she waits on the plan again until asked anew.
+    /// The backup behind the plan changed (another saved, or none): a yes is for the backup it named, so one given is
+    /// taken back and she waits on the plan again until asked anew; and a client made over the old backup never reaches
+    /// it again, even with a request already under way (see <see cref="Over"/>).
     /// </summary>
     public void Forget()
     {
+        _backups++;
         if (!Allowed)
             return;
         Allowed = false;
@@ -62,19 +66,22 @@ public sealed class PlanBackup
 
     /// <summary>
     /// Her mind on the plan, <paramref name="onPlan"/>, with <paramref name="backup"/> behind it: a request the plan
-    /// turns down, or doesn't make while it waits, goes to the backup instead, but only after the player's yes.
+    /// turns down, or doesn't make while it waits, goes to the backup instead, but only after the player's yes, and only
+    /// while it is still the backup behind the plan.
     /// </summary>
-    public IChatClient Over(IChatClient onPlan, IChatClient backup) => new Switch(this, onPlan, backup);
+    public IChatClient Over(IChatClient onPlan, IChatClient backup) => new Switch(this, onPlan, backup, _backups);
 
-    private sealed class Switch(PlanBackup backup, IChatClient onPlan, IChatClient other) : DelegatingChatClient(onPlan)
+    private sealed class Switch(PlanBackup backup, IChatClient onPlan, IChatClient other, int made) : DelegatingChatClient(onPlan)
     {
+        private bool Allowed => backup.Allowed && backup._backups == made;
+
         public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             try
             {
                 return await base.GetResponseAsync(messages, options, cancellationToken);
             }
-            catch (PlanStopped) when (backup.Allowed)
+            catch (PlanStopped) when (Allowed)
             {
                 return await other.GetResponseAsync(messages, options, cancellationToken);
             }
@@ -96,7 +103,7 @@ public sealed class PlanBackup
                         if (!await plan.MoveNextAsync())
                             break;
                     }
-                    catch (PlanStopped) when (!shown && backup.Allowed)
+                    catch (PlanStopped) when (!shown && Allowed)
                     {
                         stopped = true;
                         break;

@@ -680,4 +680,26 @@ public class ChatGptPlanTests : IDisposable
         await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("And now?"));
         Assert.Single(spare.Requests);
     }
+
+    [Fact]
+    public async Task A_yes_for_the_new_backup_never_sends_the_old_ones_requests_to_the_old_backup()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var first = new FakeModel("From the first backup.");
+        var second = new FakeModel("From the second backup.");
+        var backup = new PlanBackup(plan);
+        var old = backup.Over(plan.Client("gpt-5.5"), first);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => old.GetResponseAsync("Hello"));
+
+        backup.Forget();                                                // the second saved while the card asked: no yes yet to take back
+        var now = backup.Over(plan.Client("gpt-5.5"), second);
+        backup.Allow();                                                 // the yes, for the second
+
+        await Assert.ThrowsAsync<PlanStopped>(() => old.GetResponseAsync("Still under way on the old one"));
+        await Assert.ThrowsAsync<PlanStopped>(() => Streamed(old, "Streamed on the old one"));
+        Assert.Equal("From the second backup.", (await now.GetResponseAsync("On the new one")).Text);
+        Assert.Empty(first.Requests);
+    }
 }

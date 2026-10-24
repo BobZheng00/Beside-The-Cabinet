@@ -102,6 +102,9 @@ public sealed class Chat : IDisposable
     /// <summary>The backup set behind the ChatGPT plan, while she is on the plan; null: none.</summary>
     public Provider? BackupProvider => _backup;
 
+    /// <summary>Her mind is the player's ChatGPT plan (whatever its state).</summary>
+    public bool OnPlan => _provider?.Protocol == Protocol.ChatGpt;
+
     /// <summary>She carries on with the backup, the player having said yes, until the plan works again.</summary>
     public bool OnBackup => Backup.Allowed && _backup is not null;
 
@@ -117,23 +120,23 @@ public sealed class Chat : IDisposable
         Tools.Refused = false;
         Tools.HostedRefused = false;
         UseWindow(_window);
-        GD.Print($"Chat: {(OnBackup ? "on the backup" : "on the ChatGPT plan")}; she keeps {Window} tokens word for word");
+        GD.Print($"Chat: {(OnBackup ? "on the backup" : OnPlan ? "on the ChatGPT plan" : $"on {_provider?.Name ?? "no provider"}")}; she keeps {Window} tokens word for word");
     }
 
-    private (string Said, IReadOnlyList<Attachment> Handed, long Line)? _unanswered;
+    /// <summary>What the player wrote that the plan stopped on, unanswered: their words, what they handed her, who they said it to, and its line.</summary>
+    public sealed record Unanswered(string Said, IReadOnlyList<Attachment> Handed, string Character, long Line);
+
+    private Unanswered? _unanswered;
 
     /// <summary>
-    /// What the player wrote that the plan stopped on, unanswered while her card asks about the backup: after their yes
-    /// it is taken back from the conversation, to be asked again (on the backup) as they wrote it. Null when there's none.
+    /// What the player wrote that the plan stopped on, unanswered while her card asks about the backup, to be asked again
+    /// (on the backup) as they wrote it after their yes (see <see cref="Ask"/>'s <c>again</c>). Null when there's none.
     /// </summary>
-    public (string Said, IReadOnlyList<Attachment> Handed)? TakeUnanswered()
+    public Unanswered? TakeUnanswered()
     {
-        if (_unanswered is not { } waiting)
-            return null;
+        var waiting = _unanswered;
         _unanswered = null;
-        Store.RemoveLine(waiting.Line);
-        GD.Print("Chat: what the player wrote when the plan stopped is asked again, on the backup");
-        return (waiting.Said, waiting.Handed);
+        return waiting;
     }
 
     /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
@@ -492,8 +495,13 @@ public sealed class Chat : IDisposable
     /// same while her voice rests (during a game), so the start of the prompt stays cached.
     /// </param>
     /// <param name="handed">What the player hands her with it: pictures, PDFs, text files (see <see cref="Attachment"/>).</param>
-    public Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null, IReadOnlyList<Attachment>? handed = null) =>
-        Respond(said, fromCabinet: false, fallback: null, situation, view, speech, voiceLanguage, handed: handed);
+    /// <param name="again">
+    /// What the plan stopped on, asked again after the player's yes (see <see cref="TakeUnanswered"/>): its line is taken
+    /// back once the asking is under way, so it is kept once; not asked when someone else is on the stool now.
+    /// </param>
+    public Task Ask(string said, string situation, CompanionView view, Speech? speech = null, string? voiceLanguage = null, IReadOnlyList<Attachment>? handed = null,
+                    Unanswered? again = null) =>
+        Respond(said, fromCabinet: false, fallback: null, situation, view, speech, voiceLanguage, handed: handed, again: again);
 
     /// <summary>
     /// Has her pass on what the cabinet asks (reminders going off, see <see cref="Agenda.Announcement"/>) in her own
@@ -546,10 +554,21 @@ public sealed class Chat : IDisposable
 
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
                                Func<Speech?>? voiceLater = null, IReadOnlyList<Attachment>? handed = null,
-                               Func<string, CancellationToken, Task<bool>>? call = null, bool texting = false, TimeSpan? within = null, string? aside = null)
+                               Func<string, CancellationToken, Task<bool>>? call = null, bool texting = false, TimeSpan? within = null, string? aside = null,
+                               Unanswered? again = null)
     {
         if (_talk is null || _conversation is null || _answering is not null)
             return;
+        if (again is not null)
+        {
+            if (again.Character != _conversation.Character)
+            {
+                GD.Print("Chat: what the player wrote when the plan stopped isn't asked again: someone else is on the stool now");
+                return;
+            }
+            Store.RemoveLine(again.Line);                   // taken back, as it is asked again now
+            GD.Print("Chat: what the player wrote when the plan stopped is asked again, on the backup");
+        }
         if (!fromCabinet && !OnBackup)
             Plan.TryAgain();                                // the player's own words try the plan again, past its limit (on the backup: each quarter hour)
         if (!fromCabinet)
@@ -704,10 +723,13 @@ public sealed class Chat : IDisposable
         catch (Exception e)
         {
             GD.PrintErr($"Chat: {e.GetType().Name}: {e.Message}");
-            // the player's words the plan stopped on while her card asks about the backup: answered after their yes
-            if (!fromCabinet && !texting && e is PlanStopped { } halted && (halted.Told || PlanTold) && _backup is not null
+            // the player's words the plan stopped on while her card asks about the backup: answered after their yes, unless
+            // some of the answer happened already (a tool used, words shown): asked again, it would be done twice
+            if (!fromCabinet && !texting && e is PlanStopped { } halted && (halted.Told || PlanTold) && _backup is not null && !_usedTool && !_wordsOut
                 && Store.Through(conversation.Character, long.MaxValue, 1) is [{ Speaker: Speaker.User } line])
-                _unanswered = (said, handed ?? [], line.Id);
+                _unanswered = new Unanswered(said, handed ?? [], conversation.Character, line.Id);
+            else if (e is PlanStopped && !fromCabinet && _backup is not null && (_usedTool || _wordsOut))
+                GD.Print("Chat: the plan stopped part-way through an answer that had begun; it isn't asked again");
             if (Here() && fallback is not null)
             {
                 if (fallback.Length > 0)
