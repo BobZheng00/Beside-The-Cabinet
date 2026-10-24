@@ -337,18 +337,73 @@ public class AgendaToolTests
     }
 
     [Fact]
-    public async Task A_plan_tag_she_writes_beside_the_agenda_call_is_not_set_twice()
+    public async Task A_plan_tag_in_a_reply_that_made_an_agenda_call_is_ignored()
     {
         using var temp = new TempStore();
         var (conversation, tools) = Set(temp);
-        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist appointment] Friday, half three, the dentist.",
+        // merged, the tag would have won on its reminder, and in other words at another time it would be a second item
+        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist | 1 hour before][remind: 2026-10-23 16:00 | Checkup at the clinic] Friday, half three, the dentist.",
             Agenda("dentist", ("action", "add"), ("when", "2026-10-23T15:30"), ("what", "Dentist"), ("remind", "before"), ("minutes_before", 10))]);
 
         var answer = await conversation.Answer(model, "dentist friday at 3:30, remind me 10 min before", "", _ => { }, (_, _) => { }, tools: tools);
 
         Assert.Equal("Friday, half three, the dentist.", answer);
         var plan = Assert.Single(temp.Store.Agenda());
-        Assert.Equal(TimeSpan.FromMinutes(10), plan.Before);
+        Assert.Equal(("Dentist", 15, TimeSpan.FromMinutes(10)), (plan.Text, plan.At.Hour, plan.Before));
+    }
+
+    [Fact]
+    public async Task No_reminder_on_something_already_on_the_agenda_takes_its_reminder_away_and_goes_back_to_her()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, TimeSpan.FromHours(1), Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["The dentist on Friday, no reminder.",
+            Agenda("dentist", ("action", "add"), ("when", "2026-10-23T15:30"), ("what", "Dentist"), ("remind", "none"))], ["It was there already; no reminder now."]);
+
+        await conversation.Answer(model, "the dentist on friday, no reminder", "", _ => { }, (_, _) => { }, tools: tools);
+
+        var plan = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((dentist, (TimeSpan?)null), (plan.Id, plan.Before));
+        Assert.Equal(2, model.Requests.Count);
+        Assert.Contains(Results(model.Requests[1]), r => r.Contains($"#{dentist} was already on the agenda (Dentist, Fri 23 Oct 15:30, reminder 1 hour before), " +
+                                                                     "so nothing new was added; it is now Dentist, Fri 23 Oct 15:30, no reminder."));
+    }
+
+    [Fact]
+    public async Task Something_already_on_the_agenda_just_as_asked_can_still_end_the_reply()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, TimeSpan.FromHours(1), Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["The dentist on Friday, an hour ahead.",
+            Agenda("dentist", ("action", "add"), ("when", "2026-10-23T15:30"), ("what", "Dentist"), ("remind", "before"), ("minutes_before", 60))]);
+
+        await conversation.Answer(model, "the dentist on friday, remind me an hour before", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Single(model.Requests);
+        Assert.Equal(dentist, Assert.Single(temp.Store.Agenda()).Id);
+        Assert.Contains(Recorded(temp), l => l.Contains($"Already on the agenda, as asked: #{dentist}: Dentist, Fri 23 Oct 15:30, reminder 1 hour before."));
+    }
+
+    [Theory]
+    [InlineData("2026-10-23T16:00", "none", true)]               // the same thing at another time that day: it keeps its own time
+    [InlineData("2026-10-23T15:30", "at_the_time", false)]       // its reminder changed
+    public async Task Something_already_on_the_agenda_changed_or_at_another_time_goes_back_to_her(string when, string remind, bool elsewhen)
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, null, Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["The dentist on Friday.", Agenda("dentist", ("action", "add"), ("when", when), ("what", "Dentist"), ("remind", remind))],
+                                      ["It was there already."]);
+
+        await conversation.Answer(model, "the dentist on friday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal(2, model.Requests.Count);
+        var result = Assert.Single(Results(model.Requests[1]));
+        Assert.StartsWith($"#{dentist} was already on the agenda", result);
+        Assert.Equal(elsewhen, result.Contains($"It keeps its own time: to move it, change #{dentist}."));
+        Assert.Equal(15, Assert.Single(temp.Store.Agenda()).At.Hour);
     }
 
     [Fact]
@@ -379,6 +434,9 @@ public class AgendaToolTests
         Assert.Equal(Speaker.Her, lines[^2].Speaker);
         Assert.Equal((Speaker.Cabinet, true), (lines[^1].Speaker, lines[^1].Instruction));
         Assert.StartsWith("Your [remind: Monday 9am | Call the bank] didn't go through: the cabinet can't read it", lines[^1].Text);
+        // with tools, she is pointed to the agenda tool rather than taught the tag's form
+        Assert.Equal(withTools, lines[^1].Text.Contains("Put it on the agenda with the agenda tool"));
+        Assert.Equal(!withTools, lines[^1].Text.Contains("YYYY-MM-DD HH:MM"));
     }
 
     [Fact]

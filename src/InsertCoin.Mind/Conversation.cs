@@ -219,11 +219,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // told, and are still read when she writes one anyway.
         // The same tool every reply, so the list offered stays the same and the cached start of the prompt holds.
         var agendaWent = false;                             // the agenda tool's latest call went through
+        var agendaCalled = false;                           // the agenda tool was called in this reply
         _agendum = Agendum;
         if (Equip(tools))
             offered = tools!.Offered;
         string Agendum(string action, string remind, long? id, string? when, string? what, int? minutes, string? repeat)
         {
+            agendaCalled = true;
             Repeat? again = null;
             if (repeat is { Length: > 0 } r)
                 if (Enum.TryParse<Repeat>(r.Trim(), ignoreCase: true, out var read) && Enum.IsDefined(read) && !char.IsDigit(r.Trim()[0]))
@@ -266,11 +268,25 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         return "Not added: it needs when it is.";
                     if (renamed is null)
                         return "Not added: it needs what it is.";
+                    var there = store.Agenda().ToDictionary(p => p.Id);     // to tell an item already on the agenda from a new one
                     if (again is null or Repeat.Once && (a.AllDay ? a.At.AddDays(1) : a.At) <= now
-                        || AddPlan(new PlanSpec(a.At, a.AllDay, renamed, before, again ?? Repeat.Once), now) is not { } added)
+                        || AddPlan(new PlanSpec(a.At, a.AllDay, renamed, before, again ?? Repeat.Once), now, exactly: true) is not { } added)
                         return $"Not added: {a.At.ToString(a.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", Prompt.English)} is already past.";
-                    agendaWent = true;
-                    return $"Added #{added}: {Described(added)}.";
+                    if (!there.TryGetValue(added, out var earlier))
+                    {
+                        agendaWent = true;
+                        return $"Added #{added}: {Described(added)}.";
+                    }
+                    // the same thing already there: as asked, it can still end the reply; changed by this, or at another time
+                    // than asked, it goes back to her, so what she says is what is on the agenda now
+                    var elsewhen = (a.At, a.AllDay) != (earlier.At, earlier.AllDay);
+                    if (!elsewhen && store.Agenda().FirstOrDefault(p => p.Id == added) is { } same && (same.Before, same.Repeat) == (earlier.Before, earlier.Repeat))
+                    {
+                        agendaWent = true;
+                        return $"Already on the agenda, as asked: #{added}: {Described(added)}.";
+                    }
+                    return $"#{added} was already on the agenda ({Shown(earlier)}), so nothing new was added; it is now {Described(added)}." +
+                           (elsewhen ? $" It keeps its own time: to move it, change #{added}." : "");
                 case "change" or "cancel":
                     if (id is not { } n)
                         return "Not done: it needs the item's number from the agenda.";
@@ -296,10 +312,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         // what an item now is, its reminder always named (for a timed item without one, the player's own lead may give it one)
-        string Described(long id)
+        string Described(long id) => store.Agenda().FirstOrDefault(p => p.Id == id) is { } p ? Shown(p) : $"#{id}";
+        string Shown(Plan p)
         {
-            if (store.Agenda().FirstOrDefault(p => p.Id == id) is not { } p)
-                return $"#{id}";
             var lead = ReminderLead();
             var reminder = p.RemindAt(lead) is not { } goesOff ? "no reminder"
                 : p.AllDay ? $"reminder {goesOff.ToString("ddd d MMM HH:mm", Prompt.English)}"
@@ -339,17 +354,30 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // "[plan: ...]" and "[remind: ...]": something ahead with a date, on the agenda at once
         // "[saw: ...]": what a picture or file handed to her shows, kept in its place
         var seen = new List<string>();
+        var toolsOn = false;                                // tools are offered in the request under way
+        var tagged = new List<(string Name, string Payload)>();     // her [plan] and [remind] while tools are offered
+        // something ahead with a date, from a tag: on the agenda; one the cabinet can't read is told to her after her reply,
+        // not dropped. With tools offered, applied only once the reply is over and only if she made no agenda call in it:
+        // merged with what the tool set, a tag could win on its time or reminder, or add a second item in other words.
+        void Tagged(string name, string payload)
+        {
+            if (Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
+                AddPlan(plan, now);
+            else
+                refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: the cabinet can't read it" + (toolsOn
+                    ? ". Put it on the agenda with the agenda tool, or ask them."
+                    : " as YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day) | what it is. Tell the player briefly, then put it right or ask them."));
+        }
         var stage = new StageDirections((name, payload) =>
         {
             if (name == "saw" && payload?.Trim() is { Length: > 0 } saw)
                 seen.Add(saw);
-            // also when tools are offered and she writes one anyway: what she said she put down is put down (AddPlan merges
-            // it with the same thing the agenda tool just added), and one the cabinet can't read is told to her, not dropped
+            // with tools offered, one she writes anyway waits for the end of the reply (see Tagged)
             if (name is "plan" or "remind" && payload is not null)
-                if (Agenda.ParseDirection(payload, name == "remind", now, _clock.LocalTimeZone) is { } plan)
-                    AddPlan(plan, now);
+                if (toolsOn)
+                    tagged.Add((name, payload));
                 else
-                    refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: the cabinet can't read it as YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day) | what it is. Tell the player briefly, then put it right or ask them.");
+                    Tagged(name, payload);
             // "[cancel: #12]" and "[change: #12 | ...]": that same item called off, moved or reminded of differently
             if (name is "cancel" or "change" && ChangeAgenda(name == "cancel", payload ?? "") is { } why)
                 refused.Add($"Your [{name}{(payload is null ? "" : $": {payload.Trim()}")}] didn't go through: {why}. Tell the player briefly, then put it right or ask them.");
@@ -422,6 +450,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             for (bool withTools = offered is not null, again = true; ;)
             {
+                toolsOn = withTools;
                 try
                 {
                     var sent = Messages(withTools, seeing);
@@ -458,6 +487,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 }
             }
             Show(stage.Finish());
+            if (!agendaCalled)
+                foreach (var (name, payload) in tagged)
+                    Tagged(name, payload);
         }
         catch (OperationCanceledException) when (reply.Length > 0)
         {
@@ -678,7 +710,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// time about the same thing) it only adds what is new: a reminder, a repeat (not to a calendar's item: whether
     /// that repeats is the calendar's to say). A reminder for something wholly past is not set. Returns the item's id, or null.
     /// </summary>
-    private long? AddPlan(PlanSpec spec, DateTimeOffset now)
+    /// <param name="exactly">The reminder as given, none included (the agenda tool's add); otherwise none keeps the one there.</param>
+    private long? AddPlan(PlanSpec spec, DateTimeOffset now, bool exactly = false)
     {
         var wanted = new Plan(0, spec.Text, spec.At, spec.AllDay, spec.Before, null, now, character, spec.Repeat);
         if (wanted.RemindAt() is { } at && at <= now && wanted.End <= now && spec.Repeat == Repeat.Once)
@@ -687,7 +720,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         if (store.Agenda().FirstOrDefault(p => p.At.Date == spec.At.Date
                                                && (Recall.Same(p.Text, spec.Text) || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
         {
-            var before = spec.Before ?? same.Before;
+            var before = exactly && same.Source is null ? spec.Before : spec.Before ?? same.Before;
             var repeat = spec.Repeat != Repeat.Once && same.Source is null ? spec.Repeat : same.Repeat;
             if (before != same.Before || repeat != same.Repeat)
                 store.UpdatePlan(same.Id, same.Text, same.At, same.AllDay, before, repeat);
