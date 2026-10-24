@@ -35,7 +35,7 @@
 # are stopped; nothing else is.
 # A worktree has no models folder of its own: run from source, the app reads the main checkout's (ModelFiles). An older
 # -Prepare linked them in (a junction), and git worktree remove --force followed that link and emptied the main
-# checkout's models (#122): -Prepare, and every smoke run, now remove such a link (cmd /c rmdir, which takes only the
+# checkout's models (#122): -Prepare, and every smoke run (whatever it then runs), now remove such a link (cmd /c rmdir, which takes only the
 # link), so any way of removing a worktree (git worktree remove, --force or not, Remove-Item -Recurse) is safe.
 # Output: <Out>\report.md and report.json, <scenario>-<n>.png per shot (-window, -desk as shoot.ps1 makes them),
 #         run-<scenario>.log and .err, mind-<scenario>.jsonl for scenarios with the mock mind.
@@ -124,6 +124,12 @@ $branch = GitOut @("rev-parse", "--abbrev-ref", "HEAD")
 if ($branch -eq "" -or $branch -eq "HEAD") { $branch = "detached-" + $sha.Substring(0, [Math]::Min(7, $sha.Length)) }
 if ($Out -eq "") { $Out = Join-Path $main (".qa\smoke\" + ($branch -replace "[^A-Za-z0-9._-]", "-")) }
 New-Item -ItemType Directory $Out -Force | Out-Null
+# before any early exit (-Explain, nothing to run, blocked): an older -Prepare's link to the main checkout's models
+$models = Get-Item -Force (Join-Path $game "models") -ErrorAction SilentlyContinue
+if ($models -and ($repo -ne $main) -and ($models.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+  cmd /c rmdir "$($models.FullName)"                     # the link only, never what it points to
+  "Removed this worktree's link to the main checkout's models: the app finds them by itself."
+}
 
 $names = @($Only | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 $scenarios = @($suite.scenarios | Where-Object { $names.Count -eq 0 -or $names -contains $_.name })
@@ -233,12 +239,6 @@ if (-not $env:GODOT) {
   $env:GODOT = $g
 }
 $godotConsole = $env:GODOT -replace '\.exe$', '_console.exe'
-
-$models = Get-Item -Force (Join-Path $game "models") -ErrorAction SilentlyContinue
-if ($models -and ($repo -ne $main) -and ($models.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
-  cmd /c rmdir "$($models.FullName)"                     # the link only, never what it points to
-  "Removed this worktree's link to the main checkout's models: the app finds them by itself."
-}
 
 if (-not $NoBuild) {
   "Building the game..."

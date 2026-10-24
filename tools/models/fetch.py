@@ -68,7 +68,9 @@ def check():
     root = Path(__file__).resolve().parents[2] / "src" / "InsertCoin.Game" / "models"
     have, problems = [], []
     for key, (folder, _, files, _) in MODELS.items():
-        missing = [name for name in files.values() if not (root / folder / name).is_file() or (root / folder / name).stat().st_size == 0]
+        # its LICENSE.txt too: release.py takes the notices from it
+        missing = [name for name in [*files.values(), "LICENSE.txt"]
+                   if not (root / folder / name).is_file() or (root / folder / name).stat().st_size == 0]
         if not missing:
             have.append(folder)
         elif (root / folder).exists():

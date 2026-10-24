@@ -66,11 +66,19 @@ public static class ModelFiles
                 return null;                                            // the main checkout itself
             if (!File.Exists(git))
                 continue;
-            // a worktree's .git is a file: "gitdir: <main checkout>/.git/worktrees/<name>"
-            var line = File.ReadLines(git).FirstOrDefault(l => l.StartsWith("gitdir:", StringComparison.Ordinal));
-            var common = line is null ? null : Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(line["gitdir:".Length..].Trim(), folder.FullName)));
-            var main = common is null ? null : Path.GetDirectoryName(common);
-            return main is null ? null : Path.Combine(main, Path.GetRelativePath(folder.FullName, project));
+            // a worktree's .git is a file: "gitdir: <main checkout>/.git/worktrees/<name>" (a submodule's points elsewhere)
+            try
+            {
+                var line = File.ReadLines(git).FirstOrDefault(l => l.StartsWith("gitdir:", StringComparison.Ordinal));
+                var worktrees = line is null ? null : Directory.GetParent(Path.GetFullPath(line["gitdir:".Length..].Trim(), folder.FullName));
+                if (worktrees is not { Name: "worktrees", Parent.Parent: { } main })
+                    return null;
+                return Path.Combine(main.FullName, Path.GetRelativePath(folder.FullName, project));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return null;                                            // unreadable: no borrowing, never a crash
+            }
         }
         return null;
     });
