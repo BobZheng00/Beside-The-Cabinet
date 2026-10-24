@@ -235,6 +235,44 @@ public class AgendaToolTests
         Assert.Single(temp.Store.Agenda());
     }
 
+    [Theory]
+    [InlineData("2026-10-23T15:30", "2026-10-23T15:30:00-04:00")]          // no offset: the player's own time
+    [InlineData("2026-10-23T15:30-04:00", "2026-10-23T15:30:00-04:00")]    // the player's own offset
+    [InlineData("2026-11-02T09:00-05:00", "2026-11-02T09:00:00-05:00")]    // after the clocks go back, the new offset is theirs
+    [InlineData("2026-10-23T15:30Z", null)]                                 // turned into UTC: 11:30 there, set wrong
+    [InlineData("2026-11-02T09:00-04:00", null)]                            // the old offset after the clocks go back
+    public async Task A_time_with_an_offset_not_the_player_s_comes_back_to_her(string when, string? set)
+    {
+        using var temp = new TempStore();
+        var eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        var conversation = new Conversation(temp.Store, "shino", Shino, new ZonedClock(Wednesday, eastern));
+        var model = new FakeToolModel(["The dentist, noted.", Agenda("dentist", ("action", "add"), ("when", when), ("what", "Dentist"), ("remind", "none"))],
+                                      ["Hm, let me put that in your time."]);
+
+        await conversation.Answer(model, "dentist", "", _ => { }, (_, _) => { }, tools: new Toolbox([]));
+
+        if (set is null)
+        {
+            Assert.Equal(2, model.Requests.Count);
+            Assert.Contains(Results(model.Requests[1]), r => r.Contains($"\"{when}\" is in another time zone from the player's"));
+            Assert.Empty(temp.Store.Agenda());
+        }
+        else
+        {
+            Assert.Single(model.Requests);
+            var plan = Assert.Single(temp.Store.Agenda());
+            Assert.Equal((DateTimeOffset.Parse(set, System.Globalization.CultureInfo.InvariantCulture), DateTimeOffset.Parse(set, System.Globalization.CultureInfo.InvariantCulture).Offset),
+                         (plan.At, plan.At.Offset));
+        }
+    }
+
+    /// <summary>A clock that stands still, in a real time zone (so a date across a clock change has its own offset).</summary>
+    private sealed class ZonedClock(DateTimeOffset now, TimeZoneInfo zone) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now.ToUniversalTime();
+        public override TimeZoneInfo LocalTimeZone => zone;
+    }
+
     [Fact]
     public async Task Something_already_past_isn_t_added()
     {

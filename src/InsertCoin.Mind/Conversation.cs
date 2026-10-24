@@ -249,10 +249,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 default:
                     return $"Not done: remind is none, at_the_time or before (with minutes_before){(action == "add" ? "" : ", or keep")}, not \"{remind}\".";
             }
-            // shortcut: an offset or Z on the time is dropped and its wall-clock time kept, as models add one by habit; check on real runs
+            // models add an offset or Z by habit: the player's own offset for that date (after a clock change, the new one)
+            // is their time as written; any other is a time turned into another zone, set wrong, so it goes back to her
             (DateTimeOffset At, bool AllDay)? at = null;
-            if (when is { Length: > 0 } && (at = Agenda.ParseWhen(System.Text.RegularExpressions.Regex.Replace(when.Trim(), @"(Z|[+-]\d\d:?\d\d)$", ""), now, _clock.LocalTimeZone)) is null)
+            var zoned = when is null ? null : OffsetWritten.Match(when.Trim());
+            if (when is { Length: > 0 } && (at = Agenda.ParseWhen(zoned is { Success: true } ? when.Trim()[..zoned.Index] : when, now, _clock.LocalTimeZone)) is null)
                 return $"Not done: the cabinet can't read \"{when}\" as a time: write it YYYY-MM-DDTHH:MM (YYYY-MM-DD for a whole day).";
+            if (at is { } local && zoned is { Success: true } && OffsetOf(zoned) != local.At.Offset)
+                return $"Not done: \"{when}\" is in another time zone from the player's: write their own time, YYYY-MM-DDTHH:MM with no offset.";
             var renamed = what?.Trim() is { Length: >= 2 } words ? words : null;
             switch (action)
             {
@@ -592,6 +596,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     private Func<string, string, long?, string?, string?, int?, string?, string>? _agendum;    // the agenda tool's work, for the reply under way
     private Tool? _agendaTool;
+
+    /// <summary>An offset at the end of a time the agenda tool is given: "Z", "-04:00", "+0530".</summary>
+    private static readonly System.Text.RegularExpressions.Regex OffsetWritten = new(@"(?:Z|(?<sign>[+-])(?<h>\d\d):?(?<m>\d\d))$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private static TimeSpan OffsetOf(System.Text.RegularExpressions.Match written) =>
+        !written.Groups["sign"].Success ? TimeSpan.Zero
+        : (written.Groups["sign"].Value == "-" ? -1 : 1) * new TimeSpan(int.Parse(written.Groups["h"].Value, System.Globalization.CultureInfo.InvariantCulture), int.Parse(written.Groups["m"].Value, System.Globalization.CultureInfo.InvariantCulture), 0);
 
     /// <summary>Her agenda tool (see <see cref="BuiltIn.Agenda"/>): one for the conversation, doing the work of the reply under way.</summary>
     private Tool AgendaTool => _agendaTool ??= BuiltIn.Agenda((action, remind, id, when, what, minutes, repeat) =>
