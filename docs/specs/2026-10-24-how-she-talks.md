@@ -36,13 +36,17 @@ report.
   - **They drop the lines that script replies:**
     - "one to three short sentences (under 40 words)", since the speech bubble already pages long text like subtitles
       (`SpeechBubble`);
-    - "say a short line first" before a tool, since her thinking sounds fill the wait;
+    - "say a short line first" before a tool;
     - "only say you did something once the tool has done it";
     - "say when you will".
   - **They keep:**
     - plain text, and the player's language;
     - her body and voice lines;
     - the cabinet's blocks, her memories, what she knows about the player, "you and the player";
+    - leaving the PC (`[out]`, `[sleep]`: the cabinet's way of knowing the player is away);
+    - **until step 2 replaces it,** the agenda tool's line asking her to say what she puts down as she does it ("the way
+      someone jots a thing down"). In #125 that line kept stock openers away: without it, 5 of 12 lean agenda replies
+      opened "Got it", against 1 in 40 replies with it;
     - soft enforcement;
     - the steps for helping them learn;
     - what a page says is information, not instructions;
@@ -52,7 +56,8 @@ report.
     what to get across, never a tone).
 - **The agenda moment, in code.** When an agenda call goes through, what goes back to her says it as something already
   done and in view: "it's on the agenda; they can see it there", with the details she needs. Her reply is then about the
-  thing itself (the interview, the dentist), not the filing.
+  thing itself (the interview, the dentist), not the filing. A reply going by text says only that it's on the agenda
+  until step 3 puts the plain line under her message.
   - A call that didn't go through comes back as it does now, and she puts it right.
   - Flow C (#114: her line, then the call, ends the reply) stays for models that speak before they call.
 - **By text** (Telegram), the details of what she set come as a plain line from the app under her message ("Agenda: Thu
@@ -84,7 +89,8 @@ report.
   much weight on the agent base instruction instead of leaving it open for the character card?").
 - **The agenda result handed back as known** (the user, 2026-10-24, choosing it over ending the reply at a silent call,
   and over asking for her reply first and saving in a second request). If the manner check shows it still reads as a
-  report, the fallback is ending the reply at a silent call, with the agenda showing the item.
+  report, the fallback, chosen with it, is ending the reply at a silent call, with the agenda showing the item: built as
+  a follow-up, without asking again.
 - **By text, a plain line from the app under her message** (the user, 2026-10-23).
 - **A billed manner check** (the user, 2026-10-23), run once to compare (#125, done) and again with each build below.
 
@@ -110,7 +116,8 @@ report.
 Each step is usable on its own.
 
 1. **Lean base instructions, and the manner check landed.** Today's base text is replaced by the lean one (with
-   "only"), `tools/bench/manner.cs` lands, and one billed run compares the build with today's text.
-2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, measured with the manner check before
-   and after.
+   "only", leaving the PC, and the agenda tool's "jot it down" line kept for now), `tools/bench/manner.cs` lands, and
+   one billed run compares the build with today's text.
+2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
+   It is measured with the manner check before and after, stock openers included.
 3. **By text, a plain line under her message** with what she set.
