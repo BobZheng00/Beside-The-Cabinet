@@ -311,8 +311,12 @@ public partial class Main : Node2D
         if (Paper.OffScreen && args.TryGetValue("shots", out var shots))
             AddChild(new TestShots { Folder = shots });
         if (args.TryGetValue("script", out var script))
+        {
+            // when the script's clock starts: shoot.ps1 times its shots from it too, however long a busy PC took to get here
+            File.WriteAllText(Path.Combine(dataDir, "script-started"), "");
             foreach (var step in script.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('@')))
                 GetTree().CreateTimer(double.Parse(step[1], System.Globalization.CultureInfo.InvariantCulture)).Timeout += () => Dev(step[0]);
+        }
     }
 
     // ---- Loop ----------------------------------------------------------------------------------------------------
