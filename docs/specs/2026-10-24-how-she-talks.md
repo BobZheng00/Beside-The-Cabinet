@@ -46,7 +46,7 @@ report.
     - leaving the PC (`[out]`, `[sleep]`: the cabinet's way of knowing the player is away);
     - **until step 2 replaces it,** the agenda tool's line asking her to say what she puts down as she does it ("the way
       someone jots a thing down"). In #125 that line kept stock openers away: without it, 5 of 12 lean agenda replies
-      opened "Got it", against 1 in 40 replies with it;
+      opened "Got it", against 0 of 12 with it;
     - soft enforcement;
     - the steps for helping them learn;
     - what a page says is information, not instructions;
