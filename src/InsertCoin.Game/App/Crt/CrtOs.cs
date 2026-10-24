@@ -10,16 +10,16 @@ namespace InsertCoin.Game.App;
 /// out of the cabinet to face the player, large enough to read at any cabinet size; a press anywhere away from it
 /// settles it back, the app closing into its icon. The system closes by itself after a while untouched, or from the
 /// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, the quick switches
-/// (Mute sounds, Voice, Conversation): lit when on, a press flips one, and its name shows in place of the time under
-/// the pointer.
+/// (Mute sounds, Voice, Conversation): lit when on, a press flips one. The name of a switch or an app under the pointer
+/// lights up on the marquee, big enough to read on any cabinet (see Cabinet.MarqueeDisplay).
 /// </summary>
 public partial class CrtOs : Node
 {
     private enum State { Closed, Moving, Home, App }
 
     /// <summary>
-    /// A quick switch on the home screen's bar: its name (shown under the pointer), whether it is on, flipping it, and
-    /// its picture (drawn at a centre, given whether it is on and the colour).
+    /// A quick switch on the home screen's bar: its name (lit on the marquee under the pointer), whether it is on,
+    /// flipping it, and its picture (drawn at a centre, given whether it is on and the colour).
     /// </summary>
     public sealed record Switch(string Name, Func<bool> On, Action<bool> Set, Action<CanvasItem, Vector2, bool, Color> Glyph);
 
@@ -327,14 +327,23 @@ public partial class CrtOs : Node
     /// <summary>The pointer moved over the cabinet (null: off it).</summary>
     public void Hover(Vector2? canvasPoint)
     {
-        var at = canvasPoint is { } p ? _screen.ScreenPoint(p) : null;
+        var at = _devPointer ?? (canvasPoint is { } p ? _screen.ScreenPoint(p) : null);
         if (at is not null && _state != State.Closed)
             _untouched = 0;
         _hovered = _state == State.Home && at is { } h ? _home.AppAt(h) ?? -1 : -1;
         _switchHovered = _state == State.Home && at is { } s ? SwitchAt(s) ?? -1 : -1;
         if (_state == State.App && _open is { } app)
             app.Hover(at is { } a ? a - app.Position : null);
+        Pointing?.Invoke(_switchHovered >= 0 ? _switches[_switchHovered].Name : _hovered >= 0 && _hovered < _apps.Count ? _apps[_hovered].Label : null);
     }
+
+    /// <summary>The name of the button under the pointer on the home screen (a switch or an app), or null: shown on the marquee.</summary>
+    public Action<string?>? Pointing { get; set; }
+
+    private Vector2? _devPointer;
+
+    /// <summary>Dev: a pretend pointer resting on the screen at a point in its own pixels, or none.</summary>
+    public void DevHover(Vector2? at) => _devPointer = at;
 
     /// <summary>A press on the screen while the system is open is the system's (to swipe, or to move an app), not a drag of the window.</summary>
     public bool Grabs(Vector2 canvasPoint) => _state is State.Home or State.App && _screen.Hits(canvasPoint);
@@ -621,8 +630,8 @@ public partial class CrtOs : Node
     }
 
     /// <summary>
-    /// The bar along the top: on the home screen the time (or the name of the switch under the pointer), the quick
-    /// switches and the power mark; back and the app's name in an app.
+    /// The bar along the top: on the home screen the time, the quick switches and the power mark; back and the app's
+    /// name in an app.
     /// </summary>
     private partial class BarView(CrtOs os) : Control
     {
@@ -649,11 +658,7 @@ public partial class CrtOs : Node
             }
             else
             {
-                if (os._switchHovered >= 0 && os._switchHovered < os._switches.Count)
-                    DrawString(Pixel, new Vector2(22, 34), os._switches[os._switchHovered].Name, HorizontalAlignment.Left,
-                               os.SwitchCentre(0).X - SwitchRadius - 30, 12, Accent);
-                else
-                    DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
+                DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
                 for (var i = 0; i < os._switches.Count; i++)
                 {
                     var (centre, on) = (os.SwitchCentre(i), os._switches[i].On());

@@ -111,7 +111,7 @@ public sealed class SkinAnchors
     public required Vector2 TicketOrigin { get; init; }
     public required Vector2[] ReceiptQuad { get; init; }          // TL, TR, BR, BL of the paper hanging from the slot
     public required Vector2 ReceiptSize { get; init; }
-    public required Vector2[] Marquee { get; init; }
+    public required Vector2[] Marquee { get; init; }              // TL, TR, BR, BL of the marquee's pixel display
     public required MemoSide? Memos { get; init; }                // where memos are stuck on the cabinet; none for a skin without
 }
 

@@ -48,6 +48,7 @@ public partial class Main : Node2D
     private AlertTicket _ticket = null!;
     private MusicApp _musicApp = null!;
     private CrtOs _crt = null!;
+    private string? _devMarquee;
     private object? _carrier;                               // what a pull on the cabinet is carrying: a memo, or the screen's system
     private Reminders _reminders = null!;
     private KeyStore _elsewhereKeys = null!;                // where reminders go besides the cabinet: addresses and tokens, encrypted
@@ -172,6 +173,7 @@ public partial class Main : Node2D
                     new CrtOs.Switch("VOICE", () => _settings.Voice, _stool.SetVoice, CrtOs.Speech),
                     new CrtOs.Switch("CONVERSATION", () => _stool.Conversing, _stool.Converse, CrtOs.Microphone)],
                    () => _window.WindowScale, _cabinet.Skin.Canvas);
+        _crt.Pointing = name => _cabinet.Marquee.Show(name ?? _devMarquee);        // the button under the pointer, lit on the marquee
         // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
         _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();
         _stool.Notice += (title, line) => _ticket.Show(title, line, 10);
@@ -576,7 +578,13 @@ public partial class Main : Node2D
                 case "crtmove": _crt.DevMove(int.Parse(parts[1]), int.Parse(parts[2])); break;                        // crtmove:0:1 moves an app, as carrying it would
                 case "crtclose": _crt.Close(); break;
                 case "crtaway": _crt.Away(); break;                                                                   // a press away from the lifted screen
+                case "crthover": _crt.DevHover(parts.Length > 2 ? new Vector2(float.Parse(parts[1]), float.Parse(parts[2])) : null); break;   // crthover:x:y rests a pretend pointer there; crthover:off
             }
+            return;
+        }
+        if (action.StartsWith("marquee:"))
+        {
+            _devMarquee = action["marquee:".Length..].Replace('_', ' ') is var text and not "off" ? text : null;      // marquee:words lit on the marquee at rest; marquee:off
             return;
         }
         if (action == "settings" || action.StartsWith("settings:"))
