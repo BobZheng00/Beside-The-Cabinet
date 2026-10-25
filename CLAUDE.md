@@ -37,6 +37,8 @@ The README is the front page for strangers; the manual is in READMEs beside what
     when the plan runs out, first in Getting started; OpenAI's waitlist before Steam.
   - `2026-10-24-how-she-talks.md`: a person beside the player, not an assistant reporting work: lean, situational
     base instructions, the agenda result handed back as known, the manner check that measures it.
+  - `2026-10-24-default-cards.md`: who Shino is (an adult illustration student, a friend), her new card and her own
+    card in Chinese, chosen by the player's language or a setting; Fumiriya's next.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database).
