@@ -4,7 +4,7 @@ The user, 2026-10-24: "We can consider to have a plan to enhance the character c
 a lot of these in Chinese community and they are long and I believe more effective to control the personality and way
 of interaction. Can we do some research on the AI character card?" (#131)
 
-Why it matters now: #127 (spec [2026-10-24-how-she-talks](../specs/2026-10-24-how-she-talks.md)) makes her base
+Why it matters now: #127 (spec `docs/specs/2026-10-24-how-she-talks.md`, which lands with PR #130) makes her base
 instructions lean and leaves her manner, how much she says and what she thinks of things to the card. Today Shino and
 Fumiriya each have a six-line `persona.md` (about 690 and 610 characters, some 150 tokens), so most of what she sounds
 like comes from the model.
@@ -49,7 +49,8 @@ name, description, personality and scenario go in every request; the first messa
 there is room, dropped block by block as the chat grows; the character's note at a chosen depth from the end. Our app
 (code, `CharacterCard.ToPersona`, `Prompt.Build`) puts description, personality, scenario, examples and the card's
 system prompt together in the system message, *before* the app's own rules, so examples never drop out; the post-history
-instructions and the depth note go at the very end of the last message, after what the player said; lorebook entries
+instructions and the depth note go at the end of the last message, after what the player said (only the `<voice>`
+block, when she has a voice, comes after them); lorebook entries
 whose keys came up go in `<memories>` (500 tokens at most).
 
 **Which fields carry personality and manner.** All the sources agree on the order:
@@ -94,12 +95,13 @@ refused our reader (403, a captcha), so this section rests on the guides that co
   (often with stages that change as affection grows), 开场白, 示例对话 (three to five rounds) and 世界书.
 - **The world book (世界书)** holds what the world contains (places, factions, other characters), the card holds who the
   character is. Entries are always-on (蓝灯, blue) or triggered by keywords in the last few messages (绿灯, green); the
-  guides say keep blue ones to one or two, 200 to 500 characters each, since each costs tokens on every turn
+  guides say keep blue ones to one to three, 200 to 500 characters each, since each costs tokens on every turn
   ([world book basics](https://guide.sillytavern.one/presets-lorebooks/lorebook-basics/), read). Their summary: the card
   makes the AI a person, the world book makes it know the world.
 
 **Why the cards are long.** Mostly not the personality:
-- they carry **game systems**: status bars drawn with regex and HTML, affection scores with stages, variables the model
+- they carry **game systems**: status bars drawn with regex and HTML (the regex rules travel with the card, and also
+  fix a model's verbal tics, [Foreverse's glossary](https://foreverse.cn/zh/docs/glossary)), affection scores with stages, variables the model
   updates (MVU), relationship routes; one guide warns that more than about six numbers dilutes the model's attention;
 - they carry **a world**, with many characters and a scenario for a long story;
 - **Chinese text is token-dense in its own way**, and one author recommends writing the definition in English to save
@@ -108,7 +110,7 @@ refused our reader (403, a captcha), so this section rests on the guides that co
   beginners' guide: the preset is the main body, the 破限 usually a part of it).
 
 **What their guides say about length** (read): the 中文教程站's step-by-step warns that a description over about 3,000
-characters crowds the context and is not digested well; the 旅程 wiki: "角色当然并不是越详细越好" (more detail is not
+characters crowds the context and is not digested well; the 旅程 wiki: "当然，角色并不是越详细越好" (more detail is not
 always better; mind the tokens); community posts keep settings under 1,000 characters, or everything under 3,000 tokens,
 and note that the model weighs what is near the end more than what is far back. We found no measured comparison of long
 and short cards in this community: the belief that long cards work better is experience, and the experienced writers
@@ -130,8 +132,9 @@ unread: the page didn't load; the split from its search summary). Their limits a
 - **Examples beat description for manner** (measured). RoleLLM ([Wang et al.](https://arxiv.org/abs/2310.00746),
   [details](https://arxiv.org/html/2310.00746v3)) gave GPT-4 a role description with catchphrases plus retrieved example
   exchanges. Written as earlier turns of the chat (user, assistant), the examples won 63% of GPT-4-judged comparisons on
-  their Chinese set, against 30% for the same examples pasted into the prompt as text and 9% for none. Catchphrases in
-  the description helped word choice; the examples helped syntax and tone. Note which is which for us: `persona.md` and
+  their Chinese set, against 30% for the same examples pasted into the prompt as text and 9% for none. (Not measured,
+  but the paper's design: catchphrases in the description are there for word choice, the examples for syntax and
+  tone.) Note which is which for us: `persona.md` and
   `ToPersona` put examples in the system text, which is the 30% condition, not the 63% one. Examples in the text still
   beat none by a wide margin. Examples as earlier chat turns are an option for the card design session to weigh
   (section 5).
@@ -141,7 +144,9 @@ unread: the page didn't load; the split from its search summary). Their limits a
   checklist for a card.
 - **Personality comes through** (measured). InCharacter ([Wang et al., ACL 2024](https://arxiv.org/abs/2310.17976))
   interviewed role-playing agents with psychological scales: up to 80.7% agreement with how people see the characters.
-  The models can hold a personality they are given; the card has to give one.
+  The models can hold a personality they are given; the card has to give one. The other route, training a model on a
+  character's experiences as Character-LLM does ([Shao et al., EMNLP 2023](https://arxiv.org/abs/2310.10158)), isn't
+  open to us: players bring their own provider, so the card is all we can give.
 - **Chinese role-play** (read). CharacterEval ([Tu et al.](https://arxiv.org/abs/2401.01275)) found Chinese models did
   better than GPT-4 in Chinese role-play; CharacterBench ([Zhou et al.](https://arxiv.org/abs/2412.11912)) is bilingual
   with 3,956 characters. Both suggest Chinese examples matter for a good Chinese manner, rather than relying on English
@@ -168,7 +173,8 @@ unread: the page didn't load; the split from its search summary). Their limits a
   *before* the app's rules. Unlike SillyTavern we never let it replace the app's text (the V2 spec's default), which is
   right for us. It is the first thing cut when the persona passes 8,000 characters.
 - `post_history_instructions` and the character's note (`depth_prompt`) go, up to 600 characters, into the
-  `<character>` block at the very end of the last message, after what the player said. That is the most attended place
+  `<character>` block at the end of the last message, after what the player said (only the `<voice>` block can follow
+  it). That is the most attended place
   in the whole prompt, and the base text tells her the `<character>` block comes from the cabinet, so a card's
   "ignore the rules above" there speaks with the cabinet's voice (parked: #132).
 - `{{original}}`, which the spec says frontends must support, is left in the text as it is (parked: #133).
@@ -233,8 +239,8 @@ Not yet. `ToPersona` flattens a card's description, personality, scenario and ex
 `persona.md` gives the model the same prompt. `persona.md` is easier to write, review and diff, and the manner check
 already reads it. A card adds three things: a note after every turn of her own (instead of the generic one), a
 lorebook, and a first message. If the manner check shows her manner fading late in a conversation, a short note of her
-own is the first thing to try, and that is the time for `card.json`. Built-in characters can't take one today anyway:
-`Character.CardIn` looks only in the player's folder, not in `res://characters/<id>/`.
+own is the first thing to try, and that is the time for `card.json`. And the app can't ship one today anyway: a
+built-in character takes a card only from the player's folder (`Character.CardIn`), not from `res://characters/<id>/`.
 
 One trap: `persona.md` has no placeholder filling, so its examples write "Player:" rather than `{{user}}`.
 
