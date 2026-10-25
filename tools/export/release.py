@@ -237,6 +237,7 @@ def main():
         sys.exit(f'the game has sherpa-onnx {shipped.get("org.k2fsa.sherpa.onnx")}: pin its build without text-to-speech')
     out = ROOT / 'builds' / 'release' / version
     app = out / 'BesideTheCabinet'
+    run(sys.executable, ROOT / 'tools' / 'models' / 'fetch.py', 'check')   # never a release quietly without its models
     print('exporting…')
     data = export(app)
     without_tts(data, ROOT / 'builds' / 'release' / 'downloads')

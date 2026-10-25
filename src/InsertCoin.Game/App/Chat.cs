@@ -361,7 +361,7 @@ public sealed class Chat : IDisposable
     public Func<bool> KeepsInTouch { get; init; } = () => false;
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
-    public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => Godot.FileAccess.FileExists($"res://models/{m.Name}/model.onnx"))];
+    public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => ModelFiles.Present($"res://models/{m.Name}/model.onnx"))];
 
     /// <summary>The model searching now, if any (it may still be loading).</summary>
     public EmbeddingModel? Searching => _embedder?.Model;
@@ -385,7 +385,7 @@ public sealed class Chat : IDisposable
                 loaded = await Task.Run(() =>
                 {
                     var folder = $"res://models/{model.Name}/";
-                    using var tokenizer = new MemoryStream(Godot.FileAccess.GetFileAsBytes(folder + model.TokenizerFile));
+                    using var tokenizer = ModelFiles.Open(folder + model.TokenizerFile);
                     return new LocalEmbedder(model, ModelFiles.OnDisk(folder + "model.onnx", model.Name), tokenizer);
                 });
             }
