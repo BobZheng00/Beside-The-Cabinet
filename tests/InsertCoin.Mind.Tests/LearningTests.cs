@@ -138,7 +138,7 @@ public class LearningTests
         Assert.Equal("Hi!", answer);
         Assert.True(tools.HostedRefused);
         Assert.False(tools.Refused);
-        Assert.Equal(["open_link"], model.Offered.Last()!.Select(t => t.Name));
+        Assert.Equal(["agenda", "open_link"], model.Offered.Last()!.Select(t => t.Name));
     }
 
     /// <summary>A provider whose account has its web search switched off, as Anthropic answers then.</summary>

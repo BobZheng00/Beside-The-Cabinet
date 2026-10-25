@@ -30,6 +30,11 @@ says where things stand today); this page keeps the story. Update it at each mil
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
+**Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
+chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
+to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that
+measures both (spikes #105 and #125).
+
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
 the plan, a backup (an API key or a local model) asked for when the plan runs out, first in Getting started. Step 1

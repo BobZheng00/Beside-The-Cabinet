@@ -20,11 +20,12 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   and the bubble fades only when they have finished. `ChatBox` is the slip you type on, `Paper` the shared look
   (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects the companion to `InsertCoin.Mind`: sends what you type, acts out stage directions
-  (`[cheer]`, `[wave]`, `[worry]`, `[plan: …]`…), logs cabinet events into the conversation, folds it when it grows,
-  runs upkeep every minute, and lets them use their tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`;
-  `PermissionCard` is where they ask). `App/MindSettings.cs` is the Mind page in Settings (the provider, or
-  the player's ChatGPT plan: `ChatGptPlan` in `InsertCoin.Mind` signs in and asks on it, `PlanBackup` carries on
-  with the backup after the player's yes),
+  (`[cheer]`, `[wave]`, `[worry]`…; `[plan: …]` and the agenda's other tags only on a provider without tools), logs
+  cabinet events into the conversation, folds it when it grows, runs upkeep every minute, and lets them use their
+  tools (`Toolbox` and `BuiltIn` in `InsertCoin.Mind`; `PermissionCard` is where they ask; the agenda tool, which
+  `Conversation` adds, shows them jotting it on a pad rather than thinking). `App/MindSettings.cs` is the Mind page
+  in Settings (the provider, or the player's ChatGPT plan: `ChatGptPlan` in `InsertCoin.Mind` signs in and asks on it,
+  `PlanBackup` carries on with the backup after the player's yes),
   `App/MemoryBook.cs` the memory book. In `InsertCoin.Mind`: `Recall` picks memories, `Log` keeps their notes on your
   talks, a log by day, `Upkeep` turns new notes into changes to their facts and your agenda while the talk is
   quiet, and `MemoryEdits` saves an edit made in the memory book without writing over a change of theirs. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),

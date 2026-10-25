@@ -131,7 +131,7 @@ The thumbs need finger poses like the pencil grip's, with the phone placed from 
 **The player's own memos, which she sees** (the user's request, 2026-10-06):
 - Written without going through her: tray → "Write a memo…", or the Memos tab. Saved, it prints out of the slot like hers, and she glances at it as it comes out.
 - **She thinks it over unseen** (`Chat.Consider`): no thinking dots, nothing shown while the reply comes. She is told what it says (the first 1,500 characters) and that it is the player's own (`Memo.Written`). Then either:
-  - **she acts on it:** a reminder or a date on the agenda, through the usual stage directions, or a word of help, said in a line as a reply is;
+  - **she acts on it:** a reminder or a date on the agenda, with her agenda tool (since #114; the stage directions on a provider without tools), or a word of help, said in a line as a reply is;
   - **or she lets it be:** she answers only `[quiet]`, and nothing is shown or said.
 - Either way the memo stays in the conversation as a cabinet line, so she knows it's there later; the titles of those still on the cabinet also go with every request.
 - If she's busy (talking, listening, passing on a reminder), she reads it once she's free.
@@ -260,6 +260,7 @@ Built-in, outside the app: she asks first. Examples: today's daily problem, a ga
 - **The list is the same every request**, sorted by name. Only switching a tool off (or on) changes it; Allowed and Ask don't.
 - **Every reply carries it:** answers, check-ins and reminders alike. Otherwise the cached start of the prompt would differ between them.
 - **The bridging line:** the prompt asks for a short line of her own before each tool, fitting what she's doing, never a stock phrase. A paragraph "Your abilities" is in the prompt only while tools are offered.
+- **Her agenda is a tool too** (#114, 2026-10-22; the memory spec, section 3's change of that day): `agenda`, added by `Conversation` to every toolbox, not listed in Settings → Abilities, so never switched off. A round of agenda calls that went through, with her words before them, ends the reply there (said as written): her line as she writes it down is all she says of it.
 - **What's remembered:** each tool use is a cabinet line in the conversation, between the player's line and hers: `You used open_link ({"url": …}): Opened in the player's browser.`, or `…; the player said no.` The full result stays in that reply's requests only, so a long one doesn't fill the conversation.
 - **Her words around a tool** read as one reply: "Want me to open it? There you go, it's open." (a space between the two parts, none in Chinese or Japanese).
 - **Models without tools:** if the provider turns tools down ("does not support tools", as Ollama says for such a model), she answers at once without them, and they aren't offered again until the provider changes.
