@@ -185,6 +185,12 @@ way of interaction."
       line that her likes are there for when they come up.
     - Questions went up to 14 of 20, although only 3 of the 14 examples end on one. So it comes from the model and the
       lean base text, not the card: #127's open item ("count it, decide after").
+  - **Third run, 2026-10-25:** the fifth draft, regrouped (27 requests, 117k input tokens).
+    - She's as short as the third draft (a median of 15 words, 19 Chinese characters), with fewer echoes (3) and no
+      offers of help.
+    - Her background came up naturally (the harbour at home in the rain), and her likes didn't leak in.
+    - Questions were 13 of 20 (#127). The focus session was again started when she was asked how long one is: #145,
+      a fix in code.
 
 ## Not built, and why
 
