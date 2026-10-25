@@ -277,10 +277,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         agendaWent = true;
                         return $"Added #{added}: {Described(added)}.";
                     }
-                    // the same thing already there: as asked, it can still end the reply; changed by this, or at another time
-                    // than asked, it goes back to her, so what she says is what is on the agenda now
+                    // the same thing already there: just as she asked (time, reminder, repeat) and unchanged by this, it can still
+                    // end the reply; otherwise it goes back to her, so what she says is what is on the agenda now (a calendar's
+                    // item keeps its own reminder and repeat; one at another time that day is left as it is)
                     var elsewhen = (a.At, a.AllDay) != (earlier.At, earlier.AllDay);
-                    if (!elsewhen && store.Agenda().FirstOrDefault(p => p.Id == added) is { } same && (same.Before, same.Repeat) == (earlier.Before, earlier.Repeat))
+                    if (!elsewhen && store.Agenda().FirstOrDefault(p => p.Id == added) is { } same && (same.Before, same.Repeat) == (earlier.Before, earlier.Repeat)
+                        && same.Before == before && same.Repeat == (again ?? Repeat.Once))
                     {
                         agendaWent = true;
                         return $"Already on the agenda, as asked: #{added}: {Described(added)}.";
@@ -367,6 +369,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 refused.Add($"Your [{name}: {payload.Trim()}] didn't go through: the cabinet can't read it" + (toolsOn
                     ? ". Put it on the agenda with the agenda tool, or ask them."
                     : " as YYYY-MM-DD HH:MM (YYYY-MM-DD for a whole day) | what it is. Tell the player briefly, then put it right or ask them."));
+        }
+        // the tags held while tools were offered, once the reply is over or stopped: only if she made no agenda call in it
+        void Held()
+        {
+            if (!agendaCalled)
+                foreach (var (name, payload) in tagged)
+                    Tagged(name, payload);
+            tagged.Clear();
         }
         var stage = new StageDirections((name, payload) =>
         {
@@ -487,13 +497,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 }
             }
             Show(stage.Finish());
-            if (!agendaCalled)
-                foreach (var (name, payload) in tagged)
-                    Tagged(name, payload);
+            Held();
         }
         catch (OperationCanceledException) when (reply.Length > 0)
         {
             Keep(reply.ToString(), inMind);                 // stopped part-way (cut off, or out of time): what she had written is hers
+            Held();
             Refused();
             throw;
         }
@@ -710,7 +719,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// time about the same thing) it only adds what is new: a reminder, a repeat (not to a calendar's item: whether
     /// that repeats is the calendar's to say). A reminder for something wholly past is not set. Returns the item's id, or null.
     /// </summary>
-    /// <param name="exactly">The reminder as given, none included (the agenda tool's add); otherwise none keeps the one there.</param>
+    /// <param name="exactly">The agenda tool's add: the reminder as given, none included (otherwise none keeps the one there),
+    /// and the same thing at another time that day left as it is.</param>
     private long? AddPlan(PlanSpec spec, DateTimeOffset now, bool exactly = false)
     {
         var wanted = new Plan(0, spec.Text, spec.At, spec.AllDay, spec.Before, null, now, character, spec.Repeat);
@@ -720,6 +730,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         if (store.Agenda().FirstOrDefault(p => p.At.Date == spec.At.Date
                                                && (Recall.Same(p.Text, spec.Text) || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
         {
+            if (exactly && (same.At, same.AllDay) != (spec.At, spec.AllDay))
+                return same.Id;
             var before = exactly && same.Source is null ? spec.Before : spec.Before ?? same.Before;
             var repeat = spec.Repeat != Repeat.Once && same.Source is null ? spec.Repeat : same.Repeat;
             if (before != same.Before || repeat != same.Repeat)

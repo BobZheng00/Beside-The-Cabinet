@@ -132,7 +132,7 @@ cache at a tenth of that or less.
   *Changed 2026-10-22 (#114, from spike #105): the agenda is a tool.* Where the provider takes tools, the tags above
   are no longer offered, in her instructions or her voice's example (they stay for a provider without tools,
   `Toolbox.Refused`; a `[plan]` or `[remind]` she writes anyway is applied at the end of a reply with no agenda call in
-  it, and ignored in one with a call, where it could win on time or reminder or add a second item in other words; one
+  it, or where such a reply is stopped part-way, and ignored in one with a call, where it could win on time or reminder or add a second item in other words; one
   the cabinet can't read is told to her after her reply, pointing her to the tool): `BuiltIn.Agenda`
   adds, changes or cancels, by the same numbers and with the same refusals. On a real model the tags set the wrong
   thing silently in 5 of 20 replies (both cancels missed, three items put at their reminder's time); the tool got
@@ -140,8 +140,9 @@ cache at a tenth of that or less.
   a required choice (`remind`: none, at_the_time, before with `minutes_before`, or keep on a change) and every result
   names it ("no reminder"; the player's own lead when that gives one); "reminds them by itself" is gone from what she
   is told. An add that lands on the same thing already on the agenda (same day, same words) sets its reminder as asked,
-  none taking one away; unless it was there just as asked, the result says what was there and what is there now, and
-  goes back to her rather than ending the reply. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other
+  none taking one away (a calendar's item keeps its own reminder and repeat, and the same thing at another time that
+  day is left as it is); unless the item is now just as she asked, time, reminder and repeat (once when the add gives
+  none), the result says what was there and what is there now, and goes back to her rather than ending the reply. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other
   week") or a time it can't read is turned down with its reason. *Said as written* (flow C), in code
   (`Conversation.Reply`, `Ends`): she says what she is putting down and calls the tool in the same reply; when every
   call of the round was an agenda call that went through and words came before them, the reply ends there (one

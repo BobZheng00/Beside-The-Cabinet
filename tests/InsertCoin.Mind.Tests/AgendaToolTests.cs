@@ -386,6 +386,87 @@ public class AgendaToolTests
         Assert.Contains(Recorded(temp), l => l.Contains($"Already on the agenda, as asked: #{dentist}: Dentist, Fri 23 Oct 15:30, reminder 1 hour before."));
     }
 
+    [Fact]
+    public async Task No_reminder_on_a_calendar_s_item_with_one_goes_back_to_her_as_its_reminder_stays()
+    {
+        using var temp = new TempStore();
+        var at = new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset);
+        var sync = temp.Store.AddCalendarPlan("Work", "sync@work", "Team sync", at, allDay: false, Wednesday);
+        temp.Store.UpdatePlan(sync, "Team sync", at, false, TimeSpan.FromHours(1), Repeat.Once);
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["The team sync on Friday, no reminder.",
+            Agenda("sync", ("action", "add"), ("when", "2026-10-23T15:30"), ("what", "Team sync"), ("remind", "none"))], ["That one's your calendar's: it keeps its reminder."]);
+
+        await conversation.Answer(model, "team sync friday at 3:30, no reminder", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal(2, model.Requests.Count);
+        Assert.StartsWith($"#{sync} was already on the agenda", Assert.Single(Results(model.Requests[1])));
+        Assert.Equal(TimeSpan.FromHours(1), Assert.Single(temp.Store.Agenda()).Before);
+    }
+
+    [Fact]
+    public async Task An_add_without_a_repeat_landing_on_a_weekly_item_goes_back_to_her()
+    {
+        using var temp = new TempStore();
+        var gym = temp.Store.AddPlan("Gym", new DateTimeOffset(2026, 10, 26, 7, 0, 0, Wednesday.Offset), false, null, Wednesday, "shino", Repeat.Weekly);
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["Gym on Monday at seven.", Agenda("gym", ("action", "add"), ("when", "2026-10-26T07:00"), ("what", "Gym"), ("remind", "none"))],
+                                      ["That's your weekly gym already."]);
+
+        await conversation.Answer(model, "gym monday at 7", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal(2, model.Requests.Count);
+        Assert.Contains("every week", Assert.Single(Results(model.Requests[1])));
+        Assert.Equal((gym, Repeat.Weekly), (Assert.Single(temp.Store.Agenda()).Id, temp.Store.Agenda()[0].Repeat));
+    }
+
+    [Fact]
+    public async Task The_same_thing_at_another_time_that_day_leaves_the_one_there_as_it_is()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, TimeSpan.FromHours(1), Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["The dentist at four.", Agenda("dentist", ("action", "add"), ("when", "2026-10-23T16:00"), ("what", "Dentist"), ("remind", "none"))],
+                                      ["It's down for half three, shall I move it?"]);
+
+        await conversation.Answer(model, "dentist friday at 4, no reminder", "", _ => { }, (_, _) => { }, tools: tools);
+
+        var plan = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((dentist, 15, TimeSpan.FromHours(1)), (plan.Id, plan.At.Hour, plan.Before));
+        Assert.Contains($"It keeps its own time: to move it, change #{dentist}.", Assert.Single(Results(model.Requests[1])));
+    }
+
+    [Fact]
+    public async Task A_held_tag_is_applied_when_the_reply_is_stopped_part_way_with_no_agenda_call()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist] Friday, half three, ", "the dentist."]);
+        using var stop = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            conversation.Answer(model, "dentist friday at 3:30", "", piece => { if (piece.Contains("half three")) stop.Cancel(); }, (_, _) => { }, stop.Token, tools));
+
+        Assert.Equal(("Dentist", 15), (Assert.Single(temp.Store.Agenda()).Text, temp.Store.Agenda()[0].At.Hour));
+    }
+
+    [Fact]
+    public async Task A_held_tag_is_ignored_when_the_reply_is_stopped_after_an_agenda_call()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["[plan: 2026-10-23 15:30 | Dentist] Friday, half three, the dentist.",
+                                       Agenda("dentist", ("action", "add"), ("when", "next Friday"), ("what", "Dentist"), ("remind", "none"))],
+                                      ["Hm, ", "what time was it?"]);
+        using var stop = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            conversation.Answer(model, "dentist friday at 3:30", "", piece => { if (piece.Contains("Hm")) stop.Cancel(); }, (_, _) => { }, stop.Token, tools));
+
+        Assert.Equal(2, model.Requests.Count);              // the call was made, and failed, before she was stopped
+        Assert.Empty(temp.Store.Agenda());
+    }
+
     [Theory]
     [InlineData("2026-10-23T16:00", "none", true)]               // the same thing at another time that day: it keeps its own time
     [InlineData("2026-10-23T15:30", "at_the_time", false)]       // its reminder changed
