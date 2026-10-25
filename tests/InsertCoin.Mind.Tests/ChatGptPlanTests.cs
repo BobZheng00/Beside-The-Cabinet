@@ -518,4 +518,245 @@ public class ChatGptPlanTests : IDisposable
         Assert.False(await plan.Disconnect());                          // ChatGPT couldn't be told: the player is asked to disconnect there
         Assert.False(plan.Connected);
     }
+
+    // ---- The backup (step 2) ----------------------------------------------------------------------------------------------
+
+    private static HttpResponseMessage LimitReached() =>
+        Json(HttpStatusCode.TooManyRequests, """{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"limit"}}""");
+
+    private static async Task<string> Streamed(IChatClient client, string said)
+    {
+        var text = "";
+        await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, said)]))
+            text += update.Text;
+        return text;
+    }
+
+    [Fact]
+    public async Task Nothing_goes_to_the_backup_without_the_players_yes()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var told = new List<PlanStop>();
+        plan.Stopping += told.Add;
+        var spare = new FakeModel("From the backup.");
+        var client = new PlanBackup(plan).Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+
+        Assert.True((await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"))).Told);
+        Assert.False((await Assert.ThrowsAsync<PlanStopped>(() => Streamed(client, "Anyone?"))).Told);
+        _clock.Now = Noon.AddHours(3);                                  // unanswered for hours: still nothing
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Still there?"));
+
+        Assert.Empty(spare.Requests);
+        Assert.Equal([PlanStop.Limit], told);                           // asked once
+    }
+
+    [Fact]
+    public async Task After_a_yes_everything_goes_to_the_backup_and_the_plan_is_tried_again_each_quarter_hour()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var told = new List<PlanStop>();
+        plan.Stopping += told.Add;
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        var asked = _openAi.Asked.Count;
+
+        backup.Allow();
+        Assert.Equal("From the backup.", (await client.GetResponseAsync("Hello again")).Text);
+        _clock.Now = Noon.AddMinutes(14);
+        Assert.Equal("From the backup.", await Streamed(client, "And now?"));
+        Assert.Equal(asked, _openAi.Asked.Count);                       // the plan not asked in between
+
+        _clock.Now = Noon.AddMinutes(16);                               // a quarter of an hour on: the plan first, still reached
+        _openAi.Answers.Enqueue(LimitReached());
+        Assert.Equal("From the backup.", await Streamed(client, "Later"));
+        Assert.Equal(asked + 1, _openAi.Asked.Count);
+        _clock.Now = Noon.AddMinutes(30);                               // the next try is a quarter of an hour after that one
+        Assert.Equal("From the backup.", (await client.GetResponseAsync("Later still")).Text);
+        Assert.Equal(asked + 1, _openAi.Asked.Count);
+
+        Assert.Equal(4, spare.Requests.Count);
+        Assert.True(backup.Allowed);
+        Assert.Equal([PlanStop.Limit], told);                           // nothing more to ask while on the backup
+    }
+
+    [Fact]
+    public async Task Once_the_plan_answers_again_she_goes_back_says_so_once_and_asks_again_the_next_time()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var told = new List<PlanStop>();
+        plan.Stopping += told.Add;
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var back = 0;
+        backup.Back += () => back++;
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        backup.Allow();
+        await client.GetResponseAsync("Hello again");
+
+        _clock.Now = Noon.AddMinutes(16);
+        Assert.Equal("Hi there.", await Streamed(client, "Is it back?"));         // the plan answers: hers again
+        Assert.Equal("Hi there.", (await client.GetResponseAsync("Good")).Text);
+
+        Assert.Equal(1, back);
+        Assert.False(backup.Allowed);
+        Assert.Single(spare.Requests);
+
+        _openAi.Answers.Enqueue(LimitReached());                        // it runs out again: asked again, the backup unused
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Again?"));
+        Assert.Equal([PlanStop.Limit, PlanStop.Limit], told);
+        Assert.Single(spare.Requests);
+        Assert.Equal(1, back);
+    }
+
+    [Fact]
+    public async Task Signed_out_she_carries_on_with_the_backup_after_a_yes_and_goes_back_when_signed_in_again()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var back = 0;
+        backup.Back += () => back++;
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.RefusesRefresh = true;
+        _clock.Now = Noon.AddHours(2);
+        Assert.Equal(PlanStop.SignedOut, (await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"))).Why);
+
+        backup.Allow();
+        Assert.Equal("From the backup.", (await client.GetResponseAsync("Hello again")).Text);
+        _openAi.RefusesRefresh = false;
+        await SignIn(plan);
+
+        Assert.Equal(1, back);
+        Assert.Equal("Hi there.", (await client.GetResponseAsync("Back?")).Text);
+        Assert.Single(spare.Requests);
+    }
+
+    [Fact]
+    public async Task A_yes_after_the_plan_works_again_changes_nothing()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var backup = new PlanBackup(plan);
+
+        backup.Allow();
+
+        Assert.False(backup.Allowed);
+    }
+
+    /// <summary>The limit reached part-way: response.created, then response.failed.</summary>
+    private static HttpResponseMessage LimitReachedPartWay() => Events(
+        ("response.created", """{"type":"response.created","sequence_number":0,"response":{"id":"resp_2","object":"response","created_at":1790000000,"status":"in_progress","model":"gpt-5.5","output":[]}}"""),
+        ("response.failed", """
+            {"type":"response.failed","sequence_number":1,"response":{"id":"resp_2","object":"response","created_at":1790000000,"status":"failed","model":"gpt-5.5","output":[],
+             "error":{"code":"subscription_sharing_usage_limit_exceeded","message":"limit"}}}
+            """));
+
+    [Fact]
+    public async Task A_limit_reached_part_way_comes_after_an_update_from_the_plan_with_nothing_to_show()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        _openAi.Answers.Enqueue(LimitReachedPartWay());
+        var before = new List<ChatResponseUpdate>();
+
+        await Assert.ThrowsAsync<PlanStopped>(async () =>
+        {
+            await foreach (var update in plan.Client("gpt-5.5").GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hello")]))
+                before.Add(update);
+        });
+
+        Assert.NotEmpty(before);                                        // the library hands over response.created first
+        Assert.All(before, update => Assert.Empty(update.Contents));
+        Assert.Equal("resp_2", before[0].ResponseId);
+    }
+
+    [Fact]
+    public async Task A_limit_reached_part_way_through_the_plans_next_try_goes_to_the_backup_after_a_yes()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        backup.Allow();
+        _clock.Now = Noon.AddMinutes(16);
+        _openAi.Answers.Enqueue(LimitReachedPartWay());
+
+        var updates = new List<ChatResponseUpdate>();
+        await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Later")]))
+            updates.Add(update);
+
+        Assert.Equal("From the backup.", string.Concat(updates.Select(u => u.Text)));
+        Assert.All(updates, update => Assert.NotEqual("resp_2", update.ResponseId));      // nothing of the plan's
+        Assert.Single(spare.Requests);
+    }
+
+    [Fact]
+    public void The_plan_keeps_the_full_window_even_at_a_stand_in_while_a_backup_on_this_pc_keeps_a_small_one()
+    {
+        Assert.Equal(Prompt.DefaultWindow, new Provider(Protocol.ChatGpt, "http://127.0.0.1:8798/v1", "gpt-mock").DefaultWindow);
+        Assert.Equal(Prompt.LocalWindow, new Provider(Protocol.OpenAi, "http://localhost:11434/v1", "qwen3").DefaultWindow);
+        Assert.Equal("Ollama", new Provider(Protocol.OpenAi, "http://localhost:11434/v1", "qwen3").Name);
+        Assert.Equal("the model on this PC", new Provider(Protocol.OpenAi, "http://127.0.0.1:8798/backup/v1", "mock").Name);
+        Assert.Equal("api.example.com", new Provider(Protocol.OpenAi, "https://api.example.com/v1", "m").Name);
+    }
+
+    [Fact]
+    public async Task A_yes_is_for_the_backup_it_named_and_once_taken_back_nothing_more_goes_to_the_backup()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var spare = new FakeModel("From the backup.");
+        var backup = new PlanBackup(plan);
+        var forgot = 0;
+        backup.Forgot += () => forgot++;
+        var client = backup.Over(plan.Client("gpt-5.5"), spare);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("Hello"));
+        backup.Allow();
+        await client.GetResponseAsync("On the backup");
+
+        backup.Forget();                                                // another backup saved, or none
+        backup.Forget();
+
+        Assert.False(backup.Allowed);
+        Assert.Equal(1, forgot);
+        await Assert.ThrowsAsync<PlanStopped>(() => client.GetResponseAsync("And now?"));
+        Assert.Single(spare.Requests);
+    }
+
+    [Fact]
+    public async Task A_yes_for_the_new_backup_never_sends_the_old_ones_requests_to_the_old_backup()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        var first = new FakeModel("From the first backup.");
+        var second = new FakeModel("From the second backup.");
+        var backup = new PlanBackup(plan);
+        var old = backup.Over(plan.Client("gpt-5.5"), first);
+        _openAi.Answers.Enqueue(LimitReached());
+        await Assert.ThrowsAsync<PlanStopped>(() => old.GetResponseAsync("Hello"));
+
+        backup.Forget();                                                // the second saved while the card asked: no yes yet to take back
+        var now = backup.Over(plan.Client("gpt-5.5"), second);
+        backup.Allow();                                                 // the yes, for the second
+
+        await Assert.ThrowsAsync<PlanStopped>(() => old.GetResponseAsync("Still under way on the old one"));
+        await Assert.ThrowsAsync<PlanStopped>(() => Streamed(old, "Streamed on the old one"));
+        Assert.Equal("From the second backup.", (await now.GetResponseAsync("On the new one")).Text);
+        Assert.Empty(first.Requests);
+    }
 }

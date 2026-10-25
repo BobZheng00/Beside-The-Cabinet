@@ -38,8 +38,8 @@ measures both (spikes #105 and #125).
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
 the plan, a backup (an API key or a local model) asked for when the plan runs out, first in Getting started. Step 1
-(signing in, everything on the plan, the limit and signed-out cards) built 2026-10-18 (#90); the backup (#91) and
-Getting started (#92) next.
+(signing in, everything on the plan, the limit and signed-out cards) built 2026-10-18 (#90); step 2, the backup
+asked for first and back to the plan by herself, built 2026-10-23 (#91); Getting started (#92) next.
 
 **Next: Settings from the cabinet** (the user, 2026-10-17: opening Settings and the memory book from the tray had
 become "a bit annoying"). Spec `docs/specs/2026-10-17-on-the-cabinet.md`: a right-click on her or the cabinet shows

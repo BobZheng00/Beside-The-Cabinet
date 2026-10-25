@@ -78,7 +78,9 @@ again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` 
 Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
 stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → Mind,
 `settingsdo:Provider:1` and `settingsdo:Continue_with_ChatGPT`, and a test run visits the stand-in's sign-in itself,
-opening no browser),
+opening no browser; its backup, before signing in, with `settingsdo:Backup:6`, `settingsdo:Server:http://127.0.0.1:port/backup/v1`,
+`settingsdo:Model:backup-mock` and `settingsdo:Save_backup`), `plantry` (the plan's next try, past its limit, comes now
+rather than a quarter of an hour on),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (the voice's
@@ -93,8 +95,8 @@ slip's microphone), `listen` and `listened` (as if the mouse were held on them, 
 
 Hands-free, without ever opening the real microphone: `fakemic` (from then on they hear only recordings),
 `mictalk:C:\path\said.wav` (said into their open microphone), `converse` (`converse:on`, `converse:off`). Their tools:
-`allow`, `always` and `deny` (answer the card they ask with, as its buttons do; on a suggested change to a skill,
-`allow` is Remember it and `deny` Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
+`allow`, `always` and `deny` (press the card's buttons, as a click does, clicks-only cards too; on a suggested change
+to a skill, `allow` is Remember it and `deny` Not now; on the ChatGPT plan's backup card, Yes, Manage usage and Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
 change to a skill when told "tea-timer from now on new_words instead of old_words", as with
 `chat:tea-timer_from_now_on_rinse_the_pot_first_instead_of_warm_the_pot_first` after `skillseed`), and
 `fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway). With `--offscreen` a page they open is
@@ -210,7 +212,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   "ChatModel": "mock"`, and needs no key.
 - `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
-  and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream).
+  and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;
+  "reset" lifts it again; "notebook": a memo written on the plan, then the limit on the request bringing its result).
+  It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key).
   A run points at it with `chatgptat:`; a scenario with `"mind": "chatgpt"` starts it and writes its address for
   `{mind}` in the script.
 - A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a

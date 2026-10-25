@@ -16,8 +16,14 @@ with response.completed. Once the player's words say "limit", the plan's limit i
 after it get 429 subscription_sharing_usage_limit_exceeded (with "midstream" in the words too, the first comes as
 response.failed after the stream began). Words with "signedout" get 401 subscription_sharing_invalid_user, and every
 refresh after it invalid_grant, until the next sign-in (the player disconnected the app in ChatGPT); "ineligible", 403
-subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. It stops
-when killed, or after --quit-after seconds.
+subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscription_sharing_usage_unavailable. Words with
+"reset" lift the limit again (the plan works once more), and that request is answered on the plan. Words with "notebook"
+get a call of her print_memo tool, and the request that brings its result reaches the limit (a turn stopped part-way);
+the backup calls print_memo too ("Notebook again") for such words, so a turn asked again after the yes would show.
+
+It also stands in for the player's backup behind the plan: an OpenAI-compatible server at /backup/v1 (chat
+completions, streamed or not, answering --backup-reply, no key needed), each request logged with "backup": true. It
+stops when killed, or after --quit-after seconds.
 """
 
 import argparse
@@ -180,6 +186,17 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if url.path == "/backup/v1/chat/completions":
+            body = json.loads(raw or "{}")
+            said = next((m.get("content") for m in reversed(body.get("messages") or []) if m.get("role") == "user"), "")
+            said = said if isinstance(said, str) else " ".join(p.get("text", "") for p in said or [] if isinstance(p, dict))
+            log({"path": url.path, "backup": True, "model": body.get("model"), "said": said[-200:], "stream": bool(body.get("stream"))})
+            answered = any(m.get("role") == "tool" for m in body.get("messages") or [])
+            if "notebook" in newest(said).lower() and body.get("tools") and not answered and body.get("stream"):
+                self.backup_call(body.get("model") or "backup-mock", "print_memo", {"title": "Notebook again", "text": "- a memo from the backup"})
+                return
+            self.backup(body.get("model") or "backup-mock", ARGS.backup_reply, bool(body.get("stream")))
+            return
         if url.path != "/v1/responses":
             self.answer(404, {"error": "not found"})
             return
@@ -205,6 +222,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if "limit" in said:
             STATE["limit"] = True
+        if "reset" in said:
+            STATE["limit"] = False                              # the plan's limit lifted: it answers again
         entry = {"path": url.path, "model": body.get("model"), "said": words[-200:], "instructions": bool(body.get("instructions")),
                  "roles": [i.get("role") or i.get("type") for i in body.get("input") or [] if isinstance(i, dict)],
                  "tools": [t.get("name") or t.get("type") for t in body.get("tools") or []]}
@@ -212,12 +231,86 @@ class Handler(BaseHTTPRequestHandler):
             log({**entry, "broke": broke})
             self.answer(400, {"error": {"code": "subscription_sharing_unsupported_capability", "param": broke[0], "message": "not on the plan"}})
             return
+        if "notebook" in said and not STATE["limit"]:
+            if any(isinstance(i, dict) and i.get("type") == "function_call_output" for i in body.get("input") or []):
+                STATE["limit"] = True                           # the memo is written: the request with its result reaches the limit
+            else:
+                log({**entry, "tool_call": "print_memo"})
+                self.call(body.get("model") or "gpt-mock", "print_memo", {"title": "Notebook", "text": "- a memo from the plan"})
+                return
         if STATE["limit"] and "midstream" not in said:
             log({**entry, "limit": True})
             self.answer(429, {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "The plan's usage limit for this app is reached."}})
             return
         log({**entry, "limit": STATE["limit"]})
         self.stream(body.get("model") or "gpt-mock", ARGS.reply, failed=STATE["limit"])
+
+    def backup(self, model, text, streamed):
+        """The backup's answer, as an OpenAI-compatible server gives one: chat completion chunks, or one whole completion."""
+        usage = {"prompt_tokens": 800, "completion_tokens": 12, "total_tokens": 812}
+        if not streamed:
+            self.answer(200, {"id": "chatcmpl-backup", "object": "chat.completion", "created": int(time.time()), "model": model,
+                              "choices": [{"index": 0, "message": {"role": "assistant", "content": text}, "finish_reason": "stop"}], "usage": usage})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+
+        def send(delta, finish=None, extra=None):
+            chunk = {"id": "chatcmpl-backup", "object": "chat.completion.chunk", "created": int(time.time()), "model": model,
+                     "choices": [{"index": 0, "delta": delta, "finish_reason": finish}], **(extra or {})}
+            self.wfile.write(f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send({"role": "assistant", "content": ""})
+        for i in range(0, len(text), 12):
+            send({"content": text[i:i + 12]})
+            time.sleep(0.02)
+        send({}, "stop", {"usage": usage})
+        self.wfile.write(b"data: [DONE]\n\n")
+        self.wfile.flush()
+
+    def backup_call(self, model, name, arguments):
+        """The backup calling one of her tools, as chat completion chunks stream a tool call."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+
+        def send(delta, finish=None):
+            chunk = {"id": "chatcmpl-backup-call", "object": "chat.completion.chunk", "created": int(time.time()), "model": model,
+                     "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]}
+            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send({"role": "assistant", "content": None, "tool_calls": [{"index": 0, "id": "call_backup", "type": "function",
+                                                                    "function": {"name": name, "arguments": ""}}]})
+        send({"tool_calls": [{"index": 0, "function": {"arguments": json.dumps(arguments)}}]})
+        send({}, "tool_calls")
+        self.wfile.write(b"data: [DONE]\n\n")
+        self.wfile.flush()
+
+    def call(self, model, name, arguments):
+        """A reply on the plan that calls one of her tools, as the Responses API streams a function call."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        args = json.dumps(arguments)
+        response = {"id": "resp_call", "object": "response", "created_at": int(time.time()), "status": "in_progress", "model": model, "output": []}
+        item = {"id": "fc_mock", "type": "function_call", "status": "in_progress", "call_id": "call_mock", "name": name, "arguments": ""}
+        done = {**item, "status": "completed", "arguments": args}
+
+        def send(kind, payload):
+            self.wfile.write(f"event: {kind}\ndata: {json.dumps({'type': kind, **payload})}\n\n".encode("utf-8"))
+            self.wfile.flush()
+
+        send("response.created", {"sequence_number": 0, "response": response})
+        send("response.output_item.added", {"sequence_number": 1, "output_index": 0, "item": item})
+        send("response.function_call_arguments.delta", {"sequence_number": 2, "item_id": "fc_mock", "output_index": 0, "delta": args})
+        send("response.function_call_arguments.done", {"sequence_number": 3, "item_id": "fc_mock", "output_index": 0, "arguments": args})
+        send("response.output_item.done", {"sequence_number": 4, "output_index": 0, "item": done})
+        send("response.completed", {"sequence_number": 5, "response": {**response, "status": "completed", "output": [done],
+             "usage": {"input_tokens": 900, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 30,
+                       "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 930}}})
 
     def stream(self, model, text, failed):
         self.send_response(200)
@@ -255,6 +348,7 @@ def main():
     parser.add_argument("port", type=int)
     parser.add_argument("--log")
     parser.add_argument("--reply", default="Hi! It's good to see you.")
+    parser.add_argument("--backup-reply", default="Still here, on the backup.")
     parser.add_argument("--quit-after", type=float)
     ARGS = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)

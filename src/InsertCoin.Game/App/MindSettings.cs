@@ -9,7 +9,8 @@ namespace InsertCoin.Game.App;
 /// <summary>
 /// Settings → Her mind: the player's own AI provider, which she answers through (server, key and model, with a test;
 /// used once saved, so picking a provider to see its server never switches her over), or their ChatGPT plan (signed in
-/// to in their browser; used once signed in), how she finds what to remember, and how much of the conversation she
+/// to in their browser; used once signed in) with an optional backup behind it (used only after the player's yes, each
+/// time the plan stops), how she finds what to remember, and how much of the conversation she
 /// keeps word for word. What she remembers is in the memory book (see <see cref="MemoryBook"/>).
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -17,6 +18,8 @@ public partial class MindSettings : VBoxContainer
 {
     /// <summary>Save: the provider as filled in (null: none). A key typed in is already stored by then.</summary>
     public event Action<Provider?>? Saved;
+    /// <summary>Save backup: the backup behind the ChatGPT plan as filled in (null: none). A key typed in is already stored by then.</summary>
+    public event Action<Provider?>? BackupSaved;
     /// <summary>The memory search chosen (see <see cref="Chat.UseSearch"/>).</summary>
     public event Action<string>? SearchChosen;
     /// <summary>How much of the conversation she keeps word for word, in tokens (null: what suits the provider).</summary>
@@ -47,9 +50,16 @@ public partial class MindSettings : VBoxContainer
     private Protocol _protocol;
     private Provider? _saved;
     private bool _unsaved;                                  // the fields changed since she last took them up
+    private VBoxContainer _backup = null!;                  // the backup behind the plan, shown with it
+    private OptionButton _backupPreset = null!;
+    private LineEdit _backupUrl = null!, _backupKey = null!, _backupModel = null!;
+    private Label _backupSaid = null!;
+
+    /// <summary>What a backup can be: any provider but the plan itself, after None.</summary>
+    private static readonly Preset[] Backups = [.. Provider.Presets.Where(p => p.Protocol != Protocol.ChatGpt)];
 
     /// <param name="brief">Only the provider (the first run): how she remembers can wait.</param>
-    public void Build(Chat chat, Provider? current, string name, string? search, int? window, bool brief = false)
+    public void Build(Chat chat, Provider? current, Provider? backup, string name, string? search, int? window, bool brief = false)
     {
         _chat = chat;
         _saved = current;
@@ -60,6 +70,7 @@ public partial class MindSettings : VBoxContainer
         _now = Form.Result(this);
         ShowNow();
         chat.Plan.Changed += PlanChanged;
+        chat.Backup.Allowing += PlanChanged;
 
         var grid = Form.Grid(this);
         _preset = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -76,6 +87,7 @@ public partial class MindSettings : VBoxContainer
         _plan = new VBoxContainer();
         _plan.AddThemeConstantOverride("separation", 10);
         AddChild(_plan);
+        Backup(backup);
 
         _buttons = Form.Buttons(this);
         Form.Button(_buttons, "Test", () => _ = Test());
@@ -123,7 +135,9 @@ public partial class MindSettings : VBoxContainer
     /// <summary>The line at the top: which provider she answers through now, or that she can't talk yet.</summary>
     private void ShowNow()
     {
-        if (OnPlan && _chat.Plan.Stopped is { } why)
+        if (OnPlan && _chat.OnBackup && _chat.BackupProvider is { } backup)
+            Form.Say(_now, $"{_name} answers through {backup.Name}, with {backup.Model}, until your ChatGPT plan works again.", Paper.Good);
+        else if (OnPlan && _chat.Plan.Stopped is { } why)
             Form.Say(_now, $"{_name} waits: " + why switch
             {
                 PlanStop.Limit => "your ChatGPT plan's usage limit is reached.",
@@ -150,6 +164,7 @@ public partial class MindSettings : VBoxContainer
             if (!IsInstanceValid(this))
             {
                 _chat.Plan.Changed -= PlanChanged;
+                _chat.Backup.Allowing -= PlanChanged;
                 return;
             }
             ShowNow();
@@ -183,7 +198,7 @@ public partial class MindSettings : VBoxContainer
         foreach (var field in new Control[] { _url, _key, _model })
             field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = !plan;
         _hint.Visible = _buttons.Visible = !plan;
-        _plan.Visible = plan;
+        _plan.Visible = _backup.Visible = plan;
         ShowNow();
         if (plan)
             ShowPlan();
@@ -191,28 +206,38 @@ public partial class MindSettings : VBoxContainer
 
     private Provider? Chosen() => Provider.From(_protocol.ToString(), _url.Text, _model.Text);
 
-    private async Task Test()
+    private Task Test() => Test(Chosen(), Typed(_key) ?? _chat.Keys.Load(), _result, _unsaved ? " Save to use it." : "", search: true);
+
+    private static string? Typed(LineEdit field) => field.Text.Trim() is { Length: > 0 } typed ? typed : null;
+
+    /// <summary>Asks <paramref name="provider"/> for a hello, and with <paramref name="search"/> whether it searches the web itself.</summary>
+    private async Task Test(Provider? provider, string? key, Label result, string unsaved, bool search)
     {
-        if (Chosen() is not { } provider)
+        if (provider is null)
         {
-            Form.Say(_result, "Fill in the server and the model first.", Paper.Bad);
+            Form.Say(result, "Fill in the server and the model first.", Paper.Bad);
             return;
         }
-        Form.Say(_result, "Asking…", Paper.Faint);
+        Form.Say(result, "Asking…", Paper.Faint);
         try
         {
-            using var client = provider.Connect(_key.Text.Trim().Length > 0 ? _key.Text.Trim() : _chat.Keys.Load());
+            using var client = provider.Connect(key);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var reply = await client.GetResponseAsync("Say hello in at most five words.", new ChatOptions { MaxOutputTokens = 300 }, timeout.Token);
-            var connected = $"Connected. The model says: {reply.Text.Trim()}" + (_unsaved ? " Save to use it." : "");
+            var connected = $"Connected. The model says: {reply.Text.Trim()}" + unsaved;
             if (!IsInstanceValid(this))
                 return;
-            Form.Say(_result, connected + " Now trying its web search…", Paper.Good);
+            if (!search)
+            {
+                Form.Say(result, connected, Paper.Good);
+                return;
+            }
+            Form.Say(result, connected + " Now trying its web search…", Paper.Good);
             // whether she can search the web without the add-on, so the player knows before she has to say she can't
             using var searching = new CancellationTokenSource(TimeSpan.FromSeconds(90));       // the player's provider took 47 s to search
-            var searches = await provider.SearchesItself(_key.Text.Trim().Length > 0 ? _key.Text.Trim() : _chat.Keys.Load(), searching.Token);
+            var searches = await provider.SearchesItself(key, searching.Token);
             if (IsInstanceValid(this))
-                Form.Say(_result, connected + " " + (searches, provider.Protocol) switch
+                Form.Say(result, connected + " " + (searches, provider.Protocol) switch
                 {
                     (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
                     (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
@@ -223,7 +248,7 @@ public partial class MindSettings : VBoxContainer
         catch (Exception e)
         {
             if (IsInstanceValid(this))
-                Form.Say(_result, Trouble.Explain(e), Paper.Bad);
+                Form.Say(result, Trouble.Explain(e), Paper.Bad);
         }
     }
 
@@ -240,6 +265,79 @@ public partial class MindSettings : VBoxContainer
         Saved?.Invoke(_saved);
         ShowNow();
         Form.Say(_result, _saved is null ? "Saved, without a provider." : "Saved.", _saved is null ? Paper.Bad : Paper.Good);
+    }
+
+    // ---- The backup behind the plan ---------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The optional backup behind the ChatGPT plan: an API key or a model on this PC, set up as her provider is, its key
+    /// kept apart. She asks the player each time the plan stops before using it (see <see cref="PlanBackup"/>).
+    /// </summary>
+    private void Backup(Provider? backup)
+    {
+        _backup = new VBoxContainer();
+        _backup.AddThemeConstantOverride("separation", 10);
+        AddChild(_backup);
+        _backup.AddChild(new HSeparator());
+        Form.Subheading(_backup, "Backup (optional)");
+        Form.Hint(_backup, $"When your ChatGPT plan's limit is reached or you're signed out, {_name} can carry on with an API key or a model on this PC " +
+                           "until the plan works again. You're asked first each time: nothing goes to the backup without your yes.");
+        var grid = Form.Grid(_backup);
+        _backupPreset = Form.Choice(grid, "Backup", Backups.Select(b => b.Name).Prepend("None"), 0, index =>
+        {
+            UseBackup(index, keepFields: false);
+            Form.Say(_backupSaid, "Not saved yet.", Paper.Faint);
+        }, wide: true);
+        _backupUrl = Form.Field(grid, "Server", null, "https://…/v1");
+        _backupKey = Form.Field(grid, "API key", null, "", secret: true);
+        _backupModel = Form.Field(grid, "Model", null, "");
+        var buttons = Form.Buttons(_backup);
+        Form.Button(buttons, "Test", () => _ = Test(BackupChosen(), Typed(_backupKey) ?? _chat.BackupKeys.Load(), _backupSaid, "", search: false));
+        Form.Button(buttons, "Save backup", SaveBackup);
+        _backupSaid = Form.Result(buttons);
+        var found = backup is null ? -1 : Array.FindIndex(Backups, b => b.Protocol == backup.Protocol && b.BaseUrl == backup.BaseUrl);
+        var at = backup is null ? 0 : 1 + (found >= 0 ? found : Backups.Length - 1);     // a server of its own: Other
+        _backupPreset.Select(at);
+        UseBackup(at, keepFields: true);
+        if (backup is not null)
+        {
+            _backupUrl.Text = backup.BaseUrl;
+            _backupModel.Text = backup.Model;
+        }
+    }
+
+    private void UseBackup(int index, bool keepFields)
+    {
+        var preset = index == 0 ? null : Backups[index - 1];
+        if (preset is not null && !keepFields)
+        {
+            _backupUrl.Text = preset.BaseUrl;
+            _backupModel.Text = preset.ModelHint;
+        }
+        _backupModel.PlaceholderText = preset?.ModelHint is { Length: > 0 } hint ? hint : "the model's name at this provider";
+        _backupKey.PlaceholderText = _chat.BackupKeys.Has ? "saved (leave empty to keep it)" : preset?.NeedsKey == true ? "paste your key" : "not needed";
+        foreach (var field in new Control[] { _backupUrl, _backupKey, _backupModel })
+            field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = preset is not null;
+    }
+
+    private Provider? BackupChosen() =>
+        _backupPreset.Selected <= 0 ? null : Provider.From(Backups[_backupPreset.Selected - 1].Protocol.ToString(), _backupUrl.Text, _backupModel.Text);
+
+    private void SaveBackup()
+    {
+        var backup = BackupChosen();
+        if (backup is null && _backupPreset.Selected > 0)
+        {
+            Form.Say(_backupSaid, "Fill in the server and the model first.", Paper.Bad);
+            return;
+        }
+        _chat.BackupKeys.Save(backup is null ? null : Typed(_backupKey) ?? _chat.BackupKeys.Load());    // no backup: its key forgotten
+        _backupKey.Text = "";
+        UseBackup(_backupPreset.Selected, keepFields: true);
+        BackupSaved?.Invoke(backup);
+        ShowNow();                                          // a yes doesn't carry over to another backup: she may be waiting again
+        GD.Print(backup is null ? "Settings: no backup behind the ChatGPT plan" : $"Settings: the backup behind the ChatGPT plan is {backup.Name}");
+        Form.Say(_backupSaid, backup is null ? "Saved, without a backup." : $"Saved. When the plan stops, {_name} asks before using {backup.Name}.", Paper.Good);
     }
 
     // ---- The ChatGPT plan ---------------------------------------------------------------------------------------------------
