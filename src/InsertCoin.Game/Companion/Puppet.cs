@@ -146,8 +146,9 @@ internal sealed class Puppet
         ["wave"] = new(new Pose().Set("Spine", 0, 0, 2).Set("Head", -3, 0, 6).Set("RightShoulder", 0, 0, -8),
             Right: new(new(-0.34f, 0.70f, 0.12f), new(-0.1f, 1, 0), new(0.5f, 0, 1), new(-0.5f, -1, -0.2f)), Curl: 3),
         ["worry"] = new(new Pose().Set("Spine", 6, 0, 0).Set("Chest", 4, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 5, 0, 4).Both("Shoulder", 0, 0, -5)),
-        // head bowed over the pad, a little tilted, shoulders relaxed
-        ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 4, 0, 0).Set("Head", 6, 0, 6).Both("Shoulder", 0, 0, -3),
+        // head a little bowed over the pad and tilted, her eyes doing most of the looking down (as with the phone: bowed
+        // further, her hair hides her face from the cabinet's camera while she says what she is writing), shoulders relaxed
+        ["note"] = new(new Pose().Set("Spine", 3, 0, 0).Set("Chest", 2, 0, 0).Set("Neck", 2, 0, 1).Set("Head", 2, 0, 5).Both("Shoulder", 0, 0, -3),
             PadHand, PenHand, LeftGrip: PadGrip, RightGrip: PenGrip),
         // texting: head a little bowed and tilted, her eyes doing most of the looking down (bowed further, her hair would hide
         // her face from the cabinet's high camera), shoulders a little forward, the phone held up in both hands
@@ -468,13 +469,16 @@ internal sealed class Puppet
                 Look(Slot, _random.RandfRange(1.2f, 1.8f));
                 break;
             case Moment.Note:
-                // pad up, eyes on it, a few quick strokes, then a satisfied look back up
+                // pad up, eyes on it, a few quick strokes, then a satisfied look back up; a second note while she writes
+                // (two things put on the agenda at once) goes on the same page
+                if (_time - _noteAt < 2.55)
+                    break;
                 Interrupt(3.6);
                 _on["note"] = 1;
                 _noteAt = _time;
                 _face.Show("relaxed", 0.7f, 2.6);
                 Look(PadHand.Wrist * _size + new Vector3(-0.03f, 0.02f, 0.03f) * _size, 2.5);
-                After(2.55, () => { _on["note"] = 0; _face.Show("happy", 0.8f, 1.4); Look(Viewer, 2); });
+                After(2.55, () => { _on["note"] = 0; _face.Show("happy", 0.45f, 1.2); Look(Viewer, 2); });
                 break;
         }
     }

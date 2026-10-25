@@ -74,8 +74,12 @@ public sealed class Chat : IDisposable
             GD.Print($"Tools: she uses {tool.Name}");
             _usedTool = true;
             _answering?.CancelAfter(AnswerTimeout);         // each step of a longer piece of work gets the reply's full time again
-            if (tool.Name != "print_memo" && _view is { } view && GodotObject.IsInstanceValid(view))
-                view.Working();                             // a memo is sent instead (see PrintMemo)
+            if (_view is not { } view || !GodotObject.IsInstanceValid(view) || tool.Name == "print_memo")
+                return;                                     // a memo is sent instead (see PrintMemo)
+            if (tool.Name == BuiltIn.AgendaName)
+                view.Play(Moment.Note);                     // she jots it down as she says it, and her reply goes on
+            else
+                view.Working();
         };
     }
 
