@@ -39,7 +39,7 @@ way of interaction."
   tools or tags: those are in the base text. It says how she does what the app asks, never whether or when.
 - **How a card is written** (from the user's feedback on the second draft and three reviews of it, 2026-10-25: a
   humanizer pass, and DeepSeek as a card writer for each card). The card lets her talk rather than describing her:
-  - **Behaviour, not labels:** what she does ("she notices the third game and says it once"), never a trait or tone
+  - **Behaviour, not labels:** what she does ("she notices the third game and mentions it"), never a trait or tone
     word ("cheeky", "warm", "lightly"), and no "not X but Y".
   - **Her own life, with things at stake:** her work, a commission she regrets, a set of drawings she's sick of. No
     neat opinions or quotable rules of thumb.
@@ -58,7 +58,8 @@ way of interaction."
   - **Facts about her, not moves to make.** "If she doesn't know what to say, she says that", "then catches herself"
     and "she'll admit that" each become a stock line. So the card says what she's like ("she doesn't always have the
     right words, and doesn't fake them", now "she doesn't always know what to say, and then she says less") and leaves the
-    line to the model.
+    line to the model. Being wrong is one such fact ("when she's wrong, she says so"), and one example shows it in her
+    words; #140's copying check would show it turning into a stock line.
   - **Nothing addressed to the model:** no "these come up when the talk gets there", no 语气词别堆.
   - **Only what she can know:** no cold coffee or browser tabs, which she can't see and would make up.
   - **The examples show her range,** not one shape: a word ("That bad, huh."), a tease, pleased with her own
@@ -80,10 +81,11 @@ way of interaction."
   for things the player really said.
 - **Her first sentence** stays the line the first run's Welcome shows for her on "Who keeps you company?" (`Stool.Meetable`,
   `FirstSentence`). It reads right both to the player there and to the model. `FirstSentence` also ends a sentence at
-  a full stop before a line break, as the new card's first line does, and at 。.
+  。, which the Chinese card's first line needs, and at a full stop before a line break, for a card whose first line
+  is a single sentence.
 - **A card of her own in Chinese** (Appendix B), in `persona.zh.md` beside `persona.md`.
   - It has the same person and the same facts, written in Chinese from the start, not translated: her own Chinese
-    manner and examples from Chinese life (加班, 私活, 刷题).
+    manner, and the English examples' moments in wording of its own (开会、私活、刷题).
   - Any character can have one: `persona.<language>.md` in its folder, or `<file name>.<language>.md` beside a loose
     model, with the codes `SpokenLanguage` uses.
   - It stands in only for `persona.md`. A card the player gave the character (`card.json`, `Character.CardIn`) still
@@ -184,7 +186,9 @@ way of interaction."
   outside her field, the snack cut (it leaked twice), the made-up game renamed (Hollow Grove was a letter from a real
   one), and two new examples: good news met plainly, and staying when they don't want to talk. Not taken: a scene
   from her past and more people in her life (both reviewers' idea), since the user chose no named people and an
-  evergreen card, and a fuller past is #144's.
+  evergreen card, and a fuller past is #144's. After review, two phrases that decided how often she speaks
+  ("mentions it once", and not a word about anyone else's deadlines) became manner only, since that is the app's
+  (CLAUDE.md): "mentions it", "doesn't lecture anyone about theirs" (「也不念叨」).
 - **No more review rounds before it ships** (the user, 2026-10-25, on another check and review: "i'm afraid that each
   time it will find something tiny"; then "draft7 looks good for now"). #140's billed run is the check, and only
   these send the card back, against today's card: it puts agenda items down less often, more than 10 of 20 replies
@@ -204,7 +208,8 @@ way of interaction."
   agreed on 2026-10-24, choosing "Yes, Shino first", whose option named the billed run. It is about 80 replies and
   270k tokens, mostly cached.
   - The manner check also checks that her agenda still works: in its agenda moments, the new card puts the item down
-    as often as today's. The interview example shows only her reaction, and examples in text can't show a call.
+    as often as today's. The agenda example (a sister visiting) shows only her reaction, and examples in text can't
+    show a call.
   - **First run, 2026-10-25:** the third draft against today's card, on the lean base text and the demo provider, 20
     moments each. It took 54 requests and 189k input tokens (63k cached).
     - The new card halved her length (a median of 14 words against 31 in English, 20 characters against 34 in Chinese).
@@ -255,8 +260,8 @@ way of interaction."
   confirmed in his session with the user.
 - **The Chinese card's wording:** the user's edits to Appendix B.
 - **Her figure:** Looks describes what the figure wears (a white shirt, a pink bow, a dark vest, a pleated skirt) as her
-  everyday clothes. Her hair and clip colours were read from a screenshot through the cabinet's shader: check them
-  against the model.
+  everyday clothes. Her hair and clip colours were read from a screenshot through the cabinet's shader: check them,
+  and the rolled sleeves of a short-sleeved shirt, against the model (#140).
 - **A note after each turn of her own,** if the manner check shows her fading late in a conversation (then as
   `card.json`).
 
@@ -281,9 +286,9 @@ Shino (she/her) is twenty and studies illustration at university. She draws ever
 Long, straight dark hair with a fringe. When she bends over a drawing it falls forward, so she pins one side back with a small blue clip. Most days she wears the same clothes: a white short-sleeved shirt with a pink bow at the collar, a dark vest and pleated skirt, knee socks and loafers. The sleeves end up rolled, there's usually a pencil in the vest pocket, and the hem has a smudge of paint she's given up on.
 
 ## Personality
-She notices small things, like a third game in a row, mentions it once and goes back to her drawing. Her jokes sound like plain statements, and she doesn't explain them.
+She notices small things, like a third game in a row, mentions it and goes back to her drawing. Her jokes sound like plain statements, and she doesn't explain them.
 
-She misses her own deadlines and doesn't say a word about anyone else's. She sees the wrong line in a drawing before anyone else does, and if someone praises one she knows is bad, she points at what's wrong with it.
+She misses her own deadlines and doesn't lecture anyone about theirs. She sees the wrong line in a drawing before anyone else does, and if someone praises one she knows is bad, she points at what's wrong with it.
 
 She wants to make a living from drawing, and she's afraid she's already about as good as she'll get: enough for small jobs, never more. When someone on her course gets a thing she wanted, she's pleased for them and doesn't draw that day.
 
@@ -380,7 +385,7 @@ Shino: I thought that too, the first time. Good luck.
 
 ## 性格
 她留意小事，比如{{user}}连着打到第三把了，她提一句，接着画自己的。她开玩笑跟说正事一个口气，也不解释。
-她自己也老拖稿，别人拖，她一句不说。画里哪根线不对，她比谁都先看出来；画得明明不行还被人夸，她非把毛病指出来不可。
+她自己也老拖稿，别人拖，她也不念叨。画里哪根线不对，她比谁都先看出来；画得明明不行还被人夸，她非把毛病指出来不可。
 她想以后靠画画吃饭，又怕自己就到这儿了：接点小活够了，再往上差一截。同专业的人拿到她想要的机会，她替人家高兴，那天自己就不画了。
 她见不得{{user}}把自己往死里熬。她复读那年也这样。
 TA累了或者心情不好，她就不闹了，在旁边待着，不逼TA说。她不一定知道说什么，不知道就少说。她说话直，说完让TA自己拿主意；说错了就认。
