@@ -98,6 +98,14 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   name or INSERT COIN shows as round 2, but a change no longer waits for one under way: it cuts short a text still
   being drawn in (blank, then the new one), as the slower draw-in otherwise left a name up to 2.4 s behind the pointer
   when it came back to a button while INSERT COIN was coming in.
+- **Round 4: names snap on, INSERT COIN animates** (#148, the user, 2026-10-26: "font looks better. the time for the
+  marquee to display the full text is too slow. this cannot serve for the needs to help user understand what they are
+  hover", then choosing "Names snap on, idle animates"). The name of the button under the pointer flips on whole in
+  one step, as an LED sign turns to its next page, once the pointer has been on it 0.1 s (0.18 s before; a quick pass
+  across the buttons, under 0.1 s on each, still shows none of them): from the hover to the whole name went from about
+  1.2 s to 0.1 s. A name too long for the board shows its start at once and scrolls after a second, as before. INSERT
+  COIN, which nobody waits for, keeps the blank and the column-by-column draw-in at 30 a second, after the pointer has
+  been off the buttons 0.6 s. The font, the board and the dots are round 3's.
 
 ## Built: the home screen lifted on a small or medium cabinet (2026-10-26, #149)
 
