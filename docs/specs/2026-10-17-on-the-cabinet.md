@@ -95,7 +95,9 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   or dark, nothing in between (the glyphs are drawn in code, the 5×7 font above; a faint glow around lit dots stays),
   and changes go in steps: the board blanks for 0.2 s, then the new text is drawn in a whole column at a time, 30
   columns a second, from its own first column (VOICE in about a second, INSERT COIN in two). The same pauses before a
-  name or INSERT COIN shows as round 2.
+  name or INSERT COIN shows as round 2, but a change no longer waits for one under way: it cuts short a text still
+  being drawn in (blank, then the new one), as the slower draw-in otherwise left a name up to 2.4 s behind the pointer
+  when it came back to a button while INSERT COIN was coming in.
 
 ## Built: the home screen lifted on a small or medium cabinet (2026-10-26, #149)
 
