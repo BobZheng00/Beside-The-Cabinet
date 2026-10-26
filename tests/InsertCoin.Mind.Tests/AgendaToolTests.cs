@@ -421,19 +421,54 @@ public class AgendaToolTests
     }
 
     [Fact]
-    public async Task The_same_thing_at_another_time_that_day_leaves_the_one_there_as_it_is()
+    public async Task The_same_thing_at_another_time_that_day_is_a_second_item_named_beside_the_first_and_goes_back_to_her()
     {
         using var temp = new TempStore();
         var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, TimeSpan.FromHours(1), Wednesday, "shino");
         var (conversation, tools) = Set(temp);
         var model = new FakeToolModel(["The dentist at four.", Agenda("dentist", ("action", "add"), ("when", "2026-10-23T16:00"), ("what", "Dentist"), ("remind", "none"))],
-                                      ["It's down for half three, shall I move it?"]);
+                                      ["There's one at half three too, shall I drop it?"]);
 
         await conversation.Answer(model, "dentist friday at 4, no reminder", "", _ => { }, (_, _) => { }, tools: tools);
 
-        var plan = Assert.Single(temp.Store.Agenda());
-        Assert.Equal((dentist, 15, TimeSpan.FromHours(1)), (plan.Id, plan.At.Hour, plan.Before));
-        Assert.Contains($"It keeps its own time: to move it, change #{dentist}.", Assert.Single(Results(model.Requests[1])));
+        var plans = temp.Store.Agenda();
+        Assert.Equal([(dentist, 15, TimeSpan.FromHours(1)), (dentist + 1, 16, (TimeSpan?)null)], plans.Select(p => (p.Id, p.At.Hour, p.Before)));
+        Assert.Equal(2, model.Requests.Count);
+        Assert.Equal($"Added #{dentist + 1}: Dentist, Fri 23 Oct 16:00, no reminder. #{dentist} is on the agenda too: Dentist, Fri 23 Oct 15:30, reminder 1 hour before.",
+                     Assert.Single(Results(model.Requests[1])));
+    }
+
+    [Fact]
+    public async Task Pills_daily_at_8_and_at_20_are_two_daily_items_each_result_naming_the_other_and_the_reply_ends()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["Pills at eight and eight, every day.",
+            Agenda("am", ("action", "add"), ("when", "2026-10-22T08:00"), ("what", "Pills"), ("remind", "at_the_time"), ("repeat", "daily")),
+            Agenda("pm", ("action", "add"), ("when", "2026-10-22T20:00"), ("what", "Pills"), ("remind", "at_the_time"), ("repeat", "daily"))]);
+
+        await conversation.Answer(model, "pills every day at 8am and 8pm", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Single(model.Requests);                      // the first was added in this reply: nothing to go back over
+        var plans = temp.Store.Agenda();
+        Assert.Equal([("Pills", 8, Repeat.Daily, TimeSpan.Zero), ("Pills", 20, Repeat.Daily, TimeSpan.Zero)],
+                     plans.Select(p => (p.Text, p.At.Hour, p.Repeat, p.Before ?? TimeSpan.MaxValue)));
+        Assert.Contains(Recorded(temp), l => l.Contains($"Added #{plans[1].Id}: Pills, Thu 22 Oct 20:00, reminder at the time, every day. " +
+                                                        $"#{plans[0].Id} is on the agenda too: Pills, Thu 22 Oct 08:00, reminder at the time, every day."));
+    }
+
+    [Fact]
+    public async Task Plan_tags_for_the_same_thing_at_two_times_that_day_are_two_items_and_a_whole_day_twice_is_one()
+    {
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Wednesday));
+        var model = new FakeToolModel(["[plan: 2026-10-23 08:00 | Pills][plan: 2026-10-23 20:00 | Pills][plan: 2026-10-23 08:00 | Pills]" +
+                                       "[plan: 2026-10-24 | Essay due][plan: 2026-10-24 | Essay due] Pills twice, and the essay."]);
+
+        await conversation.Answer(model, "pills at 8 and 8 on friday, essay due saturday", "", _ => { }, (_, _) => { });
+
+        Assert.Equal([("Pills", 8, false), ("Pills", 20, false), ("Essay due", 0, true)],
+                     temp.Store.Agenda().Select(p => (p.Text, p.At.Hour, p.AllDay)));
     }
 
     [Fact]
@@ -468,7 +503,7 @@ public class AgendaToolTests
     }
 
     [Theory]
-    [InlineData("2026-10-23T16:00", "none", true)]               // the same thing at another time that day: it keeps its own time
+    [InlineData("2026-10-23", "none", true)]                     // the same thing as a whole day that day: it keeps its own time
     [InlineData("2026-10-23T15:30", "at_the_time", false)]       // its reminder changed
     public async Task Something_already_on_the_agenda_changed_or_at_another_time_goes_back_to_her(string when, string remind, bool elsewhen)
     {
