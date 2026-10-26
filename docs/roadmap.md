@@ -33,7 +33,10 @@ says where things stand today); this page keeps the story. Update it at each mil
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
 to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that
-measures both (spikes #105 and #125).
+measures both (spikes #105 and #125). With it, the default characters' cards (spec
+`docs/specs/2026-10-24-default-cards.md`, from the research note on character cards, #131): Shino rewritten as an
+adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
+by the player's language or forced by a setting; then Fumiriya's.
 
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on

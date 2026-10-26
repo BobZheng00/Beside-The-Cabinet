@@ -18,8 +18,9 @@ These stay the copyright holder's, with all rights reserved, and LICENSE.md gran
   and look different enough not to be taken for this app.
 - **The cabinet's artwork and the app's sounds**: the pictures under `art/` and `src/InsertCoin.Game/skins/`, and the
   sounds under `src/InsertCoin.Game/sounds/`, along with what `tools/art` and `tools/sfx` make.
-- **The built-in characters' personas and voices**: `src/InsertCoin.Game/characters/*/persona.md` and
-  `src/InsertCoin.Game/characters/*/voice.zip`.
+- **The built-in characters' personas and voices**: `src/InsertCoin.Game/characters/*/persona*.md` and
+  `src/InsertCoin.Game/characters/*/voice.zip`, and the personas' text in the appendices of
+  `docs/specs/2026-10-24-default-cards.md`.
 
 They may be used only as part of this app, unchanged, or in a noncommercial fork of it; never on their own, never in
 another project, and never commercially.
