@@ -15,8 +15,9 @@ click on the cabinet's screen opens its small system: apps on a home screen, fou
 one to move it), SETTINGS last (on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
 switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it), which opens Settings as the tray does; along its top bar the same three switches, lit
 when on, a click flipping one. The name of the switch or app under the pointer lights up on the marquee above the
-screen, which reads INSERT COIN the rest of the time, its pink dots fading over and the new name drawn in a column at
-a time as on an LED sign (a name too long for it scrolls through). Settings is one window with a page
+screen, which reads INSERT COIN the rest of the time, in a dot-matrix sign's 5×7 letters: its pink dots snap on and
+off, the board blanks for a moment and the new name is drawn in a whole column at a time, as on an LED sign (a name too
+long for it scrolls through, a column at a time). Settings is one window with a page
 for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
 Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.

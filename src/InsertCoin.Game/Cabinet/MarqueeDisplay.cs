@@ -5,33 +5,31 @@ namespace InsertCoin.Game.Cabinet;
 /// <summary>
 /// The marquee's lit pixel display (the user's choice, 2026-10-22): a board of pink LED dots that reads INSERT COIN at
 /// rest, and the name of the CRT's button under the pointer while there is one, in big letters that read at a glance on
-/// the smallest cabinet. It behaves as a dot-matrix sign does (the user, trying it: "the text appear and switch too
-/// fast, which does not really looks like pixel display"): each dot glows up over a moment and fades more slowly, unlit
-/// dots stay faintly there, and a change goes as a sign's does: the old text fades out, then the new one is drawn in a
-/// column at a time from the left. A name only shows once the pointer has stayed on its button a moment, so passing
-/// across the buttons doesn't flicker through every name, and a change waits for the one under way to finish. A name
-/// too long for the board scrolls through it, from its start.
+/// the smallest cabinet. It behaves as a real dot-matrix sign does (the user, 2026-10-25: "too smooth and the font are
+/// not pixel enough. lack the retro feeling"): the letters are a sign's 5×7 font, one dot to a font pixel, narrow
+/// letters narrower; every dot is on or off, and changes go in steps: the board blanks, and the new text is drawn in a
+/// whole column at a time at a sign's rate. A name only shows once the pointer has stayed on its button a moment, so
+/// passing across the buttons doesn't flicker through every name, and a change waits for the one under way to finish. A
+/// name too long for the board scrolls through it a whole column at a time, from its start.
 /// </summary>
 public partial class MarqueeDisplay : Polygon2D
 {
     public const string AtRest = "INSERT COIN";
-    private const int Columns = 75, Rows = 15, Top = 4;         // twelve letters fit; the art's panel is in this proportion
+    private const int Columns = 64, Rows = 15, Top = 4;         // INSERT COIN and MUTE SOUNDS fit; square dots in the art's panel
     private const int Gap = 12;                                 // the room between the end of a scrolling name and its start again
 
     // ---- Timings, in seconds ----
-    private const double GlowUp = 0.06;          // a dot coming on, from dark to full
-    private const double FadeOut = 0.22;         // a dot going out, from full to dark (an LED's afterglow; longer smears a scroll)
-    private const double Clear = FadeOut;        // a change: the board goes dark while the old text fades out
-    private const double WipeColumn = 0.009;     // then the new one is drawn in, this long a column (the board's 75: 0.7 s)
+    private const double Blank = 0.2;            // a change: the board goes dark this long
+    private const double Rate = 30;              // then the new text is drawn in, this many columns a second (a sign's 15 to 30)
     private const double Settle = 0.18;          // the pointer stays on a button this long before its name shows
     private const double BackToRest = 0.6;       // and off them this long before INSERT COIN comes back (crossing the gaps between buttons)
-    private const double Hold = 1.0, Step = 0.07;               // a long name is read from its start, then moves a column at a time
+    private const double Hold = 1.0, Step = 0.06;               // a long name is read from its start, then moves a column at a time
 
     private readonly Image _dots = Image.CreateEmpty(Columns, Rows, false, Image.Format.L8);
     private readonly byte[] _bytes = new byte[Columns * Rows];
-    private readonly float[] _glow = new float[Columns * Rows];
     private ImageTexture _texture = null!;
     private string _text = AtRest, _wanted = AtRest;
+    private byte[] _strip = Strip(AtRest);                      // the text's columns, left to right: a bit for each of the glyph's seven rows
     private double _wantedFor, _shown, _changing = -1;          // how long the change to the text has been going, or -1 once done
 
     public void Build(IReadOnlyList<Vector2> quad)
@@ -47,9 +45,7 @@ public partial class MarqueeDisplay : Polygon2D
         material.SetShaderParameter("dots", _texture);
         material.SetShaderParameter("dots_soft", _texture);
         Material = material;
-        for (var i = 0; i < _glow.Length; i++)
-            _glow[i] = Lit(_text, 0, i % Columns, i / Columns) ? 1 : 0;     // lit already as the cabinet appears
-        Update(0);
+        Update(0);                                              // lit already as the cabinet appears
     }
 
     /// <summary>What the board should read: a name (shown in capitals), or null for INSERT COIN.</summary>
@@ -70,52 +66,56 @@ public partial class MarqueeDisplay : Polygon2D
         if (_wanted != _text && _changing < 0 && _wantedFor >= (_wanted == AtRest ? BackToRest : Settle))
         {
             _text = _wanted;
+            _strip = Strip(_text);
             _changing = 0;
             _shown = 0;
             GD.Print($"Marquee: {_text}");
         }
-        if (_changing >= 0 && (_changing += delta) >= Clear + Columns * WipeColumn)
+        var start = _strip.Length < Columns ? (Columns - _strip.Length) / 2 : 0;        // centred when it fits
+        if (_changing >= 0 && (_changing += delta) >= Blank + Math.Min(_strip.Length, Columns) / Rate)
             _changing = -1;
         else if (_changing < 0)
             _shown += delta;
 
-        var offset = Scrolled(_text);
-        var drawn = _changing < 0 ? Columns : (_changing - Clear) / WipeColumn;      // columns of the new text drawn in so far
+        // Columns of the new text drawn in so far, whole ones only; none while the board is dark.
+        var drawn = _changing < 0 ? Columns : _changing < Blank ? 0 : start + (int)((_changing - Blank) * Rate);
+        var offset = _strip.Length <= Columns || _shown < Hold ? 0 : (int)((_shown - Hold) / Step) % (_strip.Length + Gap);
         var changed = false;
-        for (var i = 0; i < _glow.Length; i++)
+        for (var i = 0; i < _bytes.Length; i++)
         {
             var (column, row) = (i % Columns, i / Columns);
-            var on = column < drawn && Lit(_text, offset, column, row);
-            var glow = on ? Math.Min(1, _glow[i] + (float)(delta / GlowUp)) : Math.Max(0, _glow[i] - (float)(delta / FadeOut));
-            if (glow == _glow[i] && delta > 0)
-                continue;
-            _glow[i] = glow;
-            _bytes[i] = (byte)(glow * glow * 255);          // the eye sees a dot's light fall off fast at first
-            changed = true;
+            var at = _strip.Length <= Columns ? column - start : (column + offset) % (_strip.Length + Gap);
+            var on = column < drawn && row >= Top && row < Top + 7 && at >= 0 && at < _strip.Length && (_strip[at] >> (row - Top) & 1) == 1;
+            var value = (byte)(on ? 255 : 0);
+            changed |= value != _bytes[i];
+            _bytes[i] = value;
         }
-        if (!changed)
+        if (!changed && delta > 0)
             return;
         _dots.SetData(Columns, Rows, false, Image.Format.L8, _bytes);
         _texture.Update(_dots);
     }
 
-    /// <summary>How many columns a long text has scrolled by now (0 while it is drawn in and read from its start).</summary>
-    private int Scrolled(string text) => Width(text) <= Columns || _shown < Hold ? 0 : (int)((_shown - Hold) / Step) % (Width(text) + Gap);
-
-    private static int Width(string text) => text.Length * 6 - 1;
-
-    /// <summary>Whether a dot is lit for the text: centred when it fits, else from <paramref name="offset"/> columns in.</summary>
-    private static bool Lit(string text, int offset, int column, int row)
+    /// <summary>
+    /// The text as a strip of the board's columns, as a sign sets it: each letter as wide as its dots (I and 1 take three
+    /// columns, M five), a dark column between letters, three for a space. A column's bits are its dots, top row first.
+    /// </summary>
+    private static byte[] Strip(string text)
     {
-        var width = Width(text);
-        var at = width > Columns ? (column + offset) % (width + Gap) : column - (Columns - width) / 2;
-        if (row < Top || row >= Top + 7 || at < 0 || at >= width || at % 6 == 5)
-            return false;
-        return Font.GetValueOrDefault(text[at / 6], Blank)[(row - Top) * 5 + at % 6] == '#';
+        var columns = new List<byte>();
+        foreach (var letter in text)
+        {
+            if (columns.Count > 0)
+                columns.Add(0);
+            var glyph = Font.GetValueOrDefault(letter);
+            var bits = Enumerable.Range(0, 5).Select(c => (byte)Enumerable.Range(0, 7).Sum(r => glyph?[r * 5 + c] == '#' ? 1 << r : 0)).ToArray();
+            var lit = Enumerable.Range(0, 5).Where(c => bits[c] != 0).ToArray();
+            columns.AddRange(lit.Length == 0 ? new byte[3] : bits[lit[0]..(lit[^1] + 1)]);
+        }
+        return [.. columns];
     }
 
     // ---- The letters: five dots wide and seven high, as on a dot-matrix sign ----------------------------------------
-    private static readonly string Blank = new('.', 35);
     private static readonly Dictionary<char, string> Font = new Dictionary<char, string>
     {
         ['A'] = ".###. #...# #...# #...# ##### #...# #...#", ['B'] = "####. #...# #...# ####. #...# #...# ####.",

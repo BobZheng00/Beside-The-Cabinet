@@ -1,7 +1,8 @@
-// The marquee's pixel display: a board of round pink LEDs on the cabinet's (perspective) marquee, each as bright as
-// the dots texture says (0: dark, 1: full; the game fades them up and down). inv_h_row0..2 are the rows of the
-// homography from canvas coordinates to the board's UV (0..1). Unlit LEDs stay faintly there. Dots too small to tell
-// apart (a small cabinet) run together into solid letters, so they still read without shimmering.
+// The marquee's pixel display: a board of round pink LEDs on the cabinet's (perspective) marquee, each lit or dark as
+// the dots texture says (0: dark, 1: lit; nothing in between). inv_h_row0..2 are the rows of the homography from canvas
+// coordinates to the board's UV (0..1). Unlit LEDs stay faintly there. Dots too small to draw apart (a small cabinet)
+// are drawn as square blocks that meet, so the letters stay crisp pixel letters: a dot's edge is eased over one screen
+// pixel at most, where it falls between two, never blurred across the dot.
 shader_type canvas_item;
 
 uniform sampler2D dots : filter_nearest, repeat_disable;
@@ -30,17 +31,21 @@ void fragment() {
 		discard;
 	}
 	vec2 cell = uv * grid;
-	float px = max(length(dFdx(cell)), length(dFdy(cell)));       // cells per screen pixel
+	vec2 fw = max(fwidth(cell), vec2(0.0001));                    // cells per screen pixel, each way
+	float px = max(fw.x, fw.y);
 	float even = smoothstep(0.3, 0.6, px);
 	float d = length(fract(cell) - 0.5);
 	float round_dot = 1.0 - smoothstep(0.43 - px * 0.5, 0.43 + px * 0.5, d);
-	float on = mix(texture(dots, uv).r, texture(dots_soft, uv).r, even);
-	float shape = mix(round_dot, mix(0.55, 0.95, on), even);
+	// a small dot's own value, read from its middle until the last screen pixel before the next dot
+	vec2 seam = floor(cell + 0.5);
+	vec2 block = (seam + clamp((cell - seam) / fw, -0.5, 0.5)) / grid;
+	float on = mix(texture(dots, uv).r, texture(dots_soft, block).r, even);
+	float shape = mix(round_dot, mix(0.55, 1.0, on), even);
 	// a lit LED is hotter in its middle; small, it is all one colour
 	vec4 led = mix(lit, core, (1.0 - smoothstep(0.0, 0.32, d)) * (1.0 - even));
 	vec4 dot_colour = mix(unlit, led, on);
-	// a soft glow around the lit dots, from the board blurred by its linear filter
-	vec4 glow = vec4(halo.rgb, texture(dots_soft, uv).r * 0.55);
+	// a faint glow around the lit dots, from the board blurred by its linear filter
+	vec4 glow = vec4(halo.rgb, texture(dots_soft, uv).r * 0.35);
 	float a = dot_colour.a * shape;
 	COLOR = vec4(mix(glow.rgb, dot_colour.rgb, a / max(a + glow.a * (1.0 - a), 0.001)), a + glow.a * (1.0 - a));
 }
