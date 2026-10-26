@@ -113,7 +113,8 @@ system opens; `crt:memos` an app too; `crt:settings` opens Settings, as its icon
 screen, in its own pixels; on the home screen's bar the switches are at 210, 260 and 310 across, 27 down: Mute sounds,
 Voice, Conversation, each flip logged as `Crt: VOICE off`), `crtmove:0:1` (an app
 moved, as holding and carrying it would), `crtaway` (a press away from the lifted screen), `crthover:x:y` (a pretend pointer resting on the screen there, in its
-own pixels: its button's name lights on the marquee, logged as `Marquee: VOICE`; `crthover:off`), `marquee:words` (the
+own pixels: its button's name lights on the marquee, logged as `Marquee: VOICE`, and with the home screen lifted a switch's name on the bar too, logged as
+`Crt: bar shows VOICE`; `crthover:off`), `marquee:words` (the
 marquee reads those words instead of INSERT COIN, to see a long name scroll; `marquee:off`), `crtclose` and
 `memorybook:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
 `focus:resume`, `focus:stop`), `focustool:start:50` (as their tool would), `standup` (they suggest standing up, as after a

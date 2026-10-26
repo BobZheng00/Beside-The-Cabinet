@@ -80,7 +80,8 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   there is one, and INSERT COIN again when it leaves. Only those buttons, not other hover tips (the PM's choice). A
   name too long for the board shows its start for a second, then scrolls through a whole column at a time (about 17 a
   second), round and round.
-- **The time stays on the CRT's bar** whatever is under the pointer. The bulbs above (`MarqueeLights`) are unchanged.
+- **The time stays on the CRT's bar** whatever is under the pointer (until #154, below: on a lifted home screen a
+  switch's name takes its place). The bulbs above (`MarqueeLights`) are unchanged.
 - **It behaves as an LED sign does** (round 2, the user trying it: "the text appear and switch too fast, which does not
   really looks like pixel display (still more like some rgb display)"): one pink LED colour, hotter in each dot's
   middle, with unlit dots faintly there; each dot glows up over 0.06 s and fades over 0.22 s; a change fades the old
@@ -125,6 +126,16 @@ open the screen like today when open an app to enhance the readability. large is
   away; over the art it stays lifted.
 - **SETTINGS** opens the Settings window as before; the lifted home screen stays until a press away or the time
   untouched closes it.
+
+## Built: a switch's name on the lifted bar (2026-10-26, #154)
+
+The lifted home screen covers the marquee, where the name of the switch under the pointer lights (#109), and the
+switches are icons only. The user: "i think when hover the switch, replace the time with the switch name".
+
+- **While the screen is lifted** (the home screen on Small and Medium), the switch under the pointer shows its name on
+  the bar in place of the time, small and pink as it did before #109, and the time comes back as the pointer leaves
+  it. The marquee still gets the name, behind the screen. App tiles carry their names already, so only switches.
+- **On Large** the home screen stays on the cabinet: the name lights on the marquee and the bar keeps the time.
 
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close

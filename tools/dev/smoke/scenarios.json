@@ -235,20 +235,21 @@
     },
     {
       "name": "crtlift",
-      "about": "On a medium cabinet the CRT's home screen lifts out as the system opens, stays lifted when an app opens and when it goes back home, and a press away settles it back, closed.",
+      "about": "On a medium cabinet the CRT's home screen lifts out as the system opens, stays lifted when an app opens and when it goes back home, the Voice switch under the pointer shows VOICE on its bar in place of the time, and a press away settles it back, closed.",
       "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs"],
-      "script": "crt@2,crt:memos@4,crtclick:40:27@7,crtaway@10",
-      "shots": [6, 9, 13],
-      "expect": ["^Crt: home, lifted out$", "^Crt: back home, still lifted$"]
+      "script": "crt@2,crt:memos@4,crtclick:40:27@7,crthover:260:27@8,crthover:off@10,crtaway@11",
+      "shots": [6, 9, 11, 15],
+      "expect": ["^Crt: home, lifted out$", "^Crt: back home, still lifted$", "^Crt: bar shows VOICE$"]
     },
     {
       "name": "crtlarge",
-      "about": "On a large cabinet the CRT's home screen stays on the cabinet: only an app lifts the screen, and going back home settles it.",
+      "about": "On a large cabinet the CRT's home screen stays on the cabinet: only an app lifts the screen, and going back home settles it. The Voice switch under the pointer lights VOICE on the marquee, and the bar keeps the time.",
       "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs"],
       "settings": ", \"Size\": \"L\"",
-      "script": "crt@2,crt:memos@4,crtclick:40:27@7",
-      "shots": [4, 10],
-      "expect": ["^Crt: home$", "^Crt: back home, settled$"]
+      "script": "crt@2,crthover:260:27@3,crthover:off@5,crt:memos@6,crtclick:40:27@9",
+      "shots": [6, 12],
+      "expect": ["^Crt: home$", "^Marquee: VOICE$", "^Crt: back home, settled$"],
+      "forbid": ["^Crt: bar shows"]
     },
     {
       "name": "crtswitches",
