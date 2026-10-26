@@ -165,6 +165,13 @@ and is no test copy: quit the player's copies first.
 
 Every option of `shoot.ps1`, `clip.ps1` and `sheet.ps1` is in its header.
 
+A run from source uses Godot's imported copy of the art and sounds (`src/InsertCoin.Game/.godot/imported`), which only
+the editor brings up to date by itself. So `shoot.ps1` (unless `-Exe`), `clip.ps1`, `smoke.ps1` (and `-Prepare`),
+`run.cmd`, `demo.cmd`, `firstrun.cmd` and `update.cmd` first run `tools\dev\import.ps1`: when any file of the game
+changed since the last import (a pull, a branch switch, an edited picture), it runs Godot's import, about 4 s, and
+notes every file's path, size and time in `.godot\import-stamp.txt`; when none did, it takes half a second. A
+screenshot after changing a picture shows the new picture.
+
 Settings seeded with `-Settings` (`', "AlwaysOnTop": true'`) need their quotes, so call `shoot.ps1` and `clip.ps1`
 directly in PowerShell: through a nested `powershell -File` the quotes are lost. Either script checks the settings.json
 it seeds is strict JSON and stops before launching, naming the bad text, if not (they need Windows PowerShell 5.1,

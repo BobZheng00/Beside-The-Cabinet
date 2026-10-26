@@ -127,6 +127,7 @@ $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 $runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
 try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
+if ($Exe -eq "") { & (Join-Path $PSScriptRoot "import.ps1") -Godot $Godot }   # from source: the art again, if anything changed
 $watch = $null
 $ownLog = "--log-file `"$(Join-Path $profile 'godot.log')`""          # Godot's log in the profile: the player's own is left alone
 if ($Hidden) {

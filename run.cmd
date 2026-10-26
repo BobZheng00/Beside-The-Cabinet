@@ -6,4 +6,6 @@ if not defined GODOT (
   pause
   exit /b 1
 )
+rem the art again if anything changed since the last import (a pull, a branch): a run uses Godot's imported copy
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\dev\import.ps1"
 start "" "%GODOT%" --path "%~dp0src\InsertCoin.Game"

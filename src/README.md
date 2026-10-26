@@ -33,8 +33,11 @@ needs its own.
 ## Running it
 
 Set `GODOT` to your Godot 4.7.2 .NET editor's exe, or put `set "GODOT=…"` in `private\local.cmd` (git ignores
-`private/`): `run.cmd`, `demo.cmd`, `firstrun.cmd`, `build.cmd` and the test scripts read it. After changing art or sounds,
-re-import: `Godot_..._console.exe --headless --path src/InsertCoin.Game --import`.
+`private/`): `run.cmd`, `demo.cmd`, `firstrun.cmd`, `build.cmd` and the test scripts read it. A run from source shows
+Godot's imported copy of the art and sounds, so `run.cmd`, `demo.cmd`, `firstrun.cmd`, `update.cmd` and the test
+scripts first import again whatever
+changed since the last import (`tools\dev\import.ps1`: a pull, a branch switch, an edited picture; about 4 s when
+something did, half a second when nothing did).
 The project uses the Compatibility renderer: Forward+ cannot do transparent windows here.
 
 | | |
