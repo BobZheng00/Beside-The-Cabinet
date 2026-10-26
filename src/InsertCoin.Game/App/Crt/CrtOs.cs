@@ -12,7 +12,8 @@ namespace InsertCoin.Game.App;
 /// system opens, and stays lifted with an app open or not until the system closes (#149). The system closes by itself after a while untouched, or from the
 /// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, the quick switches
 /// (Mute sounds, Voice, Conversation): lit when on, a press flips one. The name of a switch or an app under the pointer
-/// lights up on the marquee, big enough to read on any cabinet (see Cabinet.MarqueeDisplay).
+/// lights up on the marquee, big enough to read on any cabinet (see Cabinet.MarqueeDisplay); while the home screen is
+/// lifted, over the marquee, a switch's name shows on the bar in place of the time (#154).
 /// </summary>
 public partial class CrtOs : Node
 {
@@ -353,7 +354,15 @@ public partial class CrtOs : Node
         if (_state == State.App && _open is { } app)
             app.Hover(at is { } a ? a - app.Position : null);
         Pointing?.Invoke(_switchHovered >= 0 ? _switches[_switchHovered].Name : _hovered >= 0 && _hovered < _apps.Count ? _apps[_hovered].Label : null);
+        // the lifted home screen hides the marquee (a small or medium cabinet): the switch's name shows on the bar too
+        var onBar = _screen.Lifted && _switchHovered >= 0 ? _switches[_switchHovered].Name : null;
+        if (onBar != _onBar && onBar is not null)
+            GD.Print($"Crt: bar shows {onBar}");
+        _onBar = onBar;
     }
+
+    /// <summary>The name of the switch under the pointer, shown on the bar in place of the time while the screen is lifted, or null.</summary>
+    private string? _onBar;
 
     /// <summary>The name of the button under the pointer on the home screen (a switch or an app), or null: shown on the marquee.</summary>
     public Action<string?>? Pointing { get; set; }
@@ -648,8 +657,8 @@ public partial class CrtOs : Node
     }
 
     /// <summary>
-    /// The bar along the top: on the home screen the time, the quick switches and the power mark; back and the app's
-    /// name in an app.
+    /// The bar along the top: on the home screen the time (lifted, the name of the switch under the pointer instead),
+    /// the quick switches and the power mark; back and the app's name in an app.
     /// </summary>
     private partial class BarView(CrtOs os) : Control
     {
@@ -676,7 +685,10 @@ public partial class CrtOs : Node
             }
             else
             {
-                DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
+                if (os._onBar is { } name)
+                    DrawString(Pixel, new Vector2(22, 34), name, HorizontalAlignment.Left, os.SwitchCentre(0).X - SwitchRadius - 30, 12, Accent);
+                else
+                    DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
                 for (var i = 0; i < os._switches.Count; i++)
                 {
                     var (centre, on) = (os.SwitchCentre(i), os._switches[i].On());
