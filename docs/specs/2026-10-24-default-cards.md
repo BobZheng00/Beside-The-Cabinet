@@ -2,7 +2,7 @@
 
 *Decided with the user, 2026-10-24 (#131, from the research note `docs/research/2026-10-24-character-cards.md`).
 Nothing built yet; the order is at the end. Shino's two cards are in the appendices, in their seventh draft
-(2026-10-25), for the user's read.*
+(2026-10-25), which the user accepted: "draft7 looks good for now".*
 
 ## Why
 
@@ -185,6 +185,11 @@ way of interaction."
   one), and two new examples: good news met plainly, and staying when they don't want to talk. Not taken: a scene
   from her past and more people in her life (both reviewers' idea), since the user chose no named people and an
   evergreen card, and a fuller past is #144's.
+- **No more review rounds before it ships** (the user, 2026-10-25, on another check and review: "i'm afraid that each
+  time it will find something tiny"; then "draft7 looks good for now"). #140's billed run is the check, and only
+  these send the card back, against today's card: it puts agenda items down less often, more than 10 of 20 replies
+  end on a question, its median length is longer, or a detail of the card turns up word for word in a reply.
+  Smaller points go in a note.
 - **No named people in her life** (the user, 2026-10-25), and **the card stays evergreen.** A life kept consistent and
   moving with the calendar is a design of its own, #144.
 - **The second draft read as AI-written** (the user, 2026-10-25): "the general idea is correct but i'm not super
