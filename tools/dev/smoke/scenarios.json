@@ -234,6 +234,23 @@
       "shots": [6, 10]
     },
     {
+      "name": "crtlift",
+      "about": "On a medium cabinet the CRT's home screen lifts out as the system opens, stays lifted when an app opens and when it goes back home, and a press away settles it back, closed.",
+      "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs"],
+      "script": "crt@2,crt:memos@4,crtclick:40:27@7,crtaway@10",
+      "shots": [6, 9, 13],
+      "expect": ["^Crt: home, lifted out$", "^Crt: back home, still lifted$"]
+    },
+    {
+      "name": "crtlarge",
+      "about": "On a large cabinet the CRT's home screen stays on the cabinet: only an app lifts the screen, and going back home settles it.",
+      "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs"],
+      "settings": ", \"Size\": \"L\"",
+      "script": "crt@2,crt:memos@4,crtclick:40:27@7",
+      "shots": [4, 10],
+      "expect": ["^Crt: home$", "^Crt: back home, settled$"]
+    },
+    {
       "name": "crtswitches",
       "about": "The CRT's home screen has the switch row and the SETTINGS app: Voice flipped off from the row shows unlit there, and SETTINGS opens the Settings window while the screen stays home.",
       "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/CrtApp.cs", "src/InsertCoin.Game/App/Crt/SettingsApp.cs"],

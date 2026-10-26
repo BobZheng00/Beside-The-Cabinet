@@ -25,7 +25,8 @@ public sealed record ScreenState
 /// layers: the readout (a prompt for text entry over a flash over the readout / attract pages), the desk above it
 /// where the screen's own small system draws its apps (see App.CrtOs), and over both, while her microphone is open,
 /// "MIC" with a blinking dot in the top right corner. The readout folds away like a CRT switching off when the
-/// system opens, and unfolds when it closes. With an app open the screen lifts out of the cabinet: its corners glide
+/// system opens, and unfolds when it closes. With an app open (on a small or medium cabinet, from the system opening)
+/// the screen lifts out of the cabinet: its corners glide
 /// from the cabinet's perspective to a flat screen facing the player, on a little bezel, large enough to read whatever
 /// size the cabinet is, and it looks like a CRT up close (scanlines, rounded glass).
 /// </summary>

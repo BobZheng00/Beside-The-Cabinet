@@ -12,7 +12,8 @@ right-click on the cabinet or on your companion opens one just like it where you
 moving while it is open): the cabinet, Settings…, Getting started… (until it is done), the memory book and chat
 history, a memo of your own, a LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
-one to move it), SETTINGS last, which opens Settings as the tray does; along its top bar the same three switches, lit
+one to move it), SETTINGS last (on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
+switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it), which opens Settings as the tray does; along its top bar the same three switches, lit
 when on, a click flipping one. The name of the switch or app under the pointer lights up on the marquee above the
 screen, which reads INSERT COIN the rest of the time, its pink dots fading over and the new name drawn in a column at
 a time as on an LED sign (a name too long for it scrolls through). Settings is one window with a page
@@ -419,7 +420,8 @@ Anything too long for the bubble (a hint written out, a plan, a list) your compa
 it on their phone and send it, and it prints out of the cabinet's slot. Click it to read it whole (code in a
 fixed-width font), copy it, pin it on the cabinet's side (ten fit), or tear it off. Every memo is kept in the memory
 book's Memos tab, where you can write your own too: click the cabinet's screen and open MEMOS (NEW; an app lifts the
-screen out to face you, readable at any cabinet size, and a click away settles it back), or tray → "Write a memo…".
+screen out to face you, readable at any cabinet size, and a click away settles it back; on Small and Medium it is
+already out from the home screen), or tray → "Write a memo…".
 Yours print the same way, and your companion reads them unless you untick "Let … read it": if one needs something
 from them (a reminder, a date), they do it and say so; if not, they say nothing. Point at a memo on the cabinet to
 read it there. Click one and it flies out onto your desktop as a sheet beside the cabinet, to read and write on: drag
