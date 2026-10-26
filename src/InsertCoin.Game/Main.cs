@@ -172,7 +172,7 @@ public partial class Main : Node2D
                    [new CrtOs.Switch("MUTE SOUNDS", () => _settings.Muted, SetMuted, CrtOs.Speaker),
                     new CrtOs.Switch("VOICE", () => _settings.Voice, _stool.SetVoice, CrtOs.Speech),
                     new CrtOs.Switch("CONVERSATION", () => _stool.Conversing, _stool.Converse, CrtOs.Microphone)],
-                   () => _window.WindowScale, _cabinet.Skin.Canvas);
+                   () => _window.WindowScale, () => _settings.Size != "L", _cabinet.Skin.Canvas);     // the home screen lifts on S and M (#149)
         _crt.Pointing = name => _cabinet.Marquee.Show(name ?? _devMarquee);        // the button under the pointer, lit on the marquee
         // a focus session counts down on the readout; what she would say in a full-screen game comes as a ticket
         _stool.Focus.Changed += () => _cabinet.Screen.Focus = _stool.Focus.Readout();

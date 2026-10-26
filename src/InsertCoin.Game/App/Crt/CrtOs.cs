@@ -8,7 +8,8 @@ namespace InsertCoin.Game.App;
 /// away and the home screen's apps pop in, right on the cabinet, four to a page, the pages a swipe apart. Holding an
 /// app picks it up, to put it somewhere else (the order is kept). An app opens out of its icon while the screen lifts
 /// out of the cabinet to face the player, large enough to read at any cabinet size; a press anywhere away from it
-/// settles it back, the app closing into its icon. The system closes by itself after a while untouched, or from the
+/// settles it back, the app closing into its icon. On a small or medium cabinet the home screen lifts out too, as the
+/// system opens, and stays lifted with an app open or not until the system closes (#149). The system closes by itself after a while untouched, or from the
 /// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, the quick switches
 /// (Mute sounds, Voice, Conversation): lit when on, a press flips one. The name of a switch or an app under the pointer
 /// lights up on the marquee, big enough to read on any cabinet (see Cabinet.MarqueeDisplay).
@@ -70,6 +71,7 @@ public partial class CrtOs : Node
 
     private ScreenView _screen = null!;
     private Func<float> _windowScale = null!;
+    private Func<bool> _homeLifts = null!;
     private Rect2 _canvas;
     private readonly List<CrtApp> _apps = [];
     private IReadOnlyList<Switch> _switches = [];
@@ -91,7 +93,7 @@ public partial class CrtOs : Node
     /// <summary>Whether the system is open (a click on the screen is its).</summary>
     public bool Open => _state != State.Closed;
 
-    /// <summary>The screen is lifted out of the cabinet (an app is open): a click anywhere is its, on it or away from it.</summary>
+    /// <summary>The screen is lifted out of the cabinet (an app is open, or the home screen on a small or medium cabinet): a click anywhere is its, on it or away from it.</summary>
     public bool Lifted => _screen.Lifted;
 
     /// <summary>The canvas point is on the lifted screen: it is over whatever is below.</summary>
@@ -102,12 +104,14 @@ public partial class CrtOs : Node
     /// <param name="keepOrder">Keeps the order after the player has moved an app.</param>
     /// <param name="switches">The quick switches along the home screen's bar, left to right.</param>
     /// <param name="windowScale">The window's pixels per canvas unit now (the screen lifts out larger on a small cabinet).</param>
+    /// <param name="homeLifts">The home screen lifts out as the apps do: the cabinet is too small to read it on.</param>
     public void Build(ScreenView screen, IEnumerable<CrtApp> apps, IReadOnlyList<string> order, Action<string[]> keepOrder,
-                      IReadOnlyList<Switch> switches, Func<float> windowScale, Vector2 canvas)
+                      IReadOnlyList<Switch> switches, Func<float> windowScale, Func<bool> homeLifts, Vector2 canvas)
     {
         _screen = screen;
         _switches = switches;
         _windowScale = windowScale;
+        _homeLifts = homeLifts;
         _canvas = new Rect2(Vector2.Zero, canvas);
         _keepOrder = keepOrder;
         var kept = order.ToList();
@@ -150,12 +154,16 @@ public partial class CrtOs : Node
 
     // ---- Opening and closing ------------------------------------------------------------------------------------------
 
-    /// <summary>The readout folds away and the home screen's apps pop in, on the cabinet.</summary>
+    /// <summary>The readout folds away and the home screen's apps pop in, on the cabinet, or lifted out of it on a small or medium one.</summary>
     private void OpenHome()
     {
         _state = State.Moving;
         _untouched = 0;
         _screen.Live = true;
+        var lifts = _homeLifts();
+        if (lifts)
+            _screen.Lift(up: true, _windowScale(), _canvas);
+        GD.Print(lifts ? "Crt: home, lifted out" : "Crt: home");
         _screen.Fold(away: true, 0.32, () =>
         {
             _state = State.Home;
@@ -211,13 +219,16 @@ public partial class CrtOs : Node
         _home.Fade(away: true);
     }
 
-    /// <summary>Back to the home screen: the app goes, its tile shrinks back into its icon, and the screen settles into the cabinet.</summary>
+    /// <summary>Back to the home screen: the app goes, its tile shrinks back into its icon, and the screen settles into the cabinet (unless the home screen lifts too).</summary>
     private void Return()
     {
         if (_open is not { } app)
             return;
         _state = State.Moving;
-        _screen.Lift(up: false, _windowScale(), _canvas);
+        var lifts = _homeLifts();
+        if (!lifts)
+            _screen.Lift(up: false, _windowScale(), _canvas);
+        GD.Print(lifts ? "Crt: back home, still lifted" : "Crt: back home, settled");
         var index = _apps.IndexOf(app);
         _page = index / 4;
         app.Visible = false;
@@ -317,11 +328,18 @@ public partial class CrtOs : Node
         GD.Print($"Crt: {flipped.Name} {(flipped.On() ? "on" : "off")}");
     }
 
-    /// <summary>A press away from the lifted screen (on the cabinet, or anywhere else on the desktop): it settles back, home.</summary>
+    /// <summary>
+    /// A press away from the lifted screen (on the cabinet, or anywhere else on the desktop): it settles back, to the
+    /// home screen; where the home screen lifts too, the system closes.
+    /// </summary>
     public void Away()
     {
-        if (_state == State.App && _screen.Lifted && _lifted < 0)
+        if (!_screen.Lifted || _lifted >= 0)
+            return;
+        if (_state == State.App && !_homeLifts())
             Return();
+        else if (_state is State.Home or State.App)
+            Close();
     }
 
     /// <summary>The pointer moved over the cabinet (null: off it).</summary>

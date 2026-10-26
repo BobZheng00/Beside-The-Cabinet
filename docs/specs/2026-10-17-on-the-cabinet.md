@@ -86,6 +86,25 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   at the top of `MarqueeDisplay`. A slide in from the side was tried first: at a pace that keeps up with the pointer
   the afterglow smeared it into a blur.
 
+## Built: the home screen lifted on a small or medium cabinet (2026-10-26, #149)
+
+The user, checking the switches on a small cabinet (2026-10-25): "the switch icon is almost not distinguishable also
+the app text is hard to read (the menu is also hard to read in small!). consider in small and mediem, click on the crt
+open the screen like today when open an app to enhance the readability. large is fine."
+
+- **On Small and Medium, a click on the CRT lifts the screen out as the home screen opens,** the same lift an app
+  makes (`ScreenView.Lift`, no second mechanism), so the switches and the app names are read at the lifted size. On
+  Large it opens on the cabinet as before, and only an app lifts it.
+- **It stays lifted until the system closes:** opening an app keeps it up, and so does going back home from one
+  (the app's back mark). It settles back as the system closes: from the power mark, after a while untouched, or on a
+  press away. On Small and Medium a press away from the lifted screen closes the system, app open or not (the PM's
+  choice: the press is to put the screen away, and on those sizes there is no home screen on the cabinet to step back
+  to); on Large it goes back to the home screen on the cabinet, as before.
+- **The right-click menu** settles it as it does a lifted app (#83): an entry chosen off the cabinet's art is a press
+  away; over the art it stays lifted.
+- **SETTINGS** opens the Settings window as before; the lifted home screen stays until a press away or the time
+  untouched closes it.
+
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close
   the card is left to how the card already handles a click elsewhere.
