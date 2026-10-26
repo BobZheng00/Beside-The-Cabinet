@@ -139,9 +139,9 @@ cache at a tenth of that or less.
   every cancel, change and "10 min before" right, and its only false claims were about reminders, so the reminder is
   a required choice (`remind`: none, at_the_time, before with `minutes_before`, or keep on a change) and every result
   names it ("no reminder"; the player's own lead when that gives one); "reminds them by itself" is gone from what she
-  is told. An add that lands on the same thing already on the agenda (same day, same words) sets its reminder as asked,
-  none taking one away (a calendar's item keeps its own reminder and repeat, and the same thing at another time that
-  day is left as it is); unless the item is now just as she asked, time, reminder and repeat (once when the add gives
+  is told. An add that lands on the same thing already on the agenda (same words at the same time, or on the same day
+  with either a whole day's item) sets its reminder as asked, none taking one away (a calendar's item keeps its own
+  reminder and repeat, and a whole day's item and a timed one that day are left as they are); unless the item is now just as she asked, time, reminder and repeat (once when the add gives
   none), the result says what was there and what is there now, and goes back to her rather than ending the reply. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other
   week") or a time it can't read is turned down with its reason. *Said as written* (flow C), in code
   (`Conversation.Reply`, `Ends`): she says what she is putting down and calls the tool in the same reply; when every
@@ -151,6 +151,12 @@ cache at a tenth of that or less.
   speaks once. Upkeep's plans take the same fields (`remind`, `minutes_before`, a `repeat` from the list), and "when"
   is always the thing's own time. Her body: the note-taking gesture (pad and pencil) as the call goes out, not the
   working pose of other tools. `tools/bench/agenda.cs` compares it with the tags on a stand-in or a real provider.
+  *Changed 2026-10-26 (#137): the same thing at two times in one day is two items.* Pills at 8 and at 20 (once or
+  daily) are two items, from the tool, her tags or upkeep alike; until now they folded into the first. Re-adding at
+  the same time still merges, as does a whole day's item with the same whole day's item (or with a timed one that
+  day). The tool's result for the second names the first too ("#n is on the agenda too: …"); when that one was there
+  before the reply, it goes back to her (the player may have meant to move it), and when both came in the same reply
+  it ends as usual. Items already merged in an agenda stay as they are: only new adds match differently.
 
 ## Second pass (decided with the player, 2026-10-04)
 

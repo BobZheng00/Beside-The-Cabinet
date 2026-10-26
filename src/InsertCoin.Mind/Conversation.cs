@@ -274,8 +274,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         return $"Not added: {a.At.ToString(a.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", Prompt.English)} is already past.";
                     if (!there.TryGetValue(added, out var earlier))
                     {
-                        agendaWent = true;
-                        return $"Added #{added}: {Described(added)}.";
+                        // the same thing at another time that day is a second item, named beside it; one there before
+                        // this reply goes back to her, as the player may have meant to move it
+                        var also = store.Agenda().Where(p => p.Id != added && p.At.Date == a.At.Date && Recall.Same(p.Text, renamed)).ToList();
+                        agendaWent = !also.Any(p => agenda.Any(q => q.Id == p.Id));
+                        return $"Added #{added}: {Described(added)}." + string.Concat(also.Select(p => $" #{p.Id} is on the agenda too: {Shown(p)}."));
                     }
                     // the same thing already there: just as she asked (time, reminder, repeat) and unchanged by this, it can still
                     // end the reply; otherwise it goes back to her, so what she says is what is on the agenda now (a calendar's
@@ -715,12 +718,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     }
 
     /// <summary>
-    /// Puts something on the agenda. When it is there already (on the same day, saying the same thing, or at the same
-    /// time about the same thing) it only adds what is new: a reminder, a repeat (not to a calendar's item: whether
-    /// that repeats is the calendar's to say). A reminder for something wholly past is not set. Returns the item's id, or null.
+    /// Puts something on the agenda. When it is there already (saying the same thing at the same time, or on the same
+    /// day with either of them a whole day; or at the same time about the same thing) it only adds what is new: a
+    /// reminder, a repeat (not to a calendar's item: whether that repeats is the calendar's to say). The same thing at
+    /// another time that day is a second item (pills at 8 and at 20). A reminder for something wholly past is not set.
+    /// Returns the item's id, or null.
     /// </summary>
     /// <param name="exactly">The agenda tool's add: the reminder as given, none included (otherwise none keeps the one there),
-    /// and the same thing at another time that day left as it is.</param>
+    /// and a whole day's item and a timed one that day left as they are.</param>
     private long? AddPlan(PlanSpec spec, DateTimeOffset now, bool exactly = false)
     {
         var wanted = new Plan(0, spec.Text, spec.At, spec.AllDay, spec.Before, null, now, character, spec.Repeat);
@@ -728,7 +733,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return null;
         var words = Recall.Terms(spec.Text).ToHashSet();
         if (store.Agenda().FirstOrDefault(p => p.At.Date == spec.At.Date
-                                               && (Recall.Same(p.Text, spec.Text) || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
+                                               && (Recall.Same(p.Text, spec.Text) && (p.At == spec.At || p.AllDay || spec.AllDay)
+                                                   || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
         {
             if (exactly && (same.At, same.AllDay) != (spec.At, spec.AllDay))
                 return same.Id;
