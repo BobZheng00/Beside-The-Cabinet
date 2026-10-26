@@ -9,7 +9,8 @@ namespace InsertCoin.Game.Cabinet;
 /// not pixel enough. lack the retro feeling"): the letters are a sign's 5×7 font, one dot to a font pixel, narrow
 /// letters narrower; every dot is on or off, and changes go in steps: the board blanks, and the new text is drawn in a
 /// whole column at a time at a sign's rate. A name only shows once the pointer has stayed on its button a moment, so
-/// passing across the buttons doesn't flicker through every name, and a change waits for the one under way to finish. A
+/// passing across the buttons doesn't flicker through every name; a change cuts short one still being drawn in, so the
+/// board keeps up with the pointer (#148: a name waiting for INSERT COIN's draw-in lagged by seconds). A
 /// name too long for the board scrolls through it a whole column at a time, from its start.
 /// </summary>
 public partial class MarqueeDisplay : Polygon2D
@@ -63,7 +64,7 @@ public partial class MarqueeDisplay : Polygon2D
     private void Update(double delta)
     {
         _wantedFor += delta;
-        if (_wanted != _text && _changing < 0 && _wantedFor >= (_wanted == AtRest ? BackToRest : Settle))
+        if (_wanted != _text && _wantedFor >=(_wanted == AtRest ? BackToRest : Settle))
         {
             _text = _wanted;
             _strip = Strip(_text);

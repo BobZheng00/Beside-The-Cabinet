@@ -284,7 +284,8 @@ def screen_face():
 
 BULBS = [18 + i * 22.4 for i in range(11)]      # hood-local x of each marquee bulb
 # The marquee's lit pixel display, in marquee-local units (x, y, width, height): the game lights its dots (INSERT COIN,
-# or the name of the CRT's button under the pointer), so the art draws only its dark panel, in the dots' proportion (75 x 15).
+# or the name of the CRT's button under the pointer), so the art draws only its dark panel. The game's board is 64 x 15
+# dots, square once the marquee's perspective has narrowed the panel (MarqueeDisplay).
 DISPLAY = (20, 15, 220, 44)
 
 
