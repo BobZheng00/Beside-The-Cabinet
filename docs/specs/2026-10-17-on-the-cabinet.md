@@ -71,11 +71,15 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
 
 - **The marquee is a lit pixel display** (`Cabinet/MarqueeDisplay.cs`, `marquee_dots.gdshader`): the art draws a dark
   panel in the sign (`tools/art/cozy_cabinet.py`, `DISPLAY`; the skin's `marquee` anchor is its corners), and the game
-  lights a board of 75 by 15 round dots on it, in the marquee's perspective. Letters are five dots by seven, as on a
-  dot-matrix sign; twelve fit. Dots too small to tell apart (the small cabinet) run together into solid letters.
+  lights a board of 64 by 15 round dots on it, in the marquee's perspective (round 3: 75 before; fewer, bigger dots).
+  Letters are five dots by seven, as on a dot-matrix sign, set as a sign sets them: each as wide as its dots (I and 1
+  take three columns), a dark column between letters, three for a space; INSERT COIN and MUTE SOUNDS fit, CONVERSATION
+  scrolls. Dots too small to draw apart (below about three screen pixels: the small and medium cabinets) are drawn as
+  square blocks that meet, so letters stay crisp pixel letters, with a dot's edge eased over one screen pixel at most.
 - **INSERT COIN at rest; the name of the CRT's button under the pointer** (a quick switch, an app, SETTINGS) while
   there is one, and INSERT COIN again when it leaves. Only those buttons, not other hover tips (the PM's choice). A
-  name too long for the board shows its start, then scrolls through a column at a time, round and round.
+  name too long for the board shows its start for a second, then scrolls through a whole column at a time (about 17 a
+  second), round and round.
 - **The time stays on the CRT's bar** whatever is under the pointer. The bulbs above (`MarqueeLights`) are unchanged.
 - **It behaves as an LED sign does** (round 2, the user trying it: "the text appear and switch too fast, which does not
   really looks like pixel display (still more like some rgb display)"): one pink LED colour, hotter in each dot's
@@ -85,6 +89,13 @@ button text on the insert coin bar above the crt. maybe make it a pixel screen",
   between buttons doesn't bring it back), and a change waits for the one under way. The timings are named constants
   at the top of `MarqueeDisplay`. A slide in from the side was tried first: at a pace that keeps up with the pointer
   the afterglow smeared it into a blur.
+- **Round 3: a real LED sign** (#148, the user: "do not like the current animation of the text. too smooth and the
+  font are not pixel enough. lack the retro feeling"). The fades made it smooth, and the dots, under two screen
+  pixels each on the medium cabinet, were drawn blurred together by the texture's linear filter. Now every dot is lit
+  or dark, nothing in between (the glyphs are drawn in code, the 5×7 font above; a faint glow around lit dots stays),
+  and changes go in steps: the board blanks for 0.2 s, then the new text is drawn in a whole column at a time, 30
+  columns a second, from its own first column (VOICE in about a second, INSERT COIN in two). The same pauses before a
+  name or INSERT COIN shows as round 2.
 
 ## Built: the home screen lifted on a small or medium cabinet (2026-10-26, #149)
 
