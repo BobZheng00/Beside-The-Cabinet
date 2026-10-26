@@ -7,11 +7,12 @@ namespace InsertCoin.Game.Cabinet;
 /// rest, and the name of the CRT's button under the pointer while there is one, in big letters that read at a glance on
 /// the smallest cabinet. It behaves as a real dot-matrix sign does (the user, 2026-10-25: "too smooth and the font are
 /// not pixel enough. lack the retro feeling"): the letters are a sign's 5×7 font, one dot to a font pixel, narrow
-/// letters narrower; every dot is on or off, and changes go in steps: the board blanks, and the new text is drawn in a
-/// whole column at a time at a sign's rate. A name only shows once the pointer has stayed on its button a moment, so
-/// passing across the buttons doesn't flicker through every name; a change cuts short one still being drawn in, so the
-/// board keeps up with the pointer (#148: a name waiting for INSERT COIN's draw-in lagged by seconds). A
-/// name too long for the board scrolls through it a whole column at a time, from its start.
+/// letters narrower; every dot is on or off, and changes go in steps. The name of the button under the pointer flips on
+/// whole, as a sign turns to its next page, once the pointer has been on it a tenth of a second (a quick pass across the
+/// buttons doesn't flicker through every name): the board is there to say what is under the pointer, and a draw-in was
+/// too slow for that (the user, 2026-10-26). INSERT COIN, which nobody waits for, comes back as a sign's text does: the
+/// board blanks, and it is drawn in a whole column at a time at a sign's rate. A change cuts short a draw-in under way.
+/// A name too long for the board shows its start, then scrolls through it a whole column at a time.
 /// </summary>
 public partial class MarqueeDisplay : Polygon2D
 {
@@ -20,9 +21,9 @@ public partial class MarqueeDisplay : Polygon2D
     private const int Gap = 12;                                 // the room between the end of a scrolling name and its start again
 
     // ---- Timings, in seconds ----
-    private const double Blank = 0.2;            // a change: the board goes dark this long
-    private const double Rate = 30;              // then the new text is drawn in, this many columns a second (a sign's 15 to 30)
-    private const double Settle = 0.18;          // the pointer stays on a button this long before its name shows
+    private const double Blank = 0.2;            // INSERT COIN coming back: the board goes dark this long
+    private const double Rate = 30;              // then it is drawn in, this many columns a second (a sign's 15 to 30)
+    private const double Settle = 0.1;           // the pointer stays on a button this long before its name flips on, whole
     private const double BackToRest = 0.6;       // and off them this long before INSERT COIN comes back (crossing the gaps between buttons)
     private const double Hold = 1.0, Step = 0.06;               // a long name is read from its start, then moves a column at a time
 
@@ -64,11 +65,11 @@ public partial class MarqueeDisplay : Polygon2D
     private void Update(double delta)
     {
         _wantedFor += delta;
-        if (_wanted != _text && _wantedFor >=(_wanted == AtRest ? BackToRest : Settle))
+        if (_wanted != _text && _wantedFor >= (_wanted == AtRest ? BackToRest : Settle))
         {
             _text = _wanted;
             _strip = Strip(_text);
-            _changing = 0;
+            _changing = _text == AtRest ? 0 : -1;               // a name flips on whole, a sign's next page; INSERT COIN, which nobody waits for, is drawn in
             _shown = 0;
             GD.Print($"Marquee: {_text}");
         }
