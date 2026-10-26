@@ -59,10 +59,14 @@ public static class BuiltIn
                 act(action.Trim().ToLowerInvariant(), focus_minutes, break_minutes),
             "focus_session",
             "Runs a focus session (Pomodoro) on the cabinet: focus, then a short break, a long one after every few, until stopped. The screen counts " +
-            "down, you are told when each part ends, and their music can play while they focus. Use it when the player wants to focus, study or " +
-            "work for a while, or asks to pause, skip or stop one. Where a session stands is in the cabinet block."),
+            "down, you are told when each part ends, and their music can play while they focus. Start one when the player asks for one, and " +
+            "pause, skip or stop it when they ask. Where a session stands is in the cabinet block."),
         "Focus sessions",
-        OutsideApp: false);
+        OutsideApp: false)
+    {
+        // a question about focus sessions isn't asking for one (#145): she answered how long a Pomodoro is and started one
+        AskedFor = (arguments, said) => Text(arguments, "action")?.Trim().ToLowerInvariant() != "start" || FocusRequest.In(said),
+    };
 
     public const string AgendaName = "agenda";
 

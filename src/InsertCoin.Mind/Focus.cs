@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace InsertCoin.Mind;
 
 /// <summary>The parts of a focus session.</summary>
@@ -136,4 +138,37 @@ public sealed class FocusSession
         "suggest standing up, stretching or getting some water; it's fine to leave the work for a bit. Don't lecture.";
 
     private static string Minutes(TimeSpan left) => left < TimeSpan.FromMinutes(1) ? "under a minute" : $"{(int)Math.Ceiling(left.TotalMinutes)} min";
+}
+
+/// <summary>
+/// Whether the player's words ask for a focus session (#145): she starts one only then. Asked how long a Pomodoro
+/// usually is, she answered and started one as well, in three runs of four; a question about them isn't asking for one.
+/// Read in the player's languages (English, Chinese, Japanese, Korean), a yes as <see cref="SpokenAnswer"/> reads one.
+/// </summary>
+public static class FocusRequest
+{
+    // asking for one outright, in a question too ("can you start one?", "能帮我开个番茄钟吗")
+    private static readonly Regex Start = new(@"\b(start\w*|begin\w*|kick off|set|lets)\b|开始|开个|开一|开启|启动|打开|开番茄|开专注|帮我开|^开[吧呀啊]?$|来个|来一|定个|设个|计时|" +
+                                              "始め|はじめ|スタート|開始|セット|つけて|시작|켜|맞춰|돌려");
+    // wanting to focus, or for how long, said rather than asked about ("I need to study", "50 minutes")
+    private static readonly Regex Focus = new(@"\b(focus\w*|pomodoro\w*|stud(y|ying)|concentrat\w*|timer)\b|专注|番茄|学习|复习|集中|写作业|ポモドーロ|勉強|집중|뽀모도로|공부|" +
+                                              @"\d+\s*(min\w*|hours?|分钟|分|小时|時間|분|시간)|[一二三四五六七八九十两半]+个?(分钟|小时)");
+    private static readonly Regex Question = new(@"^(how|what|whats|why|when|which|who|is|are|does|isnt)\b|吗|多少|多久|几|什么|怎么|来着|呢$|是不是|有没有|" +
+                                                 "何|どのくらい|どれくらい|だっけ|か$|かな$|몇|얼마|뭐|어떻게|까요?$|나요$");
+    private static readonly Regex Not = new(@"\b(dont|not|no|never|안)\b|不要|不用|别|不想|しないで|いらない|やめ|하지 ?마|말고");
+
+    /// <summary>Whether <paramref name="said"/>, the player's words her reply answers (null when the cabinet spoke), asks for a focus session.</summary>
+    public static bool In(string? said)
+    {
+        if (string.IsNullOrWhiteSpace(said))
+            return false;
+        var plain = SpokenAnswer.Plain(said);
+        if (Not.IsMatch(plain))
+            return false;
+        if (Start.IsMatch(plain))
+            return true;
+        var yes = SpokenAnswer.Of(said) is Answer.Once or Answer.Always || SpokenAnswer.Of(plain.Split(' ')[0]) is Answer.Once or Answer.Always;
+        var question = said.Contains('?') || said.Contains('？') || Question.IsMatch(plain);
+        return !question && (yes || Focus.IsMatch(plain));
+    }
 }
