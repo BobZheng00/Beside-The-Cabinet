@@ -15,5 +15,7 @@ tasklist /FI "IMAGENAME eq %GODOT_EXE%" | find /I "%GODOT_EXE%" >nul && (
   echo tray icon first, or nothing will appear.
   pause
 )
+rem the art again if anything changed since the last import (a pull, a branch): a run uses Godot's imported copy
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\dev\import.ps1"
 if exist "%APPDATA%\InsertCoin-firstrun" rmdir /s /q "%APPDATA%\InsertCoin-firstrun"
 start "" "%GODOT%" --path "%~dp0src\InsertCoin.Game" -- --data="%APPDATA%\InsertCoin-firstrun" --no-steam

@@ -50,6 +50,7 @@ $count = [int]($Seconds * $Fps)
 $runLock = New-Object System.Threading.Mutex($false, "Local\InsertCoinSmoke")
 try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another test run held the lock for 30 minutes" } }
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
+& (Join-Path $PSScriptRoot "import.ps1") -Godot $Godot                 # the art again, if anything changed since the last import
 # on a Windows desktop of its own, as shoot.ps1 -Hidden runs it: nothing reaches the player's screen, taskbar or focus
 if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
 $p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count --log-file `"$profile\godot.log`" -- $userArgs", $log, $err)

@@ -294,11 +294,7 @@ try {
     "Stopped a copy left over from a killed test run (PID $($orphan.ProcessId))."
   }
   # The player's own copies (their app, the demo) are left running: test copies run beside them.
-  $needImport = -not (Test-Path (Join-Path $game ".godot\imported"))
-  if ($needImport) {
-    "Importing the project's resources (a fresh checkout's first run)..."
-    & $godotConsole --headless --path $game --import 2>&1 | Out-Null
-  }
+  & (Join-Path $PSScriptRoot "import.ps1") -Godot $godotConsole          # the art again, if anything changed since the last import
   if ($Prepare) { "Ready for test runs: $repo"; exit 0 }
 
   Add-Type -AssemblyName System.Drawing

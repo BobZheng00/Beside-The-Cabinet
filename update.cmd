@@ -1,6 +1,6 @@
 @echo off
 rem Brings this folder up to GitHub's main after pull requests are merged, then rebuilds: the code run.cmd and demo.cmd
-rem start, and the standalone app (build.cmd). Double-click it; close the app first. It changes nothing if this folder
+rem start, the art they show (tools\dev\import.ps1), and the standalone app (build.cmd). Double-click it; close the app first. It changes nothing if this folder
 rem isn't on main or has changes of its own.
 setlocal
 cd /d "%~dp0"
@@ -34,6 +34,7 @@ rem read whole before it runs, and it ends with exit rather than going back to t
   echo.
   echo Building the code run.cmd and demo.cmd start...
   dotnet build "src\InsertCoin.Game\InsertCoin.Game.csproj" -nologo -v q || (echo Stopped. & pause & exit /b 1)
+  powershell -NoProfile -ExecutionPolicy Bypass -File "tools\dev\import.ps1" || (echo Stopped. & pause & exit /b 1)
   echo.
   echo Building the standalone app...
   call "%~dp0build.cmd" || (echo Stopped. & pause & exit /b 1)
