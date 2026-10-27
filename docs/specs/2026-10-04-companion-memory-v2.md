@@ -137,9 +137,11 @@ cache at a tenth of that or less.
   adds, changes or cancels, by the same numbers and with the same refusals. On a real model the tags set the wrong
   thing silently in 5 of 20 replies (both cancels missed, three items put at their reminder's time); the tool got
   every cancel, change and "10 min before" right, and its only false claims were about reminders, so the reminder is
-  a required choice (`remind`: none, at_the_time, before with `minutes_before`, or keep on a change) and every result
+  a required choice (`remind`: none, at_the_time, before with `minutes_before`, or keep on a change; none unless the
+  player asked to be reminded, the user's choice of 2026-10-26, #127) and every result
   names it ("no reminder"; the player's own lead when that gives one); "reminds them by itself" is gone from what she
-  is told. An add that lands on the same thing already on the agenda (same words at the same time, or on the same day
+  is told (#127 brought it back as part of her situation, said as "reminds them by itself of what has a reminder", so
+  no plan is taken to have one it wasn't given). An add that lands on the same thing already on the agenda (same words at the same time, or on the same day
   with either a whole day's item) sets its reminder as asked, none taking one away (a calendar's item keeps its own
   reminder and repeat, and a whole day's item and a timed one that day are left as they are); unless the item is now just as she asked, time, reminder and repeat (once when the add gives
   none), the result says what was there and what is there now, and goes back to her rather than ending the reply. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other

@@ -75,7 +75,11 @@ File.WriteAllText(Path.Combine(output, $"prompt-{variant}.txt"),
 // the counting checked on lines whose habits are known
 if (string.Join(",", Habits.Of("I've got a job interview next Thursday at 2pm.", "[cheer] Got it! A job interview next Thursday at 2pm, I've added it. Want me to help you prep?"))
         != string.Join(",", Habits.Names) || Habits.Of("我拿到实习offer了！！！", "[cheer] 太棒了，我拿到实习offer了的感觉一定很好。").SequenceEqual(["echoes the player"]) is false
-    || Habits.Of("lol", "Poor chat, right?").SequenceEqual(["ends with a question"]) is false)
+    || Habits.Of("lol", "Poor chat, right?").SequenceEqual(["ends with a question"]) is false
+    // 一点 is "a little" unless the time of day or the minutes make it one o'clock
+    || Habits.Of("番茄钟一般是多少分钟来着？", "一般是专注 25 分钟，再休息 5 分钟；做满几轮后休息长一点。").Count != 0
+    || !Habits.Of("明天", "下午一点见。").Contains(Habits.Names[1]) || !Habits.Of("明天", "十一点见。").Contains(Habits.Names[1])
+    || Habits.Words("One two.\n\nThree") != 3)
     throw new InvalidOperationException("The habits aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
@@ -188,6 +192,11 @@ static Toolbox Tools(List<string> focus) => new([BuiltIn.OpenLink(_ => { }), Bui
 
 void Summary()
 {
+    if (!File.Exists(results))
+    {
+        Console.WriteLine($"Nothing in {results} yet.");
+        return;
+    }
     var all = File.ReadLines(results).Select(l => JsonSerializer.Deserialize<Result>(l)!).Where(r => r.Answer is not null).ToList();
     var variants = all.Select(r => r.Variant).Distinct().ToList();      // in the order they were run
     var moments = all.Select(r => r.Moment).Distinct().Select(id => allMoments.First(m => m.Id == id)).ToArray();
@@ -259,7 +268,7 @@ static class Habits
     public static readonly string[] Names = ["stock opener", "repeats a date or time", "echoes the player", "narrates the bookkeeping", "offers help", "ends with a question"];
 
     private static readonly Regex Opener = new(@"^\W*(got it|sure( thing)?|okay|ok|noted|alright|of course|absolutely|done|perfect|great|好的|收到|没问题|明白|了解)\b", RegexOptions.IgnoreCase);
-    private static readonly Regex DateOrTime = new(@"(\b\d{1,2}(:\d{2})?\s?(am|pm)\b|\b\d{1,2}:\d{2}\b|\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow)\b|\d+点|[一二三四五六七八九十]+点|周[一二三四五六日]|星期[一二三四五六日]|明天)", RegexOptions.IgnoreCase);
+    private static readonly Regex DateOrTime = new(@"(\b\d{1,2}(:\d{2})?\s?(am|pm)\b|\b\d{1,2}:\d{2}\b|\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow)\b|\d+点|(?<![零一二两三四五六七八九十])(?:(?!一点)[零一二两三四五六七八九十]+点|一点(?=钟|半|[零一二三四五六七八九十]+分)|(?<=上午|下午|中午|晚上|早上|凌晨|傍晚)一点)|周[一二三四五六日]|星期[一二三四五六日]|明天)", RegexOptions.IgnoreCase);
     private static readonly Regex Bookkeeping = new(@"(i'?ve (added|jotted|noted|set|moved|cancel|put|updated|scheduled|marked|got)|i'?ll remind|jott|noted|on (your|the) agenda|in (your|the) agenda|off (your|the) agenda|reminder('s| is)? (set|on)|(it'?s|that'?s) (down|in)|cabinet'?s? (updated|got|will)|已(经)?(记|加|设|帮你|取消|改)|记下|记好|加到|设好|提醒你)", RegexOptions.IgnoreCase);
     private static readonly Regex Help = new(@"(want me to|let me know|anything else|need anything|if you need|if you want|shall i|should i|i can help|happy to help|要不要|需要我|我可以帮)", RegexOptions.IgnoreCase);
     private static readonly Regex Question = new(@"[?？]\W*$");
@@ -297,7 +306,7 @@ static class Habits
         return Enumerable.Range(0, Math.Max(0, theirs.Length - 3)).Any(i => spans.Contains(string.Join(' ', theirs[i..(i + 4)])));
     }
 
-    public static int Words(string answer) => Spoken(answer).Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+    public static int Words(string answer) => Spoken(answer).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
     public static int Characters(string answer) => Regex.Replace(Spoken(answer), @"[\p{P}\s]", "").Length;
     public static int Bangs(string answer) => Spoken(answer).Count(c => c is '!' or '！');
 }
@@ -322,17 +331,24 @@ sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
         var text = new StringBuilder();
         var calls = new List<string>();
         UsageDetails usage = new();
-        await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancel))
+        // a request that fails part way is still counted, with what its usage said so far (none if it never came)
+        try
         {
-            text.Append(update.Text);
-            foreach (var content in update.Contents)
-                if (content is FunctionCallContent call)
-                    calls.Add($"{call.Name}({JsonSerializer.Serialize(call.Arguments, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })})");
-                else if (content is UsageContent used)
-                    usage.Add(used.Details);
-            yield return update;
+            await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancel))
+            {
+                text.Append(update.Text);
+                foreach (var content in update.Contents)
+                    if (content is FunctionCallContent call)
+                        calls.Add($"{call.Name}({JsonSerializer.Serialize(call.Arguments, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })})");
+                    else if (content is UsageContent used)
+                        usage.Add(used.Details);
+                yield return update;
+            }
         }
-        Requests.Add(new Request(text.ToString(), calls, usage.InputTokenCount ?? 0, usage.CachedInputTokenCount ?? 0, usage.OutputTokenCount ?? 0, clock.ElapsedMilliseconds));
+        finally
+        {
+            Requests.Add(new Request(text.ToString(), calls, usage.InputTokenCount ?? 0, usage.CachedInputTokenCount ?? 0, usage.OutputTokenCount ?? 0, clock.ElapsedMilliseconds));
+        }
     }
 }
 

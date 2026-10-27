@@ -199,8 +199,8 @@ script's header.
   base texts, build it from each commit to a folder of its own (`dotnet build tools/bench/manner.cs -o <bin>`) and run
   each dll with its own `--variant` into the same `--out`. One card on two texts is about 56 requests and 183k input
   tokens (#127's run); both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead
-  (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when her instructions or
-  tools change.
+  (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when the companion's
+  instructions or tools change.
 
 ## Checks and the smoke suite
 

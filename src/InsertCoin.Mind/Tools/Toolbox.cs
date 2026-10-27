@@ -230,13 +230,13 @@ public sealed class Toolbox
 
     /// <summary>
     /// The tools that ask the player on a card before acting, as things are set now (Ask, and under Auto only what is the
-    /// player's own): she asks in her own words as she uses one of these, and only these. Told to ask for whatever acts
-    /// outside the app, she asked "Shall I turn your music on?" with music set to Always (2026-10-11).
+    /// player's own): she is told these, and only these, ask first. Told that whatever acts outside the app asks, she
+    /// asked "Shall I turn your music on?" with music set to Always (2026-10-11).
     /// </summary>
     public IReadOnlyList<string> AsksFirst =>
         [.. _tools.Values.Where(t => PermissionOf(t) == Permission.Ask && (!Auto || t.Private)).Select(t => t.Name).Order(StringComparer.Ordinal)];
 
-    /// <summary>The tools offered that tell her what she would simply know (see <see cref="Tool.Known"/>): no line before them.</summary>
+    /// <summary>The tools offered that tell her what she would simply know (see <see cref="Tool.Known"/>): she is told she simply knows it.</summary>
     public IReadOnlyList<string> Known =>
         [.. _tools.Values.Where(t => t.Known && PermissionOf(t) != Permission.Off).Select(t => t.Name).Order(StringComparer.Ordinal)];
 
