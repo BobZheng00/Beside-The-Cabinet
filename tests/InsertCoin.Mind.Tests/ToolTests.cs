@@ -166,7 +166,7 @@ public class ToolTests
     }
 
     [Fact]
-    public async Task A_tool_that_tells_her_what_she_would_simply_know_gets_no_line_of_hers_before_it()
+    public async Task A_tool_that_tells_her_what_she_would_simply_know_is_named_as_such()
     {
         using var temp = new TempStore();
         var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), BuiltIn.Cabinet(_ => "Play time banked: 1 h.")]);
@@ -175,13 +175,13 @@ public class ToolTests
 
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
 
-        Assert.Contains("Before you use a tool (not cabinet_numbers: what it tells you, you simply know), say a short line first", model.Requests[0][0].Text);
+        Assert.Contains("What cabinet_numbers tells you, you simply know.", model.Requests[0][0].Text);
         tools.Choose(new Dictionary<string, Permission> { ["cabinet_numbers"] = Permission.Off });
         Assert.Empty(tools.Known);                                                      // switched off: not named
     }
 
     [Fact]
-    public async Task She_is_told_which_tools_will_ask_on_a_card_as_things_are_set_so_she_asks_in_words_only_for_those()
+    public async Task She_is_told_which_tools_will_ask_on_a_card_as_things_are_set()
     {
         using var temp = new TempStore();
         var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), Jot([])]);
@@ -189,18 +189,18 @@ public class ToolTests
         var model = new FakeToolModel(["Hi!"], ["Hi!"], ["Hi!"]);
 
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
-        Assert.Contains("These ask the player on a card by your stool before they act: open_link.", model.Requests[0][0].Text);
+        Assert.Contains("These ask the player on a card by your stool before they act: open_link; the rest act straight away.", model.Requests[0][0].Text);
 
         tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Allowed });   // Always, as the player set music
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
-        Assert.Contains("None of them needs asking: just use them.", model.Requests[^1][0].Text);
+        Assert.Contains("None of them asks the player first.", model.Requests[^1][0].Text);
         // nor do the tools' own words say so: music's "The player is asked first" had her ask "Shall I…?" when set to Always (2026-10-11)
         Assert.All(model.Options[^1]!.Tools!, t => Assert.DoesNotContain("asked first", t.Description));
 
         tools.Choose(new Dictionary<string, Permission>());
         tools.Auto = true;                                                                          // Auto goes ahead too
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
-        Assert.Contains("None of them needs asking: just use them.", model.Requests[^1][0].Text);
+        Assert.Contains("None of them asks the player first.", model.Requests[^1][0].Text);
     }
 
     [Fact]
