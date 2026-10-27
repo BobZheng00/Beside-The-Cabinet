@@ -33,7 +33,8 @@ says where things stand today); this page keeps the story. Update it at each mil
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
 to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that
-measures both (spikes #105 and #125). With it, the default characters' cards (spec
+measures both (spikes #105 and #125). Step 1, the lean base text and the manner check (`tools/bench/manner.cs`),
+built 2026-10-26 (#127). With it, the default characters' cards (spec
 `docs/specs/2026-10-24-default-cards.md`, from the research note on character cards, #131): Shino rewritten as an
 adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
 by the player's language or forced by a setting; then Fumiriya's. Before Preview 2 (#157), what earns play time (spec
@@ -70,7 +71,8 @@ workspace of her own (#38, decided 2026-10-16); step 3, her suggested changes to
     servers on the internet too, `2026-10-15-skills.md`), plugins later;
   - optional extras are **add-ons** (the user, 2026-10-09): off until turned on, each saying what it needs and where data goes; connectors become add-ons. No service of ours and no third party's free tier as a default: "no resources or holdbacks on my side";
   - acting outside the app asks first;
-  - while a tool works, she says a short line the model writes itself, fitting what she's doing.
+  - while a tool works, she says a short line the model writes itself, fitting what she's doing (asked for by her
+    instructions until #127, 2026-10-26; now her card's to decide, her thinking sounds bridging the wait);
 - **First abilities, agreed:**
   - LeetCode hints in tiers, finding the problem from the browser's window title;
   - memos: long text printed from the cabinet, pinned on its side, archived, the player's own too, and she types them on her phone;

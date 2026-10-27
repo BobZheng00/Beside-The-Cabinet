@@ -188,6 +188,27 @@ run (`--test-run`; `--offscreen` implies it): one whose settings.json still can'
 say) sets it aside and starts on a test run's defaults, muted, and says so in its log (`Main: settings.json couldn't be
 read…, sounds muted`); the player's own app and the demo start on the usual defaults.
 
+## Benchmarks
+
+Two benchmarks run the companion's real prompt on a profile's own provider (the demo's by default, its key read encrypted where it
+is kept), billed to its owner: run one only when they offer, and say first what it will cost. Every option is in the
+script's header.
+
+- `tools/bench/memory.cs`: the companion's memory on LongMemEval and LoCoMo, and staying in character
+  (`docs/research/2026-10-11-memory-benchmark.md`). `--mode reach` replays their search on memories already taken in,
+  with no model, in seconds.
+- `tools/bench/manner.cs`: how the companion talks (`docs/specs/2026-10-24-how-she-talks.md`). About 20 moments in English and
+  Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for), with
+  Shino's card and a plain one, each from a fresh memory. Stock openers, a date or time said back, the player echoed,
+  the bookkeeping narrated, offers of help, ending on a question, length, tools used unasked and focus sessions started
+  are counted in code (the counting checks itself first) and written to `manner.md`, side by side. It stops at
+  `--max-requests` (140) or `--max-input` tokens (500,000), counting everything spent in its folder. To compare two
+  base texts, build it from each commit to a folder of its own (`dotnet build tools/bench/manner.cs -o <bin>`) and run
+  each dll with its own `--variant` into the same `--out`. One card on two texts is about 56 requests and 183k input
+  tokens (#127's run); both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead
+  (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when her instructions or
+  tools change.
+
 ## Checks and the smoke suite
 
 What a commit must pass before its pull request is marked ready, run the same way by the agents and by hand:

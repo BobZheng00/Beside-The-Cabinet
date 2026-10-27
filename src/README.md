@@ -99,6 +99,11 @@ tools/dev                 shoot.ps1 runs the app in a throwaway muted profile an
                           the companion moving; sheet.ps1 makes contact sheets
 tools/bench               memory.cs — the companion's memory on LongMemEval and LoCoMo, and staying in character (docs/research/2026-10-11-memory-benchmark.md):
                           `dotnet run tools/bench/memory.cs -- --data <json> --out <folder> [--set locomo|persona]`;
-                          it runs on a profile's own provider and key (the demo's), billed to its owner
+                          it runs on a profile's own provider and key (the demo's), billed to its owner;
+                          manner.cs — how the companion talks: about 20 moments in English and Chinese, the habits
+                          that make them sound like an assistant counted in code (docs/specs/2026-10-24-how-she-talks.md):
+                          `dotnet run tools/bench/manner.cs -- --out <folder> [--variant <name>] [--cards shino,plain]`;
+                          billed the same way, so only when the owner offers; agenda.cs — the agenda tool against the
+                          tags, on agenda_mock.py or a profile's provider
 art/cozy                  previews and layer SVGs (sources of the PNGs in the game)
 ```
