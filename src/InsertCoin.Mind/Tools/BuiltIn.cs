@@ -54,19 +54,16 @@ public static class BuiltIn
     public static Tool Focus(Func<string, int?, int?, string> act) => new(
         AIFunctionFactory.Create(
             ([Description("start, pause, resume, skip (ends the part under way and starts the next) or stop")] string action,
-             [Description("When starting: minutes of each focus part, if the player asked for a length; otherwise leave it out")] int? focus_minutes = null,
+             [Description("When starting: minutes of each focus part, if the player asked for a length; otherwise leave it out, and their own length is used")] int? focus_minutes = null,
              [Description("When starting: minutes of each short break, if the player asked for a length; otherwise leave it out")] int? break_minutes = null) =>
                 act(action.Trim().ToLowerInvariant(), focus_minutes, break_minutes),
             "focus_session",
             "Runs a focus session (Pomodoro) on the cabinet: focus, then a short break, a long one after every few, until stopped. The screen counts " +
-            "down, you are told when each part ends, and their music can play while they focus. Start one when the player asks for one, and " +
-            "pause, skip or stop it when they ask. Where a session stands is in the cabinet block."),
+            "down, you are told when each part ends, and their music can play while they focus. Start one when the player asks you to, or says " +
+            "yes when you offer one; a question about focus sessions or Pomodoro is answered, not started. Pause, skip or stop one when they ask. " +
+            "Where a session stands is in the cabinet block."),
         "Focus sessions",
-        OutsideApp: false)
-    {
-        // a question about focus sessions isn't asking for one (#145): she answered how long a Pomodoro is and started one
-        AskedFor = (arguments, said) => Text(arguments, "action")?.Trim().ToLowerInvariant() != "start" || FocusRequest.In(said),
-    };
+        OutsideApp: false);
 
     public const string AgendaName = "agenda";
 

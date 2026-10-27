@@ -457,7 +457,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
         }
         _lastReply = null;
-        tools?.Fresh(fromCabinet ? null : said);
+        tools?.Fresh();
         CutShort = false;
         try
         {
