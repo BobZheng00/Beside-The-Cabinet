@@ -72,12 +72,6 @@ public sealed record Tool(AIFunction Function, string Title, bool OutsideApp, Fu
     public bool AtThePc { get; init; }
 
     /// <summary>
-    /// Whether the player's words her reply answers (null when the cabinet spoke) ask for this call: one they don't ask
-    /// for isn't made, and she is told so (a focus session started only when asked for, #145). Null: every call is made.
-    /// </summary>
-    public Func<AIFunctionArguments, string?, bool>? AskedFor { get; init; }
-
-    /// <summary>
     /// It tells her what she would simply know (the cabinet's numbers), at once: no line of hers before it, which is for
     /// a wait ("I'll check the cabinet's earning rules" read stiff, 2026-10-12).
     /// </summary>
@@ -196,14 +190,8 @@ public sealed class Toolbox
             _offered = null;
     }
 
-    /// <summary>The player's words the reply under way answers; null when the cabinet spoke (see <see cref="Tool.AskedFor"/>).</summary>
-    public string? Said { get; private set; }
-
-    /// <summary>
-    /// A new reply begins, to <paramref name="said"/> (null when the cabinet spoke): nothing from the web has been read in
-    /// it yet (see <see cref="Tool.FromWeb"/>).
-    /// </summary>
-    public void Fresh(string? said = null) => (_readTheWeb, Said) = (false, said);
+    /// <summary>A new reply begins: nothing from the web has been read in it yet (see <see cref="Tool.FromWeb"/>).</summary>
+    public void Fresh() => _readTheWeb = false;
 
     /// <summary>The model has begun calling <paramref name="name"/> (one of hers): <see cref="Starting"/> is raised.</summary>
     public void Begun(string name)
@@ -277,9 +265,6 @@ public sealed class Toolbox
         if (Away && tool.AtThePc)
             return ("The player is away from the PC, texting you: this needs them at it, so it wasn't done.",
                     $"You tried to use {tool.Name} ({given}) while the player was texting you from away; it needs them at the PC.");
-        if (tool.AskedFor is { } asked && !asked(arguments, Said))
-            return ("The player hasn't asked for this, so it wasn't done. Offer it if it would help; it's done once they say so.",
-                    $"You tried to use {tool.Name} ({given}) without the player asking for it; it wasn't done.");
         var asking = tool.Ask is null ? (tool.Title, given, null) : tool.Ask(arguments);
         var (what, detail, scope) = asking ?? ("", "", null);
         var permission = PermissionOf(tool, scope);

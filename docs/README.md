@@ -433,8 +433,8 @@ and a sticker. Memos are yours: forgetting leaves them be.
 
 The screen's FOCUS app runs a Pomodoro (25 minutes of focus, 5 off, 15 after every fourth; down and up beside each
 length change it): the CRT counts down, and your companion tells you when each part ends, with a nudge to stand up
-and drink some water at the breaks. Ask them to start one ("let's focus for 50 minutes") and they do; ask about
-them ("how long is a pomodoro?") and they answer, and start one only once you say so. MUSIC shows
+and drink some water at the breaks. Ask them to start one ("let's focus for 50 minutes"), or say yes when they offer, and they do; a question about
+them ("how long is a pomodoro?") gets an answer, not a session. MUSIC shows
 what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
 nothing open, play starts Spotify for you). Each focus part pays into the cabinet as it ends (see Balance). Save
 playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD): START plays one from its beginning (the app
