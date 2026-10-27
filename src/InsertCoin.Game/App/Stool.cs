@@ -1038,9 +1038,6 @@ public partial class Stool : Node2D
         return Interrupt();
     }
 
-    /// <summary>A point on her bubble while it waits for the player's answer to her call: a click there answers it.</summary>
-    public bool OnBubble(Vector2 canvasPoint) => Calling && Her?.BubbleHits(canvasPoint) == true;
-
     /// <summary>Her card is asking: what the player says next may answer it (see <see cref="SpokenAnswer"/>).</summary>
     internal bool CardOpen => _permission.IsOpen;
 
@@ -1071,15 +1068,13 @@ public partial class Stool : Node2D
     }
 
     /// <summary>She waves (no line about play time: the user found it repetitive, 2026-10-07); when she can talk, the slip to type to her opens too.</summary>
-    /// <param name="at">Where, on the canvas: on one of the answers on her bubble, that answer speaks for itself.</param>
-    public void Clicked(Vector2? at = null)
+    public void Clicked()
     {
         if (_listening.HeldToTalk)
             return;                                         // that was a hold: she was being talked to
         if (Calling)
         {
-            if (at is not { } point || Her?.OnAnswer(point) != true)
-                GoOn();                                     // she waits on her call: a click on her (or her bubble) is the player's "yes?"
+            GoOn();                                         // she waits on her call: a click on her (or her bubble) is the player's "yes?"
             return;
         }
         var replying = Replying;
@@ -1096,7 +1091,7 @@ public partial class Stool : Node2D
 
     /// <summary>The window is solid here: her figure, or the slip.</summary>
     public bool Hits(Vector2 canvasPoint) =>
-        Her?.Hits(canvasPoint) == true || OnBubble(canvasPoint) || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
+        Her?.Hits(canvasPoint) == true || _chatBox.Hits(canvasPoint) || _permission.Hits(canvasPoint);
 
     /// <summary>The slip keeps the mouse here, for typing.</summary>
     public bool Typing(Vector2 canvasPoint) => _chatBox.Hits(canvasPoint);
@@ -1244,6 +1239,11 @@ public partial class Stool : Node2D
                         GoOn();
                     else
                         _ = NotNow();
+                };
+                her.BubbleClicked = () =>                   // her bubble's words clicked while she waits on her call: "yes?"
+                {
+                    if (Calling)
+                        Clicked();
                 };
                 _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.CallMe));
                 GiveOwnVoice(character.Id, character.Name);
@@ -2474,6 +2474,7 @@ public partial class Stool : Node2D
             case "quiet": SetBubbles(!_settings.Now.SpeechBubbles); break;
             case "click": Clicked(); break;                 // as if she had been clicked
             case "bubblechip": Her?.DevAnswer(rest != "notnow"); break;     // bubblechip:yes or bubblechip:notnow: as if that answer on her bubble were clicked
+            case "bubblewait": if (Her is not null) Her.Waiting = true; break;     // the answers to a call on the bubble showing, with no call: to see them
             case "legs": Her?.DevLegs(rest); break;         // legs:left|right|both|ring sets which feet hang off the stool's ring
             case "hum": Her?.DevHum(); break;               // hum: a tune in their head now (a sway, or a nod when relaxed)
             case "closeup": Her?.DevCloseUp(rest != "off"); break;     // closeup:hands narrows her camera onto her hands, closeup:off puts it back

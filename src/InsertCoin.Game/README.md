@@ -17,7 +17,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   to, when their mind can't say them in their own words) type themselves out; replies from the mind start as
   thinking dots and grow as they stream in. A long one is shown a page at a time, like subtitles: each page turns
   once the voice has said it (`Voice.Progress`), or, when they are not speaking, once there has been time to read it,
-  and the bubble fades only when they have finished. `ChatBox` is the slip you type on, `Paper` the shared look
+  and the bubble fades only when they have finished. It is drawn in a window of its own (`Beside the Cabinet bubble`),
+  the size it is by a large cabinet whatever the cabinet's size, beside the marquee rather than over it, and clicks
+  pass through it except while they wait on their call. `ChatBox` is the slip you type on, `Paper` the shared look
   (cream paper, the cabinet's ink, Fredoka).
 - `App/Chat.cs` connects the companion to `InsertCoin.Mind`: sends what you type, acts out stage directions
   (`[cheer]`, `[wave]`, `[worry]`…; `[plan: …]` and the agenda's other tags only on a provider without tools), logs

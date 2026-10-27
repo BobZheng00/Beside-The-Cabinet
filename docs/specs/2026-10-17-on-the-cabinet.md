@@ -137,6 +137,20 @@ switches are icons only. The user: "i think when hover the switch, replace the t
   it. The marquee still gets the name, behind the screen. App tiles carry their names already, so only switches.
 - **On Large** the home screen stays on the cabinet: the name lights on the marquee and the bar keeps the time.
 
+## Built: her speech bubble the same size by any cabinet (2026-10-27, #172, #170)
+
+The user, trying a small cabinet: "at S, the msg bubble is also very small and a bit unreadable. i would suggest the
+msg bubble to have the size like under L". QA on #169: a full page already covered the left of the marquee.
+
+- **Her bubble is drawn in a window of its own,** a pixel per canvas unit: its text, page mark and answers are the size
+  they are by a large cabinet on Small, Medium and Large. A small cabinet's window has no room for that, so the bubble
+  reaches past it onto the desktop, over her head as before.
+- **A full page sits beside the marquee, left of it,** its right edge short of the marquee's (on Large too, which
+  covered its first letter). Only when the screen's left edge leaves no room there does it rise above the marquee
+  instead. It keeps to the screen the cabinet is on, and no taller than above her head by a large cabinet.
+- **Clicks pass through it** as before, except while she waits on her call: then a click on it is "yes?", and its
+  answers take their own clicks. It is kept just above the cabinet, under the windows the player opened.
+
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close
   the card is left to how the card already handles a click elsewhere.

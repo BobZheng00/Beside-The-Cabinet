@@ -219,7 +219,8 @@ public partial class Main : Node2D
         };
         _window.AlsoSolid = p => _stool.Hits(p) || _crt.Covers(p);       // the screen, lifted out over her
         _window.PressedElsewhere += _crt.Away;
-        _window.Covered = _stool.Memos.Covers;              // a memo's sheet over the cabinet
+        _window.Covered = p => _stool.Memos.Covers(p) || _stool.Her?.BubbleCovers(p) == true;     // a memo's sheet, or her bubble, over the cabinet
+        _window.Bubble = () => _stool.Her?.BubbleWindow ?? 0;
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {
@@ -236,8 +237,8 @@ public partial class Main : Node2D
                 return;                                     // a memo on the cabinet opens to read
             else if (_crt.Clicked(p))
                 return;                                     // the screen's small system
-            else if (_stool.Her?.Hits(p) == true || _stool.OnBubble(p))
-                _stool.Clicked(p);
+            else if (_stool.Her?.Hits(p) == true)
+                _stool.Clicked();
         };
         _window.RightClicked += () => _tray.ShowMenu(DisplayServer.MouseGetPosition());     // the tray's own menu, at the pointer
         _cabinet.CheckPressed += OnCheck;
@@ -724,7 +725,7 @@ public partial class Main : Node2D
             case "menu": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2); break;     // as if she or the cabinet were right-clicked mid-window (a test run never follows the pointer): logs it
             case "menuopen": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2, evenInTest: true); break;     // as menu, and shows it (no screenshots until it closes)
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
-            case "bubbleclick": if (_stool.OnBubble(_stool.Her?.BubbleCentre ?? default)) _stool.Clicked(); break;     // a click on her bubble while it waits on her call
+            case "bubbleclick": _stool.Her?.DevClickBubble(); break;       // a click on her bubble's words while it waits on her call
             case "remindertry":                             // the "Try it" on Settings → Reminders
                 if (IsInstanceValid(_settingsWindow) && _settingsWindow!.PageOf("reminders") is ReminderSettings reminders)
                     reminders.DevTry();

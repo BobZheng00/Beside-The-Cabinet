@@ -25,7 +25,8 @@ Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `w
 `manner:relaxed` or `manner:neat` (how whoever is on the stool sits), `showmanner` ("Show me" on it),
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if the companion were clicked), `bubbleclick`
 (a click on the bubble's words while it waits on their call), `bubblechip:yes` or `bubblechip:notnow` (that answer on the
-bubble clicked), `nocall` (another app's microphone doesn't count as a call), `saver`
+bubble clicked), `bubblewait` (the bubble showing shows those answers, with no call: to see them; its window is
+`Beside the Cabinet bubble`, so `-Desk` shows it beside the cabinet), `nocall` (another app's microphone doesn't count as a call), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `hum` (a tune in their
 head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
