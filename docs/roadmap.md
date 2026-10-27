@@ -36,7 +36,9 @@ to the card, the agenda result handed back as known so she reacts rather than re
 measures both (spikes #105 and #125). With it, the default characters' cards (spec
 `docs/specs/2026-10-24-default-cards.md`, from the research note on character cards, #131): Shino rewritten as an
 adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
-by the player's language or forced by a setting; then Fumiriya's.
+by the player's language or forced by a setting; then Fumiriya's. Before Preview 2 (#157), what earns play time (spec
+`docs/specs/2026-10-27-what-earns-play-time.md`, #165): chosen on the first run (focus, the player's own activities,
+LeetCode) or none at all, and programs the player picks counting as play (#173, #174, #175).
 
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
