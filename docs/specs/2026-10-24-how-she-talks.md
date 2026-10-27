@@ -92,6 +92,10 @@ report.
   report, the fallback, chosen with it, is ending the reply at a silent call, with the agenda showing the item: built as
   a follow-up, without asking again.
 - **By text, a plain line from the app under her message** (the user, 2026-10-23).
+- **A reminder only when asked** (the user, 2026-10-26, choosing "Only when asked" of three options, after QA on #127
+  saw the lean text set no reminder on plans the player only mentioned, where today's text set one at the time): the
+  agenda tool's `remind` says "none unless they asked to be reminded", as upkeep's plans already did, so it doesn't
+  vary with the model or the base text.
 - **A billed manner check** (the user, 2026-10-23), run once to compare (#125, done) and again with each build below.
 
 ## Not built, and why
@@ -130,9 +134,9 @@ Each step is usable on its own.
    started; it measures the build it is built from, so two commits' builds run into one folder are compared.
    The billed run (demo provider, Shino's card as shipped, `<tools>\manner-bench\run-127`: 56
    requests, 182,517 input tokens, 32,256 cached, 2,313 output), today against lean, of 21 replies each: stock openers
-   2 and 2 (one in the agenda replies each, "Got it" on the moved dentist); a date or time said back 6 and 6; the
+   2 and 2 (one in the agenda replies each, "Got it" on the moved dentist); a date or time said back 5 and 5; the
    player echoed 6 and 6; the bookkeeping narrated 4 and 3; offers of help 0 and 2; ending on a question 8 and 11 (7
-   and 10 of the 15 that aren't about the agenda); English words median 22 and 27, at most 38 and 75; Chinese
+   and 10 of the 15 that aren't about the agenda); English words median 22 and 27, at most 38 and 76; Chinese
    characters median 36 and 48, at most 81 and 121; tools used unasked 0 and 0; a focus session started only when
    asked, in both (none on `quick-zh`); every Chinese moment answered in Chinese. An 80-word reply reads well in the
    bubble: three pages of whole sentences (a hidden run on the stand-in mind). Two things to watch: lean made up a

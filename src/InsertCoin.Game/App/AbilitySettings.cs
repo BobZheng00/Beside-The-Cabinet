@@ -34,8 +34,8 @@ public partial class AbilitySettings : VBoxContainer
         Form.Hint(this, $"What {name} can do beyond talking. Allowed: done when it helps. Ask me first: {name} asks, and a card by " +
                         "the stool lets you say yes or no. Off: not at all. Whatever acts outside this app asks first unless you allow it.");
         Form.Tick(this, $"Auto: {name} goes ahead without asking", tools.Auto, on => AutoChosen?.Invoke(on));
-        Form.Hint(this, $"Like an auto mode: where {name} would ask first, it just happens. {name} still says what's going on, and what's " +
-                        "switched off stays off. Every use is in the chat history. Two exceptions: what's on the Privacy page, and the rest " +
+        Form.Hint(this, $"Like an auto mode: where {name} would ask first, it just happens, and what's switched off stays off. " +
+                        "Every use is in the chat history. Two exceptions: what's on the Privacy page, and the rest " +
                         "of a reply once a page or search results have been read, since a page could try to talk its reader into things.");
         Form.Subheading(this, "Built in");
         // her agenda is how she keeps the player's plans, as before it was a tool: not an ability to switch off

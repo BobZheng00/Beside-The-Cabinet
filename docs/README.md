@@ -308,7 +308,7 @@ while they are speaking. The CRT shows MIC whenever the microphone is open.
 
 Your companion can do things too, with tools (Settings → Abilities): open a web page in your browser or an app from
 your Start menu, read a page, search the web, look up a LeetCode problem, check the cabinet's numbers, and the rest
-below. They say what they're about to do in their own words, and anything acting outside the app asks first: a card
+below. Whether they say what they're about to do is up to their character; anything acting outside the app asks first: a card
 by the stool shows what and where (the real address, whatever they said about it), with Allow once, Always (for that
 site or app) and No. Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there
 to forget. Auto lets them go ahead without asking (what's switched off stays off), except for what's on the Privacy

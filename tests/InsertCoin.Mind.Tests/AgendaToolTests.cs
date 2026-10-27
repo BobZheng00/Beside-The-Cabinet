@@ -569,6 +569,16 @@ public class AgendaToolTests
     }
 
     [Fact]
+    public void A_plan_the_player_only_mentions_gets_no_reminder_unless_they_asked_for_one()
+    {
+        var tool = BuiltIn.Agenda((_, _, _, _, _, _, _) => "").Function;
+        var remind = ((System.Text.Json.JsonElement)tool.JsonSchema).GetProperty("properties").GetProperty("remind").GetProperty("description").GetString();
+
+        // the user's choice, 2026-10-26: only when asked, as upkeep's plans ("none" unless the player asked to be reminded)
+        Assert.StartsWith("Whether to remind them: none unless they asked to be reminded", remind);
+    }
+
+    [Fact]
     public void Her_base_text_leaves_how_much_she_says_and_how_to_her_card()
     {
         var withTools = Prompt.Build(Shino, "", "", null, [], "", "hi", tools: true, asking: ["open_link"], known: ["cabinet_numbers"])[0].Text;
