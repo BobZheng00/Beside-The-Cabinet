@@ -1,7 +1,7 @@
 # How she talks: a person beside the player, not an assistant reporting work
 
 *Decided with the user, 2026-10-21 to 2026-10-24 (#106, from the agenda spike #105 and the comparison spike #125).
-Nothing built yet; the order is at the end.*
+Step 1 built 2026-10-26 (#127); the order is at the end.*
 
 ## Why
 
@@ -105,7 +105,8 @@ report.
 
 ## Open
 
-- **Ending on a question:** revisit with the manner check's numbers once step 2 is in.
+- **Ending on a question:** revisit with the manner check's numbers once step 2 and #143's card are in (#127's run: 8 of
+  21 with today's text, 11 of 21 with the lean one, on today's card).
 - **Models that call first** (#126): on the demo's provider every agenda call came with no words before it. Step 2
   works either way; whether flow C ever applies there is for #126.
 - **How often to run the manner check:** with each change to her instructions or tools, to start. Whether a smaller
@@ -118,6 +119,26 @@ Each step is usable on its own.
 1. **Lean base instructions, and the manner check landed.** Today's base text is replaced by the lean one (with
    "only", leaving the PC, and the agenda tool's "jot it down" line kept for now), `tools/bench/manner.cs` lands, and
    one billed run compares the build with today's text.
+
+   *Built 2026-10-26 (#127).* `Prompt.Build`'s base text is the lean one: where she sits and who she is to the player
+   ("a person in the room with them, not a service they call on"), the two of them talking at one desk with her words
+   in a bubble "a page at a time", the cabinet keeping the agenda and reminding "by itself of what has a reminder" (said
+   so because #115 found every false claim was about a reminder), and that what a tool does comes back to her. Gone:
+   the sentence count, the line before a tool, "only say you did", "say when you will", "take it lightly", and asking
+   in words as a card asks. Kept as listed above, "only" and the "jot it down" line included. `tools/bench/manner.cs`
+   landed with 21 moments (a "start" moment added for #145), counting tools used unasked and focus sessions actually
+   started; it measures the build it is built from, so two commits' builds run into one folder are compared.
+   The billed run (demo provider, Shino's card as shipped, `<tools>\manner-bench\run-127`: 56
+   requests, 182,517 input tokens, 32,256 cached, 2,313 output), today against lean, of 21 replies each: stock openers
+   2 and 2 (one in the agenda replies each, "Got it" on the moved dentist); a date or time said back 6 and 6; the
+   player echoed 6 and 6; the bookkeeping narrated 4 and 3; offers of help 0 and 2; ending on a question 8 and 11 (7
+   and 10 of the 15 that aren't about the agenda); English words median 22 and 27, at most 38 and 75; Chinese
+   characters median 36 and 48, at most 81 and 121; tools used unasked 0 and 0; a focus session started only when
+   asked, in both (none on `quick-zh`); every Chinese moment answered in Chinese. An 80-word reply reads well in the
+   bubble: three pages of whole sentences (a hidden run on the stand-in mind). Two things to watch: lean made up a
+   stage direction once (`[忧心]`, as today's text did in #125), and with "talk to me" she told of a cat she "saw
+   today", a life of her own the spec leaves for later. The question rate is not changed in the base text: the card's
+   lines saying she asks drove it in #143's runs.
 2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
    It is measured with the manner check before and after, stock openers included.
 3. **By text, a plain line under her message** with what she set.
