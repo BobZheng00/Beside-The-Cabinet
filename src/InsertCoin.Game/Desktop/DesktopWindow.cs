@@ -34,6 +34,8 @@ public partial class DesktopWindow : Node
     public event Action? PressedElsewhere;
     /// <summary>Another of the app's windows is over this screen point (a memo's sheet): the cabinet underneath is not pointed at.</summary>
     public Func<Vector2I, bool>? Covered { get; set; }
+    /// <summary>Her speech bubble's window, or 0 while none shows: kept just above the cabinet, as when it was drawn in the cabinet's own.</summary>
+    public Func<nint>? Bubble { get; set; }
 
     private Bitmap _hitMask = null!;
     private float _maskScale;
@@ -175,8 +177,9 @@ public partial class DesktopWindow : Node
                 dialogs.Add(w);
         var top = Topmost(_hwnd);
         // top first, each kind in the order it is in now, except that one Godot has just shown (not yet on top with the
-        // cabinet) is in front of the others
-        List<nint> wanted = [.. menus, .. onTop, .. dialogs, .. windows.OrderBy(w => top && !Topmost(w) ? 0 : 1), _hwnd];
+        // cabinet) is in front of the others; her bubble just above the cabinet, under the windows the player opened
+        var bubble = Bubble?.Invoke() ?? 0;
+        List<nint> wanted = [.. menus, .. onTop, .. dialogs, .. windows.OrderBy(w => w == bubble ? 2 : top && !Topmost(w) ? 0 : 1), _hwnd];
         for (var i = wanted.Count - 2; i >= 0; i--)
         {
             var kind = top || tickets.Contains(wanted[i]) || popups.Contains(wanted[i]);     // a ticket and a popup are always kept on top
@@ -240,9 +243,15 @@ public partial class DesktopWindow : Node
         if (clickThrough == _clickThrough)
             return;
         _clickThrough = clickThrough;
-        var style = Win32.GetWindowLongPtr(_hwnd, Win32.GwlExStyle) | Win32.WsExLayered;
+        ClickThrough(_hwnd, clickThrough);
+    }
+
+    /// <summary>Lets clicks on one of the app's windows pass to whatever is under it, the player's desktop too (or stop doing so).</summary>
+    public static void ClickThrough(nint hwnd, bool clickThrough)
+    {
+        var style = Win32.GetWindowLongPtr(hwnd, Win32.GwlExStyle) | Win32.WsExLayered;
         style = clickThrough ? style | Win32.WsExTransparent : style & ~Win32.WsExTransparent;
-        Win32.SetWindowLongPtr(_hwnd, Win32.GwlExStyle, style);
+        Win32.SetWindowLongPtr(hwnd, Win32.GwlExStyle, style);
     }
 
     private static class Win32

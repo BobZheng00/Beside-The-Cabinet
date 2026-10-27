@@ -104,8 +104,16 @@ public partial class CompanionView : Node2D
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
         layer.SetShaderParameter("width_px", InkCanvasPixels * skin.Scale);
         AddChild(new Sprite2D { Texture = viewport.GetTexture(), Centered = false, Scale = Vector2.One / skin.Scale, Material = layer });
-        _bubble = new SpeechBubble();
-        AddChild(_bubble);
+        var marquee = skin.Anchors.Marquee;
+        _bubble = new SpeechBubble { Marquee = new Rect2(marquee[0], Vector2.Zero).Expand(marquee[1]).Expand(marquee[2]).Expand(marquee[3]) };
+        // a window of its own, so it reads as well by a small cabinet as by a large one (see SpeechBubble)
+        var window = new Window
+        {
+            Title = "Beside the Cabinet bubble", Borderless = true, Transparent = true, TransparentBg = true, Transient = true,
+            Unfocusable = true, Visible = false,           // it never takes the keyboard
+        };
+        window.AddChild(_bubble);
+        AddChild(window);
     }
 
     public void Play(Moment moment) => _puppet.Play(moment);
@@ -207,17 +215,23 @@ public partial class CompanionView : Node2D
         set => _bubble.Answered = value;
     }
 
-    /// <summary>Whether a canvas point is on one of the answers to her call, on her bubble.</summary>
-    public bool OnAnswer(Vector2 canvasPoint) => _active && _bubble.OnAnswer(canvasPoint);
+    /// <summary>Her bubble was clicked, not on an answer, while she waits on her call.</summary>
+    public Action BubbleClicked
+    {
+        set => _bubble.Clicked = value;
+    }
 
     /// <summary>Dev: as if an answer on her bubble were clicked.</summary>
     public void DevAnswer(bool yes) => _bubble.DevAnswer(yes);
 
-    /// <summary>Whether a canvas point is on her speech bubble.</summary>
-    public bool BubbleHits(Vector2 canvasPoint) => _active && _bubble.Hits(canvasPoint);
+    /// <summary>Dev: as if her bubble's words were clicked.</summary>
+    public void DevClickBubble() => _bubble.DevClick();
 
-    /// <summary>Dev: the middle of her bubble's words, while it shows.</summary>
-    public Vector2? BubbleCentre => _active && _bubble.Visible ? _bubble.Centre : null;
+    /// <summary>Whether a screen point is on her bubble while it takes clicks (it waits on her call).</summary>
+    public bool BubbleCovers(Vector2I screenPoint) => _active && _bubble.Covers(screenPoint);
+
+    /// <summary>Her bubble's window in Windows, or 0 while it isn't showing.</summary>
+    public nint BubbleWindow => _bubble.Handle;
 
     public void EndReply()
     {
@@ -439,6 +453,8 @@ public partial class CompanionView : Node2D
     public void SetActive(bool active)
     {
         _active = Visible = active;
+        if (!active)
+            _bubble?.Clear();                               // in a window of its own, it doesn't hide with her
         _viewport.RenderTargetUpdateMode = active ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
     }
 

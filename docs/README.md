@@ -57,7 +57,8 @@ patterns.
 
 Your companion follows the mouse pointer with their eyes and head, waves when clicked, and reacts to what the
 cabinet does: claps for a Hard solve, a small fist pump for the others, glances at the screen, worries about debt,
-dozes while the session is paused, and says something about it in a speech bubble. In a conversation they look away
+dozes while the session is paused, and says something about it in a speech bubble (as large by a small cabinet as
+by a large one, so on a small one it reaches past the cabinet's edge, beside the marquee). In a conversation they look away
 to think and back to answer, nod in your pauses as you talk, and their head follows what their voice stresses. Click
 them and they wave, and the slip to type on opens. Settings → Characters leaves the stool empty, silences the
 bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too. It also sets how each

@@ -9,6 +9,9 @@ namespace InsertCoin.Game.Companion;
 /// longer text is shown a page at a time, like subtitles, each page turning once her voice has said it (or, when she
 /// is not speaking, once there has been time to read it). It fades when the last page has been read and she has
 /// finished speaking. The whole reply is in the chat history.
+/// It is drawn in a window of its own, a pixel per canvas unit, so it is the size it is by a large cabinet whatever the
+/// cabinet's size (#172: by a small one it was too small to read), and it may reach past the cabinet's window: it sits
+/// over her head, its right edge short of the marquee, so a full page leaves the marquee readable.
 /// </summary>
 public partial class SpeechBubble : Node2D
 {
@@ -16,6 +19,8 @@ public partial class SpeechBubble : Node2D
     private const int FontSize = 17, PageFontSize = 12, MaxLines = 6;
     private const float MaxTextWidth = 190, WidestText = 330, PadX = 12, PadY = 8, Corner = 12, TailHeight = 13, TailHalf = 7, Stroke = 2;
     private const float PageMark = 14;                  // room under the text for "2/3"
+    private const float Clearance = 8;                  // between the bubble and the marquee
+    private const float Overshoot = 0.05f;              // how far past full size the pop goes, for room in the window
     private const double LeastOnPage = 1.2, AfterSpeech = 1.2;
     private const string Dots = "...";
 
@@ -23,7 +28,9 @@ public partial class SpeechBubble : Node2D
     private Vector2[] _shape = [];
     private Rect2 _box;
     private Tween? _tween;
-    private Vector2 _tip, _canvas;
+    private Vector2 _tip, _canvas;                      // on the cabinet's canvas
+    private Vector2I _offset;                           // where its window is from the cabinet's
+    private bool? _clickThrough;
     private string _text = "";
     private readonly List<int> _starts = [0];           // where each page starts in the text
     private int _page;
@@ -63,15 +70,31 @@ public partial class SpeechBubble : Node2D
     /// <summary>One of the answers on the bubble was clicked while she waits on her call: true for "Yes?", false for "Not now".</summary>
     public Action<bool> Answered { get; set; } = _ => { };
 
-    /// <summary>Whether a canvas point is on the bubble, while it shows.</summary>
-    public bool Hits(Vector2 canvasPoint) => Visible && !_fading && new Rect2(Position + _box.Position, _box.Size).HasPoint(canvasPoint);
+    /// <summary>The bubble was clicked, not on an answer, while she waits on her call: the player's "yes?".</summary>
+    public Action Clicked { get; set; } = () => { };
 
-    /// <summary>Whether a canvas point is on one of the answers to her call.</summary>
-    public bool OnAnswer(Vector2 canvasPoint) =>
-        _waiting && Hits(canvasPoint) && _answers.GetChildren().OfType<Control>().Any(c => new Rect2(Position + _answers.Position + c.Position, c.Size).HasPoint(canvasPoint));
+    /// <summary>The marquee, on the cabinet's canvas: a full page keeps clear of it.</summary>
+    public Rect2 Marquee { get; set; }
+
+    /// <summary>Its window's handle in Windows, or 0 while it isn't showing.</summary>
+    public nint Handle => GetWindow().Visible ? (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, GetWindow().GetWindowId()) : 0;
+
+    /// <summary>Whether a screen point is on the bubble while it takes clicks (it waits on her call); otherwise clicks pass through it.</summary>
+    public bool Covers(Vector2I screenPoint) => TakesClicks && OnScreen.HasPoint(screenPoint);
+
+    private bool TakesClicks => _waiting && Visible && !_fading;
+
+    private Rect2 OnScreen => new((Vector2)GetWindow().Position + Position + _box.Position, _box.Size);
 
     /// <summary>Dev: as if one of the answers on the bubble were clicked.</summary>
     public void DevAnswer(bool yes) => Answer(yes);
+
+    /// <summary>Dev: as if the bubble's words were clicked.</summary>
+    public void DevClick()
+    {
+        if (TakesClicks)
+            Clicked();
+    }
 
     private void Answer(bool yes)
     {
@@ -79,8 +102,12 @@ public partial class SpeechBubble : Node2D
             Answered(yes);
     }
 
-    /// <summary>The middle of the bubble's words, on the canvas.</summary>
-    public Vector2 Centre => Position + _label.Position + _label.Size / 2;
+    public override void _UnhandledInput(InputEvent e)
+    {
+        // the answers take their own clicks; anywhere else on the box is "yes?"
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } click && TakesClicks && _box.HasPoint(ToLocal(click.Position)))
+            Clicked();
+    }
 
     public override void _Ready()
     {
@@ -111,7 +138,7 @@ public partial class SpeechBubble : Node2D
     }
 
     /// <param name="tip">Canvas point the tail points at (just above her head).</param>
-    /// <param name="canvas">Canvas size; the bubble stays inside it.</param>
+    /// <param name="canvas">The cabinet's canvas size, for how large its window is drawn.</param>
     public void Say(string text, Vector2 tip, Vector2 canvas)
     {
         Start(tip, canvas, streaming: false);
@@ -185,11 +212,45 @@ public partial class SpeechBubble : Node2D
     {
         _streaming = false;
         _tween?.Kill();
-        Visible = false;
+        Show(false);
+    }
+
+    /// <summary>Shows or hides the bubble; its window shows on the next frame (see <see cref="Follow"/>), once it is placed.</summary>
+    private void Show(bool on)
+    {
+        Visible = on;
+        if (!on)
+            GetWindow().Visible = false;
+    }
+
+    /// <summary>
+    /// Shows the bubble's window where it was placed, keeps it over her head as the cabinet is dragged, and lets clicks
+    /// through it except while it takes them.
+    /// </summary>
+    private void Follow()
+    {
+        var window = GetWindow();
+        var at = DisplayServer.WindowGetPosition() + _offset;
+        if (window.Position != at)
+            window.Position = at;
+        if (!window.Visible)
+        {
+            window.Visible = true;
+            _clickThrough = null;                           // a window shown again is a new one in Windows' terms
+        }
+        if (Paper.OffScreen)
+            return;                                         // a test run never follows the player's pointer
+        var through = !(TakesClicks && OnScreen.HasPoint(DisplayServer.MouseGetPosition()));
+        if (through == _clickThrough)
+            return;
+        _clickThrough = through;
+        Desktop.DesktopWindow.ClickThrough(Handle, through);
     }
 
     public override void _Process(double delta)
     {
+        if (Visible)
+            Follow();
         if (!Visible || _fading)
             return;
         if (_streaming && _text.Length == 0)
@@ -319,16 +380,33 @@ public partial class SpeechBubble : Node2D
     /// <summary>How tall a page may be: a few lines, and no more than there is room for above her head.</summary>
     private float MaxHeight()
     {
-        var room = _tip.Y - TailHeight - 4 - 2 * PadY - PageMark;
+        var room = Above(TipOnScreen) - TailHeight - 4 - 2 * PadY - PageMark;
         var lines = MaxLines * _label.GetLineHeight() + (MaxLines - 1) * _label.LabelSettings.LineSpacing;
         return Mathf.Max(Mathf.Min(room, lines), 2 * _label.GetLineHeight());
     }
 
-    /// <summary>Sizes the bubble around the text, above her head and mostly to the left of it (the cabinet is on her other side).</summary>
+    /// <summary>The tail's tip on the screen, in pixels.</summary>
+    private Vector2 TipOnScreen => DisplayServer.WindowGetPosition() + _tip * CabinetScale;
+
+    /// <summary>The cabinet window's pixels per canvas unit (1 by a large cabinet).</summary>
+    private float CabinetScale => DisplayServer.WindowGetSize().X / _canvas.X;
+
+    /// <summary>The screen the cabinet is on, less the taskbar; none in a test run, which is off every screen.</summary>
+    private static Rect2? Screen() =>
+        Paper.OffScreen ? null : DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen()) is var r ? new Rect2(r.Position, r.Size) : null;
+
+    /// <summary>How far above her head the bubble may reach: as far as by a large cabinet, and no further than the screen's top.</summary>
+    private float Above(Vector2 tip) => Screen() is { } screen ? Mathf.Min(_tip.Y, tip.Y - screen.Position.Y) : _tip.Y;
+
+    /// <summary>
+    /// Sizes the bubble around the text, above her head and mostly to the left of it (the cabinet is on her other side),
+    /// its right edge short of the marquee; then fits its window around it, on the screen.
+    /// </summary>
     private void Place(string text, bool single)
     {
         // A short reply first grows wider, so it stays above her head instead of covering it; pages are at the widest.
-        var room = _tip.Y - TailHeight - 4 - 2 * PadY;
+        var tip = TipOnScreen;
+        var room = Above(tip) - TailHeight - 4 - 2 * PadY;
         var width = single ? MaxTextWidth : WidestText;
         var size = Measure(text, width);
         while (size.Y > room && width < WidestText)
@@ -344,11 +422,26 @@ public partial class SpeechBubble : Node2D
             box.X = WidestText + 2 * PadX;                   // pages keep one width, so the bubble doesn't jump about
         box.X = Mathf.Max(box.X, 2 * (Corner + TailHalf) + 10);      // room for the tail between the round corners, even for "..."
         box.X = Mathf.Max(box.X, answers.X + 2 * PadX);
-        var left = Mathf.Clamp(_tip.X - box.X * 0.62f, 6, _canvas.X - box.X - 6);
-        var top = Mathf.Max(_tip.Y - TailHeight - box.Y, 4);
-        var rect = _box = new Rect2(new Vector2(left, top) - _tip, box);       // local: the node sits on the tail's tip
+        var scale = CabinetScale;
+        var marquee = new Rect2(DisplayServer.WindowGetPosition() + Marquee.Position * scale, Marquee.Size * scale);
+        var left = Mathf.Min(tip.X - box.X * 0.62f, marquee.Position.X - Clearance - box.X);
+        var top = tip.Y - TailHeight - box.Y;
+        if (Screen() is { } screen)
+        {
+            left = Mathf.Clamp(left, screen.Position.X + 6, screen.End.X - box.X - 6);
+            if (left + box.X > marquee.Position.X - Clearance)
+                top = Mathf.Min(top, marquee.Position.Y - Clearance - box.Y);      // no room beside the marquee on this screen: above it
+            top = Mathf.Max(top, screen.Position.Y + 4);
+        }
+        var rect = _box = new Rect2(new Vector2(left, top) - tip, box);         // local: the node sits on the tail's tip
 
-        Position = _tip;
+        // its window: the box and the tail, with room for the pop to overshoot
+        var area = rect.Expand(Vector2.Zero).Grow(Overshoot * Mathf.Max(rect.Size.X, rect.Size.Y + TailHeight) + Stroke);
+        var window = GetWindow();
+        window.Position = (Vector2I)(tip + area.Position).Floor();
+        window.Size = (Vector2I)area.Size.Ceil() + Vector2I.One;
+        _offset = window.Position - DisplayServer.WindowGetPosition();
+        Position = tip - window.Position;
         _label.Text = text;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
         _label.Size = new Vector2(width, size.Y);
@@ -381,7 +474,7 @@ public partial class SpeechBubble : Node2D
     private void Pop()
     {
         _tween?.Kill();
-        Visible = true;
+        Show(true);
         Scale = Vector2.One * 0.6f;
         Modulate = new Color(1, 1, 1, 0);
         _label.VisibleRatio = 1;
@@ -396,7 +489,7 @@ public partial class SpeechBubble : Node2D
         _tween?.Kill();
         _tween = CreateTween();
         _tween.TweenProperty(this, "modulate:a", 0f, 0.3);
-        _tween.TweenCallback(Callable.From(() => Visible = false));
+        _tween.TweenCallback(Callable.From(() => Show(false)));
     }
 
     /// <summary>A rounded box with a tail from its bottom edge down to the origin (unless there is none), as one clockwise outline.</summary>
