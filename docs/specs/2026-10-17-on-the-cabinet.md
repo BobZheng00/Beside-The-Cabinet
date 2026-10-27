@@ -152,8 +152,9 @@ Each step is usable on its own.
    shows, holds the app still while it is open, and the user wanted her voice and motion to carry on (2026-10-18).
    Like every popup of the app's, it is kept above the cabinet and the app's windows while it shows, and on top of
    other apps when they are (Always on top): it opened under them before (the user, 2026-10-21).
-   *Sized (#163):* the same size by a small, medium or large cabinet: the size the user liked by a medium one with
-   Windows at 125% (2026-10-26), and as large in inches on screens at other scaling. A popup menu takes its scale
+   *Sized (#163):* the same size by a small, medium or large cabinet: the size it had by a large one with Windows at
+   125%, the best fit to the user (2026-10-27; the medium one's was still a bit small), and as large in inches on
+   screens at other scaling. A popup menu takes its scale
    from the window it belongs to, so it had shrunk and grown with the cabinet, and the screen's scaling set for it
    was overridden.
 2. **The CRT:** the SETTINGS app, and the quick-switch row on the home screen.
