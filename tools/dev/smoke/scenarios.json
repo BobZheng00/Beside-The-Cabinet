@@ -336,13 +336,13 @@
     },
     {
       "name": "menu-size",
-      "about": "The right-click menu, shown, is the same size by a medium cabinet, then a small one and a large one (chosen on Settings → Cabinet): the size it had by a medium cabinet with Windows at 125%, as large in inches on any screen.",
+      "about": "The right-click menu, shown, is the same size by a medium cabinet, then a small one and a large one (chosen on Settings → Cabinet): the size it had by a large cabinet with Windows at 125%, as large in inches on any screen.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
       "script": "menuopen@2,menupress:Show_cabinet@3,settings:cabinet@4,settingsdo:Size:0@6,menuopen@7,menupress:Show_cabinet@8,settingsdo:Size:2@9,menuopen@10,menupress:Show_cabinet@11",
       "shots": [14],
       "window": "Settings",
-      "expect": ["^Settings: Size is \"Small\"$", "^Settings: Size is \"Large\"$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.8, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.64 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.6, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.64 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 1\\.0, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.64 per 96 dpi\\)$"],
-      "forbid": ["^Menu: shown (?!.*\\(0\\.64 per 96 dpi\\)$)"]
+      "expect": ["^Settings: Size is \"Small\"$", "^Settings: Size is \"Large\"$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.8, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.6, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 1\\.0, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$"],
+      "forbid": ["^Menu: shown (?!.*\\(0\\.80 per 96 dpi\\)$)"]
     }
   ]
 }

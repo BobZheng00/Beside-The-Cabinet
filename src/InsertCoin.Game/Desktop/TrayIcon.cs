@@ -75,10 +75,10 @@ public partial class TrayIcon : Node
     }
 
     /// <summary>
-    /// The right-click menu's scale on a 96 dpi screen: the size the player liked it at on a medium cabinet (0.8) with
-    /// Windows at 125% (#163), kept as large in inches on other screens.
+    /// The right-click menu's scale on a 96 dpi screen: the size the player found best, the one it had by a large
+    /// cabinet (1.0) with Windows at 125% (#163), kept as large in inches on other screens.
     /// </summary>
-    private const float MenuScale = 0.8f / 1.25f;
+    private const float MenuScale = 1f / 1.25f;
 
     /// <summary>Dev: the tray menu's entries as they are now, for the log; a switch says whether it is on ([x]) or off ([ ]).</summary>
     public string DevItems() => Items(_menu);
