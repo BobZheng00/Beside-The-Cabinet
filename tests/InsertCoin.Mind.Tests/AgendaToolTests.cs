@@ -574,8 +574,25 @@ public class AgendaToolTests
         var tool = BuiltIn.Agenda((_, _, _, _, _, _, _) => "").Function;
         var remind = ((System.Text.Json.JsonElement)tool.JsonSchema).GetProperty("properties").GetProperty("remind").GetProperty("description").GetString();
 
-        // the user's choice, 2026-10-26: only when asked, as upkeep's plans ("none" unless the player asked to be reminded)
-        Assert.StartsWith("Whether to remind them: none unless they asked to be reminded", remind);
+        // the user's choice, 2026-10-26: only when asked, as upkeep's plans ("none" unless the player asked to be reminded);
+        // on an add only, as none on a change takes a reminder away
+        Assert.Contains("on an add, none unless they asked to be reminded", remind);
+        Assert.Contains("On a change or cancel, keep to leave it as it is", remind);
+    }
+
+    [Fact]
+    public async Task A_plan_that_moves_keeps_the_reminder_the_player_set()
+    {
+        using var temp = new TempStore();
+        var dentist = temp.Store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 23, 15, 30, 0, Wednesday.Offset), false, TimeSpan.FromHours(1), Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["Monday, same time, then.",
+            Agenda("moved", ("action", "change"), ("item", dentist), ("when", "2026-10-26T15:30"), ("remind", "keep"))]);
+
+        await conversation.Answer(model, "The dentist moved me to next Monday, same time.", "", _ => { }, (_, _) => { }, tools: tools);
+
+        var plan = Assert.Single(temp.Store.Agenda());
+        Assert.Equal((26, TimeSpan.FromHours(1)), (plan.At.Day, plan.Before));
     }
 
     [Fact]

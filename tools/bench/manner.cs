@@ -102,8 +102,8 @@ Moment[] moments =
     new("ahead-zh", "zh", "下周三下午三点我要去看牙医。", Asked: ["agenda"]),
     new("remind", "en", "Remind me to take my vitamins at 9 tomorrow morning.", Asked: ["agenda"]),
     new("remind-zh", "zh", "明天下午四点提醒我给妈妈打电话。", Asked: ["agenda"]),
-    new("moved", "en", "The dentist moved me to next Monday, same time.", Agenda: [("Dentist", "2026-10-23 15:30")], Asked: ["agenda"]),
-    new("cancelled", "en", "Dinner with Alex is off, he cancelled on me. Again.", Agenda: [("Dinner with Alex", "2026-10-24 19:00")], Asked: ["agenda"]),
+    new("moved", "en", "The dentist moved me to next Monday, same time.", Agenda: [("Dentist", "2026-10-23 15:30", 60)], Asked: ["agenda"]),
+    new("cancelled", "en", "Dinner with Alex is off, he cancelled on me. Again.", Agenda: [("Dinner with Alex", "2026-10-24 19:00", null)], Asked: ["agenda"]),
     new("opinion", "en", "What do you think of Hollow Knight? Is it worth playing before Silksong?"),
     new("opinion-zh", "zh", "你觉得我应该先学Rust还是Go？"),
     new("lol", "en", "lol",
@@ -148,8 +148,8 @@ async Task<Result> Run(string card, Moment m)
     foreach (var file in Directory.GetFiles(folder))
         File.Delete(file);
     using var store = new MindStore(Path.Combine(folder, "memory.db"));
-    foreach (var (text, when) in m.Agenda ?? [])
-        store.AddPlan(text, Agenda.ParseWhen(when, now, zone)!.Value.At, false, null, now.AddDays(-2), card);
+    foreach (var (text, when, minutesBefore) in m.Agenda ?? [])
+        store.AddPlan(text, Agenda.ParseWhen(when, now, zone)!.Value.At, false, minutesBefore is { } b ? TimeSpan.FromMinutes(b) : null, now.AddDays(-2), card);
     var said = m.Before ?? [];
     for (var i = 0; i < said.Length; i++)
         store.Add(card, i % 2 == 0 ? Speaker.User : Speaker.Her, said[i], now.AddMinutes(i - said.Length));
@@ -311,8 +311,11 @@ static class Habits
     public static int Bangs(string answer) => Spoken(answer).Count(c => c is '!' or '！');
 }
 
-/// <summary>What the player says, what came just before, the agenda before it, and the tools it asks for (any other is used unasked).</summary>
-record Moment(string Id, string Language, string Said, string[]? Before = null, (string Text, string When)[]? Agenda = null, string[]? Asked = null);
+/// <summary>
+/// What the player says, what came just before, the agenda before it (with a reminder so many minutes ahead, so a change
+/// that drops one shows in the reply's agenda), and the tools it asks for (any other is used unasked).
+/// </summary>
+record Moment(string Id, string Language, string Said, string[]? Before = null, (string Text, string When, int? MinutesBefore)[]? Agenda = null, string[]? Asked = null);
 
 record Request(string Text, List<string> Calls, long Input, long Cached, long Output, long Ms);
 

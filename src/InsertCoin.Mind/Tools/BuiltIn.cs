@@ -78,7 +78,7 @@ public static class BuiltIn
     public static Tool Agenda(Func<string, string, long?, string?, string?, int?, string?, string> act) => new(
         AIFunctionFactory.Create(
             ([Description("add, change or cancel")] string action,
-             [Description("Whether to remind them: none unless they asked to be reminded; then at_the_time, or before (with minutes_before) when they asked that long ahead; keep on a change or cancel, to leave it as it is")] string remind,
+             [Description("Whether to remind them: on an add, none unless they asked to be reminded; then at_the_time, or before (with minutes_before) when they asked that long ahead. On a change or cancel, keep to leave it as it is")] string remind,
              [Description("For change or cancel: the item's number in the <agenda> block (12 for #12)")] long? item = null,
              [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. On a change, only if it moves")] string? when = null,
              [Description("What it is, a few words in the player's language (on a change, only to rename it)")] string? what = null,
