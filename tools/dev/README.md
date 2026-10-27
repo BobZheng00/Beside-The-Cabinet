@@ -31,7 +31,9 @@ head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
 (as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
 were right-clicked at the window's middle: the menu with the tray's entries; a test run never shows it, as it would take focus,
 and logs `Menu: at x,y:` and its entries instead, a switch with `[x]` when on and `[ ]` when off), `menuopen` (as `menu`,
-and shows it too, for `windoworder` to list it as "a popup"; a hidden run takes no screenshots until it closes, #88), `menupress:Voice`
+and shows it too, for `windoworder` to list it as "a popup", logging `Menu: shown WxH at x,y by a cabinet at 0.8, on a 120 dpi
+screen: at scale 0.80 (0.64 per 96 dpi)`; a hidden run takes no screenshots until it closes, #88, though the app still
+answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupress:Voice`
 (presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
 `menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,

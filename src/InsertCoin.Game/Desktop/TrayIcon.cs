@@ -23,6 +23,9 @@ public partial class TrayIcon : Node
 
     private StatusIndicator _indicator = null!;
     private PopupMenu _menu = null!, _onCabinet = null!;
+    // the right-click menu's parent: a popup menu takes its scale from the cabinet's window times its parent's, so this
+    // one's scale undoes the cabinet's size (#163)
+    private readonly Node2D _sizer = new();
     private readonly Dictionary<TrayMood, Texture2D> _icons = [];
     private TrayMood? _mood;
 
@@ -31,9 +34,10 @@ public partial class TrayIcon : Node
 
     public void Build(bool muted, bool voice)
     {
-        _menu = Menu();
+        _menu = Menu(this);
         // drawn by the app, not Windows' own menu: that one holds the app still while open, her voice and motion too
-        _onCabinet = Menu();
+        AddChild(_sizer);
+        _onCabinet = Menu(_sizer);
         Sync(muted, voice);
 
         foreach (var (mood, tint) in Tint)
@@ -60,10 +64,21 @@ public partial class TrayIcon : Node
             if (!evenInTest)
                 return;
         }
-        // sized for that screen's DPI, as the app's other windows are, so it reads as large as the tray's
-        _onCabinet.ContentScaleFactor = DisplayServer.ScreenGetDpi(DisplayServer.GetScreenFromRect(new Rect2(at, Vector2.One))) / 96f;
+        // the same size whatever the cabinet's, and as large in inches on any screen
+        var dpi = DisplayServer.ScreenGetDpi(DisplayServer.GetScreenFromRect(new Rect2(at, Vector2.One)));
+        var cabinet = _sizer.GetViewport().GetFinalTransform().Scale.X;
+        _sizer.Scale = Vector2.One * (MenuScale * dpi / 96f / cabinet);
         _onCabinet.Popup(new Rect2I(at, Vector2I.Zero));
+        if (Companion.Paper.OffScreen)
+            GD.Print($"Menu: shown {_onCabinet.Size.X}x{_onCabinet.Size.Y} at {_onCabinet.Position.X},{_onCabinet.Position.Y} by a cabinet at {cabinet:0.0}, " +
+                     $"on a {dpi} dpi screen: at scale {_onCabinet.ContentScaleFactor:0.00} ({_onCabinet.ContentScaleFactor * 96f / dpi:0.00} per 96 dpi)");
     }
+
+    /// <summary>
+    /// The right-click menu's scale on a 96 dpi screen: the size the player liked it at on a medium cabinet (0.8) with
+    /// Windows at 125% (#163), kept as large in inches on other screens.
+    /// </summary>
+    private const float MenuScale = 0.8f / 1.25f;
 
     /// <summary>Dev: the tray menu's entries as they are now, for the log; a switch says whether it is on ([x]) or off ([ ]).</summary>
     public string DevItems() => Items(_menu);
@@ -139,11 +154,11 @@ public partial class TrayIcon : Node
     }
 
     /// <summary>The menu's entries, the one place both menus are made from.</summary>
-    private PopupMenu Menu()
+    private PopupMenu Menu(Node into)
     {
         var menu = new PopupMenu();
         menu.IdPressed += OnMenu;
-        AddChild(menu);
+        into.AddChild(menu);
         menu.AddItem("Show cabinet", ShowId);
         menu.AddItem("Settings…", SettingsId);
         menu.AddSeparator();
