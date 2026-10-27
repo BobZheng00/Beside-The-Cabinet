@@ -94,8 +94,9 @@ report.
 - **By text, a plain line from the app under her message** (the user, 2026-10-23).
 - **A reminder only when asked** (the user, 2026-10-26, choosing "Only when asked" of three options, after QA on #127
   saw the lean text set no reminder on plans the player only mentioned, where today's text set one at the time): the
-  agenda tool's `remind` says "none unless they asked to be reminded", as upkeep's plans already did, so it doesn't
-  vary with the model or the base text.
+  agenda tool's `remind` says "on an add, none unless they asked to be reminded", as upkeep's plans already did, so it
+  doesn't vary with the model or the base text. It is about adds, the plans only mentioned: on a change or cancel
+  `remind` is "keep", since none there would take away a reminder the player set (the review on #169).
 - **A billed manner check** (the user, 2026-10-23), run once to compare (#125, done) and again with each build below.
 
 ## Not built, and why
