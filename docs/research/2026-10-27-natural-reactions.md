@@ -29,18 +29,19 @@ our reading, not measured. No billed run was made for this note.
   anyone, not this player and this manager. "Did they say what needs changing?" is a factual follow-up question, the
   response the research finds non-affiliative. Nothing in it is on the player's side against the manager.
 - **Models produce one well-liked template.** A 2026 study found 83–90% of LLM replies to people's troubles follow one
-  sequence (paraphrase, validate, advise), against 6–40% of human replies, and LLMs never told a story of their own,
-  where 17–68% of human replies did (read). Preference training rewards what raters like and what is typical, so the
+  sequence (paraphrase, validate, advise), against 6–40% of human replies. The three models of its first study never
+  told a story of their own, where 17–68% of human replies did (read). Preference training rewards what raters like and what is typical, so the
   template is where models settle.
 - **The new cards already removed most of the counsellor.** On the replies already collected (ours), today's thin card
   invited the player to talk ("Want to tell me what happened?") in 23 of 35 English troubles replies, offered a menu in 8
   and used therapy-speak in 8. The draft cards did each once or never in 20. What's left is the shape the user noticed: a
-  label, sometimes a saying, then a factual question, and no side taken (1 in 20) and no story of her own (0 in 20).
+  label, then a factual question (4 in 20), and no story of her own (0 in 20). The drafts took the player's side in 5
+  of 20, all in the two moments with someone absent, and each of those drafts had an example of her taking a side
+  against a manager. The seventh draft dropped that example, and the user's try with it took no side.
 - **What to change:** the card's examples, not her base text. Its troubles examples teach advice and labels ("Go and eat
   something", "Go to bed", "That bad, huh.") and none takes the player's side against someone absent since the sixth
   draft's "Without asking? I'd have said something." went. Five concrete example changes for #140, no base-text change,
-  and seven new counts for the manner check, which can be tried on stored replies for free and added before #140's
-  agreed billed run.
+  and new counts for the manner check, tried here on stored replies for free.
 
 ## 1. How friends answer a trouble
 
@@ -132,8 +133,9 @@ Her words are shown in a bubble and spoken by her voice at the PC, and texted on
 support-seeking posts with ten tactics ([2026](https://arxiv.org/abs/2604.08479)). One sequence (paraphrase and
 validation, then advice and information, then validation or reassurance, then advice again) matched 83–90% of LLM
 replies, and 60–83% on a held-out set, covering 81–92% of each matched reply; it matched 40% and 6% of the human sets.
-Paraphrasing was in 99–100% of some models' replies and validation in 90–96%. **Self-disclosure was in 0% of LLM
-replies**, against 17% of the human writers' and 68% of the top Reddit comments. People rate these replies as more
+Paraphrasing was in 99–100% of some models' replies and validation in 90–96%. **Self-disclosure was in 0% of the replies of
+the first study's three models** (the second study's models aren't reported), against 17% of the human writers' and
+68% of the top Reddit comments. People rate these replies as more
 empathic than human ones ([Lee et al. 2024](https://arxiv.org/abs/2403.18148)): the template is well liked by readers
 judging a reply to a stranger, which is not the same as sounding like a friend.
 
@@ -150,19 +152,37 @@ judging a reply to a stranger, which is not the same as sounding like a friend.
 - **Neutral about the absent party** (untested): a model trained to be fair hears one side of a story about a manager and
   doesn't judge the manager. That is the opposite of what a complaint invites from a friend.
 
-**What our runs show** (ours: `184-habits.py`, a scratch script, on every reply the billed runs kept in
-`<tools>\manner-bench` and `<tools>\agent-trial\cards`, duplicates dropped; English troubles moments are vent, bad,
-lost, cancelled and listening). The counts are regular expressions written for this note, so small and approximate:
+**What our runs show** (ours: `184-habits.py`, a scratch script). It counts the replies of three billed runs in
+`<tools>\manner-bench` and `<tools>\agent-trial\cards`:
+- `run-127`, #127's run (2026-10-26): Shino's thin card, today's and the lean base text;
+- `real`, #125's run (2026-10-24): Shino's thin card and the plain one, today's and the lean base text;
+- `run-1025`, #140's card runs (2026-10-25): Shino's thin card and the drafts v3 to v6, on the lean base text.
 
-| English troubles replies | invites them to talk | menu | therapy-speak | label | label, then a factual question | takes a side | her own experience |
-|---|---|---|---|---|---|---|---|
-| today's thin cards (35) | 23 | 8 | 8 | 15 | 0 | 2 | 0 |
-| the draft cards, v3 to v6 (20) | 1 | 1 | 0 | 9 | 4 | 1 | 0 |
+`qa127-r2-copy` is a byte-identical copy of `run-127` and is left out; the other folders there are stand-in runs or
+other moments. The English troubles moments are vent, bad, lost, cancelled and listening, so the thin cards give 35
+replies (10, 20 and 5) and the drafts 20. The counts are regular expressions written for this note, so small and
+approximate:
+
+| English troubles replies | invites them to talk | menu | therapy-speak | label | label, then a factual question | takes a side | her own experience | ends on a directive |
+|---|---|---|---|---|---|---|---|---|
+| today's thin cards (35) | 23 | 8 | 8 | 15 | 0 | 3 | 0 | 0 |
+| the draft cards, v3 to v6 (20) | 1 | 1 | 0 | 9 | 4 | 5 | 0 | 2 |
 
 So the drafts took her out of the counsellor's office: no "Want to tell me how you're feeling about it?", no menus in
-English, no "You're allowed to be disappointed". What they didn't add is what friends do instead. The seventh draft
-(the user's try) isn't in these runs; its replies above have the same shape. In Chinese the menu stayed: three of the
-four draft replies to the 组会 complaint offered one (「想说说他批了什么，还是先歇会儿？」).
+English, no "You're allowed to be disappointed". They told no story of her own, and four of them answered with only a
+label and a factual question. None of these replies has a label and a saying together; the trigger is the seventh
+draft's, which isn't in these runs.
+
+**Taking a side came with the example** (ours). The five sides are all in the two moments with someone absent: the
+manager (v4, v5, v6: "Two weeks, and they waited until after you shipped to say it?", a by-proxy reason asked as a
+question) and the cancelled dinner (v3, v5: "Did he even say why?"). Every one of the drafts v3 to v6 had an example
+of her reacting to a manager who rewrote the player's work. v3 to v5 answered it "Ugh, the whole thing? That'd drive me
+up the wall.", and v3's own vent reply took that shape ("The whole feature? That's brutal.") without the side. The
+seventh draft replaced the example with the meeting exchange, and the user's try took no side. One reply per draft is
+too few to prove it, but it supports A1 below rather than weakening it.
+
+In Chinese the menu stayed: three of the four draft replies to the 组会 complaint offered one
+(「想说说他批了什么，还是先歇会儿？」), and three invited the player to talk.
 
 ## 4. What changes it
 
@@ -235,20 +255,23 @@ their yes.
 
 ### A. Shino's card examples (#140, and #141 for the Chinese)
 
-The spec ruled out more review rounds before #140's billed run (2026-10-25). So these are offered as one batch, either
-folded into the card before that run, or tried after it if its numbers show the shape the user saw.
+Offered as one batch, since the spec ruled out more review rounds before #140's billed run (2026-10-25). The user chose
+to fold them in before that run (under Decided).
 
 - **A1. Back: one complaint about someone absent, answered on the player's side.** The sixth draft's
   "Player: my manager rewrote my whole PR without even asking me / Shino: Without asking? I'd have said something."
   (a partial repeat, then a subjunctive assessment, no question). Chinese, from the moment:
   「玩家：经理没跟我说一声就把我的PR全改了 / 诗乃：没跟你说？换我当场就问了。」
-  *Measured by* C5 (takes a side) on the vent and cancelled moments, and #140's copying check: the vent moment is also a
-  manager, so "I'd have said something" turning up word for word there is the risk to watch.
+  *Measured by* C7 (takes a side), judged on the cancelled moment and C8's flatmate, where no example sits nearby.
+  The vent moment is also a manager, so there a reply with "I'd have said something" (or 「换我当场」) counts as
+  copying, not as a side (see the copying note under C).
 - **A2. The meeting exchange keeps its side and loses its advice:** "Of course you're behind. They had you in a room all
-  day." (「开一天会进度能不慢吗。人都被会占满了。」). *Measured by* C2 and by how many troubles replies end on a
-  directive (C6).
+  day." (「开一天会进度能不慢吗。人都被会占满了。」). *Measured by* C9 (ends on a directive) in the troubles moments,
+  and C7 (a by-proxy reason is a side).
 - **A3. Sudden bad news met with a reaction and a judgement, nothing more:** "Player: they moved my exam up a week /
-  Shino: A week? That's not fair." (「玩家：考试提前了一周 / 诗乃：一周？这也太突然了吧。」). *Measured by* C1 and C4.
+  Shino: A week? That's not fair." (「玩家：考试提前了一周 / 诗乃：一周？这也太突然了吧。」). *Measured by* C6 (a
+  reaction question rather than a factual one) and C7, in the troubles moments. C8's deadline moment has the same shape,
+  so there "That's not fair" (or 「太突然了」) counts as copying.
 - **A4. A second story in a troubles moment, short enough not to compete** (optional, on top of A1): A1's reply with
   one of her own in it, "Without asking? A client did that to a cover of mine once. I'd have said something." It also
   makes A1 less likely to be copied whole into the vent moment. *Measured by* C7 (her own experience) on troubles
@@ -263,27 +286,31 @@ trait), two take the player's side, and her question endings go from four of twe
 
 ### B. Her base text and code (#169, #128)
 
-- **B1. No base-text change** (recommended). The lean text already says she is "there as yourself, a person in the room
+- **B1. No base-text change** (recommended, and chosen). The lean text already says she is "there as yourself, a person in the room
   with them, not a service they call on", and the drafts show the card moves these habits: today's thin card produced
   the open door, the menu and therapy-speak, the drafts didn't. A line about taking the player's side would be a tone
   line in every card, a gentle or contrary one included (CLAUDE.md: her manner is her card's).
-- **B2. Only if A doesn't move C1 and C5:** point the closing `<character>` line at the card's examples, when it has
+- **B2. Only if A doesn't move C2 and C7** (still more than 1 label-then-factual-question, or a side in neither the
+  cancelled nor the flatmate moment, after #140's run): point the closing `<character>` line at the card's examples, when it has
   some: "…as described, and as in the examples, at the start." It names no manner, so it suits any card. The cost is
   more copying, which #140's check counts.
 - **B3. The plain persona** (`Persona.Plain`, "a friendly companion …: warm, a little playful") is what produced the open
   door and the menus most often. Characters with no card get it. Giving it a few example lines of its own is a card
   change in code, for #166's "any character" work rather than here.
 
-### C. New counts for the manner check (`tools/bench/manner.cs`, on #169's branch)
+### C. New counts for the manner check (`tools/bench/manner.cs`, built in #187)
 
 Each is a regular expression in `Habits`, with a self-check line, as the existing ones are. They were tried on the stored
 replies (section 3) with a scratch script; the numbers there are the baseline. "Troubles moments" are vent, vent-zh, bad,
-lost, cancelled, listening and the new ones under C8. If they land before #140's run, they cost nothing extra.
+lost, cancelled, listening and the new ones under C8. Baselines are English troubles replies: 35 from the thin cards, 20
+from the drafts v3 to v6. If they land before #140's run, they cost nothing extra.
 
-- **C1. A label and a saying:** a label sentence ("That's rough.", "That really stings.") and a generalisation in the
-  same reply ("… is the worst.", "… is enough for one night.", "Nothing worse than …", a sentence whose subject is a
-  gerund). Baseline for the generalisation alone: 1 of 20 drafts, 4 of 35 thin; the user's try had both. Target: 0 in
-  troubles moments.
+- **C1. A label and a saying:** a label sentence ("That's rough.", "That really stings.") and a saying in the same
+  reply. A saying is a generic predicate, true of anyone: "… is the worst", "… is always/never fun", "nothing worse
+  than …", "anyone would …". (An earlier version also took any sentence whose subject is a gerund; every hit was an
+  assessment of the player's own choice, such as "Calling it for tonight is a smart play", so it was dropped.)
+  Baseline 0 of 35 thin and 0 of 20 drafts; the trigger, from the seventh draft, has both. Target: 0 in troubles
+  moments.
 - **C2. Label, then a factual question:** the last sentence is a question starting with an auxiliary or a wh-word, and
   everything before it is a label, a saying, "I'm sorry" or "oof". Baseline 4 of 20 drafts. Target: at most 1 in the
   troubles moments.
@@ -294,17 +321,33 @@ lost, cancelled, listening and the new ones under C8. If they land before #140's
   「你现在还好吗」. Baseline 8 of 35 thin, 0 of 20 drafts. Target: 0.
 - **C5. A menu:** an either-or offer ("want to vent, or would you rather…?", 「想…还是…？」). Baseline 8 of 35 thin, 1 of
   20 English drafts, 3 of 4 Chinese drafts. Target: 0, Chinese included.
-- **C6. The question split:** "ends with a question" (today's count) split into a *reaction question* (three words or
-  fewer, or a repeat of the player's words: "Again?", "All day?", 「一天？」) and any other. The spec's open item on
-  question endings is then decided on the second kind, which is the one the research finds non-affiliative.
-- **C7. Wanted, reported beside the habits:** *takes a side* ("I'd have…", "how could they", "they could've…",
-  「换我」「凭什么」), and *her own experience* (first person, past tense: "I did that…", 「我上次」「我当年」). Baseline:
-  sides 1 of 20 drafts, her own 0 of 20. Target with A: a side in at least two of the three absent-party moments (vent,
-  cancelled, C8's flatmate).
+- **C6. The question split:** "ends with a question" (today's count) split into a *reaction question* and any other. A
+  reaction question is three words or fewer and doesn't ask for facts ("Again?", "All day?", "Without asking?", a bare
+  "What?"; 「一天？」, five characters or fewer), or repeats the player's words; "What happened next?" is a factual one.
+  The spec's open item on question endings is then decided on the second kind, which is the one the research finds
+  non-affiliative. Baseline: reaction questions 0 of 35 thin and 0 of 20 drafts; other questions 33 and 16.
+- **C7. Wanted, reported beside the habits:**
+  - *takes a side*: "I'd have…", "I'd be…", "how could they", "lousy of him", 「换我」「凭什么」「太过分」, and a
+    by-proxy reason aimed at they/he/she, said or asked: "they could've told you before", "they waited until after you
+    shipped to say it?", "did he even say why?". Without the asked kind it misses the move it exists to find.
+    Baseline 3 of 35 thin, 5 of 20 drafts (all five in the vent and cancelled moments).
+  - *her own experience*: first person, past tense ("I did that…", 「我上次」「我当年」). Baseline 0 of 35, 0 of 20.
+
+  Target with A: a side in both the cancelled moment and C8's flatmate moment, where no example sits nearby. The vent
+  moment is read for it too, but a side there made of A1's words is copying (below).
+- **C9. Ends on a directive:** the last sentence of a troubles reply is an imperative ("Go and eat something.", "Do
+  something else.", "Let it go for tonight.", 「先去吃点东西。」「别找了。」). Baseline 0 of 35 thin, 2 of 20 drafts
+  (both in the lost moment), and the card's own troubles examples have three. Target: at most 1, for A2.
 - **C8. Three new moments:** "my flatmate used my good pan and left it in the sink for three days" (someone absent,
   not work, unlike the card), "they moved my deadline up to friday. found out an hour ago" (sudden bad news), and
   "how's your day?" (the copy the user saw). About 6 to 12 more requests and 25k to 40k more input tokens per run with
   two cards, mostly cached: this is the only part with a cost, and it rides on a run the user agrees to.
+
+**Copying into the check's own moments.** A1 sits next to the vent moment (a manager) and A3 next to C8's deadline
+moment (something moved up). A reply there that reuses A1's or A3's words ("I'd have said something", "That's not fair",
+「换我当场」「太突然了」) counts as copying, not as a side or a reaction, and C7's target is read on the cancelled and
+flatmate moments instead. These phrases are four words or fewer, so a copying check that looks for a long run of shared
+words (#140's) may let them slip past: it should also look for the example's short lines whole.
 
 The regular expressions will miss and over-count; they are tuned on about a hundred replies. The side by side in
 `manner.md` stays the user's read, and the counts say where to look.
@@ -312,18 +355,15 @@ The regular expressions will miss and over-count; they are tuned on about a hund
 ## Decided
 
 The user, 2026-10-27, choosing the recommended option each time:
-- **The card examples A1 to A5 go into Shino's card before #140's billed run** ("Yes, before the run"). A4 is
-  included, since a story of her own is the one friendly move no reply made. The Chinese lines go to #141.
-- **No base-text change** (B1): #169 merged as it was ("Merge #169").
-- **The new counts C1 to C7 and the three moments C8 are added** ("Counts and the 3 moments"), before #140's run.
+- **The card examples A1 to A5 go into Shino's card before #140's billed run** ("Yes, before the run"). The Chinese
+  lines go to #141. The option the user chose left A4 open ("A4 included or not, as you like"); including it was the
+  PM's call, since a story of her own is the one friendly move no reply made.
+- **No base-text change** (B1): #169 merged as it was ("Merge #169"). B2 stays held back until C2 and C7 call for it.
+- **The new counts and the three moments C8 are added** ("Counts and the 3 moments"), before #140's run. They are built
+  in #187, in `tools/bench/manner.cs` on main.
 
-## To decide (for the user)
-
-1. **The card examples A1 to A5:** before #140's billed run, after it if its replies still read like the trigger, or not
-   at all. Recommended: before, since the run is agreed and these are small.
-2. **The manner-check counts C1 to C7** (no cost) and **the moments C8** (a little more per run). Recommended: both, on
-   #169's branch before #140's run.
-3. **Base text:** recommended no change (B1); B2 held back until the counts call for it.
+The questions this note first put to the user (when to fold in A1 to A5, whether to add the counts and moments, and
+the base text) are answered above.
 
 Sources:
 - [Jefferson & Lee 1981, The rejection of advice (Journal of Pragmatics)](https://doi.org/10.1016/0378-2166(81)90026-6)
