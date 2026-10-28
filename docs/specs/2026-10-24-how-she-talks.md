@@ -146,4 +146,14 @@ Each step is usable on its own.
    lines saying she asks drove it in #143's runs.
 2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
    It is measured with the manner check before and after, stock openers included.
+
+   *Built 2026-10-27 (#128); the billed run waits for the user's leave.* What a call that went through hands back to her
+   is the item as it now stands, said as done, and then that it is in view: "On the agenda now: #12: Job interview,
+   Thu 29 Oct 14:00, no reminder. The player can see it there." ("Changed on the agenda: …", "On the agenda already,
+   just as asked: …", "Off the agenda now, with any reminder it had: … The player can see it's gone."). By text the
+   last sentence is left out. The in-view sentence comes last so that a long result, cut short in the conversation's
+   record, loses it rather than the items it names. A call that didn't go through comes back as before ("Not added:
+   …", "Not done: …"). The agenda tool's "jot it down" line is replaced by "What you put on their agenda is there at
+   once" (whether they can see it is the result's to say, as by text they can't), and the general line on tools no longer says the agenda tells her only of a failure. Flow C is
+   unchanged in code: her words before a call that went through still end the reply.
 3. **By text, a plain line under her message** with what she set.

@@ -225,6 +225,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // The same tool every reply, so the list offered stays the same and the cached start of the prompt holds.
         var agendaWent = false;                             // the agenda tool's latest call went through
         var agendaCalled = false;                           // the agenda tool was called in this reply
+        // what went through is handed back as done and in view (#128), so her reply is about the thing, not the filing; a
+        // reply going by text says only that it's on the agenda, as the player isn't at the cabinet to see it. It comes last, so a
+        // long result cut short in the conversation's record (Toolbox) loses it, not the items it names
+        var inView = texting ? "" : " The player can see it there.";
         _agendum = Agendum;
         if (Equip(tools))
             offered = tools!.Offered;
@@ -286,7 +290,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         known.UnionWith(also.Select(p => p.Id));
                         agendaWent = !also.Any(p => agenda.Any(q => q.Id == p.Id));
                         // its wording is how a later reply knows these numbers (ToldOf): reword the two together
-                        return $"Added #{added}: {Described(added)}." + string.Concat(also.Select(p => $" #{p.Id} is on the agenda too: {Shown(p)}."));
+                        return $"On the agenda now: #{added}: {Described(added)}." + string.Concat(also.Select(p => $" #{p.Id} is on the agenda too: {Shown(p)}.")) + inView;
                     }
                     // the same thing already there: just as she asked (time, reminder, repeat) and unchanged by this, it can still
                     // end the reply; otherwise it goes back to her, so what she says is what is on the agenda now (a calendar's
@@ -297,7 +301,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     {
                         agendaWent = true;
                         // as is this one's, and the one below's (ToldOf)
-                        return $"Already on the agenda, as asked: #{added}: {Described(added)}.";
+                        return $"On the agenda already, just as asked: #{added}: {Described(added)}.{inView}";
                     }
                     return $"#{added} was already on the agenda ({Shown(earlier)}), so nothing new was added; it is now {Described(added)}." +
                            (elsewhen ? $" It keeps its own time: to move it, change #{added}." : "");
@@ -310,7 +314,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         if (ChangeAgenda(true, $"#{n}") is { } why)
                             return $"Not done: {why}.";
                         agendaWent = true;
-                        return $"Cancelled #{n}: {name}, off the agenda with any reminder it had.";
+                        return $"Off the agenda now, with any reminder it had: #{n}: {name}.{(texting ? "" : " The player can see it's gone.")}";
                     }
                     if (cancelled.ContainsKey(n))
                         return $"Not done: #{n} was called off in this reply.";
@@ -320,7 +324,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     var moved = at ?? (item.At, item.AllDay);
                     store.UpdatePlan(item.Id, renamed ?? item.Text, moved.At, moved.AllDay, keep ? item.Before : before, again ?? item.Repeat);
                     agendaWent = true;
-                    return $"Changed #{n}: {Described(n)}.";      // its wording is how a later reply knows the number (ToldOf)
+                    return $"Changed on the agenda: #{n}: {Described(n)}.{inView}";     // its wording is how a later reply knows the number (ToldOf)
                 default:
                     return $"Not done: \"{action}\" isn't add, change or cancel.";
             }
@@ -660,14 +664,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     private const string AgendaRecord = $"You used {BuiltIn.AgendaName} (";
 
     /// <summary>
-    /// An item her agenda tool told her of, at the start of what it said back ("Added #5: …", "Changed #5: …", "Already
-    /// on the agenda, as asked: #5: …", "#5 was already on the agenda"), or beside one it added ("#5 is on the agenda too:
-    /// …"); never one it only named in turning her down ("there is no #7 on the agenda now"), nor a "#1:" in her own words
-    /// for an item ("Gate #1: flight"). ASCII digits, at most 18, so the number always reads as a long.
+    /// An item her agenda tool told her of, at the start of what it said back ("On the agenda now: #5: …", "Changed on the
+    /// agenda: #5: …", "On the agenda already, just as asked: #5: …", "#5 was already on the agenda"), or beside one it
+    /// added ("#5 is on the agenda too: …"); never one it only named in turning her down ("there is no #7 on the agenda
+    /// now") or called off, nor a "#1:" in her own words for an item ("Gate #1: flight"). ASCII digits, at most 18, so the
+    /// number always reads as a long.
     /// </summary>
     private static readonly System.Text.RegularExpressions.Regex ToldOf = new(
-        @"\): (?:(?:Added |Changed |Already on the agenda, as asked: )#(?<n>[0-9]{1,18}): |#(?<n>[0-9]{1,18}) was already on the agenda )" +
-        @"|(?<=\): Added #[0-9]{1,18}: .*) #(?<n>[0-9]{1,18}) is on the agenda too");
+        @"\): (?:(?:On the agenda now: |Changed on the agenda: |On the agenda already, just as asked: )#(?<n>[0-9]{1,18}): " +
+        @"|#(?<n>[0-9]{1,18}) was already on the agenda )" +
+        @"|(?<=\): On the agenda now: #[0-9]{1,18}: .*) #(?<n>[0-9]{1,18}) is on the agenda too");
 
     /// <summary>An offset at the end of a time the agenda tool is given: "Z", "-04:00", "+0530".</summary>
     private static readonly System.Text.RegularExpressions.Regex OffsetWritten = new(@"(?:Z|(?<sign>[+-])(?<h>\d\d):?(?<m>\d\d))$",

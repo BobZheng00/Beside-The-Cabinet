@@ -34,7 +34,8 @@ says where things stand today); this page keeps the story. Update it at each mil
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
 to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that
 measures both (spikes #105 and #125). Step 1, the lean base text and the manner check (`tools/bench/manner.cs`),
-built 2026-10-26 (#127). With it, the default characters' cards (spec
+built 2026-10-26 (#127); step 2, the agenda result handed back as known, built 2026-10-27 (#128), its billed run to
+come. With it, the default characters' cards (spec
 `docs/specs/2026-10-24-default-cards.md`, from the research note on character cards, #131): Shino rewritten as an
 adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
 by the player's language or forced by a setting; then Fumiriya's. Before Preview 2 (#157), what earns play time (spec
