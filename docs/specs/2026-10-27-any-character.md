@@ -15,7 +15,7 @@ And on 2026-10-27:
 - "we should not make decision for user by saying the charcter has their past but now they are beside their desk and
   the cabinet. can we blur this narritive."
 
-Today her base text opens "You sit on a stool by the player's desk, next to INSERT COIN… You are there as yourself, a
+With #169's lean text her base text opens "You sit on a stool by the player's desk, next to INSERT COIN… You are there as yourself, a
 person in the room with them". The cabinet's lines name its own things as if she knows them: "Play time banked",
 "on credit at x1.5", "The player solved "Two Sum" (Easy)."
 
@@ -29,8 +29,18 @@ person in the room with them". The cabinet's lines name its own things as if she
     a page at a time".
   - "A card by your stool" becomes "a card".
   - Leaving the PC (`[out]`, `[sleep]`) stays: it's the player's PC.
-  - A card's own world and place stand wherever it sets them. Ours sets none: Shino's card puts her in the player's
-    city.
+  - A card's own world and place stand wherever it sets them. Ours set theirs in the card: Shino's says "Most days
+    she's on the stool by {{user}}'s desk" (`2026-10-24-default-cards.md`), so she keeps the stool through her card,
+    not the base text.
+  - **"As yourself, not a service they call on"** is the lean text's line against sounding like an assistant (#127).
+    The blurred opening as tested dropped it with the rest of the sentence. Whether it stays, without the place ("You
+    keep the player company while they work and play, as yourself, not a service they call on."), is measured before it
+    ships: #180's billed run puts both openings to #127's moments as well as the world moments, and the user decides from
+    the counts (the user, 2026-10-27: "we want to sure on this").
+  - **With no play time** (`2026-10-27-what-earns-play-time.md`, #174), the opening leaves out the balance: "INSERT
+    COIN, their little arcade cabinet, is with them and tells you what happens."
+  - Her notetaker's and memory keeper's own requests (`Log.cs`, `Upkeep.cs`), which say she "sits beside the player's
+    arcade cabinet", stay as they are: they describe her to the notetaker, not to her.
 - **The cabinet says what its own things are, in plain words, every time.** This covers its lines in her conversation
   (`Situation.Witness`), the `<cabinet>` block, and her cabinet tool's "How play is earned". For example:
   - "play time the player has earned for their games and not yet used", not "Play time banked";
@@ -49,8 +59,10 @@ person in the room with them". The cabinet's lines name its own things as if she
   - the three from the second: how her day was, what she's doing now, talk about anything.
 
   They run with any cards, named, and with the player's name, and count where she places herself and whether her
-  card's world shows. A third-party card and its word list stay on the PC that runs them, never in the repository. Run
-  them again when her base text changes.
+  card's world shows. Their cabinet lines come from the app's own code (`Situation.Witness`, `Describe`, `Ledger`), so
+  they measure what's built. Place words for a card's world come only from a file given to the run: none are written in
+  the code, and a third-party card and its word list stay on the PC that runs them, never in the repository. Run them
+  again when her base text changes.
 
 ## Decided
 
@@ -58,7 +70,7 @@ person in the room with them". The cabinet's lines name its own things as if she
   machine: it tells them what happened, and how they take it is their card's. The user asked how a game character
   would react, and asked for it to be tested on one.
 - **A short gloss each time** (the user: "if they react to the system prompt setting good, A short gloss each time
-  should be ok"). Measured: the glosses matter for the cabinet's own words. With today's credit line Shino thought the
+  should be ok"). Measured, on one reply each: the glosses matter for the cabinet's own words. With today's credit line Shino thought the
   whole game went on credit, and glossed she had it right. They changed nothing on solves or focus.
 - **No line about what she may not know** (the user: "let's test it", with Shino against a game character's card).
   Measured: neither card used an app word it wasn't given, and neither broke character.
@@ -69,6 +81,8 @@ person in the room with them". The cabinet's lines name its own things as if she
   own place, and nothing contradicted itself.
 - **No line inviting her world** ("your world and past are yours to bring up"): it changed nothing measurable, since
   the card brings her world in anyway.
+- **"As yourself, not a service they call on": measured before deciding** (the user, 2026-10-27, asked whether to keep
+  it in the blurred opening: "we want to sure on this"). #180's billed run compares both openings.
 - **One model** (the user, choosing "Skip it" over re-measuring on a second provider). Measured on the demo's model
   only. The manner check can be run on any provider a player brings.
 
@@ -87,7 +101,8 @@ person in the room with them". The cabinet's lines name its own things as if she
   | Blurred | 5 | 0 | 2 | 4 | 0 |
 
   Six replies on one model show a direction, not a measurement. Not measured: long conversations, a card whose
-  greeting sets a scene, an English card from another world, other models.
+  greeting sets a scene, an English card from another world, other models, and her figure on the stool beside the
+  cabinet while a card talks from its own place (#180 leaves that to the user's eyes).
 
 ## Not built, and why
 
