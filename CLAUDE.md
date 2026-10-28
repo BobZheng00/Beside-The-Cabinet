@@ -45,7 +45,7 @@ The README is the front page for strangers; the manual is in READMEs beside what
     no place, and the cabinet says what its own things are in plain words.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
-- `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database).
+- `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database); `2026-10-27-natural-reactions.md` is what makes her replies read like a friend's rather than a counsellor's (the research, and the habits the manner check could count).
 - `docs/memory-issues.md`: what goes wrong in her memory, with evidence and status (M1 to M14, R1, R2).
 - `tools/bench/memory.cs`: the memory benchmark (LongMemEval, LoCoMo, staying in character, the free retrieval score).
 - `docs/roadmap.md`: where we are: what's built, what was decided and when, the order of work (this file's last
