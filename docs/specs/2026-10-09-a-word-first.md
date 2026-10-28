@@ -142,4 +142,5 @@ up…"), so it is now told to go straight to it without their name or a greeting
   plays the remark.
 - `Stool.Telling` (how each of her remarks comes: an answer, a turn, her own, a suggestion that may pass unnoticed).
 - `Stool.WaitForAnswer`, `Stool.Calling`, `GoOn`, `NotNow`; `Listening.Called`; the bubble's `Waiting` (with its answers,
-  `Answered`, `OnAnswer`) and `Subtitled`; `AlertTicket.Take`.
+  `Answered`, and `Clicked` for a click on the rest of it; it takes clicks only while she waits, see `Covers`) and
+  `Subtitled`; `AlertTicket.Take`.

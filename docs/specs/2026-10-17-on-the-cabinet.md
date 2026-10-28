@@ -149,7 +149,13 @@ msg bubble to have the size like under L". QA on #169: a full page already cover
   covered its first letter). Only when the screen's left edge leaves no room there does it rise above the marquee
   instead. It keeps to the screen the cabinet is on, and no taller than above her head by a large cabinet.
 - **Clicks pass through it** as before, except while she waits on her call: then a click on it is "yes?", and its
-  answers take their own clicks. It is kept just above the cabinet, under the windows the player opened.
+  answers take their own clicks. It is kept just above the cabinet, under the windows the player opened, and is put
+  there as it shows, so it never opens over the player's game.
+- **It gives way to the lifted screen and a memo's card,** which were drawn over it when it was in the cabinet's
+  window: while either is over the bubble, the bubble's window hides (its pages go on turning, as they did unseen
+  under them) and comes back as they go. On Small and Medium the lifted home screen covers her head, so the bubble
+  waits behind it; trying to sit it beside or above the screen would leave its tail pointing into the screen.
+- **A change of the cabinet's size** places it again over her head.
 
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close

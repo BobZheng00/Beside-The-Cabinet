@@ -152,7 +152,11 @@ to one at a time: a second one quits at once (`Main: another copy is running; th
 Godot's own log into the run's profile (`--log-file`), so the player's log (in Godot's user folder) is never written
 over. Godot's shader cache in that folder is still shared: it only ever holds the same compiled shaders.
 `tools\dev\clip.ps1` records a clip instead, to judge motion: Godot's movie writer renders every frame off screen
-(`-Script "moment:cheer@3" -Seconds 6`), and ffmpeg makes a GIF and an MP4 of the companion.
+(`-Script "moment:cheer@3" -Seconds 6`), and ffmpeg makes a GIF and an MP4 of the companion. The movie writer
+records only the cabinet's window, so their speech bubble, a window of its own, is mirrored into it for a clip (the log
+says `SpeechBubble: a clip: …`) and kept inside it: by a small cabinet its pages there are shorter than on the desktop
+and it may cover the marquee, and it looks grey for the frames it fades in and out. Judge its motion (the pop-in, a
+page turning) on a clip with `-Crop ""`, and its size and place on `shoot.ps1 -Desk` shots.
 
 What a hidden run guarantees (`shoot.ps1 -Hidden`, every smoke scenario, `clip.ps1`): nothing of it reaches the
 player's screen, taskbar or focus, from start to finish. No console, no window flashing up, no taskbar button, no

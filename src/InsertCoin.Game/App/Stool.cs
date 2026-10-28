@@ -81,6 +81,9 @@ public partial class Stool : Node2D
     /// <summary>The player's music app (the screen's MUSIC app, and her tool).</summary>
     public Music Music => _music;
 
+    /// <summary>Something drawn over everything on the cabinet (the lifted screen, a memo's card) is over this canvas rectangle: her bubble gives way to it.</summary>
+    public Func<Rect2, bool> OverBubble { get; set; } = _ => false;
+
     /// <summary>Something she would say, while the player can't be spoken to (a full-screen game, presenting): a ticket instead (title, line).</summary>
     public event Action<string, string>? Notice;
 
@@ -1240,6 +1243,7 @@ public partial class Stool : Node2D
                     else
                         _ = NotNow();
                 };
+                her.BubbleUnder = rect => OverBubble(rect);
                 her.BubbleClicked = () =>                   // her bubble's words clicked while she waits on her call: "yes?"
                 {
                     if (Calling)

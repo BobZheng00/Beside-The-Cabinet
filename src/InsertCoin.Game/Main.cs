@@ -221,6 +221,7 @@ public partial class Main : Node2D
         _window.PressedElsewhere += _crt.Away;
         _window.Covered = p => _stool.Memos.Covers(p) || _stool.Her?.BubbleCovers(p) == true;     // a memo's sheet, or her bubble, over the cabinet
         _window.Bubble = () => _stool.Her?.BubbleWindow ?? 0;
+        _stool.OverBubble = rect => _crt.Covers(rect) || _cabinet.Memos.CardCovers(rect);     // drawn over her bubble when it was in the cabinet's window
         _window.KeepsMouse = _stool.Typing;
         _window.Clicked += p =>
         {

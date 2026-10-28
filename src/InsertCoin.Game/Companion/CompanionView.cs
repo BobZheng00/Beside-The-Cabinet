@@ -114,7 +114,15 @@ public partial class CompanionView : Node2D
         };
         window.AddChild(_bubble);
         AddChild(window);
+        if (SpeechBubble.Recording)                         // a clip records only the cabinet's window: the bubble is mirrored into it
+        {
+            _mirror = new Sprite2D { Texture = window.GetTexture(), Centered = false, ZIndex = 64, ZAsRelative = false, Visible = false };
+            AddChild(_mirror);
+            GD.Print("SpeechBubble: a clip: the bubble is mirrored into the cabinet's window, and kept inside it");
+        }
     }
+
+    private Sprite2D? _mirror;
 
     public void Play(Moment moment) => _puppet.Play(moment);
 
@@ -213,6 +221,12 @@ public partial class CompanionView : Node2D
     public Action<bool> Answered
     {
         set => _bubble.Answered = value;
+    }
+
+    /// <summary>Something drawn over everything on the cabinet is over this canvas rectangle: her bubble gives way to it.</summary>
+    public Func<Rect2, bool> BubbleUnder
+    {
+        set => _bubble.Under = value;
     }
 
     /// <summary>Her bubble was clicked, not on an answer, while she waits on her call.</summary>
@@ -684,6 +698,16 @@ public partial class CompanionView : Node2D
     {
         if (!_active)
             return;
+        if (_mirror is not null)
+        {
+            var shown = _bubble.OnCanvas;
+            _mirror.Visible = shown is not null;
+            if (shown is { } at)
+            {
+                _mirror.Position = at.Position;
+                _mirror.Scale = at.Size / (Vector2)_bubble.GetWindow().Size;
+            }
+        }
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
         PlacePadAndPencil();

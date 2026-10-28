@@ -100,6 +100,9 @@ public partial class CrtOs : Node
     /// <summary>The canvas point is on the lifted screen: it is over whatever is below.</summary>
     public bool Covers(Vector2 canvasPoint) => _screen.Covers(canvasPoint);
 
+    /// <summary>The canvas rectangle is partly under the lifted screen.</summary>
+    public bool Covers(Rect2 canvasRect) => _screen.Covers(canvasRect);
+
     /// <param name="apps">Every app there is.</param>
     /// <param name="order">The home screen's order, by app id, as kept; apps not in it come after.</param>
     /// <param name="keepOrder">Keeps the order after the player has moved an app.</param>

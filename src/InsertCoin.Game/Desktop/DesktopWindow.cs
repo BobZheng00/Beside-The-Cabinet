@@ -188,6 +188,13 @@ public partial class DesktopWindow : Node
         }
     }
 
+    /// <summary>Puts one of the app's windows just above the cabinet, kept on top only when the cabinet is: a window just shown opens at the top, over the player's game.</summary>
+    public static void JustAboveCabinet(nint window)
+    {
+        var cabinet = (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle);
+        PlaceAbove(window, cabinet, Topmost(cabinet));
+    }
+
     /// <summary>Puts the window just above another, among the windows kept on top or not, as the cabinet is.</summary>
     private static void PlaceAbove(nint window, nint below, bool top)
     {

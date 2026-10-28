@@ -29,7 +29,7 @@ public partial class SpeechBubble : Node2D
     private Rect2 _box;
     private Tween? _tween;
     private Vector2 _tip, _canvas;                      // on the cabinet's canvas
-    private Vector2I _offset;                           // where its window is from the cabinet's
+    private Vector2I _offset, _cabinetSize;             // where its window is from the cabinet's, and the cabinet's size then
     private bool? _clickThrough;
     private string _text = "";
     private readonly List<int> _starts = [0];           // where each page starts in the text
@@ -76,13 +76,25 @@ public partial class SpeechBubble : Node2D
     /// <summary>The marquee, on the cabinet's canvas: a full page keeps clear of it.</summary>
     public Rect2 Marquee { get; set; }
 
+    /// <summary>
+    /// Something on the cabinet drawn over everything there (the lifted screen, a memo's card) is over this canvas
+    /// rectangle: the bubble gives way to it until it is gone, as it was under them when drawn in the cabinet's window.
+    /// </summary>
+    public Func<Rect2, bool> Under { get; set; } = _ => false;
+
+    /// <summary>Godot's movie writer is recording the cabinet's window (clip.ps1), which leaves this window out: it is mirrored into the cabinet's.</summary>
+    public static readonly bool Recording = Engine.GetWriteMoviePath() != "";
+
+    /// <summary>The bubble as it shows on the cabinet's canvas, or null while it doesn't (given way, or not showing).</summary>
+    public Rect2? OnCanvas => GetWindow().Visible ? new Rect2(((Vector2)GetWindow().Position - DisplayServer.WindowGetPosition()) / CabinetScale, (Vector2)GetWindow().Size / CabinetScale) : null;
+
     /// <summary>Its window's handle in Windows, or 0 while it isn't showing.</summary>
     public nint Handle => GetWindow().Visible ? (nint)DisplayServer.WindowGetNativeHandle(DisplayServer.HandleType.WindowHandle, GetWindow().GetWindowId()) : 0;
 
     /// <summary>Whether a screen point is on the bubble while it takes clicks (it waits on her call); otherwise clicks pass through it.</summary>
     public bool Covers(Vector2I screenPoint) => TakesClicks && OnScreen.HasPoint(screenPoint);
 
-    private bool TakesClicks => _waiting && Visible && !_fading;
+    private bool TakesClicks => _waiting && Visible && !_fading && GetWindow().Visible;
 
     private Rect2 OnScreen => new((Vector2)GetWindow().Position + Position + _box.Position, _box.Size);
 
@@ -145,6 +157,7 @@ public partial class SpeechBubble : Node2D
         _reply = false;
         _text = text;
         Paginate();
+        Place(Page(0), single: _starts.Count == 1);         // placed before it shows, so its window opens where it belongs
         Pop();
         ShowPage(0, typed: true);
     }
@@ -215,30 +228,40 @@ public partial class SpeechBubble : Node2D
         Show(false);
     }
 
-    /// <summary>Shows or hides the bubble; its window shows on the next frame (see <see cref="Follow"/>), once it is placed.</summary>
+    /// <summary>Shows or hides the bubble, placed already: its window shows at once, unless it gives way (see <see cref="Follow"/>).</summary>
     private void Show(bool on)
     {
         Visible = on;
-        if (!on)
+        if (on)
+            Follow();
+        else
             GetWindow().Visible = false;
     }
 
     /// <summary>
-    /// Shows the bubble's window where it was placed, keeps it over her head as the cabinet is dragged, and lets clicks
-    /// through it except while it takes them.
+    /// Shows the bubble's window where it was placed, keeps it over her head as the cabinet is dragged or resized, gives
+    /// way to what is drawn over everything on the cabinet, and lets clicks through it except while it takes them.
     /// </summary>
     private void Follow()
     {
         var window = GetWindow();
+        if (DisplayServer.WindowGetSize() != _cabinetSize)
+            Place(_text.Length > 0 ? Page(_page) : _label.Text, single: _starts.Count == 1);     // the cabinet's size changed: her head moved
         var at = DisplayServer.WindowGetPosition() + _offset;
         if (window.Position != at)
             window.Position = at;
-        if (!window.Visible)
+        var scale = CabinetScale;
+        var show = !Under(new Rect2((OnScreen.Position - DisplayServer.WindowGetPosition()) / scale, OnScreen.Size / scale));
+        if (window.Visible != show)
         {
-            window.Visible = true;
-            _clickThrough = null;                           // a window shown again is a new one in Windows' terms
+            window.Visible = show;
+            if (show)
+            {
+                _clickThrough = null;                       // a window shown again is a new one in Windows' terms
+                Desktop.DesktopWindow.JustAboveCabinet(Handle);
+            }
         }
-        if (Paper.OffScreen)
+        if (Paper.OffScreen || !show)
             return;                                         // a test run never follows the player's pointer
         var through = !(TakesClicks && OnScreen.HasPoint(DisplayServer.MouseGetPosition()));
         if (through == _clickThrough)
@@ -391,9 +414,14 @@ public partial class SpeechBubble : Node2D
     /// <summary>The cabinet window's pixels per canvas unit (1 by a large cabinet).</summary>
     private float CabinetScale => DisplayServer.WindowGetSize().X / _canvas.X;
 
-    /// <summary>The screen the cabinet is on, less the taskbar; none in a test run, which is off every screen.</summary>
+    /// <summary>
+    /// Where the bubble may be: the screen the cabinet is on, less the taskbar; in a clip, the cabinet's window (all
+    /// the clip records); none in another test run, which is off every screen.
+    /// </summary>
     private static Rect2? Screen() =>
-        Paper.OffScreen ? null : DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen()) is var r ? new Rect2(r.Position, r.Size) : null;
+        Recording ? new Rect2(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize())
+        : Paper.OffScreen ? null
+        : DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen()) is var r ? new Rect2(r.Position, r.Size) : null;
 
     /// <summary>How far above her head the bubble may reach: as far as by a large cabinet, and no further than the screen's top.</summary>
     private float Above(Vector2 tip) => Screen() is { } screen ? Mathf.Min(_tip.Y, tip.Y - screen.Position.Y) : _tip.Y;
@@ -441,6 +469,7 @@ public partial class SpeechBubble : Node2D
         window.Position = (Vector2I)(tip + area.Position).Floor();
         window.Size = (Vector2I)area.Size.Ceil() + Vector2I.One;
         _offset = window.Position - DisplayServer.WindowGetPosition();
+        _cabinetSize = DisplayServer.WindowGetSize();
         Position = tip - window.Position;
         _label.Text = text;
         _label.Position = rect.Position + new Vector2(PadX, PadY - 1);
