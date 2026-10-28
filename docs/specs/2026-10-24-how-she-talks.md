@@ -72,6 +72,12 @@ report.
   - ending on a question;
   - length.
 
+  In the moments where the player brings a trouble, it also counts whether she takes their side and what a counsellor
+  does instead (a label, a label and a saying, a label then a factual question, an invitation to talk, therapy-speak, a
+  menu, ending on a reaction question or another one, her own experience, ending on a directive), and three moments
+  were added for them: a flatmate's pan, a deadline moved up, and "how's your day?" (#187, from
+  `docs/research/2026-10-27-natural-reactions.md`, section 6 C; what each means is in `tools/dev/README.md`).
+
   It is run when her instructions or tools change, billed to the user: about 100 requests and 330k tokens a run, mostly
   cached. It stops at a request or token limit.
 
@@ -111,7 +117,8 @@ report.
 ## Open
 
 - **Ending on a question:** revisit with the manner check's numbers once step 2 and #143's card are in (#127's run: 8 of
-  21 with today's text, 11 of 21 with the lean one, on today's card).
+  21 with today's text, 11 of 21 with the lean one, on today's card). In the troubles moments it is decided on the
+  questions that aren't reactions ("What happened next?", not "Again?"), which the check counts apart since #187.
 - **Models that call first** (#126): on the demo's provider every agenda call came with no words before it. Step 2
   works either way; whether flow C ever applies there is for #126.
 - **How often to run the manner check:** with each change to her instructions or tools, to start. Whether a smaller
