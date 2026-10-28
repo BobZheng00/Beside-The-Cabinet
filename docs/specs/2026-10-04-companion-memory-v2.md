@@ -163,9 +163,9 @@ cache at a tenth of that or less.
   those in that turn's agenda, which reaches a week ahead (`Agenda.Ahead`), so an item added nine days ahead couldn't
   be moved by the number she had just been given ("there is no #5 on the agenda now"), and she added it again. Now a
   reply may also change or cancel an item her agenda tool told her of in the conversation she sees ("Added #5: …",
-  "Changed #5: …", "#5 is on the agenda too", "#5 was already on the agenda": the tool's lines in the window), or
-  earlier in the same reply, however far ahead. A number she was never told of is still turned down, and so is one
-  the tool only named in turning her down. The agenda in her turn still reaches a week. The screen's AGENDA app
+  "Changed #5: …", "#5 is on the agenda too", "#5 was already on the agenda": what the tool said back, in its lines in
+  the window), or earlier in the same reply, however far ahead. A number she was never told of is still turned down,
+  and so is one the tool only named in turning her down, or one in her own words for an item ("Gate #1: boarding"). The agenda in her turn still reaches a week. The screen's AGENDA app
   already listed everything ahead, four to a page, with no limit of a week.
 
 ## Second pass (decided with the player, 2026-10-04)
