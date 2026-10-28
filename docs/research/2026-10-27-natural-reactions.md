@@ -309,6 +309,14 @@ lost, cancelled, listening and the new ones under C8. If they land before #140's
 The regular expressions will miss and over-count; they are tuned on about a hundred replies. The side by side in
 `manner.md` stays the user's read, and the counts say where to look.
 
+## Decided
+
+The user, 2026-10-27, choosing the recommended option each time:
+- **The card examples A1 to A5 go into Shino's card before #140's billed run** ("Yes, before the run"). A4 is
+  included, since a story of her own is the one friendly move no reply made. The Chinese lines go to #141.
+- **No base-text change** (B1): #169 merged as it was ("Merge #169").
+- **The new counts C1 to C7 and the three moments C8 are added** ("Counts and the 3 moments"), before #140's run.
+
 ## To decide (for the user)
 
 1. **The card examples A1 to A5:** before #140's billed run, after it if its replies still read like the trigger, or not
