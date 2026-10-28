@@ -197,17 +197,38 @@ script's header.
 - `tools/bench/memory.cs`: the companion's memory on LongMemEval and LoCoMo, and staying in character
   (`docs/research/2026-10-11-memory-benchmark.md`). `--mode reach` replays their search on memories already taken in,
   with no model, in seconds.
-- `tools/bench/manner.cs`: how the companion talks (`docs/specs/2026-10-24-how-she-talks.md`). About 20 moments in English and
-  Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for), with
-  Shino's card and a plain one, each from a fresh memory. Stock openers, a date or time said back, the player echoed,
-  the bookkeeping narrated, offers of help, ending on a question, length, tools used unasked and focus sessions started
-  are counted in code (the counting checks itself first) and written to `manner.md`, side by side. It stops at
-  `--max-requests` (140) or `--max-input` tokens (500,000), counting everything spent in its folder. To compare two
-  base texts, build it from each commit to a folder of its own (`dotnet build tools/bench/manner.cs -o <bin>`) and run
-  each dll with its own `--variant` into the same `--out`. One card on two texts is about 56 requests and 183k input
-  tokens (#127's run); both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead
-  (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when the companion's
-  instructions or tools change.
+- `tools/bench/manner.cs`: how the companion talks (`docs/specs/2026-10-24-how-she-talks.md`). 24 moments in English and
+  Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for, a
+  flatmate's pan, a deadline moved up, "how's your day?"), with Shino's card and a plain one, each from a fresh memory.
+  Stock openers, a date or time said back, the player echoed, the bookkeeping narrated, offers of help, ending on a
+  question, length, tools used unasked and focus sessions started are counted in code (the counting checks itself
+  first) and written to `manner.md`, side by side. Where the player brings a trouble (vent, vent-zh, bad, lost,
+  cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
+  counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
+  - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");
+  - *a label and a saying*: a label and a line true of anyone in the same reply ("… is the worst", "nothing worse
+    than …", "anyone would …");
+  - *a label, then a factual question*: only a label, a saying, a sorry or an "oof" before a last question that asks
+    for facts ("Did they say what needs changing?");
+  - *invites them to talk*: "want to tell me what happened?", 「想说说」「要不要聊聊」;
+  - *therapy-speak*: "you don't have to", "it's okay to", "you're allowed to", "I'm here for you", 「抱抱」「你已经很」;
+  - *a menu*: an either-or offer of what to do next ("want to vent, or would you rather…?", 「想…还是…？」);
+  - *ends on a reaction question* (three words or fewer that ask for no facts, or the player's own words back:
+    "Again?", "All day?", 「一天？」) or *on another question* ("What happened next?"): ending on a question, split;
+  - *takes a side* (wanted): "I'd have…", "how could they", 「凭什么」「太过分」, or a reason aimed at whoever did it,
+    said or asked ("they waited until after you shipped to say it?", "did he even say why?");
+  - *own experience* (wanted): the companion in the first person and the past tense ("I did that once…", 「我上次」);
+  - *ends on a directive*: the last sentence tells them what to do ("Go and eat something.", 「先去吃点东西。」).
+
+  These are tuned on about a hundred replies and will miss and over-count: the side by side lists each reply's counts,
+  and is what to read. It stops at `--max-requests` (140) or `--max-input` tokens (500,000), counting everything spent
+  in its folder; with `--max-requests 0` and any `--mock` it asks nothing, and remakes `manner.md` from the folder's
+  replies with today's counting. To compare two base texts, build it from each commit to a folder of its own
+  (`dotnet build tools/bench/manner.cs -o <bin>`) and run each dll with its own `--variant` into the same `--out`. One
+  card on two texts was about 56 requests and 183k input tokens with 21 moments (#127's run); the three added in #187
+  make it about a seventh more, and both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a
+  stand-in instead (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when the
+  companion's instructions or tools change.
 
 ## Checks and the smoke suite
 

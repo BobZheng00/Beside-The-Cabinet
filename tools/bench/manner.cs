@@ -81,6 +81,28 @@ if (string.Join(",", Habits.Of("I've got a job interview next Thursday at 2pm.",
     || !Habits.Of("明天", "下午一点见。").Contains(Habits.Names[1]) || !Habits.Of("明天", "十一点见。").Contains(Habits.Names[1])
     || Habits.Words("One two.\n\nThree") != 3)
     throw new InvalidOperationException("The habits aren't counted as they should be.");
+// and the troubles counts, on lines from docs/research/2026-10-27-natural-reactions.md (section 6 C)
+bool Has(string answer, string name, string said = "") => Habits.InTroubles(said, answer).Contains(name);
+string[] T = Habits.Troubles;
+if (!Has("That's rough. Redoing something you thought was finished is the worst. Did they say what needs changing?", T[1])
+    || !Has("That's rough. Redoing something you thought was finished is the worst. Did they say what needs changing?", T[2])
+    || Has("That's rough. Redoing something you thought was finished is the worst. Did they say what needs changing?", T[8])
+    || !Habits.InTroubles("", "What? After you shipped it? What's wrong with it?").SequenceEqual([T[7]])
+    || Has("That's rough. Calling it for tonight is a solid play.", T[1])
+    || !Has("Do you want to vent, or would you rather figure out what to do next?", T[5])
+    || !Has("你现在想说说他批了什么，还是先歇会儿？", T[5])
+    || !Has("Without asking? I'd have said something.", T[8])
+    || !Has("Two weeks, and they waited until after you shipped to say it?", T[8])
+    || !Has("Again? That's rough. Did he even say why?", T[8])
+    || !Has("Again?", T[6]) || !Has("Did he even say why?", T[7])
+    || !Has("Ugh. All day?", T[6]) || !Has("Oh no. What happened next?", T[7])
+    || !Has("Two weeks of work?", T[6], "Two weeks of work, gone.") || !Has("一天？", T[6])
+    || !Has("Three losses is enough for one night. Do something else.", T[10])
+    || !Has("Of course you're behind. Go and eat something.", T[10])
+    || Has("Okay. I'll be here drawing.", T[10])
+    || !Has("You don't have to turn it into a lesson or a plan right this second.", T[4])
+    || !Has("Want to tell me what happened?", T[3]) || !Has("I did that once, in my second year.", T[9]))
+    throw new InvalidOperationException("The troubles counts aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
 Moment[] moments =
@@ -112,7 +134,13 @@ Moment[] moments =
         "And that's not even the worst part.",
         Before: ["This weekend was a mess, let me tell you.", "Go on, what happened?"]),
     new("talk-to-me", "en", "I'm wiped. Just talk to me about something, anything, I don't want to think."),
+    // #187: someone absent who isn't at work, sudden bad news, and the line a player types most (as players type them)
+    new("flatmate", "en", "my flatmate used my good pan and left it in the sink for three days"),
+    new("deadline", "en", "they moved my deadline up to friday. found out an hour ago"),
+    new("day", "en", "how's your day?"),
 ];
+// the moments where the player brings her a trouble, where the troubles counts are made
+string[] troubles = ["vent", "vent-zh", "bad", "lost", "cancelled", "listening", "flatmate", "deadline"];
 var allMoments = moments;
 if (options.TryGetValue("cases", out var only))
     moments = [.. moments.Where(m => only.Split(',').Contains(m.Id))];
@@ -218,6 +246,15 @@ void Summary()
     md.AppendLine($"\nSpent: {spent.Sum(r => r.Requests.Count)} requests, {spent.Sum(r => r.Input)} input tokens ({spent.Sum(r => r.Cached)} cached), {spent.Sum(r => r.Output)} output.");
     md.AppendLine("\nTools used unasked: a reply that called a tool its moment didn't ask for (cabinet_numbers, which only reads, aside). " +
                   "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one).");
+    md.AppendLine("\n## The troubles moments, per variant, card and language\n");
+    md.AppendLine("| | replies | " + string.Join(" | ", Habits.Troubles) + " |");
+    md.AppendLine("|---|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Troubles.Length)));
+    foreach (var g in all.Where(r => troubles.Contains(r.Moment)).GroupBy(r => (r.Variant, r.Card, r.Language))
+                         .OrderBy(g => variants.IndexOf(g.Key.Variant)).ThenBy(g => g.Key.Card).ThenBy(g => g.Key.Language))
+        md.AppendLine($"| {g.Key.Variant}, {g.Key.Card}, {g.Key.Language} | {g.Count()} | " +
+                      string.Join(" | ", Habits.Troubles.Select(name => g.Count(r => Habits.InTroubles(r.Said, r.Answer!).Contains(name)))) + " |");
+    md.AppendLine("\nCounted only where the player brings a trouble (" + string.Join(", ", troubles) + "). Takes a side and own experience " +
+                  "are wanted; the rest are what a counsellor or an assistant does instead (tools/dev/README.md).");
     md.AppendLine("\n## Focus started, per moment\n");
     md.AppendLine("| | " + string.Join(" | ", moments.Select(m => m.Id)) + " |");
     md.AppendLine("|---|" + string.Concat(Enumerable.Repeat("---|", moments.Length)));
@@ -232,6 +269,8 @@ void Summary()
         {
             var calls = string.Concat(r.Requests.SelectMany(q => q.Calls).Select(c => $" `{c}`"));
             var habits = Habits.Of(r.Said, r.Answer!);
+            if (troubles.Contains(r.Moment))
+                habits.AddRange(Habits.InTroubles(r.Said, r.Answer!));
             md.AppendLine($"- {r.Card}, {r.Variant}: {r.Answer!.Replace("\n", " ")}{calls}" +
                           (habits.Count == 0 ? "" : $" *({string.Join(", ", habits)})*") +
                           (r.Agenda.Count == 0 ? "" : $" Agenda: {string.Join("; ", r.Agenda)}.") +
@@ -305,6 +344,69 @@ static class Habits
         var spans = Enumerable.Range(0, Math.Max(0, mine.Length - 3)).Select(i => string.Join(' ', mine[i..(i + 4)])).ToHashSet();
         return Enumerable.Range(0, Math.Max(0, theirs.Length - 3)).Any(i => spans.Contains(string.Join(' ', theirs[i..(i + 4)])));
     }
+
+    /// <summary>
+    /// What a friend does with a trouble and what a counsellor or an assistant does instead (#184's research,
+    /// docs/research/2026-10-27-natural-reactions.md, section 6 C): counted only where the player brings one.
+    /// Takes a side and her own experience are wanted; the rest replace them.
+    /// </summary>
+    public static readonly string[] Troubles = ["a label", "a label and a saying", "a label, then a factual question", "invites them to talk",
+        "therapy-speak", "a menu", "ends on a reaction question", "ends on another question", "takes a side", "own experience", "ends on a directive"];
+
+    // a sentence that only rates it ("That's rough.", "That really stings.")
+    private static readonly Regex Label = new(@"^(oof|ugh|oh( no)?|ah|yikes|wow|damn)?[,.!\s]*(that'?s|that is|sounds|that sounds|what a|that)\s+(so |really |pretty |such |a |an |just |already |genuinely )*" +
+        @"(rough|brutal|awful|tough|hard|the worst|frustrating|annoying|lousy|rotten|bad|terrible|harsh|a lot|painful|exhausting|unfair|gutting|crushing|sucks|stings|hurts|horrible|maddening|infuriating)\b[^.!?]*[.!]$", RegexOptions.IgnoreCase);
+    // a generic predicate, true of anyone ("... is the worst", "nothing worse than ...")
+    private static readonly Regex Saying = new(@"(\bis the worst\b|\b(is|are) (always|never) (fun|easy|nice)\b|\bnothing (worse|like)\b|\bthere'?s nothing (worse|like)\b|" +
+        @"\b(anyone|everyone|nobody|no one) (would|gets|hates|likes|feels)\b)", RegexOptions.IgnoreCase);
+    // a question asking for facts (Couper-Kuhlen 2012): an auxiliary or a wh-word first
+    private static readonly Regex Factual = new(@"^(did|do|does|was|were|is|are|have|has|had|what|which|why|how|who|when|where|any idea)\b(?!\?)", RegexOptions.IgnoreCase);
+    private static readonly Regex Token = new(@"^(oof|ugh|oh|ah|hm+|mm+)[.!,]*$|^i'?m (so )?sorry", RegexOptions.IgnoreCase);
+    private static readonly Regex Invite = new(@"\b(want|wanna|do you want) to (tell me|talk|vent)\b|想(跟我)?说说|要不要(跟我)?(说说|聊聊)", RegexOptions.IgnoreCase);
+    private static readonly Regex Therapy = new(@"(you don'?t have to\b|it'?s (okay|ok|fine|normal|valid|understandable) to\b|(makes|make) (total |complete )?sense (that|to)\b|\bvalid\b|" +
+        @"be (gentle|kind) (to|with) yourself|\bi hear you\b|how are you feeling|you deserve\b|give yourself\b|\bsit with\b|i'?m here (for you|if)\b|" +
+        @"that'?s a lot to\b|\bright this second\b|silver lining|you'?re allowed to\b|doesn'?t (mean|make) you\b|not a verdict\b|" +
+        @"不用急着|允许自己|你的感受|抱抱|你已经很|别太(难过|自责)|先照顾好自己|我一直都在|你现在还好吗)", RegexOptions.IgnoreCase);
+    // an either-or offer of what to do next
+    private static readonly Regex Menu = new(@"(\b(want|wanna|would you (like|rather)|do you want)\b[^?]*\bor\b[^?]*\?|[想要][^？?]*还是[^？?]*[？?])", RegexOptions.IgnoreCase);
+    // "I'd have...", "how could they", or a by-proxy reason aimed at them, said or asked ("did he even say why?")
+    private static readonly Regex Side = new(@"(\bi'?d (have|be|'ve)\b|\bi would('ve| have)\b|\bhow (could|can|do) (they|he|she)\b|" +
+        @"\b(they|he|she|your manager|your boss)\b[^.!?]{0,40}\b(could('ve| have)|should('ve| have)|couldn'?t|didn'?t even|even|waited|until after|before you|the nerve)\b|" +
+        @"\b(lousy|rotten|rude|unfair|awful|low|mean) of (him|her|them)\b|换我|要是我|凭什么|太过分)", RegexOptions.IgnoreCase);
+    // first person, past tense
+    private static readonly Regex Own = new(@"\b(i|i've|i'd) (had|did|was|got|spent|drew|said|thought|tried|failed|lost|used to)\b|我(上次|以前|当年|昨天|也是)", RegexOptions.IgnoreCase);
+    // an imperative ("Go and eat something.", "Do something else.", 先去吃点东西)
+    private static readonly Regex Directive = new(@"^(then |just |so |now |okay,? )?(go|do|get|take|let|try|call|eat|sleep|stop|leave|give|put|make|have|drink|rest|close|walk|step|skip|switch|play|" +
+        @"don'?t|quit|log off|turn|shut|lie|grab)\b|^[先快去别早]", RegexOptions.IgnoreCase);
+
+    public static List<string> InTroubles(string said, string answer)
+    {
+        var all = Spoken(answer).Replace('’', '\'').Replace("—", " - ");
+        var xs = Sentences(all);
+        var last = xs.LastOrDefault() ?? "";
+        var asked = last.EndsWith('?') || last.EndsWith('？');
+        var words = Regex.Matches(last, @"[\w']+").Select(w => w.Value.ToLowerInvariant()).ToList();
+        var reaction = asked && (Regex.IsMatch(last, "[a-z]", RegexOptions.IgnoreCase)
+            ? words.Count <= 3 && (words.Count == 1 || !Factual.IsMatch(last))       // "What happened next?" asks for facts
+              || !Factual.IsMatch(last) && words.All(Regex.Matches(said.ToLowerInvariant(), @"[\w']+").Select(w => w.Value).Contains)
+            : last.Length <= 5 || Regex.Replace(last, @"[\p{P}\s]", "").All(said.Contains));      // 一天？, or their words back
+        var found = new List<string>();
+        if (xs.Take(2).Any(Label.IsMatch)) found.Add(Troubles[0]);
+        if (xs.Any(Label.IsMatch) && xs.Any(Saying.IsMatch)) found.Add(Troubles[1]);
+        if (asked && Factual.IsMatch(last) && words.Count >= 3 && xs[..^1].All(x => Label.IsMatch(x) || Saying.IsMatch(x) || Token.IsMatch(x)))
+            found.Add(Troubles[2]);
+        if (Invite.IsMatch(all)) found.Add(Troubles[3]);
+        if (Therapy.IsMatch(all)) found.Add(Troubles[4]);
+        if (Menu.IsMatch(all)) found.Add(Troubles[5]);
+        if (asked) found.Add(Troubles[reaction ? 6 : 7]);
+        if (Side.IsMatch(all)) found.Add(Troubles[8]);
+        if (Own.IsMatch(all)) found.Add(Troubles[9]);
+        if (!asked && Directive.IsMatch(last)) found.Add(Troubles[10]);
+        return found;
+    }
+
+    private static string[] Sentences(string s) =>
+        [.. Regex.Split(s, @"(?<=[.!?。！？])\s*").Select(x => x.Trim()).Where(x => x.Length > 0)];
 
     public static int Words(string answer) => Spoken(answer).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
     public static int Characters(string answer) => Regex.Replace(Spoken(answer), @"[\p{P}\s]", "").Length;
