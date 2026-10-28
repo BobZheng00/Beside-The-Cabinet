@@ -289,6 +289,96 @@ public class AgendaToolTests
     }
 
     [Theory]
+    [InlineData("Added")]               // "Added #n: …"
+    [InlineData("Changed")]             // "Changed #n: …", moved past the week
+    [InlineData("too")]                 // "#n is on the agenda too: …", beside a second one that day
+    [InlineData("already")]             // "#n was already on the agenda (…)"
+    [InlineData("as asked")]            // "Already on the agenda, as asked: #n: …"
+    public async Task Each_way_her_agenda_tool_names_an_item_lets_a_later_reply_move_it_however_far_ahead(string told)
+    {
+        using var temp = new TempStore();
+        var far = new DateTimeOffset(2026, 10, 30, 15, 0, 0, Wednesday.Offset);
+        var seeded = told == "Added" ? 0
+            : temp.Store.AddPlan("Dentist", told == "Changed" ? far.AddDays(-7) : far, false, null, Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        FunctionCallContent first = told switch
+        {
+            "Added" or "as asked" => Agenda("add", ("action", "add"), ("when", "2026-10-30T15:00"), ("what", "Dentist"), ("remind", "none")),
+            "Changed" => Agenda("move", ("action", "change"), ("item", seeded), ("when", "2026-10-30T15:00"), ("remind", "keep")),
+            "too" => Agenda("add", ("action", "add"), ("when", "2026-10-30T09:00"), ("what", "Dentist"), ("remind", "none")),
+            _ => Agenda("add", ("action", "add"), ("when", "2026-10-30T15:00"), ("what", "Dentist"), ("remind", "before"), ("minutes_before", 60)),
+        };
+        await conversation.Answer(new FakeToolModel(["Dentist, Friday week.", first]), "dentist friday week at 3", "", _ => { }, (_, _) => { }, tools: tools);
+        var dentist = told == "Added" ? Assert.Single(temp.Store.Agenda()).Id : seeded;
+        Assert.Contains(Recorded(temp), l => l.Contains(told switch
+        {
+            "Added" => $"Added #{dentist}: ",
+            "Changed" => $"Changed #{dentist}: ",
+            "too" => $" #{dentist} is on the agenda too: ",
+            "already" => $"#{dentist} was already on the agenda (",
+            _ => $"Already on the agenda, as asked: #{dentist}: ",
+        }));
+
+        var model = new FakeToolModel(["Saturday, then.", Agenda("move", ("action", "change"), ("item", dentist), ("when", "2026-10-31T15:00"), ("remind", "keep"))]);
+        await conversation.Answer(model, "it moved to saturday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Single(model.Requests);
+        Assert.Equal(31, temp.Store.Agenda().Single(p => p.Id == dentist).At.Day);
+    }
+
+    [Fact]
+    public async Task A_number_in_her_own_words_for_an_item_is_not_one_she_was_told_of()
+    {
+        // "Gate #1: boarding" is shown back in the result, and #1 is someone else's item, nine days ahead
+        using var temp = new TempStore();
+        var flight = temp.Store.AddPlan("Flight", new DateTimeOffset(2026, 10, 30, 15, 0, 0, Wednesday.Offset), false, null, Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        await conversation.Answer(new FakeToolModel(["Boarding at gate one.",
+            Agenda("add", ("action", "add"), ("when", "2026-10-31T09:00"), ("what", $"Gate #{flight}: boarding"), ("remind", "none"))]),
+            "boarding saturday at 9, gate 1", "", _ => { }, (_, _) => { }, tools: tools);
+        Assert.Contains(Recorded(temp), l => l.Contains($": Gate #{flight}: boarding"));
+
+        var model = new FakeToolModel(["Moved.", Agenda("guess", ("action", "change"), ("item", flight), ("when", "2026-10-31T15:00"), ("remind", "keep"))], ["Hm."]);
+        await conversation.Answer(model, "move the flight to saturday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Contains(Results(model.Requests[1]), r => r.Contains($"there is no #{flight} on the agenda now"));
+        Assert.Equal(30, temp.Store.Agenda().Single(p => p.Id == flight).At.Day);
+    }
+
+    [Fact]
+    public async Task A_number_too_long_for_one_in_her_own_words_leaves_later_replies_working()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        await conversation.Answer(new FakeToolModel(["Booked.",
+            Agenda("add", ("action", "add"), ("when", "2026-10-30T15:00"), ("what", "#12345678901234567890: flight"), ("remind", "none"))]),
+            "flight friday week at 3, booking #12345678901234567890", "", _ => { }, (_, _) => { }, tools: tools);
+        var flight = Assert.Single(temp.Store.Agenda()).Id;
+
+        var model = new FakeToolModel(["Saturday, then.", Agenda("move", ("action", "change"), ("item", flight), ("when", "2026-10-31T15:00"), ("remind", "keep"))]);
+        var answer = await conversation.Answer(model, "it moved to saturday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Saturday, then.", answer);
+        Assert.Equal(31, Assert.Single(temp.Store.Agenda()).At.Day);
+    }
+
+    [Fact]
+    public async Task Calling_the_same_item_off_twice_in_a_reply_names_it_both_times()
+    {
+        using var temp = new TempStore();
+        var call = temp.Store.AddPlan("Call mum", new DateTimeOffset(2026, 10, 24, 18, 0, 0, Wednesday.Offset), false, null, Wednesday, "shino");
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel(["No call, then.",
+            Agenda("off", ("action", "cancel"), ("item", call), ("remind", "keep")),
+            Agenda("again", ("action", "cancel"), ("item", call), ("remind", "none"))]);
+
+        await conversation.Answer(model, "the call's off", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Empty(temp.Store.Agenda());
+        Assert.Equal(2, Recorded(temp).Count(l => l.Contains($"Cancelled #{call}: Call mum, off the agenda")));
+    }
+
+    [Theory]
     [InlineData("2026-10-23T15:30", "2026-10-23T15:30:00-04:00")]          // no offset: the player's own time
     [InlineData("2026-10-23T15:30-04:00", "2026-10-23T15:30:00-04:00")]    // the player's own offset
     [InlineData("2026-11-02T09:00-05:00", "2026-11-02T09:00:00-05:00")]    // after the clocks go back, the new offset is theirs

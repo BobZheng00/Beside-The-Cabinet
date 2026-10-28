@@ -185,9 +185,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var shown = Agenda.Shown(agenda, now);
         var known = shown.Ahead.Concat(shown.Past).Select(p => p.Id)
             .Concat(Prompt.Recent(recent, Window).Where(l => l.Speaker == Speaker.Cabinet && l.Text.StartsWith(AgendaRecord))
-                .SelectMany(l => ToldOf.Matches(l.Text)).Select(m => long.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)))
+                .SelectMany(l => ToldOf.Matches(l.Text)).Select(m => long.Parse(m.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture)))
             .ToHashSet();
-        var cancelled = new HashSet<long>();                // called off in this reply
+        var cancelled = new Dictionary<long, string>();     // called off in this reply, with what it was
         var refused = new List<string>();                   // her agenda changes that didn't go through, and why: told to her after her reply
         // calls off or changes an item she was shown, as it is now (a reminder may have gone off while she replied, moving
         // a repeat on); one called off is done with for this reply, so a [plan] that reuses its number is never changed by
@@ -196,7 +196,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         {
             if (Agenda.ParseChange(payload, now, _clock.LocalTimeZone) is not { } change)
                 return "it needs the item's number from the agenda, as in #12";
-            if (cancelled.Contains(change.Id))
+            if (cancelled.ContainsKey(change.Id))
                 return null;
             var (item, why) = Changeable(change.Id);
             if (item is null)
@@ -204,7 +204,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             if (cancel)
             {
                 store.DeletePlan(item.Id);
-                cancelled.Add(item.Id);
+                cancelled[item.Id] = item.Text;
                 return null;
             }
             if (change.Unread is { } unread)
@@ -285,6 +285,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         var also = store.Agenda().Where(p => p.Id != added && p.At.Date == a.At.Date && Recall.Same(p.Text, renamed)).ToList();
                         known.UnionWith(also.Select(p => p.Id));
                         agendaWent = !also.Any(p => agenda.Any(q => q.Id == p.Id));
+                        // its wording is how a later reply knows these numbers (ToldOf): reword the two together
                         return $"Added #{added}: {Described(added)}." + string.Concat(also.Select(p => $" #{p.Id} is on the agenda too: {Shown(p)}."));
                     }
                     // the same thing already there: just as she asked (time, reminder, repeat) and unchanged by this, it can still
@@ -295,6 +296,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         && same.Before == before && same.Repeat == (again ?? Repeat.Once))
                     {
                         agendaWent = true;
+                        // as is this one's, and the one below's (ToldOf)
                         return $"Already on the agenda, as asked: #{added}: {Described(added)}.";
                     }
                     return $"#{added} was already on the agenda ({Shown(earlier)}), so nothing new was added; it is now {Described(added)}." +
@@ -302,7 +304,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 case "change" or "cancel":
                     if (id is not { } n)
                         return "Not done: it needs the item's number from the agenda.";
-                    var name = store.Agenda().FirstOrDefault(p => p.Id == n)?.Text ?? $"#{n}";
+                    var name = cancelled.TryGetValue(n, out var gone) ? gone : store.Agenda().FirstOrDefault(p => p.Id == n)?.Text ?? $"#{n}";
                     if (action == "cancel")
                     {
                         if (ChangeAgenda(true, $"#{n}") is { } why)
@@ -310,7 +312,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                         agendaWent = true;
                         return $"Cancelled #{n}: {name}, off the agenda with any reminder it had.";
                     }
-                    if (cancelled.Contains(n))
+                    if (cancelled.ContainsKey(n))
                         return $"Not done: #{n} was called off in this reply.";
                     var (item, whyNot) = Changeable(n);
                     if (item is null)
@@ -318,7 +320,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     var moved = at ?? (item.At, item.AllDay);
                     store.UpdatePlan(item.Id, renamed ?? item.Text, moved.At, moved.AllDay, keep ? item.Before : before, again ?? item.Repeat);
                     agendaWent = true;
-                    return $"Changed #{n}: {Described(n)}.";
+                    return $"Changed #{n}: {Described(n)}.";      // its wording is how a later reply knows the number (ToldOf)
                 default:
                     return $"Not done: \"{action}\" isn't add, change or cancel.";
             }
@@ -658,10 +660,14 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     private const string AgendaRecord = $"You used {BuiltIn.AgendaName} (";
 
     /// <summary>
-    /// An item her agenda tool told her of ("Added #5: …", "Changed #5: …", "#5 is on the agenda too", "#5 was already on
-    /// the agenda"), never one it only named in turning her down ("there is no #7 on the agenda now").
+    /// An item her agenda tool told her of, at the start of what it said back ("Added #5: …", "Changed #5: …", "Already
+    /// on the agenda, as asked: #5: …", "#5 was already on the agenda"), or beside one it added ("#5 is on the agenda too:
+    /// …"); never one it only named in turning her down ("there is no #7 on the agenda now"), nor a "#1:" in her own words
+    /// for an item ("Gate #1: flight"). ASCII digits, at most 18, so the number always reads as a long.
     /// </summary>
-    private static readonly System.Text.RegularExpressions.Regex ToldOf = new(@"#(\d+)(?=: | is on the agenda too| was already on the agenda)");
+    private static readonly System.Text.RegularExpressions.Regex ToldOf = new(
+        @"\): (?:(?:Added |Changed |Already on the agenda, as asked: )#(?<n>[0-9]{1,18}): |#(?<n>[0-9]{1,18}) was already on the agenda )" +
+        @"|(?<=\): Added #[0-9]{1,18}: .*) #(?<n>[0-9]{1,18}) is on the agenda too");
 
     /// <summary>An offset at the end of a time the agenda tool is given: "Z", "-04:00", "+0530".</summary>
     private static readonly System.Text.RegularExpressions.Regex OffsetWritten = new(@"(?:Z|(?<sign>[+-])(?<h>\d\d):?(?<m>\d\d))$",
