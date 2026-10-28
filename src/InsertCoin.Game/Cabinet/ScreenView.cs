@@ -329,6 +329,15 @@ public partial class ScreenView : Node2D
         return bounds.Grow(bounds.Size.X * 0.05f).HasPoint(canvasPoint);
     }
 
+    /// <summary>The canvas rectangle is partly under the lifted screen or its bezel.</summary>
+    public bool Covers(Rect2 canvasRect)
+    {
+        if (!Lifted)
+            return false;
+        var bounds = Bounds(_quad);
+        return bounds.Grow(bounds.Size.X * 0.05f).Intersects(canvasRect);
+    }
+
     /// <summary>How far out of the cabinet it is (0: in it, 1: lifted).</summary>
     private void SetLift(float lift)
     {

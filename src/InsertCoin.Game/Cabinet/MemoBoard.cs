@@ -54,6 +54,9 @@ public partial class MemoBoard : Node2D
 
     public override void _Process(double delta) => _time += delta;
 
+    /// <summary>The canvas rectangle is partly under a memo's card, shown over everything on the cabinet.</summary>
+    public bool CardCovers(Rect2 canvasRect) => _card.Visible && new Rect2(_card.Position, _card.Size * _card.Scale).Intersects(canvasRect);
+
     /// <summary>The canvas's size, and the middle of the cabinet's front across it.</summary>
     public Vector2 Canvas => _canvas;
     public float CabinetMiddle { get; private set; }
