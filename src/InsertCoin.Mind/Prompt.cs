@@ -294,7 +294,7 @@ public static class Prompt
     public static int Tokens(IEnumerable<Line> lines) => lines.Sum(line => Tokens(line.Text) + 4);
 
     /// <summary>The newest lines that fit the window (normally all of them: the window is folded before it overflows).</summary>
-    private static IEnumerable<Line> Recent(IReadOnlyList<Line> lines, int window)
+    internal static IEnumerable<Line> Recent(IReadOnlyList<Line> lines, int window)
     {
         var used = 0;
         var from = lines.Count;
