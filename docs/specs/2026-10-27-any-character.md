@@ -1,6 +1,7 @@
 # Any character beside the cabinet: the app says what's there, never where she is
 
-*Decided with the user, 2026-10-27 (#166), from two billed spikes on the branch `spike-166-other-worlds`. Nothing
+*Decided with the user, 2026-10-27 (#166), from two billed spikes (their code is kept on the PM's PC, off GitHub,
+since it named a game card's places). Nothing
 built yet; the order is at the end. It builds on the lean base text (`2026-10-24-how-she-talks.md`, #127).*
 
 ## Why
