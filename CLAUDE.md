@@ -41,6 +41,8 @@ The README is the front page for strangers; the manual is in READMEs beside what
     card in Chinese, chosen by the player's language or a setting; Fumiriya's next.
   - `2026-10-27-what-earns-play-time.md`: the first run asks what earns play time (focus, the player's own
     activities, LeetCode) or none; with none, the companion without a balance; programs the player picks count as play.
+  - `2026-10-27-any-character.md`: any character fits beside the cabinet as their card comes: her instructions set
+    no place, and the cabinet says what its own things are in plain words.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database).

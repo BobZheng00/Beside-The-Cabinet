@@ -38,7 +38,9 @@ measures both (spikes #105 and #125). With it, the default characters' cards (sp
 adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
 by the player's language or forced by a setting; then Fumiriya's. Before Preview 2 (#157), what earns play time (spec
 `docs/specs/2026-10-27-what-earns-play-time.md`, #165): chosen on the first run (focus, the player's own activities,
-LeetCode) or none at all, and programs the player picks counting as play (#173, #174, #175).
+LeetCode) or none at all, and programs the player picks counting as play (#173, #174, #175). Any character fits beside the cabinet as their card comes (spec
+`docs/specs/2026-10-27-any-character.md`, #166): her instructions set no place, and the cabinet says what its things
+are in plain words (#180).
 
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
