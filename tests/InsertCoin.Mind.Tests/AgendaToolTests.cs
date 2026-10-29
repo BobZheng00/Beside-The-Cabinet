@@ -71,6 +71,39 @@ public class AgendaToolTests
         Assert.Single(temp.Store.Agenda());
     }
 
+    // spike #193: her words carried by the call itself, so a model that calls first still speaks once, before any result
+    [Fact]
+    public async Task Probe_her_words_in_the_call_end_the_reply_with_no_second_request()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel([Agenda("say", ("action", "add"), ("when", "2026-10-29T14:00"), ("what", "Job interview"), ("remind", "none"),
+                                              ("say", "Ooh, where at? You'll be fine."))]);
+        var shown = new List<string>();
+
+        var answer = await conversation.Answer(model, "I've got a job interview next Thursday at 2pm", "", shown.Add, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Ooh, where at? You'll be fine.", answer);
+        Assert.Equal("Ooh, where at? You'll be fine.", string.Concat(shown));
+        Assert.Single(model.Requests);
+        Assert.Single(temp.Store.Agenda());
+    }
+
+    [Fact]
+    public async Task Probe_her_words_in_a_call_that_fails_are_never_shown_and_the_round_goes_back()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel([Agenda("bad", ("action", "add"), ("when", "next Thursday"), ("what", "Job interview"), ("remind", "none"),
+                                              ("say", "Ooh, Thursday."))], ["Wait, what time?"]);
+
+        var answer = await conversation.Answer(model, "job interview next thursday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Wait, what time?", answer);
+        Assert.Equal(2, model.Requests.Count);
+        Assert.Empty(temp.Store.Agenda());
+    }
+
     [Fact]
     public async Task Every_call_of_a_round_is_made_and_one_failing_sends_the_round_back()
     {

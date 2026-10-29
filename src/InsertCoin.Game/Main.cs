@@ -588,6 +588,19 @@ public partial class Main : Node2D
             }
             return;
         }
+        // spike #193: two places a plain line from the cabinet could go when she puts something on the agenda
+        if (action.StartsWith("flash:"))                    // flash:BIG:caption, | for a new line
+        {
+            var parts = action["flash:".Length..].Replace('_', ' ').Split(':', 2);
+            _cabinet.Screen.Flash(parts[0], parts.Length > 1 ? parts[1].Replace('|', '\n') : "", 30.0);
+            return;
+        }
+        if (action.StartsWith("slip:"))                     // slip:what|when|reminder printed from the slot
+        {
+            var parts = action["slip:".Length..].Replace('_', ' ').Split('|');
+            _cabinet.Receipt.PrintAgenda(parts[0], parts.ElementAtOrDefault(1) ?? "", parts.ElementAtOrDefault(2) ?? "");
+            return;
+        }
         if (action.StartsWith("marquee:"))
         {
             _devMarquee = action["marquee:".Length..].Replace('_', ' ') is var text and not "off" ? text : null;      // marquee:words lit on the marquee at rest; marquee:off

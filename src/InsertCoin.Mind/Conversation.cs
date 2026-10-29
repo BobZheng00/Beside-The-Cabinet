@@ -421,13 +421,24 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // words before it, or a round with another tool in it goes back to her. Only the round's last call can end it:
         // ending at an earlier one would leave the rest unmade (FunctionInvokingChatClient stops there).
         var roundWent = true;
+        var sayings = new List<string>();
         bool Ends(FunctionInvocationContext call)
         {
             if (call.FunctionCallIndex == 0)
+            {
                 roundWent = true;
+                sayings.Clear();
+            }
             roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
             agendaWent = false;                             // read once: a call refused before it ran (made twice, say) never counts
-            return roundWent && call.FunctionCallIndex == call.FunctionCount - 1 && !string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone));
+            // spike #193: what she says in the call's own "say" is held until the whole round is known to have gone through
+            if (call.Arguments.TryGetValue("say", out var words) && words?.ToString() is { } spoken && !string.IsNullOrWhiteSpace(spoken))
+                sayings.Add(spoken.Trim());
+            if (!roundWent || call.FunctionCallIndex != call.FunctionCount - 1)
+                return false;
+            if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone)) && sayings.Count > 0)
+                Show(stage.Feed(string.Join(" ", sayings)));
+            return !string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone));
         }
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {

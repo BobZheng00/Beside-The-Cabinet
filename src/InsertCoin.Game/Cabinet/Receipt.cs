@@ -45,9 +45,21 @@ public partial class Receipt : Node2D
         AddChild(_strip);
     }
 
+    /// <summary>Spike #193: a slip for something put on the agenda, printed as a receipt is.</summary>
+    public void PrintAgenda(string what, string when, string reminder)
+    {
+        _paper.FillAgenda(what, when, reminder);
+        Printing(30.0);
+    }
+
     public void Print(Session session, Rules rules)
     {
         _paper.Fill(session, rules);
+        Printing(9.0);
+    }
+
+    private void Printing(double hold)
+    {
         _viewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
 
         _tween?.Kill();
@@ -59,7 +71,7 @@ public partial class Receipt : Node2D
 
         _tween = CreateTween();
         _tween.TweenMethod(Callable.From<float>(SetReveal), 0f, 1f, 1.3);
-        _tween.TweenInterval(9.0);
+        _tween.TweenInterval(hold);
         // tear off: fall and fade together, after the hold
         _tween.TweenProperty(_strip, "position", new Vector2(10, 120), 0.8).SetEase(Tween.EaseType.In).SetTrans(Tween.TransitionType.Quad);
         _tween.Parallel().TweenProperty(_strip, "modulate:a", 0f, 0.8);
@@ -72,6 +84,25 @@ public partial class Receipt : Node2D
     private partial class Paper : Control
     {
         private readonly List<Label> _lines = [];
+
+        public void FillAgenda(string what, string when, string reminder)
+        {
+            foreach (var line in _lines)
+                line.QueueFree();
+            _lines.Clear();
+            Line("AGENDA", Round, 17, 10, Faint);
+            Line(when, Pixel, 15, 64, Ink);
+            var label = new Label
+            {
+                Text = what, Position = new Vector2(8, 100), Size = new Vector2(Size.X - 16, 120),
+                HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                LabelSettings = new LabelSettings { Font = Round, FontSize = 19, FontColor = Ink },
+            };
+            AddChild(label);
+            _lines.Add(label);
+            Line(reminder, Round, 15, 250, Faint);
+            QueueRedraw();
+        }
 
         public void Fill(Session session, Rules rules)
         {
