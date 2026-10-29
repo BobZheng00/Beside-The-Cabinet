@@ -189,14 +189,6 @@ public static class Prompt
         string.Join("\n", skills.OrderBy(s => s.Name, StringComparer.Ordinal)
                                  .Select(s => $"- {s.Name}: {s.Description}{(s.WorksIn.Count == 0 ? "" : $" (folders: {string.Join(", ", s.WorksIn)})")}"));
 
-    /// <summary>
-    /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in
-    /// another (the bubble is the subtitle, so the two say the same), nothing extra when she writes in her voice's own
-    /// language. Names go in the letters of her voice's language: in Latin letters a Japanese voice says them as English.
-    /// The subtitle is a translation, so what belongs to the spoken language stays there: a Japanese voice says the
-    /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
-    /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
-    /// </summary>
     /// <summary>What earns play time, of what is on, as her base text says it (" (solving problems, focusing)"); nothing when none is.</summary>
     internal static string Ways(Core.Earning earns)
     {
@@ -205,6 +197,14 @@ public static class Prompt
         return ways.Length > 0 ? $" ({string.Join(", ", ways)})" : "";
     }
 
+    /// <summary>
+    /// How her voice works, for a voice in one language: a spoken version in front of each sentence when she writes in
+    /// another (the bubble is the subtitle, so the two say the same), nothing extra when she writes in her voice's own
+    /// language. Names go in the letters of her voice's language: in Latin letters a Japanese voice says them as English.
+    /// The subtitle is a translation, so what belongs to the spoken language stays there: a Japanese voice says the
+    /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
+    /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
+    /// </summary>
     private static string Voice(string? language, bool tools = false)
     {
         if (language is null)

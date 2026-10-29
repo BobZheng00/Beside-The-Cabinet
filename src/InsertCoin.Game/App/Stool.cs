@@ -171,6 +171,7 @@ public partial class Stool : Node2D
             AtThePc = () => _activeSince is { } since ? DateTimeOffset.Now - since : TimeSpan.Zero,
             Blind = () => _chat.CantSee(_settings.Now.ChatModel ?? ""),
             InFront = () => _chat.InFront,
+            Earn = () => _settings.Now.Earning.Activities,
         };
         _chat.Activities = _activities;
         _chat.Bedtime = SetBedtime;
@@ -1710,7 +1711,8 @@ public partial class Stool : Node2D
         if (_settings.Now.Playlists.Length > 0)
             lines.Add("Their saved playlists: " + string.Join(", ", _settings.Now.Playlists.Select(p =>
                 $"\"{p.Name}\"{(p.Link == _settings.Now.FocusPlaylist ? " (starts their focus sessions)" : "")}")) + ".");
-        lines.Add(_activities.Describe());
+        if (_activities.Describe() is { } activities)
+            lines.Add(activities);
         var memos = _memos.OnTheCabinet.Select(t => $"\"{t}\"").ToList();
         if (memos.Count > 0)
             lines.Add($"Memos on the cabinet (hanging from the slot or pinned on its side): {string.Join(", ", memos)}.");

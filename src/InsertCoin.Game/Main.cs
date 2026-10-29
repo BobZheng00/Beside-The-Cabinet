@@ -298,7 +298,9 @@ public partial class Main : Node2D
                 _settingsWindow!.RefreshPage("balance");     // LeetCode ticked there with no name stays unticked
         };
         AddTimer(0.5, _onboarding.Blink);
-        if (!_settings.SetUp && string.IsNullOrWhiteSpace(_settings.Username))
+        // not set up yet: an older profile with a LeetCode name and no LeetCodeEarns (its first run was the cabinet's own)
+        // never sees the welcome; a first run left after a name was kept on its LeetCode page sees it again
+        if (!_settings.SetUp && (_settings.LeetCodeEarns is not null || string.IsNullOrWhiteSpace(_settings.Username)))
             GetTree().CreateTimer(1.0).Timeout += OpenWelcome;          // the cabinet first, then the welcome beside it
 
         _cabinet.Tray.Set(_state.Credits);
@@ -364,19 +366,29 @@ public partial class Main : Node2D
         }
         _polling = true;
         var user = _settings.Username!;
+        // after each answer: LeetCode turned off, or another name given, while it was asked, and the answer is no one's now
+        bool Stale() => !_settings.Earning.LeetCode || _settings.Username != user;
         try
         {
             // a name new to the cabinet is checked first: one kept on the first run while LeetCode didn't answer, say
-            if (_state.Username != user && !await _tasks.PlayerExistsAsync(user, CancellationToken.None))
+            if (_state.Username != user)
             {
-                GD.Print($"LeetCode: no player called {user}, so the name is dropped");
-                SaveSettings(_settings with { Username = null });
-                _cabinet.Screen.Flash("NOT FOUND", $"PLAYER {user}".ToUpperInvariant(), 3.0);
-                if (IsInstanceValid(_settingsWindow))
-                    _settingsWindow!.RefreshPage("balance");
-                return;
+                var there = await _tasks.PlayerExistsAsync(user, CancellationToken.None);
+                if (Stale())
+                    return;
+                if (!there)
+                {
+                    GD.Print($"LeetCode: no player called {user}, so the name is dropped");
+                    SaveSettings(_settings with { Username = null });
+                    _cabinet.Screen.Flash("NOT FOUND", $"PLAYER {user}".ToUpperInvariant(), 3.0);
+                    if (IsInstanceValid(_settingsWindow))
+                        _settingsWindow!.RefreshPage("balance");
+                    return;
+                }
             }
             var recent = await _tasks.FetchRecentAsync(user, CancellationToken.None);
+            if (Stale())
+                return;
             Apply(_state.Username == user ? new TasksObserved(recent) : new PlayerSet(user, recent));
             _linkDown = false;
             _backoffSeconds = 60;
@@ -393,6 +405,28 @@ public partial class Main : Node2D
             _nextPoll = DateTimeOffset.Now.AddSeconds(_backoffSeconds);
             RefreshScreen();
         }
+    }
+
+    /// <summary>
+    /// LeetCode turned off: it is asked once more, so what was solved before then is still paid, and then the cabinet lets
+    /// the name go, so that turned on again later, what was solved meanwhile is seen without pay. If LeetCode doesn't
+    /// answer, what was solved since the last poll goes unpaid.
+    /// </summary>
+    private async void LastPoll(string user, DateTimeOffset off)
+    {
+        try
+        {
+            var recent = await _tasks.FetchRecentAsync(user, CancellationToken.None);
+            if (_settings.Earning.LeetCode)
+                return;                                     // on again meanwhile: the polls carry on as before
+            Apply(new TasksObserved([.. recent.Where(t => t.AcceptedAt <= off)]));
+        }
+        catch (TaskSourceUnavailableException e)
+        {
+            GD.PrintErr($"LeetCode: {e.Message}");
+        }
+        if (!_settings.Earning.LeetCode)
+            _state = _state with { Username = null };
     }
 
     private void OnCheck()
@@ -1106,8 +1140,10 @@ public partial class Main : Node2D
         GD.Print($"Main: play time is earned by {string.Join(", ", new[] { (earns.Focus, "focus"), (earns.Activities, "activities"), (earns.LeetCode, "LeetCode") }.Where(s => s.Item1).Select(s => s.Item2).DefaultIfEmpty("nothing"))}");
         _crt.Away("done", !earns.Activities);
         _tray.ShowCheck(earns.LeetCode);
-        if (!earns.LeetCode)
-            _state = _state with { Username = null };      // on again later, the solves made meanwhile are seen without pay
+        if (!earns.LeetCode && was.LeetCode && _state.Username is { } known)
+            LastPoll(known, DateTimeOffset.Now);
+        else if (!earns.LeetCode)
+            _state = _state with { Username = null };      // starting with LeetCode off: on again later, the solves made meanwhile are seen without pay
         else if (!was.LeetCode)
         {
             _backoffSeconds = 60;
