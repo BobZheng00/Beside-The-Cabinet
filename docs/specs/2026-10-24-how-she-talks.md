@@ -147,13 +147,26 @@ Each step is usable on its own.
 2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
    It is measured with the manner check before and after, stock openers included.
 
-   *Built 2026-10-27 (#128); the billed run waits for the user's leave.* What a call that went through hands back to her
+   *Built 2026-10-27 (#128).* What a call that went through hands back to her
    is the item as it now stands, said as done, and then that it is in view: "On the agenda now: #12: Job interview,
    Thu 29 Oct 14:00, no reminder. The player can see it there." ("Changed on the agenda: …", "On the agenda already,
    just as asked: …", "Off the agenda now, with any reminder it had: … The player can see it's gone."). By text the
    last sentence is left out. The in-view sentence comes last so that a long result, cut short in the conversation's
    record, loses it rather than the items it names. A call that didn't go through comes back as before ("Not added:
    …", "Not done: …"). The agenda tool's "jot it down" line is replaced by "What you put on their agenda is there at
-   once" (whether they can see it is the result's to say, as by text they can't), and the general line on tools no longer says the agenda tells her only of a failure. Flow C is
-   unchanged in code: her words before a call that went through still end the reply.
+   once" (whether they can see it is the result's to say, as by text they can't), and the general line on tools no
+   longer says the agenda tells her only of a failure. Flow C is unchanged in code: her words before a call that went
+   through still end the reply.
+
+   **It still reads as a report.** The billed run (2026-10-28, demo provider, `<tools>\manner-bench\run-128`, main
+   against this build, Shino's card and a plain one, 21 moments each: 119 requests, 381,793 input tokens, 160,896
+   cached, 5,355 output), of 12 agenda replies each:
+   - a date or time said back: 10 and 10;
+   - the bookkeeping narrated: 6 and 8, two of the 8 echoing the result's own "on the agenda" ("I've put your job
+     interview on the agenda for Thursday, October 29 at 2pm");
+   - stock openers: 4 and 4 (5 and 5 of all 42 replies; Shino's alone 4 and 3, against #127's 2 and 2).
+
+   Every agenda call came first with no words before it, so every reply was written after the result, as in #125.
+   No reminder was promised that wasn't set, and every item was right. Ending on a question rose from 17 to 28 of 42.
+   The fallback, ending the reply at a silent call with the agenda showing the item, is #193.
 3. **By text, a plain line under her message** with what she set.
