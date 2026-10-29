@@ -109,14 +109,17 @@ public sealed class Ledger(Rules rules)
         };
     }
 
-    /// <summary>A focus part pays for its minutes at once, however short: <see cref="Rules.FocusPerPlay"/> minutes of focus for each minute of play.</summary>
+    /// <summary>
+    /// A focus part pays for its minutes at once, however short: <see cref="Rules.FocusPerPlay"/> minutes of focus for
+    /// each minute of play. When focus doesn't earn, its time is still kept, and it pays nothing.
+    /// </summary>
     private LedgerState Focus(LedgerState state, Focused focused, List<LedgerEvent> events)
     {
         var focusedMs = (long)focused.Time.TotalMilliseconds;
         if (focusedMs <= 0)
             return state;
 
-        var (paid, payout, after) = Pay(state, focusedMs / Rules.FocusPerPlay);
+        var (paid, payout, after) = Rules.Earns.Focus ? Pay(state, focusedMs / Rules.FocusPerPlay) : (state, new Payout(0, 0, 0, 0, 0), []);
         events.Add(new FocusPaid(focusedMs, payout));
         events.AddRange(after);
         paid = paid with
@@ -124,15 +127,17 @@ public sealed class Ledger(Rules rules)
             Week = paid.Week with { FocusedMs = paid.Week.FocusedMs + focusedMs },
             Today = paid.Today! with { FocusedMs = paid.Today.FocusedMs + focusedMs },
         };
-        return paid.Today.FocusedMs >= Rules.GoodDayFocusMs ? GoodDay(paid, paid.Today.Day, events) : paid;
+        return Rules.Earns.Focus && paid.Today.FocusedMs >= Rules.GoodDayFocusMs ? GoodDay(paid, paid.Today.Day, events) : paid;
     }
 
     /// <summary>
     /// An activity pays like a problem of its size, once a day: what is owed is the share given now less what it was
-    /// paid today already (half, then the rest; nothing when it was paid in full).
+    /// paid today already (half, then the rest; nothing when it was paid in full). Nothing when activities don't earn.
     /// </summary>
     private LedgerState Activity(LedgerState state, ActivityDone done, List<LedgerEvent> events)
     {
+        if (!Rules.Earns.Activities)
+            return state;
         var today = state.Today!;
         var before = today.Activities.GetValueOrDefault(done.Name);
         var share = Math.Clamp(done.Share, 0, 1) - before;

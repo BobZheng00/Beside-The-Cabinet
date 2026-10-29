@@ -47,7 +47,10 @@ than its room, which would run off the window's right edge, then how many of the
 showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
 screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
-the Welcome and on "Meet …"),
+the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode is a stand-in that finds every player,
+with nothing solved, except `nobody`, who isn't there, and `nolink`, for whom LeetCode doesn't answer, so
+`welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Balance page's Change… and the cabinet's
+polls see the same),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`
 (presses that button in it, `+_Add`, `Keep_yours` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
 second click to press), `memorybooktype:words:new_words` (types the new words into the field showing

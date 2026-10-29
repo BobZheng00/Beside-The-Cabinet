@@ -33,12 +33,35 @@
     },
     {
       "name": "firstrun",
-      "about": "A new player's first run: the Welcome opens beside the cabinet.",
-      "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/Onboarding.cs", "src/InsertCoin.Game/App/MeetSheet.cs", "src/InsertCoin.Game/App/Form.cs"],
+      "about": "A new player's first run: the Welcome opens beside the cabinet; past their name and who keeps them company, \"What earns your play time?\" has focus and their own activities ticked and LeetCode not, and going on with those leaves LeetCode unasked and out of the tray.",
+      "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/Onboarding.cs", "src/InsertCoin.Game/App/MeetSheet.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
       "settings": ", \"SetUp\": false",
-      "shots": [7],
+      "script": "welcomedo:Your_name:Bob@4,welcomedo:Next@5,welcomedo:Next@6,welcomedo:Next@9,trayitems@10",
+      "shots": [7, 9, 14],
       "window": "Welcome",
-      "desk": true
+      "desk": true,
+      "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
+      "forbid": ["^Main: play time is earned by .*LeetCode", "^LeetCode: ", "Check LeetCode now"]
+    },
+    {
+      "name": "firstrun-leetcode",
+      "about": "A first run that ticks LeetCode on \"What earns your play time?\": its name field shows, a name that isn't one is said so and Next stays, a name LeetCode (a test run's stand-in, never leetcode.com) has no player for is said so, and a real one is checked, kept and earns; the tray then has \"Check LeetCode now\".",
+      "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Adapters/LeetCodeProfile.cs"],
+      "settings": ", \"SetUp\": false",
+      "script": "welcomedo:Your_name:Bob@4,welcomedo:Next@5,welcomedo:Next@6,welcomedo:LeetCode_problems@7,welcomedo:Next@8,welcomedo:LeetCode_name:nobody@9,welcomedo:Check@10,welcomedo:LeetCode_name:BobSmith@12,welcomedo:Check@13,welcomedo:Next@15,trayitems@20",
+      "shots": [9, 12, 15, 18, 24],
+      "window": "Welcome",
+      "expect": ["^Settings: \"LeetCode problems\" ticked$", "^LeetCode: a test run's stand-in asked for nobody$", "^LeetCode: a test run's stand-in asked for BobSmith$", "^Main: play time is earned by focus, activities, LeetCode$", "^Tray: .*\\| Write a memo… \\| Check LeetCode now \\| Mute sounds"],
+      "forbid": ["NO LEETCODE NAME"]
+    },
+    {
+      "name": "earning",
+      "about": "Settings → Balance changes what earns play time, saved as changed: activities off takes the DONE app off the screen's home screen, \"No play time\" clears the ticks (nothing earns), and unticking it brings focus and activities back, with DONE in its place.",
+      "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/DoneApp.cs"],
+      "script": "settings:balance@2,settingsdo:Your_own_activities@4,settingsdo:No_play_time@6,settingsdo:No_play_time@8",
+      "shots": [5, 7, 12],
+      "window": "Settings",
+      "expect": ["^Main: play time is earned by focus, activities$", "^Main: play time is earned by focus$", "^Crt: apps on the home screen focus, music, memos, agenda, settings$", "^Main: play time is earned by nothing$", "^Crt: apps on the home screen focus, done, music, memos, agenda, settings$"]
     },
     {
       "name": "settings",
@@ -58,13 +81,13 @@
       "shots": [12, 18],
       "window": "Settings",
       "expect": [
-        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
         "^Menu: pressed Voice$",
         "^Tray: .*\\| Voice \\[ \\] \\|",
         "^Menu: at .*\\| Voice \\[ \\] \\|",
         "^Menu: pressed Settings$",
         "^Settings: \"Shino speaks aloud\" ticked$",
-        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Check LeetCode now \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
       ],
       "forbid": ["^Menu: no entry"]
     },

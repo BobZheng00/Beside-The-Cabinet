@@ -132,7 +132,10 @@ public partial class Stool : Node2D
         _lively = lively;
         _characters = Path.Combine(dataDir, "characters");
 
-        _chat = new Chat(dataDir) { ReminderLead = () => settings.Now.ReminderLead, KeepsInTouch = () => settings.Now.Reach == Reach.KeepsInTouch };
+        _chat = new Chat(dataDir)
+        {
+            ReminderLead = () => settings.Now.ReminderLead, KeepsInTouch = () => settings.Now.Reach == Reach.KeepsInTouch, Earns = () => settings.Now.Earning,
+        };
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
         _chat.SearchThrough(settings.Now.AddOns.Search);
@@ -198,6 +201,8 @@ public partial class Stool : Node2D
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
         _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
+        _chat.ActivitiesEarn(settings.Now.Earning.Activities);
+        settings.Changed += () => _chat.ActivitiesEarn(settings.Now.Earning.Activities);
         _memos = new Memos();
         AddChild(_memos);
         _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "",
@@ -363,7 +368,7 @@ public partial class Stool : Node2D
         if (conversation.ToAskAbout(CheckInAfter) is { } plan)
         {
             _chat.Store.Asked(plan.Id, now);                // once, whatever comes of it
-            note = Agenda.CheckIn(plan, now, _activities.Within(plan.Text));
+            note = Agenda.CheckIn(plan, now, _settings.Now.Earning.Activities ? _activities.Within(plan.Text) : null);
         }
         else if (conversation.ThreadToAskAbout() is { } thread)
         {

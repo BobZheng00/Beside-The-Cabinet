@@ -33,7 +33,7 @@ public class SituationTests
         Assert.Contains("Play time banked: 50 min. Each night at 04:00, half of what isn't played fades.", ledger);
         Assert.Contains("Today (Friday): 45 min earned of the day's cap of 2 h; 1 h 15 min more can be earned.", ledger);
         Assert.Contains("So far today: 1 problem solved, 1 h 10 min focused, 25 min played.", ledger);
-        Assert.Contains("Streak of good days (a solve, an activity, or 25 min of focus): 2 days (best 7).", ledger);
+        Assert.Contains("Streak of good days (a solve, an activity or 25 min of focus): 2 days (best 7).", ledger);
         Assert.Contains("This week: 4 problems solved, 2 h 30 min focused, 1 h 40 min earned, 1 h 30 min played.", ledger);
         Assert.Contains("LeetCode problems pay Easy 1 token, Medium 2, Hard 4", ledger);
         Assert.Contains("focus pays 15 min for every 1 h focused", ledger);
@@ -53,6 +53,53 @@ public class SituationTests
                      "Earned 15 min of play; 10 min of unplayed time faded overnight as it began.", yesterday.Split('\n')[^1]);
         Assert.EndsWith("Wednesday 30 September 2026: no record (the cabinet keeps the last 120 days).", Situation.Ledger(state, Rules, Friday, null, "2026-09-30"));
         Assert.EndsWith("No day called \"last week\": name it as today, yesterday or YYYY-MM-DD.", Situation.Ledger(state, Rules, Friday, null, "last week"));
+    }
+
+    [Theory]
+    [InlineData(true, true, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4; the player's own activities pay by their size (small 1, medium 2, big 4); focus pays 15 min for every 1 h focused.", "a solve, an activity or 25 min of focus")]
+    [InlineData(true, true, false, "The player's own activities pay by their size (small 1, medium 2, big 4); focus pays 15 min for every 1 h focused.", "an activity or 25 min of focus")]
+    [InlineData(true, false, false, "Focus pays 15 min for every 1 h focused.", "25 min of focus")]
+    [InlineData(false, true, false, "The player's own activities pay by their size (small 1, medium 2, big 4).", "an activity")]
+    [InlineData(false, false, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4.", "a solve")]
+    [InlineData(true, false, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4; focus pays 15 min for every 1 h focused.", "a solve or 25 min of focus")]
+    public void Her_cabinet_tool_says_how_play_is_earned_by_only_what_earns(bool focus, bool activities, bool leetCode, string pays, string goodDay)
+    {
+        var rules = Rules with { Earns = new Earning(focus, activities, leetCode) };
+        var state = LedgerState.New(Friday.AddDays(-4), rules) with { Week = new WeekStats { Solves = 4 } };
+
+        var ledger = Situation.Ledger(state, rules, Friday, "BobSmith", null);
+
+        Assert.Contains($"How play is earned: a token is 15 min of play. {pays} A good day has {goodDay}; from the third", ledger);
+        Assert.Contains($"Streak of good days ({goodDay}): ", ledger);
+        Assert.Equal(leetCode, ledger.Contains("LeetCode"));                // the account, the rates: nothing names it when it is off
+        Assert.Equal(leetCode, ledger.Contains("solve"));                   // nor a solve, as the week's problems or the streak's
+    }
+
+    [Fact]
+    public void With_nothing_earning_her_cabinet_tool_says_so_and_names_no_streak()
+    {
+        var rules = Rules with { Earns = new Earning(false, false, false) };
+
+        var ledger = Situation.Ledger(LedgerState.New(Friday, rules), rules, Friday, "BobSmith", null);
+
+        Assert.Contains("How play is earned: a token is 15 min of play. Nothing earns play time now. A day can earn at most its cap", ledger);
+        Assert.DoesNotContain("good day", ledger);
+        Assert.DoesNotContain("LeetCode", ledger);
+    }
+
+    [Theory]
+    [InlineData(true, true, true, " (solving problems, focusing, their own activities)")]
+    [InlineData(true, true, false, " (focusing, their own activities)")]
+    [InlineData(false, true, false, " (their own activities)")]
+    [InlineData(true, false, true, " (solving problems, focusing)")]
+    [InlineData(false, false, false, "")]
+    public void Her_base_text_names_only_what_earns(bool focus, bool activities, bool leetCode, string ways)
+    {
+        var persona = new Persona("Shino", "Shino is cheerful.");
+
+        var system = Prompt.Build(persona, "", "", null, [], "", "hi", earns: new Earning(focus, activities, leetCode))[0].Text;
+
+        Assert.Contains($"the player earns time for their games by doing good things{ways} and spends it playing.", system);
     }
 
     [Fact]

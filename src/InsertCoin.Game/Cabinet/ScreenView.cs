@@ -18,6 +18,7 @@ public sealed record ScreenState
     public long TodayFocusedMs { get; init; }
     public long TodayPlayedMs { get; init; }
     public string Initials { get; init; } = "";
+    public string Earn { get; init; } = "FOCUS OR SOLVE";  // the attract screen's line under INSERT COIN: how play is earned, of what earns
 }
 
 /// <summary>
@@ -444,7 +445,7 @@ public partial class ScreenView : Node2D
             1 => ($"{s.BestStreak}", $"HI-SCORE {s.Initials}\nBEST STREAK"),
             2 => ($"{Hours(s.TodayEarnedMs)}/{Hours(s.TodayCapMs)}",
                   (s.TodayEarnedMs >= s.TodayCapMs ? "TODAY'S PLAY EARNED" : "EARNED TODAY / CAP") + $"\nFOCUS {Hours(s.TodayFocusedMs)} - PLAYED {Hours(s.TodayPlayedMs)}"),
-            3 => ("INSERT", "COIN\nFOCUS OR SOLVE"),
+            3 => ("INSERT", s.Earn.Length > 0 ? $"COIN\n{s.Earn}" : "COIN"),
             _ when inDebt => ($"-{Clock(s.DebtMs)}", $"OWED - {s.DebtMs / (15 * 60_000)} IOU"),
             _ => (Clock(s.TimeLeftMs), "TIME LEFT"),
         });

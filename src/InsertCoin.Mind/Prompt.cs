@@ -49,18 +49,19 @@ public static class Prompt
     /// <param name="tools">Tools are offered with the request: she is told how to use them (see <see cref="Toolbox"/>).</param>
     /// <param name="skills">Her skills switched on (see <see cref="Skills"/>): each one's name and description, with her tools.</param>
     /// <param name="keepsInTouch">The player chose "Keeps in touch": she is told she may plan when to reach them while they are out (see <see cref="Later"/>).</param>
+    /// <param name="earns">What earns the player play time (all of it when not given): only those are named.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, IReadOnlyList<Observation>? log, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
                                           int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
                                           bool keepsInTouch = false, IReadOnlyList<string>? asking = null, string herself = "", IReadOnlyList<string>? known = null,
-                                          IReadOnlyList<Skill>? skills = null)
+                                          IReadOnlyList<Skill>? skills = null, Core.Earning? earns = null)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool by the player's desk, next to INSERT COIN, their little desktop arcade cabinet, and keep them company while they work and play. You are there as yourself, a person in the room with them, not a service they call on.
 
             {persona.Description.Trim()}
 
-            INSERT COIN is there for a good balance of work, life and games: the player earns time for their games by doing good things (solving problems, focusing, their own activities) and spends it playing. The cabinet keeps the numbers and shows them on its screen; the <cabinet> block has what matters now. It never closes a game: you encourage and remind, in your own manner, never threatening or lecturing.
+            INSERT COIN is there for a good balance of work, life and games: the player earns time for their games by doing good things{Ways(earns ?? Core.Earning.All)} and spends it playing. The cabinet keeps the numbers and shows them on its screen; the <cabinet> block has what matters now. It never closes a game: you encourage and remind, in your own manner, never threatening or lecturing.
 
             You and the player talk as two people at the same desk do: they type or speak, and your words show in a speech bubble by you, a page at a time. Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage, tools)}
 
@@ -196,6 +197,14 @@ public static class Prompt
     /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
     /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
     /// </summary>
+    /// <summary>What earns play time, of what is on, as her base text says it (" (solving problems, focusing)"); nothing when none is.</summary>
+    internal static string Ways(Core.Earning earns)
+    {
+        string[] ways = [.. earns.LeetCode ? ["solving problems"] : Array.Empty<string>(), .. earns.Focus ? ["focusing"] : Array.Empty<string>(),
+                         .. earns.Activities ? ["their own activities"] : Array.Empty<string>()];
+        return ways.Length > 0 ? $" ({string.Join(", ", ways)})" : "";
+    }
+
     private static string Voice(string? language, bool tools = false)
     {
         if (language is null)

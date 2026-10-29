@@ -3,10 +3,11 @@ using Godot;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Balance: the balance of work, life and games. How much play a day can earn, Monday to Thursday, on Friday
-/// and at the weekend; the player's bedtime, after which play costs more; and their LeetCode name, whose solves earn.
-/// A change is saved at once but counts from the next day, so the cap can't be raised, nor bedtime moved, in the
-/// moment (spec 2026-10-07-balance.md).
+/// Settings → Balance: the balance of work, life and games. What earns play time (the first run's choices, to change
+/// them: focus, the player's own activities, LeetCode with their name, or no play time); how much play a day can earn,
+/// Monday to Thursday, on Friday and at the weekend; and the player's bedtime, after which play costs more. What earns
+/// counts at once; a cap or bedtime is saved at once but counts from the next day, so the cap can't be raised, nor
+/// bedtime moved, in the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md).
 /// </summary>
 public partial class BalanceSettings : VBoxContainer
 {
@@ -15,7 +16,9 @@ public partial class BalanceSettings : VBoxContainer
 
     /// <summary>The caps in minutes (Monday to Thursday, Friday, the weekend) and the bedtime ("23:30", or null for none), as chosen now.</summary>
     public event Action<int, int, int, string?>? Chosen;
-    /// <summary>"Change…" by the LeetCode name: the cabinet's screen asks for it.</summary>
+    /// <summary>What earns play time, as ticked now: focus, activities, LeetCode.</summary>
+    public event Action<bool, bool, bool>? Earning;
+    /// <summary>"Change…" by the LeetCode name, or LeetCode ticked without one: the cabinet's screen asks for it.</summary>
     public event Action? ChangePlayer;
 
     private OptionButton _weekday = null!, _friday = null!, _weekend = null!, _bedtime = null!;
@@ -26,17 +29,25 @@ public partial class BalanceSettings : VBoxContainer
     public void Build(AppSettings settings, string today)
     {
         Form.Page(this, "Balance");
-        Form.Hint(this, $"Good work earns play: LeetCode problems, and focus sessions (15 minutes of play for every " +
-                        $"{settings.FocusPerPlay * 15} minutes focused). A day can only earn so much, and each night half of the play " +
+        Form.Hint(this, "Good work earns play time, from what you tick below. A day can only earn so much, and each night half of the play " +
                         "you didn't use fades, so it can't be saved up for the weekend.");
 
-        var player = Form.Grid(this);
+        Form.Subheading(this, "What earns your play time");
+        var player = new VBoxContainer();
         var name = new HBoxContainer();
         name.AddThemeConstantOverride("separation", 10);
         name.AddChild(new Label { Text = settings.Username ?? "none yet", SizeFlagsVertical = SizeFlags.ShrinkCenter });
         Form.Button(name, "Change…", () => ChangePlayer?.Invoke());
-        Form.Row(player, "LeetCode", name);
-        Form.Hint(this, "Your solved problems are read from your public LeetCode profile. Change… asks for the name on the cabinet's screen.");
+        Form.Row(Form.Grid(player), "LeetCode name", name);
+        Form.Hint(player, "Your solved problems are read from your public LeetCode profile. Change… asks for the name on the cabinet's screen.");
+        var ticked = settings.Earning.LeetCode;
+        Sources(this, settings, player, (focus, activities, leetCode) =>
+        {
+            Earning?.Invoke(focus, activities, leetCode);
+            if (leetCode && !ticked && string.IsNullOrWhiteSpace(settings.Username))
+                ChangePlayer?.Invoke();                     // ticked with no name: the screen asks for one
+            ticked = leetCode;
+        });
 
         Form.Subheading(this, "Play a day can earn");
         _caps = [.. Caps.Union([settings.WeekdayCapMinutes, settings.FridayCapMinutes, settings.WeekendCapMinutes]).Order()];
@@ -53,7 +64,51 @@ public partial class BalanceSettings : VBoxContainer
         Form.Hint(this, "After your bedtime, until the day ends at 04:00, play costs one and a half times as much, and time owed grows " +
                         "that much faster.");
 
-        Form.Hint(this, "Changes count from tomorrow, so none can be made in the moment. " + today);
+        Form.Hint(this, "The caps and bedtime count from tomorrow, so none can be changed in the moment. " + today);
+    }
+
+    /// <summary>
+    /// What earns play time, the same on the first run and here: focus sessions and the player's own activities, ticked
+    /// to start with, LeetCode problems, and "No play time", which clears the three (unticked again, the first two come
+    /// back). Nothing ticked is no play time, however it came about.
+    /// </summary>
+    /// <param name="leetCode">What goes with LeetCode (its name), shown while it is ticked.</param>
+    /// <param name="chosen">Focus, activities and LeetCode, as ticked after each change.</param>
+    public static void Sources(Container parent, AppSettings settings, Control leetCode, Action<bool, bool, bool> chosen)
+    {
+        var now = settings.Earning;
+        CheckBox Tick(string text, bool on, string about)
+        {
+            var tick = Form.Tick(parent, text, on);
+            Form.Indented(parent).AddChild(Form.Hint(about));
+            return tick;
+        }
+        var ticks = new[]
+        {
+            Tick("Focus sessions", now.Focus, $"The screen's FOCUS app: 15 minutes of play for every {settings.FocusPerPlay * 15} minutes focused."),
+            Tick("Your own activities", now.Activities, "The gym, chores, whatever you count: tell your companion you did it, or log it on the " +
+                                                        "screen's DONE app. Each pays by its size, once a day."),
+            Tick("LeetCode problems", now.LeetCode, "Problems you solve on LeetCode: 15 minutes for an Easy one, 30 for a Medium, an hour for a Hard."),
+        };
+        parent.AddChild(leetCode);
+        var none = Form.Tick(parent, "No play time, just keep me company", !now.Any);
+
+        void Changed()
+        {
+            none.SetPressedNoSignal(!ticks.Any(t => t.ButtonPressed));
+            leetCode.Visible = ticks[2].ButtonPressed;
+            chosen(ticks[0].ButtonPressed, ticks[1].ButtonPressed, ticks[2].ButtonPressed);
+        }
+        foreach (var tick in ticks)
+            tick.Toggled += _ => Changed();
+        none.Toggled += on =>
+        {
+            ticks[0].SetPressedNoSignal(!on);
+            ticks[1].SetPressedNoSignal(!on);
+            ticks[2].SetPressedNoSignal(false);
+            Changed();
+        };
+        leetCode.Visible = now.LeetCode;
     }
 
     private void Changed() => Chosen?.Invoke(_caps[_weekday.Selected], _caps[_friday.Selected], _caps[_weekend.Selected], _bedtimes[_bedtime.Selected]);

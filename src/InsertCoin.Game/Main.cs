@@ -107,7 +107,7 @@ public partial class Main : Node2D
         _rules = RulesOf(_settings);
         _state = _stateStore.Load() ?? LedgerState.New(DateTimeOffset.Now, _rules);
         _ledger = new Ledger(_rules);
-        _tasks = new LeetCodeSource(new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });
+        _tasks = testRun ? new StandInLeetCode() : new LeetCodeSource(new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });     // no test ever asks leetcode.com
         _games = args.ContainsKey("no-steam") ? new NoGames() : new SteamDetector(new WindowsSteamRegistry(), _settings.IgnoredSteamAppIds);
 
         var skin = CabinetSkin.Load(_settings.Skin);
@@ -131,7 +131,7 @@ public partial class Main : Node2D
         _stool.Build(dataDir, _settingsFile, _cabinet, _window,
                      situation: () => Situation.Describe(_state, _rules, DateTimeOffset.Now),
                      lively: Lively);
-        _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, _rules, () => _settings.InGameTickets);
+        _director = new Director(_cabinet, () => _stool.Her, _audio, _ticket, () => _rules, () => _settings.InGameTickets);
         _stool.Focus.TimeFocused += time => Apply(new Focused(time));      // focus pays by the minute, at once
         _stool.PayActivity = (name, size, share) => Apply(new ActivityDone(name, size, share)).OfType<ActivityPaid>().FirstOrDefault()?.Paid;
         _stool.PaidToday = name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0;
@@ -254,7 +254,10 @@ public partial class Main : Node2D
         {
             _tray.Sync(_settings.Muted, _settings.Voice);   // flipped in Settings too
             _tray.ShowStart(StartLeft());
+            if (_settings.Earning != _rules.Earns)
+                UseEarning();
         };
+        UseEarning();
         _tray.MutedChanged += SetMuted;
         _tray.VoiceChanged += _stool.SetVoice;
         _tray.ConversationChanged += _stool.Converse;
@@ -278,14 +281,21 @@ public partial class Main : Node2D
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += username =>
         {
-            SaveSettings(_settings with { Username = username });
+            SaveSettings(_settings with { Username = username, LeetCodeEarns = username is null ? _settings.LeetCodeEarns : true });
             if (IsInstanceValid(_settingsWindow))
                 _settingsWindow!.RefreshPage("balance");     // the LeetCode name shown there
-            _cabinet.Screen.Flash($"HI {_settings.Initials}", username is null ? "NO LEETCODE NAME" : $"PLAYER {username}".ToUpperInvariant(), 3.0);
+            if (username is null)
+                return;                                     // none: LeetCode earns nothing, and nothing names it
+            _cabinet.Screen.Flash($"HI {_settings.Initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
             _audio.Play("hello");
             _backoffSeconds = 60;
             Poll();
+        };
+        _onboarding.Cancelled += () =>
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.RefreshPage("balance");     // LeetCode ticked there with no name stays unticked
         };
         AddTimer(0.5, _onboarding.Blink);
         if (!_settings.SetUp && string.IsNullOrWhiteSpace(_settings.Username))
@@ -347,7 +357,7 @@ public partial class Main : Node2D
     {
         if (_polling)
             return;
-        if (string.IsNullOrWhiteSpace(_settings.Username))
+        if (!_settings.Earning.LeetCode)                    // off, or no name: LeetCode is never asked
         {
             _nextPoll = DateTimeOffset.Now.AddSeconds(60);
             return;
@@ -356,6 +366,16 @@ public partial class Main : Node2D
         var user = _settings.Username!;
         try
         {
+            // a name new to the cabinet is checked first: one kept on the first run while LeetCode didn't answer, say
+            if (_state.Username != user && !await _tasks.PlayerExistsAsync(user, CancellationToken.None))
+            {
+                GD.Print($"LeetCode: no player called {user}, so the name is dropped");
+                SaveSettings(_settings with { Username = null });
+                _cabinet.Screen.Flash("NOT FOUND", $"PLAYER {user}".ToUpperInvariant(), 3.0);
+                if (IsInstanceValid(_settingsWindow))
+                    _settingsWindow!.RefreshPage("balance");
+                return;
+            }
             var recent = await _tasks.FetchRecentAsync(user, CancellationToken.None);
             Apply(_state.Username == user ? new TasksObserved(recent) : new PlayerSet(user, recent));
             _linkDown = false;
@@ -381,7 +401,12 @@ public partial class Main : Node2D
             return;
         _lastCheck = DateTimeOffset.Now;
         _audio.Play("check");
-        _cabinet.Screen.Flash("CHECK", string.IsNullOrWhiteSpace(_settings.Username) ? "NO LEETCODE NAME" : "ASKING LEETCODE", 1.5);
+        if (!_settings.Earning.LeetCode)
+        {
+            _cabinet.Screen.Flash("CHECK", "ALL UP TO DATE", 1.5);      // nothing to ask: LeetCode doesn't earn
+            return;
+        }
+        _cabinet.Screen.Flash("CHECK", "ASKING LEETCODE", 1.5);
         _backoffSeconds = 60;
         Poll();
     }
@@ -436,6 +461,14 @@ public partial class Main : Node2D
             TodayFocusedMs = s.Today?.FocusedMs ?? 0,
             TodayPlayedMs = s.Today?.PlayedMs ?? 0,
             Initials = _settings.Initials,
+            Earn = _rules.Earns switch                      // the attract screen's call, naming only what earns
+            {
+                { Focus: true, LeetCode: true } => "FOCUS OR SOLVE",
+                { Focus: true } => "FOCUS TO EARN",
+                { LeetCode: true } => "SOLVE TO EARN",
+                { Activities: true } => "GET THINGS DONE",
+                _ => "",
+            },
         });
         var mood = shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
         var streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules);
@@ -461,7 +494,7 @@ public partial class Main : Node2D
         if (_state.Session is { } session) return "GAME: " + string.Join(" + ", session.GameNames).ToUpperInvariant();
         if (late) return "PAST BEDTIME";
         if (_noSteam) return "NO STEAM";
-        if (string.IsNullOrWhiteSpace(_settings.Username)) return $"PLAYER {_settings.Initials}";
+        if (!_settings.Earning.LeetCode) return $"PLAYER {_settings.Initials}";
         if (_linkDown) return "LINK DOWN - RETRYING";
         return (_settings.Username ?? "").ToUpperInvariant();
     }
@@ -765,6 +798,23 @@ public partial class Main : Node2D
     }
 
     /// <summary>
+    /// LeetCode as a test run sees it, never asking leetcode.com: every player is there with nothing solved, except
+    /// "nobody" (there's no such player) and "nolink" (LeetCode doesn't answer).
+    /// </summary>
+    private sealed class StandInLeetCode : ITaskSource
+    {
+        public Task<IReadOnlyList<SolvedTask>> FetchRecentAsync(string username, CancellationToken ct) =>
+            username == "nolink" ? throw new TaskSourceUnavailableException("a test run's stand-in") : Task.FromResult<IReadOnlyList<SolvedTask>>([]);
+
+        public async Task<bool> PlayerExistsAsync(string username, CancellationToken ct)
+        {
+            await Task.Delay(500, ct);                      // as if asked
+            GD.Print($"LeetCode: a test run's stand-in asked for {username}");
+            return username == "nolink" ? throw new TaskSourceUnavailableException("a test run's stand-in") : username != "nobody";
+        }
+    }
+
+    /// <summary>
     /// A reminder going off, also kept in Windows' notification centre if the player chose that. It reaches their phone
     /// through her (see <see cref="Stool.TextOut"/>): while they are away, or also at the PC if they chose that.
     /// </summary>
@@ -830,8 +880,9 @@ public partial class Main : Node2D
     ];
 
     /// <summary>
-    /// The first run (see <see cref="Welcome"/>): the player's name, who keeps them company and her mind; then the
-    /// cabinet is theirs, their initials taken from the name, and she says hello. The rest waits in Getting started.
+    /// The first run (see <see cref="Welcome"/>): the player's name, who keeps them company, what earns their play time
+    /// and her mind; then the cabinet is theirs, their initials taken from the name, and she says hello. The rest waits
+    /// in Getting started.
     /// </summary>
     private void OpenWelcome()
     {
@@ -839,7 +890,7 @@ public partial class Main : Node2D
             return;
         _welcome = new Welcome();
         AddChild(_welcome);
-        _welcome.Build(_settingsFile, _stool, () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null);
+        _welcome.Build(_settingsFile, _stool, () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null, _tasks);
         _welcome.Done += name =>
         {
             var initials = new string([.. (name ?? "").ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).Take(3)]);
@@ -852,7 +903,7 @@ public partial class Main : Node2D
         _welcome.Open();
     }
 
-    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar, and LeetCode.</summary>
+    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar. What earns play time is the first run's.</summary>
     private List<StartStep> StartSteps()
     {
         var where = _settings.ReminderElsewhere;
@@ -870,10 +921,6 @@ public partial class Main : Node2D
                 $"Your calendar's next two weeks join the agenda, so {_stool.HerName()} knows what is coming up. Needs its secret iCal address (Google or " +
                 "Outlook). About 2 minutes.",
                 Needed: false, Done: linked > 0, linked > 0 ? $"{linked} linked." : "Not set up."),
-            new("balance", "LeetCode",
-                "Problems you solve on LeetCode earn play: 15 minutes for an Easy one, 30 for a Medium, an hour for a Hard. Needs your " +
-                "LeetCode name (Change… beside it on Balance). A minute.",
-                Needed: false, Done: _settings.Username is { Length: > 0 }, _settings.Username is { Length: > 0 } user ? $"Playing as {user}." : "Not set up."),
         ];
     }
 
@@ -996,6 +1043,7 @@ public partial class Main : Node2D
             SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
             UseRules();
         };
+        page.Earning += (focus, activities, leetCode) => SaveSettings(_settings with { FocusEarns = focus, ActivitiesEarn = activities, LeetCodeEarns = leetCode });
         page.ChangePlayer += () =>
         {
             // the cabinet's screen asks for the LeetCode name
@@ -1036,12 +1084,35 @@ public partial class Main : Node2D
         Bedtime = TimeOnly.TryParseExact(s.Bedtime, "HH:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var bedtime)
             ? bedtime.ToTimeSpan() : null,
         FocusPerPlay = Math.Max(1, s.FocusPerPlay),
+        Earns = s.Earning,
     };
 
     private void UseRules()
     {
         _rules = RulesOf(_settings);
         _ledger = new Ledger(_devWarp ? _rules with { MaxTick = TimeSpan.FromMinutes(10) } : _rules);
+    }
+
+    /// <summary>
+    /// What earns play time, as the cabinet starts or as it changes (the first run, Balance, a LeetCode name given or
+    /// dropped): it counts at once, and what a source that's off would bring up goes (the DONE app, her tools for
+    /// activities, the tray's LeetCode check).
+    /// </summary>
+    private void UseEarning()
+    {
+        var was = _rules.Earns;
+        UseRules();
+        var earns = _rules.Earns;
+        GD.Print($"Main: play time is earned by {string.Join(", ", new[] { (earns.Focus, "focus"), (earns.Activities, "activities"), (earns.LeetCode, "LeetCode") }.Where(s => s.Item1).Select(s => s.Item2).DefaultIfEmpty("nothing"))}");
+        _crt.Away("done", !earns.Activities);
+        _tray.ShowCheck(earns.LeetCode);
+        if (!earns.LeetCode)
+            _state = _state with { Username = null };      // on again later, the solves made meanwhile are seen without pay
+        else if (!was.LeetCode)
+        {
+            _backoffSeconds = 60;
+            _nextPoll = DateTimeOffset.MinValue;            // asked at the next check
+        }
     }
 
     private void AddTimer(double seconds, Action action)

@@ -1,7 +1,7 @@
 # What earns your play time, chosen on the first run, or no play time at all
 
-*Decided with the user, 2026-10-27 (#165). Nothing built yet; the order is at the end. Before Preview 2 (#157), at
-the user's word.*
+*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173); the order is at the end. Before Preview 2
+(#157), at the user's word.*
 
 ## Why
 
@@ -103,6 +103,13 @@ Today:
 ## Order
 
 1. **The first-run page and Balance's ticks** (#173). Sources on and off, her base text and the cabinet's ledger
-   naming only those on, Getting started's LeetCode step gone.
+   naming only those on, Getting started's LeetCode step gone. *Built 2026-10-28:* the Welcome's third page and
+   Balance share the ticks (`BalanceSettings.Sources`); saved as `FocusEarns`, `ActivitiesEarn` and `LeetCodeEarns`
+   (unset for a profile from before, read as "a LeetCode name earns"), read everywhere as `AppSettings.Earning`, a
+   Core `Earning` that the rules carry (`Rules.Earns`; `Earning.Any` false is no play time, for #174). The attract
+   screen's call names what earns: FOCUS OR SOLVE, FOCUS TO EARN, SOLVE TO EARN, GET THINGS DONE, or nothing. The
+   cabinet's CHECK with LeetCode off says ALL UP TO DATE. A name kept on the first run while LeetCode didn't answer is
+   checked when the cabinet first reads it, and dropped if LeetCode has no such player. A test run's LeetCode is a
+   stand-in. Until #174, "No play time" only stops earning: a game still spends.
 2. **No play time** (#174). The balance hidden and her earning talk gone, with the rest kept.
 3. **Programs that count as play** (#175). Picked on Balance, spent while in front.

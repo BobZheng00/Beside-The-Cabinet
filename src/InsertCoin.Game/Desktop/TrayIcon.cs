@@ -106,17 +106,23 @@ public partial class TrayIcon : Node
     }
 
     /// <summary>Shows "Getting started…" under Settings… while anything is left of it, and takes it away once nothing is.</summary>
-    public void ShowStart(bool left)
+    public void ShowStart(bool left) => Show(StartId, "Getting started…", SettingsId, left);
+
+    /// <summary>Shows "Check LeetCode now" under "Write a memo…" while LeetCode earns play time, and takes it away while it doesn't.</summary>
+    public void ShowCheck(bool on) => Show(CheckId, "Check LeetCode now", MemoId, on);
+
+    /// <summary>An entry in both menus, just below another, or taken away.</summary>
+    private void Show(int id, string text, int below, bool shown)
     {
         foreach (var menu in Menus)
         {
-            var at = menu.GetItemIndex(StartId);
-            if (left && at < 0)
+            var at = menu.GetItemIndex(id);
+            if (shown && at < 0)
             {
-                menu.AddItem("Getting started…", StartId);
-                menu.SetItemIndex(menu.GetItemIndex(StartId), menu.GetItemIndex(SettingsId) + 1);
+                menu.AddItem(text, id);
+                menu.SetItemIndex(menu.GetItemIndex(id), menu.GetItemIndex(below) + 1);
             }
-            else if (!left && at >= 0)
+            else if (!shown && at >= 0)
                 menu.RemoveItem(at);
         }
     }
@@ -164,8 +170,7 @@ public partial class TrayIcon : Node
         menu.AddSeparator();
         menu.AddItem("Memory book…", MemoryId);
         menu.AddItem("Chat history…", HistoryId);
-        menu.AddItem("Write a memo…", MemoId);
-        menu.AddItem("Check LeetCode now", CheckId);
+        menu.AddItem("Write a memo…", MemoId);         // "Check LeetCode now" goes under it while LeetCode earns (see ShowCheck)
         menu.AddSeparator();
         menu.AddCheckItem("Mute sounds", MuteId);
         menu.AddCheckItem("Voice", VoiceId);
