@@ -12,6 +12,25 @@ public sealed record SolvedTask(string Id, string Title, Difficulty? Difficulty,
 
 public sealed record RunningGame(string Id, string Name);
 
+/// <summary>
+/// What earns play time, as the player chose it on the first run or on Balance (spec 2026-10-27-what-earns-play-time.md):
+/// a source that's off pays nothing and isn't brought up, and with none on there is no play time.
+/// </summary>
+public sealed record Earning(bool Focus, bool Activities, bool LeetCode)
+{
+    public static readonly Earning All = new(true, true, true);
+
+    /// <summary>Anything earns play time: with nothing, there is no play time.</summary>
+    public bool Any => Focus || Activities || LeetCode;
+
+    /// <summary>
+    /// What earns for a profile: as chosen, and LeetCode only with a name to read. A profile from before the choice
+    /// (<paramref name="leetCode"/> unset) earns as it did: by focus and activities, and by LeetCode once a name is set.
+    /// </summary>
+    public static Earning Of(bool focus, bool activities, bool? leetCode, string? username) =>
+        new(focus, activities, (leetCode ?? true) && !string.IsNullOrWhiteSpace(username));
+}
+
 /// <summary>Tunable numbers. Defaults are the approved design (spec §3, and the balance spec of 2026-10-07).</summary>
 public sealed record Rules
 {
@@ -53,6 +72,9 @@ public sealed record Rules
     public TimeSpan? Bedtime { get; init; }
 
     public double LateNightMultiplier { get; init; } = 1.5;
+
+    /// <summary>What earns play time: a source that's off pays nothing, and a good day counts only what's on.</summary>
+    public Earning Earns { get; init; } = Earning.All;
 
     /// <summary>How many past days the record keeps.</summary>
     public int DaysKept { get; init; } = 120;

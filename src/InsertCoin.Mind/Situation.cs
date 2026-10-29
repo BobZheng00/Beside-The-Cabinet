@@ -65,7 +65,7 @@ public static class Situation
     public static string Ledger(LedgerState s, Rules rules, DateTimeOffset now, string? player, string? day)
     {
         var lines = new List<string>();
-        if (!string.IsNullOrWhiteSpace(player))
+        if (rules.Earns.LeetCode && !string.IsNullOrWhiteSpace(player))
             lines.Add($"The player's LeetCode account: {player}.");
 
         var left = s.TimeLeftMs(rules);
@@ -87,18 +87,17 @@ public static class Situation
         }
 
         var streak = GameCalendar.CurrentStreak(s, now, rules);
-        lines.Add($"Streak of good days (a solve, an activity, or {Words.Span(rules.GoodDayFocusMs)} of focus): {Words.Count(streak, "day")} (best {s.BestStreak}).");
-        lines.Add($"This week: {Words.Count(s.Week.Solves, "problem")} solved, " +
+        if (rules.Earns.Any)
+            lines.Add($"Streak of good days ({GoodDay(rules)}): {Words.Count(streak, "day")} (best {s.BestStreak}).");
+        lines.Add("This week: " + (rules.Earns.LeetCode ? $"{Words.Count(s.Week.Solves, "problem")} solved, " : "") +
                   (s.Week.FocusedMs >= 60_000 ? $"{Words.Span(s.Week.FocusedMs)} focused, " : "no focus sessions, ") +
                   $"{Earned(s.Week.EarnedMs)}, " +
                   (s.Week.PlayedMs >= 60_000 ? $"{Words.Span(s.Week.PlayedMs)} played." : "no games played yet."));
 
         lines.Add(Playing(s) ?? "Right now: not playing.");
-        lines.Add($"How play is earned: a token is {Words.Span(rules.TokenMs)} of play. LeetCode problems pay Easy {Words.Count(rules.EasyTokens, "token")}, " +
-                  $"Medium {rules.MediumTokens}, Hard {rules.HardTokens}; the player's own activities pay by their size (small {rules.TokensFor(Size.Small)}, " +
-                  $"medium {rules.TokensFor(Size.Medium)}, big {rules.TokensFor(Size.Big)}); focus pays {Words.Span(rules.TokenMs)} for every " +
-                  $"{Words.Span(rules.TokenMs * rules.FocusPerPlay)} focused. A good day has a solve, an activity or {Words.Span(rules.GoodDayFocusMs)} of focus; " +
-                  $"from the {Ordinal(rules.StreakBonusFromDay)} good day in a row, the day's first earning brings a bonus token. A day can earn at most its cap " +
+        lines.Add($"How play is earned: a token is {Words.Span(rules.TokenMs)} of play. {Pays(rules)} " +
+                  (rules.Earns.Any ? $"A good day has {GoodDay(rules)}; from the {Ordinal(rules.StreakBonusFromDay)} good day in a row, the day's first earning brings a bonus token. " : "") +
+                  "A day can earn at most its cap " +
                   $"(Monday to Thursday {Words.Span(rules.WeekdayCapMs)}, Friday {Words.Span(rules.FridayCapMs)}, weekends {Words.Span(rules.WeekendCapMs)}). " +
                   $"Each night at {Clock(rules.DayStartsAt)}, {Share(rules.NightlyFade)} of what isn't played fades. Play after the player's bedtime costs " +
                   $"x{Times(rules.LateNightMultiplier)} until {Clock(rules.DayStartsAt)}; when time runs out the game goes on, on credit at " +
@@ -128,6 +127,26 @@ public static class Situation
         return $"{named.ToString("dddd d MMMM yyyy", English)}{(named == today ? " (today, so far)" : "")}: {entry}" +
                (Diary.Accounts(record) is { Length: > 0 } accounts ? $" {accounts}" : "");
     }
+
+    /// <summary>What pays, of what earns for this player only ("LeetCode problems pay …; focus pays …."), or that nothing does.</summary>
+    private static string Pays(Rules rules)
+    {
+        var pays = new List<string>();
+        if (rules.Earns.LeetCode)
+            pays.Add($"LeetCode problems pay Easy {Words.Count(rules.EasyTokens, "token")}, Medium {rules.MediumTokens}, Hard {rules.HardTokens}");
+        if (rules.Earns.Activities)
+            pays.Add($"the player's own activities pay by their size (small {rules.TokensFor(Size.Small)}, medium {rules.TokensFor(Size.Medium)}, big {rules.TokensFor(Size.Big)})");
+        if (rules.Earns.Focus)
+            pays.Add($"focus pays {Words.Span(rules.TokenMs)} for every {Words.Span(rules.TokenMs * rules.FocusPerPlay)} focused");
+        var said = string.Join("; ", pays);
+        return said.Length > 0 ? $"{char.ToUpperInvariant(said[0])}{said[1..]}." : "Nothing earns play time now.";
+    }
+
+    /// <summary>What makes a good day, of what earns ("a solve, an activity or 25 min of focus").</summary>
+    private static string GoodDay(Rules rules) => Words.Either([
+        .. rules.Earns.LeetCode ? ["a solve"] : Array.Empty<string>(),
+        .. rules.Earns.Activities ? ["an activity"] : Array.Empty<string>(),
+        .. rules.Earns.Focus ? [$"{Words.Span(rules.GoodDayFocusMs)} of focus"] : Array.Empty<string>()]);
 
     private static string Ordinal(int n) => n switch { 1 => "first", 2 => "second", 3 => "third", 4 => "fourth", 5 => "fifth", _ => $"{n}th" };
 
@@ -169,6 +188,10 @@ public static class Words
         var minutes = ms / 60_000;
         return minutes < 1 ? "under a minute" : minutes < 60 ? $"{minutes} min" : minutes % 60 == 0 ? $"{minutes / 60} h" : $"{minutes / 60} h {minutes % 60} min";
     }
+
+    /// <summary>"a, b or c", "a or b", "a"; empty for none.</summary>
+    public static string Either(IReadOnlyList<string> things) =>
+        things.Count < 2 ? string.Concat(things) : $"{string.Join(", ", things.Take(things.Count - 1))} or {things[^1]}";
 
     /// <summary>"1 day", "3 days".</summary>
     public static string Count(int n, string thing) => n == 1 ? $"1 {thing}" : $"{n} {thing}s";

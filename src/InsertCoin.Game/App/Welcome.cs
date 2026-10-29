@@ -1,13 +1,16 @@
 using Godot;
+using InsertCoin.Adapters;
+using InsertCoin.Core;
 using InsertCoin.Game.Companion;
 
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The first run: three short pages before the cabinet is the player's: the name she calls them (their initials on the
-/// cabinet come from it), who keeps them company (seated on the stool as they choose), and her mind, which she needs to
-/// talk. What can wait (her voice, talking aloud, the phone, a calendar, LeetCode) is left to Getting started. Closing
-/// it early keeps what was chosen so far (spec 2026-10-10-settings-and-setup.md, "The first run").
+/// The first run: four short pages before the cabinet is the player's: the name she calls them (their initials on the
+/// cabinet come from it), who keeps them company (seated on the stool as they choose), what earns their play time
+/// (focus, their own activities, LeetCode with their name, or no play time), and her mind, which she needs to talk.
+/// What can wait (her voice, talking aloud, the phone, a calendar) is left to Getting started. Closing it early keeps
+/// what was chosen so far (spec 2026-10-10-settings-and-setup.md, "The first run"; 2026-10-27-what-earns-play-time.md).
 /// </summary>
 public partial class Welcome : Window
 {
@@ -22,15 +25,25 @@ public partial class Welcome : Window
     private Func<Control> _mind = null!;
     private VBoxContainer _mindPage = null!;
     private bool _done, _chosen = true;                     // _chosen: another character since her mind's page was made, which names them
+    private SettingsFile _settings = null!;
+    private ITaskSource _tasks = null!;
+    private Control _earns = null!;
+    private VBoxContainer _leetCode = null!;
+    private LineEdit _leetCodeName = null!;
+    private Label _found = null!;
+    private string? _nobody;                                // the name LeetCode said there's no player called
 
     /// <param name="stool">Who can sit on it and how, who sits there, the name they call the player, and her mind's page.</param>
     /// <param name="connected">Whether her mind is connected now.</param>
-    public void Build(SettingsFile settings, Stool stool, Func<bool> connected)
+    /// <param name="tasks">LeetCode, to check the name given there.</param>
+    public void Build(SettingsFile settings, Stool stool, Func<bool> connected, ITaskSource tasks)
     {
         Title = "Welcome";
         Visible = false;
         CloseRequested += Finish;
         _connected = connected;
+        _settings = settings;
+        _tasks = tasks;
         _mind = () => stool.MindPage(brief: true);
         Action<string> named = stool.CallMe;
 
@@ -46,7 +59,7 @@ public partial class Welcome : Window
         // the name she calls them
         var first = Form.Page(new VBoxContainer(), "Welcome to Beside the Cabinet");
         Form.Hint(first, "A desktop arcade cabinet for a balance of work, life and games, with a companion on the stool beside it, who " +
-                         "chats, remembers and keeps your day. Three things and it's yours: about five minutes.");
+                         "chats, remembers and keeps your day. Four things and it's yours: about five minutes.");
         var name = Form.Field(Form.Grid(first), "Your name", settings.Now.CallMe, "your name, or what you like to be called", typed: text =>
         {
             _name = text.Trim();
@@ -92,15 +105,33 @@ public partial class Welcome : Window
                           "they sit, or add a character of your own at any time: Settings → Characters, or drop a 3D model on the cabinet.");
         _pages.Add(second);
 
-        // their mind (made as the page comes up, for whoever was chosen), and what waits for later
-        var third = new VBoxContainer();
-        third.AddThemeConstantOverride("separation", 10);
-        _mindPage = new VBoxContainer();
-        third.AddChild(_mindPage);
-        third.AddChild(new HSeparator());
-        Form.Hint(third, "The rest can wait for whenever you like: a voice, talking aloud, your phone, a calendar and LeetCode are in " +
-                         "Getting started, in the tray and at the top of Settings.");
+        // what earns their play time: LeetCode with a name, checked as Balance's Change… checks it
+        var third = Form.Page(new VBoxContainer(), "What earns your play time?");
+        Form.Hint(third, "Good work earns time to play. Tick what counts for you; you can change it at any time in Settings → Balance.");
+        _leetCode = new VBoxContainer();
+        _leetCodeName = Form.Field(Form.Grid(_leetCode), "LeetCode name", settings.Now.Username, "your name or profile link on LeetCode", typed: _ =>
+        {
+            _nobody = null;
+            _found.Visible = false;
+        });
+        var asking = Form.Buttons(_leetCode);
+        Form.Button(asking, "Check", () => _ = Ask());
+        _found = Form.Result(asking);
+        _found.Visible = false;
+        BalanceSettings.Sources(third, settings.Now, _leetCode, (focus, activities, leetCode) =>
+            settings.Save(settings.Now with { FocusEarns = focus, ActivitiesEarn = activities, LeetCodeEarns = leetCode }));
+        _earns = third;
         _pages.Add(third);
+
+        // their mind (made as the page comes up, for whoever was chosen), and what waits for later
+        var fourth = new VBoxContainer();
+        fourth.AddThemeConstantOverride("separation", 10);
+        _mindPage = new VBoxContainer();
+        fourth.AddChild(_mindPage);
+        fourth.AddChild(new HSeparator());
+        Form.Hint(fourth, "The rest can wait for whenever you like: a voice, talking aloud, your phone and a calendar are in Getting " +
+                          "started, in the tray and at the top of Settings.");
+        _pages.Add(fourth);
 
         foreach (var page in _pages)
         {
@@ -117,6 +148,8 @@ public partial class Welcome : Window
         buttons.AddChild(new Control { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
         _next = Form.Button(buttons, "Next", () =>
         {
+            if (_pages[_at] == _earns && !LeetCodeKept())
+                return;
             if (_at < _pages.Count - 1)
                 Go(1);
             else
@@ -154,6 +187,70 @@ public partial class Welcome : Window
         var last = _at == _pages.Count - 1;
         _next.Text = !last ? "Next" : _connected() ? "Finish" : "Skip for now";
         _next.Disabled = _at == 0 && _name.Length == 0;
+    }
+
+    /// <summary>
+    /// Next from what earns: with LeetCode ticked, the name typed is kept and the first run goes on, checked or not (one
+    /// not checked yet is checked when the cabinet first reads it). It stays only for a name that isn't one, or one
+    /// LeetCode said no player has.
+    /// </summary>
+    private bool LeetCodeKept()
+    {
+        if (!_leetCode.Visible)
+            return true;
+        if (!LeetCodeProfile.TryParse(_leetCodeName.Text, out var username, out var error))
+        {
+            Form.Say(_found, Sentence(error!), Paper.Bad);
+            return false;
+        }
+        if (username == _nobody)
+        {
+            Form.Say(_found, $"LeetCode has no player called {username}.", Paper.Bad);
+            return false;
+        }
+        Keep(username!);
+        return true;
+    }
+
+    /// <summary>Check: LeetCode is asked whether the player is there. If it doesn't answer, the name is kept and checked later.</summary>
+    private async Task Ask()
+    {
+        if (!LeetCodeProfile.TryParse(_leetCodeName.Text, out var username, out var error))
+        {
+            Form.Say(_found, Sentence(error!), Paper.Bad);
+            return;
+        }
+        Form.Say(_found, "Asking LeetCode…", Paper.Faint);
+        string said;
+        Color colour;
+        try
+        {
+            var there = await _tasks.PlayerExistsAsync(username!, CancellationToken.None);
+            if (!IsInstanceValid(_leetCode) || !_leetCode.Visible)
+                return;                                     // closed, or LeetCode unticked, while LeetCode was asked
+            if (there)
+                Keep(username!);
+            else
+                _nobody = username;
+            (said, colour) = there ? ($"Found: {username}.", Paper.Good) : ($"LeetCode has no player called {username}.", Paper.Bad);
+        }
+        catch (TaskSourceUnavailableException)
+        {
+            if (!IsInstanceValid(_leetCode) || !_leetCode.Visible)
+                return;
+            Keep(username!);
+            (said, colour) = ("LeetCode didn't answer, so the name is kept and checked later.", Paper.Faint);
+        }
+        Form.Say(_found, said, colour);
+    }
+
+    private void Keep(string username) => _settings.Save(_settings.Now with { Username = username, LeetCodeEarns = true });
+
+    /// <summary>What the cabinet's screen says of a name ("NOT A LEETCODE LINK"), as a sentence for the page.</summary>
+    private static string Sentence(string screen)
+    {
+        var said = screen.ToLowerInvariant().Replace("leetcode", "LeetCode");
+        return $"{char.ToUpperInvariant(said[0])}{said[1..]}.";
     }
 
     private void Finish()

@@ -67,8 +67,9 @@ public sealed class Chat : IDisposable
         _changeSkill = BuiltIn.ChangeSkill(ChangeSkill);
         Notes = new Notes(Skills, Path.Combine(folder, "note-changes"));
         _noteTools = BuiltIn.NoteTools(Notes);
+        _activityTools = [BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof)];
         Tools = new Toolbox([BuiltIn.OpenLink(OpenPage), BuiltIn.PrintMemo(Memo), BuiltIn.Focus(FocusAct), BuiltIn.Music(MusicAct, name => Playlist?.Invoke(name) ?? "No playlists saved"),
-                             BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), BuiltIn.LogActivity(LogActivity), BuiltIn.JudgeProof(JudgeProof), BuiltIn.SetBedtime(SetBedtimeAct),
+                             BuiltIn.LookAtScreen(LookAtScreen, () => OpenWindows.Working()?.Title), .. _activityTools, BuiltIn.SetBedtime(SetBedtimeAct),
                              BuiltIn.WindowTitles(OpenWindows.Titles), BuiltIn.ReadPage(_pages.Read), BuiltIn.LeetCodeProblem(_leetCode.Describe),
                              BuiltIn.OpenApp(StartMenu.Apps, StartMenu.Open), BuiltIn.Cabinet(day => Ledger?.Invoke(day) ?? "The cabinet has no numbers yet.")])
         {
@@ -147,6 +148,8 @@ public sealed class Chat : IDisposable
     public Skills Skills { get; }
 
     private readonly Tool _readSkill, _changeSkill;
+    private readonly Tool[] _activityTools;
+    private bool _activitiesOffered = true;
 
     /// <summary>Shows her suggested change to a skill on her card: true for Remember it, false for Not now, null when they let it be.</summary>
     public Func<SkillChange, CancellationToken, Task<bool?>>? AskSkillChange { get; set; }
@@ -418,7 +421,7 @@ public sealed class Chat : IDisposable
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch };
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns };
         _recorded = default;                                // their diary catches up on the days too
     }
 
@@ -427,6 +430,24 @@ public sealed class Chat : IDisposable
 
     /// <summary>The player chose "Keeps in touch", as set now (see <see cref="Conversation.KeepsInTouch"/>).</summary>
     public Func<bool> KeepsInTouch { get; init; } = () => false;
+
+    /// <summary>What earns the player play time, as set now (see <see cref="Conversation.Earns"/>).</summary>
+    public Func<Earning> Earns { get; init; } = () => Earning.All;
+
+    /// <summary>Her tools for the player's activities (log_activity, judge_proof): offered only while activities earn play time.</summary>
+    public void ActivitiesEarn(bool on)
+    {
+        if (on == _activitiesOffered)
+            return;
+        _activitiesOffered = on;
+        foreach (var tool in _activityTools)
+        {
+            if (on)
+                Tools.Put(tool);
+            else
+                Tools.Take(tool.Name);
+        }
+    }
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>
     public static EmbeddingModel[] Searchable() => [.. EmbeddingModel.All.Where(m => ModelFiles.Present($"res://models/{m.Name}/model.onnx"))];

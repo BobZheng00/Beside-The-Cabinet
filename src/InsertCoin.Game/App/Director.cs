@@ -9,7 +9,7 @@ namespace InsertCoin.Game.App;
 /// Turns ledger events into moments: cabinet animation, sound, and — for things that happen mid-game — the corner
 /// ticket. The only place that knows both the rules and the presentation.
 /// </summary>
-public sealed class Director(CabinetView cabinet, Func<CompanionView?> companionNow, AudioBank audio, AlertTicket ticket, Rules rules, Func<bool> inGameTickets)
+public sealed class Director(CabinetView cabinet, Func<CompanionView?> companionNow, AudioBank audio, AlertTicket ticket, Func<Rules> rules, Func<bool> inGameTickets)
 {
     public void Play(LedgerEvent e)
     {
@@ -94,7 +94,7 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 cabinet.Printer.PrintWhole();
                 companion?.Play(Moment.Worry);
                 cabinet.Screen.Flash($"IOU #{i.TicketNumber}", "PLAYING ON CREDIT", 2.5);
-                Ticket($"IOU #{i.TicketNumber}", $"{i.DebtMs / 60_000} min owed - solve to pay");
+                Ticket($"IOU #{i.TicketNumber}", $"{i.DebtMs / 60_000} min owed" + (rules().Earns.LeetCode ? " - solve to pay" : ""));
                 break;
             case SessionStarted s:
                 audio.Play("game_on");
@@ -105,7 +105,7 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 audio.Play("game_over");
                 companion?.Play(Moment.Glance);
                 audio.Play("printer", delay: 0.9);
-                cabinet.GetTree().CreateTimer(0.9).Timeout += () => cabinet.Receipt.Print(end.Receipt, rules);
+                cabinet.GetTree().CreateTimer(0.9).Timeout += () => cabinet.Receipt.Print(end.Receipt, rules());
                 cabinet.Screen.Flash("GAME OVER", $"PLAYED {Minutes(end.Receipt.PlayedMs)}\nIOU {end.Receipt.IousPrinted}", 4.0);
                 break;
             case Paused:
@@ -119,11 +119,11 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 companion?.Play(Moment.Worry);
                 var times = l.Multiplier.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
                 cabinet.Screen.Flash("LATE NIGHT", $"PAST BEDTIME\nPLAY COSTS x{times}", 4.0);
-                Ticket("LATE NIGHT", $"Past your bedtime: play costs x{times} until {rules.DayStartsAt.Hours:00}:00");
+                Ticket("LATE NIGHT", $"Past your bedtime: play costs x{times} until {rules().DayStartsAt.Hours:00}:00");
                 break;
             case Faded f:
                 audio.Play("cashbox");
-                cabinet.Tray.Set((int)(f.LeftMs / rules.TokenMs));
+                cabinet.Tray.Set((int)(f.LeftMs / rules().TokenMs));
                 cabinet.Screen.FlashCount(f.FadedMs + f.LeftMs, f.LeftMs, $"NEW DAY\n{Clock(f.FadedMs)} FADED OVERNIGHT", 4.5);
                 break;
         }

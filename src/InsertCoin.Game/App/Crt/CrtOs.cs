@@ -75,6 +75,7 @@ public partial class CrtOs : Node
     private Func<bool> _homeLifts = null!;
     private Rect2 _canvas;
     private readonly List<CrtApp> _apps = [];
+    private readonly Dictionary<CrtApp, int> _away = [];   // apps off the home screen for now, by the place they had (DONE while activities don't earn)
     private IReadOnlyList<Switch> _switches = [];
     private Action<string[]> _keepOrder = null!;
     private Home _home = null!;
@@ -136,6 +137,31 @@ public partial class CrtOs : Node
         var bar = new BarView(this) { Size = new Vector2(screen.Pixels.X, Bar), MouseFilter = Control.MouseFilterEnum.Ignore };
         screen.Desk.AddChild(bar);
         _home.Bar = bar;
+    }
+
+    /// <summary>
+    /// Takes an app off the home screen (DONE while the player's activities don't earn play time), or brings it back to
+    /// the place it had; the system closes first if it changes anything.
+    /// </summary>
+    public void Away(string id, bool away)
+    {
+        if (away && _apps.FirstOrDefault(a => a.Id == id) is { } going)
+        {
+            Close();
+            _away[going] = _apps.IndexOf(going);
+            _apps.Remove(going);
+        }
+        else if (!away && _away.Keys.FirstOrDefault(a => a.Id == id) is { } back)
+        {
+            Close();
+            _apps.Insert(Math.Min(_away[back], _apps.Count), back);
+            _away.Remove(back);
+        }
+        else
+            return;
+        _page = 0;
+        _hovered = -1;
+        GD.Print($"Crt: apps on the home screen {string.Join(", ", _apps.Select(a => a.Id))}");
     }
 
     public override void _Process(double delta)
@@ -458,7 +484,7 @@ public partial class CrtOs : Node
     {
         _lifted = -1;
         _home.Lifted = -1;
-        _keepOrder([.. _apps.Select(a => a.Id)]);
+        _keepOrder([.. _apps.Select(a => a.Id), .. _away.Keys.Select(a => a.Id)]);      // one away stays in it, last
         GD.Print($"Crt: apps in order {string.Join(", ", _apps.Select(a => a.Id))}");
     }
 

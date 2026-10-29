@@ -7,10 +7,11 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 
 ## The cabinet, Settings and the first run
 
-Drag the cabinet by its body. The big gold button asks LeetCode right away. The tray icon has the menu, and a
-right-click on the cabinet or on your companion opens one just like it where you click (and they go on talking and
-moving while it is open): the cabinet, Settings…, Getting started… (until it is done), the memory book and chat
-history, a memo of your own, a LeetCode check, and the switches flipped often (Mute sounds, Voice, Conversation). A
+Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
+tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
+(and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), the
+memory book and chat history, a memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped
+often (Mute sounds, Voice, Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
 one to move it), SETTINGS last (on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
 switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it), which opens Settings as the tray does; along its top bar the same three switches, lit
@@ -26,12 +27,17 @@ under The cabinet, Cabinet and Usage. Each is saved as you change it; only the p
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
 the cabinet rises for a moment or is kept on top ("Always on top" on Cabinet).
 
-At first run a Welcome asks three things: your name (what your companion calls you; your initials on the cabinet
-come from it), who keeps you company (seated on the stool as you pick, with how they sit), and their mind (provider,
-key, model, Test and Save; Skip for now leaves them unable to talk). Then they say hello. The rest is in Getting
-started, first in Settings and in the tray: their voice, talking aloud, your phone, a calendar and LeetCode (its
-name goes in with Change… on Settings → Balance), each saying what it gives and takes, with Set up… (its page) and
-Later, and what balance starts with. It stays until everything is done or put off, or you hide it. A character added
+At first run a Welcome asks four things: your name (what your companion calls you; your initials on the cabinet
+come from it), who keeps you company (seated on the stool as you pick, with how they sit), what earns your play time,
+and their mind (provider, key, model, Test and Save; Skip for now leaves them unable to talk). What earns your play
+time has three ticks: focus sessions and your own activities, ticked to start with, and LeetCode problems, not ticked;
+ticking LeetCode asks for your LeetCode name there (Check asks LeetCode whether you're there; if it doesn't answer,
+the name is kept and checked when the cabinet first reads it, and the first run goes on). "No play time, just keep me
+company" clears the three: with nothing ticked, nothing earns play time. Then they say hello. The rest is in Getting
+started, first in Settings and in the tray: their voice, talking aloud, your phone and a calendar, each saying what it
+gives and takes, with Set up… (its page) and Later, and what balance starts with. It stays until everything is done or
+put off, or you hide it. A profile from before this choice keeps what it had: focus and activities, and LeetCode when
+it has a LeetCode name. A character added
 later gets a "Meet …" sheet: who they are (a card, or none yet), their voice, how they sit, and the name every
 character calls you.
 
@@ -40,15 +46,22 @@ worth watching still get a few seconds at full pace).
 
 ## Balance
 
-What earns play: LeetCode problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), and focus sessions, which
-pay by the minute as each part ends, however short: 15 minutes of play for every hour focused (half an hour adds 7:30
-at once; the fuel bar fills, and a coin drops when it completes one). A day (04:00 to 04:00) can earn at most 1:30
+What earns play time is yours to choose, on the first run and on Settings → Balance (it counts at once): focus
+sessions, which pay by the minute as each part ends, however short: 15 minutes of play for every hour focused (half
+an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it completes one); your own activities, which
+your companion logs when you tell them or the screen's DONE app logs, paid by their size once a day; and LeetCode
+problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), read from your public profile once its name is set
+(Change… on Balance asks for it on the cabinet's screen). A source that's off pays nothing and isn't brought up: with
+LeetCode off the cabinet never reads LeetCode and nothing names it (the attract screen, an IOU ticket, your
+companion's words); with activities off the DONE app leaves the screen and your companion has no tools for them; with
+focus off focus sessions still run, paying nothing. Your companion's base instructions and their cabinet tool name only
+what earns. "No play time, just keep me company" clears the three. A day (04:00 to 04:00) can earn at most 1:30
 from Monday to Thursday, 2:00 on Friday and 2:30 at the weekend; past that, work still counts in the day's record but
 pays nothing (paying back time owed doesn't count towards it). Each night half of the unplayed time fades, so it
 can't be saved up for the weekend (time owed never fades). After the bedtime you set, until 04:00, play costs ×1.5
 (on credit, ×2.25): the screen says LATE NIGHT and a ticket tells you when it starts. Settings → Balance sets the caps
 and your bedtime; changes count from the next day. The screen's attract pages show today's earnings against the cap.
-A day with a solve, an activity or 25 minutes of focus is a good day; from the third good day in a row, the first
+A day with a solve, an activity or 25 minutes of focus (of those that earn) is a good day; from the third good day in a row, the first
 thing each day earns brings a bonus star coin (STREAK xN BONUS). Every day is kept in a record (what was earned and
 from what, focused, played, when you were first and last at the PC), the start of your companion's sense of your
 patterns.
