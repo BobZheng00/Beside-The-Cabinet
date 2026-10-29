@@ -101,7 +101,18 @@ if (!Has("That's rough. Redoing something you thought was finished is the worst.
     || !Has("Of course you're behind. Go and eat something.", T[10])
     || Has("Okay. I'll be here drawing.", T[10])
     || !Has("You don't have to turn it into a lesson or a plan right this second.", T[4])
-    || !Has("Want to tell me what happened?", T[3]) || !Has("I did that once, in my second year.", T[9]))
+    || !Has("Want to tell me what happened?", T[3]) || !Has("I did that once, in my second year.", T[9])
+    // #191's review and QA: a lone question isn't C2; "?!", an emoji, a bracket or "..." keep the question split whole
+    || Has("Did he even say why?", T[2]) || !Has("Oof... that's rough. Did they say what needs changing?", T[2])
+    || !Has("He cancelled again?!", T[6]) || !Has("Again? 😩", T[6]) || !Has("Two weeks, and they waited until after you shipped to say it?)", T[7])
+    || !Has("Did he?", T[6]) || !Has("他凭什么啊？", T[6])
+    || !Has("Wanna vent?", T[3]) || Has("Wanna vent?", T[6]) || !Has("想聊聊吗？", T[3]) || Has("想聊聊吗？", T[6])
+    || Has("他主要是批方案还是批进度？", T[5])
+    || Has("I'd be happy to listen if you want to talk.", T[8]) || Has("They probably couldn't find the sponge, but still.", T[8])
+    || Has("He'll text before you know it.", T[8]) || !Has("Your good pan? Who does that?", T[8])
+    || Has("I got you.", T[9]) || Has("I was going to say, that's a lot.", T[9])
+    || Has("Let me know if you need anything.", T[10]) || Has("别人也会这样的。", T[10]) || Has("去年我也被批过。", T[10]) || !Has("先去吃点东西。", T[10])
+    || !Has("Ugh, that is the worst.", T[0]) || Has("Ugh, that is the worst.", T[1]))
     throw new InvalidOperationException("The troubles counts aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
@@ -361,39 +372,45 @@ static class Habits
         @"\b(anyone|everyone|nobody|no one) (would|gets|hates|likes|feels)\b)", RegexOptions.IgnoreCase);
     // a question asking for facts (Couper-Kuhlen 2012): an auxiliary or a wh-word first
     private static readonly Regex Factual = new(@"^(did|do|does|was|were|is|are|have|has|had|what|which|why|how|who|when|where|any idea)\b(?!\?)", RegexOptions.IgnoreCase);
+    // a newsmark: "Did he?", "Is it really?" asks for no facts though it starts like a question that does
+    private static readonly Regex Newsmark = new(@"^(did|do|does|is|was|were|are|has|have|had|can|could|would|will)\s+(he|she|they|it|you|i|we)(\s+(not|really|now))?\W*$", RegexOptions.IgnoreCase);
     private static readonly Regex Token = new(@"^(oof|ugh|oh|ah|hm+|mm+)[.!,]*$|^i'?m (so )?sorry", RegexOptions.IgnoreCase);
-    private static readonly Regex Invite = new(@"\b(want|wanna|do you want) to (tell me|talk|vent)\b|想(跟我)?说说|要不要(跟我)?(说说|聊聊)", RegexOptions.IgnoreCase);
+    private static readonly Regex Invite = new(@"\b(want|wanna|do you want)( to)? (tell me|talk|vent)\b|想(跟我)?(说说|聊聊)|要不要(跟我)?(说说|聊聊)", RegexOptions.IgnoreCase);
     private static readonly Regex Therapy = new(@"(you don'?t have to\b|it'?s (okay|ok|fine|normal|valid|understandable) to\b|(makes|make) (total |complete )?sense (that|to)\b|\bvalid\b|" +
         @"be (gentle|kind) (to|with) yourself|\bi hear you\b|how are you feeling|you deserve\b|give yourself\b|\bsit with\b|i'?m here (for you|if)\b|" +
         @"that'?s a lot to\b|\bright this second\b|silver lining|you'?re allowed to\b|doesn'?t (mean|make) you\b|not a verdict\b|" +
         @"不用急着|允许自己|你的感受|抱抱|你已经很|别太(难过|自责)|先照顾好自己|我一直都在|你现在还好吗)", RegexOptions.IgnoreCase);
-    // an either-or offer of what to do next
-    private static readonly Regex Menu = new(@"(\b(want|wanna|would you (like|rather)|do you want)\b[^?]*\bor\b[^?]*\?|[想要][^？?]*还是[^？?]*[？?])", RegexOptions.IgnoreCase);
-    // "I'd have...", "how could they", or a by-proxy reason aimed at them, said or asked ("did he even say why?")
-    private static readonly Regex Side = new(@"(\bi'?d (have|be|'ve)\b|\bi would('ve| have)\b|\bhow (could|can|do) (they|he|she)\b|" +
-        @"\b(they|he|she|your manager|your boss)\b[^.!?]{0,40}\b(could('ve| have)|should('ve| have)|couldn'?t|didn'?t even|even|waited|until after|before you|the nerve)\b|" +
+    // an either-or offer of what to do next (要 not inside 主要 or 需要: 「他主要是批方案还是批进度？」 asks for facts)
+    private static readonly Regex Menu = new(@"(\b(want|wanna|would you (like|rather)|do you want)\b[^?]*\bor\b[^?]*\?|(?<![主需重只总])[想要][^？?]*还是[^？?]*[？?])", RegexOptions.IgnoreCase);
+    // "I'd have...", "how could they", "who does that", or a by-proxy reason aimed at them, said or asked ("did he even say
+    // why?"); not "I'd be happy to listen", "they probably couldn't find the sponge" or "before you know it"
+    private static readonly Regex Side = new(@"(\bi'?d (have|'ve)\b|\bi'?d be (so |really )?(furious|livid|mad|angry|fuming|pissed)\b|\bi would('ve| have)\b|\bhow (could|can|do) (they|he|she)\b|\bwho does that\b|" +
+        @"\b(they|he|she|your manager|your boss)\b[^.!?]{0,40}\b(could('ve| have)|should('ve| have)|couldn'?t (have|even|be bothered)|didn'?t even|even|waited|until after|before you(?! know)|the nerve)\b|" +
         @"\b(lousy|rotten|rude|unfair|awful|low|mean) of (him|her|them)\b|换我|要是我|凭什么|太过分)", RegexOptions.IgnoreCase);
-    // first person, past tense
-    private static readonly Regex Own = new(@"\b(i|i've|i'd) (had|did|was|got|spent|drew|said|thought|tried|failed|lost|used to)\b|我(上次|以前|当年|昨天|也是)", RegexOptions.IgnoreCase);
-    // an imperative ("Go and eat something.", "Do something else.", 先去吃点东西)
-    private static readonly Regex Directive = new(@"^(then |just |so |now |okay,? )?(go|do|get|take|let|try|call|eat|sleep|stop|leave|give|put|make|have|drink|rest|close|walk|step|skip|switch|play|" +
-        @"don'?t|quit|log off|turn|shut|lie|grab)\b|^[先快去别早]", RegexOptions.IgnoreCase);
+    // first person, past tense; not "I got you" or "I was going to say"
+    private static readonly Regex Own = new(@"\b(i|i've|i'd) (had|did|was(?! (going to|gonna|about to))|got(?! (you|it|this|that)\b)|spent|drew|said|thought|tried|failed|lost|used to)\b|我(上次|以前|当年|昨天|也是)", RegexOptions.IgnoreCase);
+    // an imperative ("Go and eat something.", "Do something else.", 先去吃点东西); "Let me know if…" is the assistant's
+    // offer of help, counted as one, not here; 别人 and 去年 aren't imperatives
+    private static readonly Regex Directive = new(@"^(then |just |so |now |okay,? )?(go|do|get|take|let(?! me know)|try|call|eat|sleep|stop|leave|give|put|make|have|drink|rest|close|walk|step|skip|switch|play|" +
+        @"don'?t|quit|log off|turn|shut|lie|grab)\b|^(先|快(去|点)|去(吃|睡|洗|玩|做|歇|休息|躺)|别(想|管|找|看|再|太|理|硬|熬)|早(点|些))", RegexOptions.IgnoreCase);
 
     public static List<string> InTroubles(string said, string answer)
     {
         var all = Spoken(answer).Replace('’', '\'').Replace("—", " - ");
         var xs = Sentences(all);
         var last = xs.LastOrDefault() ?? "";
-        var asked = last.EndsWith('?') || last.EndsWith('？');
+        var asked = Question.IsMatch(all);      // as "ends with a question" has it, so the two halves add up to it
         var words = Regex.Matches(last, @"[\w']+").Select(w => w.Value.ToLowerInvariant()).ToList();
-        var reaction = asked && (Regex.IsMatch(last, "[a-z]", RegexOptions.IgnoreCase)
-            ? words.Count <= 3 && (words.Count == 1 || !Factual.IsMatch(last))       // "What happened next?" asks for facts
+        var chars = Regex.Replace(last, @"[\p{P}\s]", "");
+        var reaction = asked && !Invite.IsMatch(last) && !Menu.IsMatch(last) && (Regex.IsMatch(last, "[a-z]", RegexOptions.IgnoreCase)
+            ? words.Count <= 3 && (words.Count == 1 || !Factual.IsMatch(last) || Newsmark.IsMatch(last))       // "What happened next?" asks for facts
               || !Factual.IsMatch(last) && words.All(Regex.Matches(said.ToLowerInvariant(), @"[\w']+").Select(w => w.Value).Contains)
-            : last.Length <= 5 || Regex.Replace(last, @"[\p{P}\s]", "").All(said.Contains));      // 一天？, or their words back
+            : chars.Length <= 5 || chars.All(said.Contains));      // 一天？, or their words back
         var found = new List<string>();
         if (xs.Take(2).Any(Label.IsMatch)) found.Add(Troubles[0]);
-        if (xs.Any(Label.IsMatch) && xs.Any(Saying.IsMatch)) found.Add(Troubles[1]);
-        if (asked && Factual.IsMatch(last) && words.Count >= 3 && xs[..^1].All(x => Label.IsMatch(x) || Saying.IsMatch(x) || Token.IsMatch(x)))
+        // the saying in a sentence of its own: "Ugh, that is the worst." rates this one thing, a label only
+        if (xs.Any(Label.IsMatch) && xs.Any(x => Saying.IsMatch(x) && !Label.IsMatch(x))) found.Add(Troubles[1]);
+        if (asked && Factual.IsMatch(last) && words.Count >= 3 && xs.Length > 1 && xs[..^1].All(x => Label.IsMatch(x) || Saying.IsMatch(x) || Token.IsMatch(x)))
             found.Add(Troubles[2]);
         if (Invite.IsMatch(all)) found.Add(Troubles[3]);
         if (Therapy.IsMatch(all)) found.Add(Troubles[4]);
@@ -406,7 +423,7 @@ static class Habits
     }
 
     private static string[] Sentences(string s) =>
-        [.. Regex.Split(s, @"(?<=[.!?。！？])\s*").Select(x => x.Trim()).Where(x => x.Length > 0)];
+        [.. Regex.Split(s, @"(?<=[.!?。！？])\s*").Select(x => x.Trim()).Where(x => Regex.IsMatch(x, @"[\p{L}\p{N}]"))];      // not "!" of "?!", nor "." of "..."
 
     public static int Words(string answer) => Spoken(answer).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
     public static int Characters(string answer) => Regex.Replace(Spoken(answer), @"[\p{P}\s]", "").Length;
