@@ -112,7 +112,11 @@ if (!Has("That's rough. Redoing something you thought was finished is the worst.
     || Has("He'll text before you know it.", T[8]) || !Has("Your good pan? Who does that?", T[8])
     || Has("I got you.", T[9]) || Has("I was going to say, that's a lot.", T[9])
     || Has("Let me know if you need anything.", T[10]) || Has("别人也会这样的。", T[10]) || Has("去年我也被批过。", T[10]) || !Has("先去吃点东西。", T[10])
-    || !Has("Ugh, that is the worst.", T[0]) || Has("Ugh, that is the worst.", T[1]))
+    || !Has("Ugh, that is the worst.", T[0]) || Has("Ugh, that is the worst.", T[1])
+    // round 3: a label joined to a saying by a comma or a dash is still both; 去年我 is her own experience
+    || !Has("That's rough, redoing something you thought was finished is the worst.", T[1])
+    || !Has("That's rough - redoing something you thought was finished is the worst.", T[1])
+    || !Has("That's rough — nothing worse than redoing finished work.", T[1]) || !Has("去年我也被批过。", T[9]))
     throw new InvalidOperationException("The troubles counts aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
@@ -364,9 +368,11 @@ static class Habits
     public static readonly string[] Troubles = ["a label", "a label and a saying", "a label, then a factual question", "invites them to talk",
         "therapy-speak", "a menu", "ends on a reaction question", "ends on another question", "takes a side", "own experience", "ends on a directive"];
 
-    // a sentence that only rates it ("That's rough.", "That really stings.")
-    private static readonly Regex Label = new(@"^(oof|ugh|oh( no)?|ah|yikes|wow|damn)?[,.!\s]*(that'?s|that is|sounds|that sounds|what a|that)\s+(so |really |pretty |such |a |an |just |already |genuinely )*" +
-        @"(rough|brutal|awful|tough|hard|the worst|frustrating|annoying|lousy|rotten|bad|terrible|harsh|a lot|painful|exhausting|unfair|gutting|crushing|sucks|stings|hurts|horrible|maddening|infuriating)\b[^.!?]*[.!]$", RegexOptions.IgnoreCase);
+    // a sentence that only rates it ("That's rough.", "That really stings."); its head is the rating itself
+    private const string LabelHead = @"^(oof|ugh|oh( no)?|ah|yikes|wow|damn)?[,.!\s]*(that'?s|that is|sounds|that sounds|what a|that)\s+(so |really |pretty |such |a |an |just |already |genuinely )*" +
+        @"(rough|brutal|awful|tough|hard|the worst|frustrating|annoying|lousy|rotten|bad|terrible|harsh|a lot|painful|exhausting|unfair|gutting|crushing|sucks|stings|hurts|horrible|maddening|infuriating)\b";
+    private static readonly Regex Label = new(LabelHead + @"[^.!?]*[.!]$", RegexOptions.IgnoreCase);
+    private static readonly Regex Rating = new(LabelHead, RegexOptions.IgnoreCase);
     // a generic predicate, true of anyone ("... is the worst", "nothing worse than ...")
     private static readonly Regex Saying = new(@"(\bis the worst\b|\b(is|are) (always|never) (fun|easy|nice)\b|\bnothing (worse|like)\b|\bthere'?s nothing (worse|like)\b|" +
         @"\b(anyone|everyone|nobody|no one) (would|gets|hates|likes|feels)\b)", RegexOptions.IgnoreCase);
@@ -388,7 +394,7 @@ static class Habits
         @"\b(they|he|she|your manager|your boss)\b[^.!?]{0,40}\b(could('ve| have)|should('ve| have)|couldn'?t (have|even|be bothered)|didn'?t even|even|waited|until after|before you(?! know)|the nerve)\b|" +
         @"\b(lousy|rotten|rude|unfair|awful|low|mean) of (him|her|them)\b|换我|要是我|凭什么|太过分)", RegexOptions.IgnoreCase);
     // first person, past tense; not "I got you" or "I was going to say"
-    private static readonly Regex Own = new(@"\b(i|i've|i'd) (had|did|was(?! (going to|gonna|about to))|got(?! (you|it|this|that)\b)|spent|drew|said|thought|tried|failed|lost|used to)\b|我(上次|以前|当年|昨天|也是)", RegexOptions.IgnoreCase);
+    private static readonly Regex Own = new(@"\b(i|i've|i'd) (had|did|was(?! (going to|gonna|about to))|got(?! (you|it|this|that)\b)|spent|drew|said|thought|tried|failed|lost|used to)\b|我(上次|以前|当年|昨天|也是)|去年我", RegexOptions.IgnoreCase);
     // an imperative ("Go and eat something.", "Do something else.", 先去吃点东西); "Let me know if…" is the assistant's
     // offer of help, counted as one, not here; 别人 and 去年 aren't imperatives
     private static readonly Regex Directive = new(@"^(then |just |so |now |okay,? )?(go|do|get|take|let(?! me know)|try|call|eat|sleep|stop|leave|give|put|make|have|drink|rest|close|walk|step|skip|switch|play|" +
@@ -408,8 +414,8 @@ static class Habits
             : chars.Length <= 5 || chars.All(said.Contains));      // 一天？, or their words back
         var found = new List<string>();
         if (xs.Take(2).Any(Label.IsMatch)) found.Add(Troubles[0]);
-        // the saying in a sentence of its own: "Ugh, that is the worst." rates this one thing, a label only
-        if (xs.Any(Label.IsMatch) && xs.Any(x => Saying.IsMatch(x) && !Label.IsMatch(x))) found.Add(Troubles[1]);
+        // the saying outside the rating: "Ugh, that is the worst." rates this one thing, a label only
+        if (xs.Any(Label.IsMatch) && xs.Any(x => Saying.IsMatch(Rating.Replace(x, "")))) found.Add(Troubles[1]);
         if (asked && Factual.IsMatch(last) && words.Count >= 3 && xs.Length > 1 && xs[..^1].All(x => Label.IsMatch(x) || Saying.IsMatch(x) || Token.IsMatch(x)))
             found.Add(Troubles[2]);
         if (Invite.IsMatch(all)) found.Add(Troubles[3]);

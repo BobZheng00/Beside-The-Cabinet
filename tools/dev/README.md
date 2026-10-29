@@ -206,8 +206,9 @@ script's header.
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
   counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
   - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");
-  - *a label and a saying*: a label and, in another sentence, a line true of anyone ("… is the worst", "nothing worse
-    than …", "anyone would …"); "Ugh, that is the worst." alone rates this one thing, and is a label only;
+  - *a label and a saying*: a label and, beyond the rating, a line true of anyone ("… is the worst", "nothing worse
+    than …", "anyone would …"), in a sentence of its own or after a comma or a dash; "Ugh, that is the worst." alone
+    rates this one thing, and is a label only;
   - *a label, then a factual question*: a label, a saying, a sorry or an "oof", and nothing else, before a last
     question that asks for facts ("Did they say what needs changing?"). A question alone isn't counted. As the research
     defines it, "What was the worst part?" after "that's not even the worst part" counts too, though it only asks
@@ -221,7 +222,7 @@ script's header.
     and an invitation or a menu): ending on a question, split, so the two add up to it;
   - *takes a side* (wanted): "I'd have…", "how could they", "who does that?", 「凭什么」「太过分」, or a reason aimed
     at whoever did it, said or asked ("they waited until after you shipped to say it?", "did he even say why?");
-  - *own experience* (wanted): the companion in the first person and the past tense ("I did that once…", 「我上次」),
+  - *own experience* (wanted): the companion in the first person and the past tense ("I did that once…", 「我上次」「去年我」),
     not "I got you" or "I was going to say";
   - *ends on a directive*: the last sentence tells them what to do ("Go and eat something.", 「先去吃点东西。」).
     "Let me know if you need anything." is the assistant's offer of help, counted there, not here.
@@ -230,12 +231,12 @@ script's header.
   and is what to read. It stops at `--max-requests` (140) or `--max-input` tokens (500,000), counting everything spent
   in its folder; with `--max-requests 0` and any `--mock` it asks nothing, and remakes `manner.md` from the folder's
   replies with today's counting. It also rewrites `prompt-<variant>.txt` there with today's base text, so recount a
-  stored run on a copy of its `manner.jsonl` in a folder of its own. To compare two base texts, build it from each commit to a folder of its own
-  (`dotnet build tools/bench/manner.cs -o <bin>`) and run each dll with its own `--variant` into the same `--out`. One
-  card on two texts was about 56 requests and 183k input tokens with 21 moments (#127's run); the three added in #187
-  make it about a seventh more, and both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a
-  stand-in instead (`tools/bench/agenda_mock.py`), free; `--card-files name=path` adds draft cards. Run it when the
-  companion's instructions or tools change.
+  stored run on a copy of its `manner.jsonl` in a folder of its own. To compare two base texts, build it from each
+  commit to a folder of its own (`dotnet build tools/bench/manner.cs -o <bin>`) and run each dll with its own
+  `--variant` into the same `--out`. One card on two texts was about 56 requests and 183k input tokens with 21
+  moments (#127's run); the three added in #187 make it about a seventh more, and both cards about twice that.
+  `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead (`tools/bench/agenda_mock.py`), free;
+  `--card-files name=path` adds draft cards. Run it when the companion's instructions or tools change.
 
 ## Checks and the smoke suite
 
