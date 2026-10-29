@@ -81,6 +81,17 @@
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
+      "name": "slip-size",
+      "about": "The chat box (the slip), with a line typed and four pictures handed over, is the size it is by a large cabinet by a medium one, and stays so with it open as the cabinet turns small, then large (Settings → Cabinet): by a small or medium cabinet its chips take two lines, inside the window; by a large one, one.",
+      "covers": ["src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
+      "mind": true,
+      "script": "nocall@1,chattype:I_was_thinking_we_could_try_the_new_ramen_place@3,pastepicture:res://icon.png@3.5,pastepicture:res://icon.png@3.8,pastepicture:res://icon.png@4.1,pastepicture:res://icon.png@4.4,settings:cabinet@5,settingsdo:Size:0@7,settingsdo:Size:2@10",
+      "shots": [7, 11, 15],
+      "desk": true,
+      "expect": ["^Settings: Size is \"Small\"$", "^Settings: Size is \"Large\"$", "^Slip: 300 px wide by a cabinet at 0\\.8, 2 line\\(s\\) of chips, inside the window", "^Slip: 300 px wide by a cabinet at 0\\.6, 2 line\\(s\\) of chips, inside the window", "^Slip: 300 px wide by a cabinet at 1\\.0, 1 line\\(s\\) of chips, inside the window"],
+      "forbid": ["^Slip: (?!300 px wide)", "^Slip: .* past the window"]
+    },
+    {
       "name": "chatgpt",
       "about": "The player signs in with ChatGPT (a stand-in: no browser opens) on Settings → Mind and sees which account and model; the companion answers on the plan, within its rules; once the plan's limit is reached their card says so once, with Manage usage, the Mind page shows it, and a reminder still comes in plain words; Disconnect takes the card back and the page asks to continue with ChatGPT.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],

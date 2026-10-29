@@ -10,6 +10,8 @@ namespace InsertCoin.Game.Companion;
 /// sending; when you talk to her by holding on her or a key, what she heard shows here while she answers. The paper
 /// clip beside it hands her things with what you say (a picture or a file, your screen, a photo from your phone), and
 /// so do pasting and dropping them on her: each waits as a chip above the slip until the message goes.
+/// It is drawn a pixel per canvas unit of a large cabinet whatever the cabinet's size, as the right-click menu undoes
+/// the cabinet's scale (#163): by a small cabinet it was too small to type in (#182).
 /// </summary>
 public partial class ChatBox : Node2D
 {
@@ -33,16 +35,23 @@ public partial class ChatBox : Node2D
     private LineEdit _field = null!;
     private Button _mic = null!, _clip = null!;
     private MicIcon _icon = null!;
-    private HBoxContainer _row = null!, _ways = null!;
+    private Control _row = null!;                       // the chips, laid out by Lay
+    private HBoxContainer _ways = null!;
     private readonly List<(Attachment Thing, Control Chip)> _handed = [];
     private Tween? _tween;
     private string _placeholder = "";
     private bool _showingHeard;
+    private Vector2 _foot;                                  // the slip's bottom-left corner on the canvas
+    private float _size = 1;                                // canvas units per pixel of the slip: 1 by a large cabinet
+    private int _lines;                                     // of chips above the slip
+
+    /// <summary>Its scale on the cabinet's canvas: the cabinet's own undone, so it is as large by any cabinet.</summary>
+    private float Size => 1 / GetViewport().GetFinalTransform().Scale.X;
 
     public bool IsOpen => Visible;
 
-    /// <summary>How much of the foot of the stool it takes up: the slip, and the row of chips or ways above it when there is one.</summary>
-    public float Tall => Height + (_ways.Visible || _row.Visible && _row.GetChildCount() > 0 ? RowHeight + 6 : 0);
+    /// <summary>How much of the foot of the stool it takes up, on the canvas: the slip, and the row of chips or ways above it when there is one.</summary>
+    public float Tall => _size * (Height + (_ways.Visible ? 1 : _lines) * (RowHeight + 6));
     public bool IsEmpty => _field.Text.Trim().Length == 0 && _handed.Count == 0;
 
     /// <summary>What waits to go with the next message.</summary>
@@ -85,10 +94,9 @@ public partial class ChatBox : Node2D
         _mic.Pressed += () => MicPressed?.Invoke();
 
         // above the slip: the chips of what waits to go, or the clip's ways to choose from
-        _row = new HBoxContainer { Position = new Vector2(0, -RowHeight - 6) };
-        _row.AddThemeConstantOverride("separation", 6);
+        _row = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
         AddChild(_row);
-        _ways = new HBoxContainer { Position = _row.Position, Visible = false };
+        _ways = new HBoxContainer { Position = new Vector2(0, -RowHeight - 6), Visible = false };
         _ways.AddThemeConstantOverride("separation", 6);
         foreach (var (label, how) in new[] { ("Picture or file…", "file"), ("Your screen", "screen"), ("From your phone…", "phone") })
         {
@@ -107,11 +115,12 @@ public partial class ChatBox : Node2D
         Visible = false;
     }
 
-    /// <param name="at">Canvas point of the slip's top-left corner.</param>
+    /// <param name="foot">Canvas point of the slip's bottom-left corner.</param>
     /// <param name="focus">Put the caret in it, for typing (not when she was talked to with a key from another app).</param>
-    public void Open(Vector2 at, string placeholder, bool focus = true)
+    public void Open(Vector2 foot, string placeholder, bool focus = true)
     {
-        Position = at;
+        _foot = foot;
+        Fit();
         _placeholder = placeholder;
         if (!_icon.Listening)
             _field.PlaceholderText = placeholder;
@@ -119,14 +128,58 @@ public partial class ChatBox : Node2D
         {
             _tween?.Kill();
             Visible = true;
-            Scale = new Vector2(1, 0.4f);
+            Scale = new Vector2(_size, 0.4f * _size);
             Modulate = new Color(1, 1, 1, 0);
             _tween = CreateTween();
-            _tween.TweenProperty(this, "scale", Vector2.One, 0.2).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+            _tween.TweenProperty(this, "scale", Vector2.One * _size, 0.2).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
             _tween.Parallel().TweenProperty(this, "modulate:a", 1f, 0.12);
         }
         if (focus)
             _field.GrabFocus();
+    }
+
+    /// <summary>Sizes it for the cabinet's size now, its foot where it was put.</summary>
+    private void Fit()
+    {
+        _size = Size;
+        Position = _foot - new Vector2(0, Height * _size);
+        if (_tween?.IsRunning() != true)
+            Scale = Vector2.One * _size;
+        Lay();
+    }
+
+    /// <summary>
+    /// Puts the chips above the slip, the first nearest it, in as many lines as the cabinet's window needs: by a small
+    /// cabinet four of them are wider than it.
+    /// </summary>
+    private void Lay()
+    {
+        var room = (GetViewportRect().Size.X - _foot.X - 6) / _size;
+        var (x, line, widest) = (0f, 0, Width);
+        foreach (var (_, chip) in _handed)
+        {
+            var width = chip.GetCombinedMinimumSize().X;
+            if (x > 0 && x + width > room)
+                (x, line) = (0, line + 1);
+            chip.Position = new Vector2(x, -(line + 1) * (RowHeight + 6));
+            chip.Size = new Vector2(width, RowHeight);
+            widest = Mathf.Max(widest, x + width);
+            x += width + 6;
+        }
+        _lines = _handed.Count == 0 ? 0 : line + 1;
+        if (!Paper.OffScreen)
+            return;
+        var toWindow = GetViewport().GetFinalTransform() * GetGlobalTransformWithCanvas();
+        var reach = toWindow * new Vector2(widest, 0);
+        var window = DisplayServer.WindowGetSize().X;
+        GD.Print($"Slip: {toWindow.Scale.X * Width:0} px wide by a cabinet at {GetViewport().GetFinalTransform().Scale.X:0.0}, {_lines} line(s) of chips, " +
+                 $"{(reach.X <= window ? "inside" : "past")} the window ({reach.X:0} of {window} px)");
+    }
+
+    public override void _Process(double delta)
+    {
+        if (Visible && !Mathf.IsEqualApprox(Size, _size))
+            Fit();                                          // the cabinet's size changed while it was open
     }
 
     public void Close()
@@ -201,10 +254,12 @@ public partial class ChatBox : Node2D
         chip.GetChild(0).AddChild(close);
         _row.AddChild(chip);
         _handed.Add((thing, chip));
+        Lay();
         close.Pressed += () =>
         {
             _handed.RemoveAll(h => h.Chip == chip);
             chip.QueueFree();
+            Lay();
         };
         return true;
     }
@@ -216,6 +271,7 @@ public partial class ChatBox : Node2D
         foreach (var (_, chip) in _handed)
             chip.QueueFree();
         _handed.Clear();
+        _lines = 0;
         return handed;
     }
 
@@ -225,6 +281,9 @@ public partial class ChatBox : Node2D
         _field.Text = text;
         _field.EmitSignal(LineEdit.SignalName.TextSubmitted, text);
     }
+
+    /// <summary>Dev: types a line into it, without sending it.</summary>
+    public void DevType(string text) => _field.Text = text;
 
     /// <summary>Dev: clicks the microphone.</summary>
     public void DevMic() => MicPressed?.Invoke();
@@ -236,10 +295,11 @@ public partial class ChatBox : Node2D
     {
         if (!Visible)
             return false;
-        if (new Rect2(Position, new Vector2(Width, Height)).Grow(4).HasPoint(canvasPoint))
+        var at = Transform.AffineInverse() * canvasPoint;
+        if (new Rect2(0, 0, Width, Height).Grow(4).HasPoint(at))
             return true;
-        var row = _ways.Visible ? _ways : _row;
-        return row.GetChildCount() > 0 && new Rect2(Position + row.Position, row.Size).Grow(4).HasPoint(canvasPoint);
+        return _ways.Visible ? new Rect2(_ways.Position, _ways.Size).Grow(4).HasPoint(at)
+            : _handed.Any(h => new Rect2(h.Chip.Position, h.Chip.Size).Grow(4).HasPoint(at));
     }
 
     /// <summary>Ctrl+V: text pastes as usual; with no text on the clipboard, a picture or files copied in Explorer are handed over.</summary>

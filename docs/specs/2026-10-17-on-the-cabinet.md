@@ -157,6 +157,20 @@ msg bubble to have the size like under L". QA on #169: a full page already cover
   waits behind it; trying to sit it beside or above the screen would leave its tail pointing into the screen.
 - **A change of the cabinet's size** places it again over her head.
 
+## Built: the chat box the same size by any cabinet (2026-10-28, #182)
+
+The user, trying a small cabinet: "the input text box under S is also too small. can we file an issue so that we make
+the input text box the same size for all 3 sizes?"
+
+- **The slip, its text, its chips and its buttons are the size they are by a large cabinet** on Small, Medium and
+  Large. It stays in the cabinet's window, its scale undoing the cabinet's, as the right-click menu's parent does
+  (#163), rather than in a window of its own as the bubble is: it takes the keyboard, and the cabinet's window already
+  gets it the way it always has. Its foot keeps its place at the foot of the stool; by a small cabinet it reaches
+  further over the cabinet's base.
+- **Chips wrap:** four things handed over are wider than a small or medium cabinet's window, so the chips go on a
+  second line above the first, and her card above the slip stands above both.
+- **A change of the cabinet's size while it is open** sizes it again.
+
 ## Open
 - **A right-click while a card by her stool waits,** or while she speaks: the menu still opens; whether it should close
   the card is left to how the card already handles a click elsewhere.

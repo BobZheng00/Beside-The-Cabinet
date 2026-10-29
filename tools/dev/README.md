@@ -36,7 +36,7 @@ and shows it too, for `windoworder` to list it as "a popup", logging `Menu: show
 screen: at scale 1.00 (0.80 per 96 dpi)`; a hidden run takes no screenshots until it closes, #88, though the app still
 answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupress:Voice`
 (presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
-`menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `settings`
+`menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `chattype:some_text` (type it into the slip, unsent), `settings`
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
