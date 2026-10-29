@@ -206,24 +206,31 @@ script's header.
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
   counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
   - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");
-  - *a label and a saying*: a label and a line true of anyone in the same reply ("… is the worst", "nothing worse
-    than …", "anyone would …");
-  - *a label, then a factual question*: only a label, a saying, a sorry or an "oof" before a last question that asks
-    for facts ("Did they say what needs changing?");
-  - *invites them to talk*: "want to tell me what happened?", 「想说说」「要不要聊聊」;
+  - *a label and a saying*: a label and, in another sentence, a line true of anyone ("… is the worst", "nothing worse
+    than …", "anyone would …"); "Ugh, that is the worst." alone rates this one thing, and is a label only;
+  - *a label, then a factual question*: a label, a saying, a sorry or an "oof", and nothing else, before a last
+    question that asks for facts ("Did they say what needs changing?"). A question alone isn't counted. As the research
+    defines it, "What was the worst part?" after "that's not even the worst part" counts too, though it only asks
+    them to go on: two of the drafts' four were that;
+  - *invites them to talk*: "want to tell me what happened?", "wanna vent?", 「想说说」「想聊聊吗？」「要不要聊聊」;
   - *therapy-speak*: "you don't have to", "it's okay to", "you're allowed to", "I'm here for you", 「抱抱」「你已经很」;
-  - *a menu*: an either-or offer of what to do next ("want to vent, or would you rather…?", 「想…还是…？」);
-  - *ends on a reaction question* (three words or fewer that ask for no facts, or the player's own words back:
-    "Again?", "All day?", 「一天？」) or *on another question* ("What happened next?"): ending on a question, split;
-  - *takes a side* (wanted): "I'd have…", "how could they", 「凭什么」「太过分」, or a reason aimed at whoever did it,
-    said or asked ("they waited until after you shipped to say it?", "did he even say why?");
-  - *own experience* (wanted): the companion in the first person and the past tense ("I did that once…", 「我上次」);
+  - *a menu*: an either-or offer of what to do next ("want to vent, or would you rather…?", 「想…还是…？」), not an
+    either-or question about what happened (「他主要是批方案还是批进度？」);
+  - *ends on a reaction question* (three words or fewer that ask for no facts, "Did he?", or the player's own words
+    back: "Again?!", "All day?", 「一天？」, five characters or fewer) or *on another question* ("What happened next?",
+    and an invitation or a menu): ending on a question, split, so the two add up to it;
+  - *takes a side* (wanted): "I'd have…", "how could they", "who does that?", 「凭什么」「太过分」, or a reason aimed
+    at whoever did it, said or asked ("they waited until after you shipped to say it?", "did he even say why?");
+  - *own experience* (wanted): the companion in the first person and the past tense ("I did that once…", 「我上次」),
+    not "I got you" or "I was going to say";
   - *ends on a directive*: the last sentence tells them what to do ("Go and eat something.", 「先去吃点东西。」).
+    "Let me know if you need anything." is the assistant's offer of help, counted there, not here.
 
   These are tuned on about a hundred replies and will miss and over-count: the side by side lists each reply's counts,
   and is what to read. It stops at `--max-requests` (140) or `--max-input` tokens (500,000), counting everything spent
   in its folder; with `--max-requests 0` and any `--mock` it asks nothing, and remakes `manner.md` from the folder's
-  replies with today's counting. To compare two base texts, build it from each commit to a folder of its own
+  replies with today's counting. It also rewrites `prompt-<variant>.txt` there with today's base text, so recount a
+  stored run on a copy of its `manner.jsonl` in a folder of its own. To compare two base texts, build it from each commit to a folder of its own
   (`dotnet build tools/bench/manner.cs -o <bin>`) and run each dll with its own `--variant` into the same `--out`. One
   card on two texts was about 56 requests and 183k input tokens with 21 moments (#127's run); the three added in #187
   make it about a seventh more, and both cards about twice that. `--mock http://127.0.0.1:<port>/v1` runs on a
