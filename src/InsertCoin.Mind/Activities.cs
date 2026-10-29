@@ -50,6 +50,9 @@ public sealed class Activities(MindStore store, TimeProvider? clock = null, Rand
     /// <summary>Dev: the roll that decides whether proof is wanted (0 always, 1 never), instead of chance.</summary>
     public double? Roll { get; set; }
 
+    /// <summary>The player's activities earn play time, as set now: when they don't, she isn't told of them at all.</summary>
+    public Func<bool> Earn { get; set; } = () => true;
+
     /// <summary>The activities she knows, as she sized them, the oldest first.</summary>
     public IReadOnlyList<Activity> Known => store.Activities();
 
@@ -163,9 +166,11 @@ public sealed class Activities(MindStore store, TimeProvider? clock = null, Rand
         return roll < chance;
     }
 
-    /// <summary>The cabinet block's lines: what counts, what counted today, what waits for proof.</summary>
-    public string Describe()
+    /// <summary>The cabinet block's lines: what counts, what counted today, what waits for proof; null while activities don't earn.</summary>
+    public string? Describe()
     {
+        if (!Earn())
+            return null;
         var known = Known;
         if (known.Count == 0)
             return "Activities that count: none yet (you size each the first time the player tells you about one).";

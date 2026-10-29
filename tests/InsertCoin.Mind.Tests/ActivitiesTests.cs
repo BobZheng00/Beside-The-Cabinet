@@ -294,6 +294,20 @@ public class ActivitiesTests
     }
 
     [Fact]
+    public async Task While_activities_dont_earn_her_cabinet_block_says_nothing_of_them()
+    {
+        using var temp = new TempStore();
+        var (activities, _) = Make(temp);
+        await activities.Log("the gym", Size.Medium, null, null);
+
+        activities.Earn = () => false;
+
+        Assert.Null(activities.Describe());
+        activities.Earn = () => true;
+        Assert.Contains("the gym (medium)", activities.Describe());
+    }
+
+    [Fact]
     public async Task Forgetting_the_player_forgets_their_activities_and_record()
     {
         using var temp = new TempStore();
