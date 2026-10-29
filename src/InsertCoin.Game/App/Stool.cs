@@ -1649,7 +1649,7 @@ public partial class Stool : Node2D
             return;
         if (focus)
             DisplayServer.WindowMoveToForeground();
-        _chatBox.Open(new Vector2(14, _cabinet.Skin.Canvas.Y - ChatBox.Height - 14), $"Say something to {_chat.Conversation!.Persona.Name}…");
+        _chatBox.Open(new Vector2(14, _cabinet.Skin.Canvas.Y - 14), $"Say something to {_chat.Conversation!.Persona.Name}…");
     }
 
     /// <param name="again">What the plan stopped on, asked again after the player's yes (see <see cref="Chat.TakeUnanswered"/>), with what they handed her then.</param>
@@ -2306,6 +2306,7 @@ public partial class Stool : Node2D
                 _chatBox.DevSend(text);
                 break;
             case "chatbox": OpenChat(focus: false); break;
+            case "chattype": OpenChat(focus: false); _chatBox.DevType(text); break;     // chattype:text types a line into the slip, unsent
             case "chatgptat":                               // chatgptat:http://127.0.0.1:port signs in and asks at a stand-in ChatGPT (tools/dev/mock_chatgpt.py)
                 ChatGptPlan.Issuer = rest;
                 ChatGptPlan.Api = rest + "/v1";

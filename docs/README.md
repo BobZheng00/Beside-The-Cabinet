@@ -60,7 +60,7 @@ cabinet does: claps for a Hard solve, a small fist pump for the others, glances 
 dozes while the session is paused, and says something about it in a speech bubble (as large by a small cabinet as
 by a large one, so on a small one it reaches past the cabinet's edge, beside the marquee). In a conversation they look away
 to think and back to answer, nod in your pauses as you talk, and their head follows what their voice stresses. Click
-them and they wave, and the slip to type on opens. Settings → Characters leaves the stool empty, silences the
+them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one). Settings → Characters leaves the stool empty, silences the
 bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too. It also sets how each
 character sits, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed (knees a little
 apart, often a foot down off the ring, a hand on each thigh, one nearer the hip, fewer tilts, the legs still, a nod
