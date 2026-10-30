@@ -252,6 +252,17 @@ way of interaction."
       comparison without saying it isn't her field.
     - Asked to talk about anything, she spent five card facts in one reply, the snack among them; she copied "Nice."
       And again a focus session started unasked (#145).
+  - **Fifth run, 2026-10-29 (#140):** the shipped card (the seventh draft with A1 to A5) against today's, 24 moments
+    each (66 requests, 254k input tokens, 164k cached; `<tools>\manner-bench\run-140`). None of
+    the four conditions sends it back:
+    - the agenda: 6 of 6 put down with each card;
+    - questions: 10 of 24 replies end on one, against 11;
+    - length: a median of 16 words against 27 (33 Chinese characters against 38), "!" 0.08 a reply against 0.54;
+    - copying: none, A1's and A3's short lines included, and no detail of the card word for word. Asked "how's your
+      day?", she told her own ("I've been drawing windows again") rather than the old example's.
+    - Every reply was in the moment's language.
+    - Her own story (A4) didn't come back in any troubles moment, and on the Chinese moments, which run on this
+      card until #141, she still says she's written things down (「我记下了」).
 
 ## Not built, and why
 
