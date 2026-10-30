@@ -149,7 +149,7 @@ public sealed class Chat : IDisposable
 
     private readonly Tool _readSkill, _changeSkill;
     private readonly Tool[] _activityTools;
-    private bool _activitiesOffered = true;
+    private bool _activitiesOffered = true, _playTime = true;
 
     /// <summary>Shows her suggested change to a skill on her card: true for Remember it, false for Not now, null when they let it be.</summary>
     public Func<SkillChange, CancellationToken, Task<bool?>>? AskSkillChange { get; set; }
@@ -447,6 +447,16 @@ public sealed class Chat : IDisposable
             else
                 Tools.Take(tool.Name);
         }
+    }
+
+    /// <summary>Her cabinet and bedtime tools as play time is on or off: with none, neither names a balance or a price.</summary>
+    public void PlayTime(bool on)
+    {
+        if (on == _playTime)
+            return;
+        _playTime = on;
+        Tools.Put(BuiltIn.Cabinet(day => Ledger?.Invoke(day) ?? "The cabinet has no numbers yet.", balance: on));
+        Tools.Put(BuiltIn.SetBedtime(SetBedtimeAct, price: on));
     }
 
     /// <summary>The local models for search by meaning that this build carries (a light build may leave the big one out).</summary>

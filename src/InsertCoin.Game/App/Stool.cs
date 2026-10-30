@@ -202,8 +202,13 @@ public partial class Stool : Node2D
         _chat.Tools.Choose(settings.Now.ToolPermissions);
         _chat.Tools.Auto = settings.Now.ToolsAuto;
         _chat.Tools.Changed += () => _settings.Save(_settings.Now with { ToolPermissions = new(_chat.Tools.Chosen) });
-        _chat.ActivitiesEarn(settings.Now.Earning.Activities);
-        settings.Changed += () => _chat.ActivitiesEarn(settings.Now.Earning.Activities);
+        void Earning()
+        {
+            _chat.ActivitiesEarn(settings.Now.Earning.Activities);
+            _chat.PlayTime(settings.Now.Earning.Any);
+        }
+        Earning();
+        settings.Changed += Earning;
         _memos = new Memos();
         AddChild(_memos);
         _memos.Build(_chat.Store, cabinet.Memos, id => Characters().FirstOrDefault(c => c.Id == id).Name ?? id ?? "",
@@ -439,7 +444,7 @@ public partial class Stool : Node2D
         {
             _givenTonight.Add(nudge);
             GD.Print($"Rest: {nudge} ({Rest.Clock(bedtime)})");
-            Hand(new Telling("BEDTIME", Rest.Note(nudge, bedtime, rules.LateNightMultiplier), Lines.Rest(nudge), Matters.Should, Anywhere: false, now,
+            Hand(new Telling("BEDTIME", Rest.Note(nudge, bedtime, rules.Earns.Any ? rules.LateNightMultiplier : null), Lines.Rest(nudge), Matters.Should, Anywhere: false, now,
                              TimeSpan.FromMinutes(20)));
         }
         if (state.Session is { } session)
@@ -465,7 +470,7 @@ public partial class Stool : Node2D
         var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && now.Hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
         var asking = note is not null;
         if (_settings.Now.Privacy.Days)                    // what the record of days shows, unless the player keeps it from her
-            note ??= Rest.Notice(state.Days, state.Today?.Bedtime, state.TimeLeftMs(rules), rules.DayStartsAt);
+            note ??= Rest.Notice(state.Days, state.Today?.Bedtime, Banked(state, rules), rules.DayStartsAt);
         if (note is null)
             return;
         _chat.Store.SetMark("rest.said", today);
@@ -490,8 +495,11 @@ public partial class Stool : Node2D
         if (times >= 2 || times == 1 && (usual is null || !DateOnly.TryParse(asked![1], out var first) || first.AddDays(7) > DateOnly.FromDateTime(now.DateTime)))
             return null;
         _chat.Store.SetMark("bedtime.asked", $"{times + 1}|{DateOnly.FromDateTime(now.DateTime):O}");
-        return Rest.AskBedtime(usual);
+        return Rest.AskBedtime(usual, price: rules.Earns.Any);
     }
+
+    /// <summary>The play time banked, for her notes about rest; none with no play time, which has no balance to bring up.</summary>
+    private static long Banked(LedgerState state, Rules rules) => rules.Earns.Any ? state.TimeLeftMs(rules) : 0;
 
     /// <summary>Her tool sets the player's bedtime once they confirm it on her card; it counts from tomorrow.</summary>
     private async Task<string> SetBedtime(string time, CancellationToken cancel)
@@ -499,7 +507,8 @@ public partial class Stool : Node2D
         if (Rest.ParseBedtime(time) is not { } bedtime)
             return "That isn't a bedtime the cabinet takes: a time from 20:00 to 03:30, like 23:30.";
         var answer = await _chat.Unhurried(() => ConfirmOnCard($"Your bedtime: {Rest.Clock(bedtime)}?",
-                                                               "From tomorrow: a word half an hour before it, and play after it costs more until 04:00", cancel));
+                                                               "From tomorrow: a word half an hour before it" +
+                                                               (Rules?.Invoke().Earns.Any != false ? ", and play after it costs more until 04:00" : ""), cancel));
         if (answer != true)
             return answer is false ? "The player said not that one. Take that lightly." : "The player didn't answer, so it isn't set.";
         _settings.Save(_settings.Now with { Bedtime = Rest.Clock(bedtime) });
@@ -2333,12 +2342,12 @@ public partial class Stool : Node2D
                 if (Enum.TryParse<Nudge>(rest, ignoreCase: true, out var word) || rest == "break")
                 {
                     word = rest == "break" ? Nudge.LongPlay : word;
-                    Hand(new Telling(rest == "break" ? "BREAK" : "BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), 1.5), Lines.Rest(word), Matters.Should,
-                                     Anywhere: false, DateTimeOffset.Now, TimeSpan.FromMinutes(20)));
+                    Hand(new Telling(rest == "break" ? "BREAK" : "BEDTIME", Rest.Note(word, TimeSpan.FromHours(23), Rules?.Invoke().Earns.Any != false ? 1.5 : null),
+                                     Lines.Rest(word), Matters.Should, Anywhere: false, DateTimeOffset.Now, TimeSpan.FromMinutes(20)));
                 }
                 else if (Ledger?.Invoke() is { } ledger && Rules?.Invoke() is { } rules)
-                    Hand(new Telling("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt))
-                                         : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, ledger.TimeLeftMs(rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
+                    Hand(new Telling("REST", rest == "ask" ? Rest.AskBedtime(Rest.Usual(ledger.Days, rules.DayStartsAt), price: rules.Earns.Any)
+                                         : Rest.Notice(ledger.Days, ledger.Today?.Bedtime, Banked(ledger, rules), rules.DayStartsAt) ?? "Nothing in the record of days to mention.",
                                      "", rest == "ask" ? Matters.Should : Matters.Could, Anywhere: false, DateTimeOffset.Now, TimeSpan.FromHours(2)));
                 break;
             case "later":                                   // later:now has her plan to reach them come due now

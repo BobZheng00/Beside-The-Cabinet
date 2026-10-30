@@ -216,13 +216,17 @@ public static class BuiltIn
     /// asks about play time, a day's record or how play is earned. It only reads, so it needs no asking.
     /// </summary>
     /// <param name="look">The numbers, with the record of the day named, if any.</param>
-    public static Tool Cabinet(Func<string?, string> look) => new(
+    /// <param name="balance">Play time is on; without it, the description names no balance either.</param>
+    public static Tool Cabinet(Func<string?, string> look, bool balance = true) => new(
         AIFunctionFactory.Create(
             ([Description("A day to give the record of: \"today\", \"yesterday\" or YYYY-MM-DD; leave it out for none")] string? day = null) => look(day),
             "cabinet_numbers",
-            "The cabinet's numbers in full: play time banked or owed, what today and this week earned against the day's cap, the streak, how " +
-            "play is earned (what a problem, an activity or focus pays; the cap, the overnight fade, bedtime) and a day's record (what the player " +
-            "did and what it earned). Use it when they ask about any of these; what matters right now is already in your turn."),
+            balance
+                ? "The cabinet's numbers in full: play time banked or owed, what today and this week earned against the day's cap, the streak, how " +
+                  "play is earned (what a problem, an activity or focus pays; the cap, the overnight fade, bedtime) and a day's record (what the player " +
+                  "did and what it earned). Use it when they ask about any of these; what matters right now is already in your turn."
+                : "What the cabinet keeps: what the player did and played today and this week, their bedtime, and a day's record. Use it when " +
+                  "they ask about any of these; what matters right now is already in your turn."),
         "Check the cabinet's numbers",
         OutsideApp: false)
     {
@@ -306,13 +310,14 @@ public static class BuiltIn
     /// Sets the player's bedtime (see <see cref="Rest"/>) when they tell her one or agree to one she suggested; they
     /// confirm it on her card, and it counts from the next day. Inside the app.
     /// </summary>
-    public static Tool SetBedtime(Func<string, CancellationToken, Task<string>> set) => new(
+    /// <param name="price">Play time is on: play after bedtime costs more, and the description says so.</param>
+    public static Tool SetBedtime(Func<string, CancellationToken, Task<string>> set, bool price = true) => new(
         AIFunctionFactory.Create(
             async ([Description("The bedtime, 24-hour HH:MM, from 20:00 to 03:30 (\"23:30\")")] string time, CancellationToken cancel = default) =>
                 await set(time, cancel),
             "set_bedtime",
             "Sets the player's bedtime, when they tell you one or agree to one you suggested: half an hour before it you give them a word to wind " +
-            "down, at it time to sleep, and play after it costs more until 04:00. The player confirms on a card; it counts from tomorrow."),
+            $"down, at it time to sleep{(price ? ", and play after it costs more until 04:00" : "")}. The player confirms on a card; it counts from tomorrow."),
         "Set the bedtime",
         OutsideApp: false);
 

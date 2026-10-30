@@ -36,7 +36,8 @@ public sealed class Ledger(Rules rules)
     /// <summary>
     /// A new game day: of the unplayed time, <see cref="Rules.NightlyFade"/> fades for each night that passed (debt
     /// never does), today's record joins the past days, and the new day takes the cap and bedtime the rules hold now.
-    /// While a game runs it waits for the session to end, or for the next earning, whichever comes first.
+    /// While a game runs it waits for the session to end, or for the next earning, whichever comes first. With no play
+    /// time nothing fades: the balance is kept as it was until play time is back.
     /// </summary>
     private LedgerState TurnDay(LedgerState state, DateTimeOffset now, List<LedgerEvent> events, bool deferWhilePlaying)
     {
@@ -47,7 +48,8 @@ public sealed class Ledger(Rules rules)
             return state;
 
         var left = state.TimeLeftMs(Rules);
-        var kept = (long)Math.Round(left * Math.Pow(1 - Rules.NightlyFade, day.DayNumber - today.Day.DayNumber));
+        var fade = Rules.Earns.Any ? Rules.NightlyFade : 0;
+        var kept = (long)Math.Round(left * Math.Pow(1 - fade, day.DayNumber - today.Day.DayNumber));
         if (left > kept)
             events.Add(new Faded(left - kept, kept));
 
@@ -298,7 +300,7 @@ public sealed class Ledger(Rules rules)
 
     private LedgerState InsertIfEmpty(LedgerState state, List<LedgerEvent> events)
     {
-        if (state.FuelMs > 0 || state.Credits == 0)
+        if (!Rules.Earns.Any || state.FuelMs > 0 || state.Credits == 0)
             return state;
         events.Add(new TokenInserted(state.Credits - 1));
         return state with { Credits = state.Credits - 1, FuelMs = Rules.TokenMs };
@@ -306,11 +308,12 @@ public sealed class Ledger(Rules rules)
 
     /// <summary>
     /// Charges play: fuel first, a new token going in as each runs out, then debt at <see cref="Rules.DebtMultiplier"/>.
-    /// Past bedtime every minute costs <see cref="Rules.LateNightMultiplier"/> times as much, debt included.
+    /// Past bedtime every minute costs <see cref="Rules.LateNightMultiplier"/> times as much, debt included. With no play
+    /// time the game is only noticed: its time is kept, and nothing is spent, owed or priced.
     /// </summary>
     private LedgerState Charge(LedgerState state, long elapsedMs, DateTimeOffset now, List<LedgerEvent> events)
     {
-        var late = GameCalendar.IsLateNight(state, now, Rules);
+        var late = Rules.Earns.Any && GameCalendar.IsLateNight(state, now, Rules);
         if (late && !state.LateNightGiven)
         {
             events.Add(new LateNight(state.Today!.Bedtime!.Value, Rules.LateNightMultiplier));
@@ -320,7 +323,7 @@ public sealed class Ledger(Rules rules)
 
         var session = state.Session!;
         var week = state.Week;
-        var remaining = costMs;
+        var remaining = Rules.Earns.Any ? costMs : 0;
 
         while (remaining > 0)
         {
@@ -368,6 +371,8 @@ public sealed class Ledger(Rules rules)
 
     private LedgerState Warn(LedgerState state, List<LedgerEvent> events)
     {
+        if (!Rules.Earns.Any)
+            return state;                                   // no play time: no time left to warn of
         var left = state.TimeLeftMs(Rules);
         if (left == 0)
         {

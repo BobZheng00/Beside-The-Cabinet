@@ -7,7 +7,8 @@ namespace InsertCoin.Game.App;
 /// them: focus, the player's own activities, LeetCode with their name, or no play time); how much play a day can earn,
 /// Monday to Thursday, on Friday and at the weekend; and the player's bedtime, after which play costs more. What earns
 /// counts at once; a cap or bedtime is saved at once but counts from the next day, so the cap can't be raised, nor
-/// bedtime moved, in the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md).
+/// bedtime moved, in the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md). With no play time
+/// only the ticks and the bedtime show: no caps, and no price after bedtime.
 /// </summary>
 public partial class BalanceSettings : VBoxContainer
 {
@@ -29,8 +30,9 @@ public partial class BalanceSettings : VBoxContainer
     public void Build(AppSettings settings, string today)
     {
         Form.Page(this, "Balance");
-        Form.Hint(this, "Good work earns play time, from what you tick below. A day can only earn so much, and each night half of the play " +
-                        "you didn't use fades, so it can't be saved up for the weekend.");
+        var about = Form.Hint(this, "Good work earns play time, from what you tick below. A day can only earn so much, and each night half of the play " +
+                                    "you didn't use fades, so it can't be saved up for the weekend.");
+        var balance = new List<Control> { about };          // what goes with no play time, and comes back with it
 
         Form.Subheading(this, "What earns your play time");
         var player = new VBoxContainer();
@@ -41,30 +43,42 @@ public partial class BalanceSettings : VBoxContainer
         Form.Row(Form.Grid(player), "LeetCode name", name);
         Form.Hint(player, "Your solved problems are read from your public LeetCode profile. Change… asks for the name on the cabinet's screen.");
         var ticked = settings.Earning.LeetCode;
+        Label later = null!;
+        void Shown(bool playTime)
+        {
+            foreach (var part in balance)
+                part.Visible = playTime;
+            later.Text = playTime ? "The caps and bedtime count from tomorrow, so none can be changed in the moment. " + today
+                                  : "Half an hour before your bedtime you get a word to start winding down. It counts from tomorrow, so it " +
+                                    "can't be changed in the moment.";
+        }
         Sources(this, settings, player, (focus, activities, leetCode) =>
         {
             Earning?.Invoke(focus, activities, leetCode);
             if (leetCode && !ticked && string.IsNullOrWhiteSpace(settings.Username))
                 ChangePlayer?.Invoke();                     // ticked with no name: the screen asks for one
             ticked = leetCode;
+            Shown(focus || activities || leetCode);
         });
 
-        Form.Subheading(this, "Play a day can earn");
+        balance.Add(Form.Subheading(this, "Play a day can earn"));
         _caps = [.. Caps.Union([settings.WeekdayCapMinutes, settings.FridayCapMinutes, settings.WeekendCapMinutes]).Order()];
         var caps = Form.Grid(this);
+        balance.Add(caps);
         _weekday = Form.Choice(caps, "Monday to Thursday", _caps.Select(Hours), Array.IndexOf(_caps, settings.WeekdayCapMinutes), _ => Changed());
         _friday = Form.Choice(caps, "Friday", _caps.Select(Hours), Array.IndexOf(_caps, settings.FridayCapMinutes), _ => Changed());
         _weekend = Form.Choice(caps, "Saturday and Sunday", _caps.Select(Hours), Array.IndexOf(_caps, settings.WeekendCapMinutes), _ => Changed());
-        Form.Hint(this, "A day runs from 04:00 to 04:00. What is left from the days before doesn't count towards it, and paying back time " +
-                        "owed doesn't either.");
+        balance.Add(Form.Hint(this, "A day runs from 04:00 to 04:00. What is left from the days before doesn't count towards it, and paying back time " +
+                                    "owed doesn't either."));
 
         Form.Subheading(this, "Bedtime");
         _bedtimes = [null, .. Bedtimes.Union(settings.Bedtime is { } own ? [own] : []).OrderBy(Late)];
         _bedtime = Form.Choice(Form.Grid(this), "Go to bed at", _bedtimes.Select(b => b ?? "None"), Array.IndexOf(_bedtimes, settings.Bedtime), _ => Changed());
-        Form.Hint(this, "After your bedtime, until the day ends at 04:00, play costs one and a half times as much, and time owed grows " +
-                        "that much faster.");
+        balance.Add(Form.Hint(this, "After your bedtime, until the day ends at 04:00, play costs one and a half times as much, and time owed grows " +
+                                    "that much faster."));
 
-        Form.Hint(this, "The caps and bedtime count from tomorrow, so none can be changed in the moment. " + today);
+        later = Form.Hint(this, "");
+        Shown(settings.Earning.Any);
     }
 
     /// <summary>
