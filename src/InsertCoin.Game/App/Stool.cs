@@ -135,6 +135,7 @@ public partial class Stool : Node2D
         _chat = new Chat(dataDir)
         {
             ReminderLead = () => settings.Now.ReminderLead, KeepsInTouch = () => settings.Now.Reach == Reach.KeepsInTouch, Earns = () => settings.Now.Earning,
+            Language = () => settings.Now.Language,
         };
         _chat.UseSearch(settings.Now.MemorySearch);        // remembered first, so connecting loads the right model
         _chat.UseWindow(settings.Now.ChatWindow);
@@ -1215,6 +1216,13 @@ public partial class Stool : Node2D
         ShowHer(on);
     }
 
+    /// <summary>The language she replies in and her card's (Settings → Characters), or null for the player's own: taken up at her next reply.</summary>
+    public void SetLanguage(string? language)
+    {
+        _settings.Save(_settings.Now with { Language = language });
+        GD.Print(language is null ? "Characters: language Auto, the player's own" : $"Characters: language {InsertCoin.Mind.SpokenLanguage.Name(language)}, whatever the player writes");
+    }
+
     public void SetBubbles(bool on)
     {
         _settings.Save(_settings.Now with { SpeechBubbles = on });
@@ -2135,7 +2143,8 @@ public partial class Stool : Node2D
     {
         var page = new CharacterSettings();
         page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, _settings.Now.CallMe,
-                   MannerOf, SetManner, ShowManner);
+                   _settings.Now.Language, MannerOf, SetManner, ShowManner);
+        page.LanguageChosen += SetLanguage;
         page.Named += CallMe;
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;

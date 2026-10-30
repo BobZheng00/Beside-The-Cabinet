@@ -94,6 +94,17 @@
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
+      "name": "language",
+      "about": "Settings → Characters has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
+      "covers": ["src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/characters/*/persona*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
+      "mind": true,
+      "mindRequests": 1,
+      "script": "nocall@1,settings:characters@2,settingsdo:Language:中文@3,chat:hello_there@5",
+      "shots": [5, 10],
+      "window": "Settings",
+      "expect": ["^Settings: Language is \"中文\"$", "^Characters: language Chinese, whatever the player writes$", "^Chat: she replied with her card in Chinese \\(persona\\.zh\\.md\\)$"]
+    },
+    {
       "name": "menu",
       "about": "The menu a right-click on the companion or the cabinet opens (logged, never shown, in a test run) has exactly the tray's entries and switches; Voice turned off there shows in the tray's menu (its only line with Voice off); ticking it again on Settings → Voice shows in the right-click menu (its only line with Voice on, the last); its Settings… opens Settings.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],

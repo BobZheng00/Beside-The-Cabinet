@@ -15,6 +15,12 @@ public sealed record Persona(string Name, string Description)
     public string? Steady { get; init; }
     /// <summary>The name the player asked to be called by (Getting started), or null when they haven't given one.</summary>
     public string? Player { get; init; }
+    /// <summary>
+    /// The character's own cards in other languages (<c>persona.zh.md</c>), by <see cref="SpokenLanguage"/>'s codes: the
+    /// one she uses while she talks in that language (see <see cref="Conversation.CardLanguage"/>). None for a card the
+    /// player gave her, which stands for her in every language.
+    /// </summary>
+    public IReadOnlyDictionary<string, Persona> Languages { get; init; } = new Dictionary<string, Persona>();
 
     /// <summary>For a character nobody has described: friendly, and nothing assumed about who they are.</summary>
     public static Persona Plain(string name) => new(name,
@@ -23,10 +29,12 @@ public sealed record Persona(string Name, string Description)
 
     /// <summary>
     /// A persona file's text (<c>persona.md</c>) as a persona, its {{user}} and {{char}} filled in as a card's are
-    /// (<see cref="CharacterCard.Fill"/>): with the name the player asked to be called by, or "the player".
+    /// (<see cref="CharacterCard.Fill"/>): with the name the player asked to be called by, or "the player" ("玩家" in a
+    /// card in Chinese).
     /// </summary>
-    public static Persona Written(string name, string text, string? playerName) =>
-        new(name, CharacterCard.Fill(text, name, playerName)) { Player = playerName };
+    /// <param name="language">The language the file is written in (<c>persona.zh.md</c>), or null for <c>persona.md</c>.</param>
+    public static Persona Written(string name, string text, string? playerName, string? language = null) =>
+        new(name, CharacterCard.Fill(text, name, playerName, language == "zh" ? "玩家" : "the player")) { Player = playerName };
 
     /// <summary>
     /// The first sentence of who they are, for the first run's choice of who keeps the player company: up to a full

@@ -421,7 +421,7 @@ public sealed class Chat : IDisposable
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns };
+        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns, Language = Language };
         _recorded = default;                                // their diary catches up on the days too
     }
 
@@ -433,6 +433,9 @@ public sealed class Chat : IDisposable
 
     /// <summary>What earns the player play time, as set now (see <see cref="Conversation.Earns"/>).</summary>
     public Func<Earning> Earns { get; init; } = () => Earning.All;
+
+    /// <summary>The language the player chose for her, as set now, or null for theirs (see <see cref="Conversation.Language"/>).</summary>
+    public Func<string?> Language { get; init; } = () => null;
 
     /// <summary>Her tools for the player's activities (log_activity, judge_proof): offered only while activities earn play time.</summary>
     public void ActivitiesEarn(bool on)
@@ -680,6 +683,8 @@ public sealed class Chat : IDisposable
                 : text.Length == 0
                     ? $"Chat: no words came back ({clock.ElapsedMilliseconds} ms after asking)"
                     : $"Chat: her whole reply came {clock.ElapsedMilliseconds} ms after asking, {(texting ? "written as a text" : "held to be played after")}");
+            if (conversation.CardLanguage is { } card)
+                GD.Print($"Chat: she replied with her card in {SpokenLanguage.Name(card)} (persona.{card}.md)");
             // the player's own message answered with nothing, even asked twice: said, as a failed request is, not left as
             // silence with her thinking dots gone (2026-10-11, a provider's empty answers)
             if (text.Length == 0 && !_usedTool && !fromCabinet && held is null && Here())

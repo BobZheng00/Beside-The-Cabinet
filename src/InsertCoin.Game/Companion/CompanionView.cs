@@ -754,27 +754,34 @@ public sealed record Character(string Id, string Path, bool BuiltIn)
     /// Who they are, in their author's words. A character card in the user's characters folder comes first
     /// (<see cref="CardIn"/>); then <c>persona.md</c> in a built-in character's folder or in a user character's own
     /// folder, or <c>&lt;file name&gt;.md</c> beside a loose model file. Without either, a plain friendly companion. Each
-    /// knows the name the player asked to be called by (the {{user}} of a card or a persona file becomes it too).
+    /// knows the name the player asked to be called by (the {{user}} of a card or a persona file becomes it too). Beside a
+    /// persona file, their own cards in other languages: <c>persona.zh.md</c>, or <c>&lt;file name&gt;.zh.md</c> (see
+    /// <see cref="InsertCoin.Mind.Persona.Languages"/>); a character card stands for them in every language.
     /// </summary>
     public InsertCoin.Mind.Persona Persona(string userFolder, string? playerName)
     {
         if (CardIn(userFolder) is { } cardFile && InsertCoin.Mind.CharacterCard.Read(File.ReadAllBytes(cardFile)) is { } card)
             return card.ToPersona(playerName);
-        string? text = null;
+        var text = Written("");
+        var languages = InsertCoin.Mind.SpokenLanguage.Told.Select(language => (language, Text: Written($".{language}")))
+            .Where(c => !string.IsNullOrWhiteSpace(c.Text))
+            .ToDictionary(c => c.language, c => InsertCoin.Mind.Persona.Written(Name, c.Text!, playerName, c.language));
+        return (string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) with { Player = playerName } : InsertCoin.Mind.Persona.Written(Name, text, playerName))
+            with { Languages = languages };
+    }
+
+    /// <summary>Their persona file's text, <c>persona&lt;ending&gt;.md</c> (or beside a loose model, its own name), or null.</summary>
+    private string? Written(string ending)
+    {
         if (BuiltIn)
         {
-            var file = $"res://characters/{Id}/persona.md";
-            if (Godot.FileAccess.FileExists(file))
-                text = Godot.FileAccess.GetFileAsString(file);
+            var file = $"res://characters/{Id}/persona{ending}.md";
+            return Godot.FileAccess.FileExists(file) ? Godot.FileAccess.GetFileAsString(file) : null;
         }
-        else
-        {
-            var folder = System.IO.Path.GetDirectoryName(Path)!;
-            var candidates = new[] { System.IO.Path.ChangeExtension(Path, ".md") }
-                .Concat(System.IO.Path.GetFileName(folder).Equals(Id, StringComparison.OrdinalIgnoreCase) ? [System.IO.Path.Combine(folder, "persona.md")] : []);
-            text = candidates.Where(File.Exists).Select(File.ReadAllText).FirstOrDefault();
-        }
-        return string.IsNullOrWhiteSpace(text) ? InsertCoin.Mind.Persona.Plain(Name) with { Player = playerName } : InsertCoin.Mind.Persona.Written(Name, text, playerName);
+        var folder = System.IO.Path.GetDirectoryName(Path)!;
+        var candidates = new[] { System.IO.Path.ChangeExtension(Path, $"{ending}.md") }
+            .Concat(System.IO.Path.GetFileName(folder).Equals(Id, StringComparison.OrdinalIgnoreCase) ? [System.IO.Path.Combine(folder, $"persona{ending}.md")] : []);
+        return candidates.Where(File.Exists).Select(File.ReadAllText).FirstOrDefault();
     }
 
     /// <summary>

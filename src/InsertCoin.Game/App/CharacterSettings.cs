@@ -4,7 +4,7 @@ using InsertCoin.Game.Companion;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Characters: the name she calls the player by; who sits on the stool, or nobody; whether she says her lines
+/// Settings → Characters: the name she calls the player by; the language she replies in; who sits on the stool, or nobody; whether she says her lines
 /// in speech bubbles; adding a character (a 3D model, a character card, a voice), and the folder they are kept in. Each
 /// change is used at once.
 /// </summary>
@@ -18,17 +18,24 @@ public partial class CharacterSettings : VBoxContainer
     public event Action<string>? Seated;
     /// <summary>The name she calls the player by, as it is typed.</summary>
     public event Action<string>? Named;
+    /// <summary>The language she replies in, with her card in it if she has one ("en", "zh"), or null for the player's own (Auto).</summary>
+    public event Action<string?>? LanguageChosen;
     /// <summary>"Add a character…" and "Open characters folder".</summary>
     public event Action? Add, OpenFolder;
 
     /// <param name="mannerOf">How a character sits (see <see cref="Manner"/>).</param>
     /// <param name="setManner">The player chose how one sits.</param>
     /// <param name="showMe">"Show me": a few seconds of it on the stool.</param>
-    public void Build((string Id, string Name)[] characters, string seated, bool shown, bool bubbles, string? callMe,
+    /// <param name="language">The language chosen, or null for Auto.</param>
+    public void Build((string Id, string Name)[] characters, string seated, bool shown, bool bubbles, string? callMe, string? language,
                       Func<string, Manner> mannerOf, Action<string, Manner> setManner, Action showMe)
     {
         Form.Page(this, "Characters");
-        Form.Field(Form.Grid(this), "Your name", callMe, "what the characters call you", typed: text => Named?.Invoke(text));
+        var grid = Form.Grid(this);
+        Form.Field(grid, "Your name", callMe, "what the characters call you", typed: text => Named?.Invoke(text));
+        Form.Choice(grid, "Language", Languages.Select(l => l.Label), Math.Max(0, Array.FindIndex(Languages, l => l.Code == language)),
+                    index => LanguageChosen?.Invoke(Languages[index].Code));
+        Form.Hint(this, "Auto follows the language you write in. Chosen, they reply in it whatever you write, and use their own card in it if they have one.");
         Form.Tick(this, "Someone on the stool", shown, on => ShownChosen?.Invoke(on));
         Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without anyone on it.");
         Form.Tick(this, "Speech bubbles", bubbles, on => BubblesChosen?.Invoke(on));
@@ -69,6 +76,9 @@ public partial class CharacterSettings : VBoxContainer
                         "SillyTavern style) gives whoever is on the stool a persona; a voice's clips or .zip give them a voice. Dropping " +
                         "any of them on the cabinet does the same. Files put in the folder by hand show up after a restart.");
     }
+
+    /// <summary>The languages to choose from: Auto (the player's own), and those a built-in character has a card in.</summary>
+    private static readonly (string? Code, string Label)[] Languages = [(null, "Auto"), ("en", "English"), ("zh", "中文")];
 
     /// <summary>
     /// How a character sits, the two manners to choose from, and "Show me": whoever is on the stool moves into each as
