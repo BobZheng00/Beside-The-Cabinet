@@ -165,7 +165,7 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
 - No keys or secrets anywhere in the history (193 commits searched for API keys, bot tokens, private calendar links
   and the user's provider address).
 - No third-party characters, voices or benchmark data ever committed; the local models are git-ignored and fetched by
-  `tools/models/fetch.py`, which writes each one's licence beside it.
+  `tools/models/fetch.py`, which pins each file to a revision and a SHA-256 and writes each one's licence beside it.
 - Everything bundled is permissive: the fonts under OFL (their licence files ship with them), the VRM add-ons under
   MIT, Shino and Fumiriya under CC0, the NuGet packages under MIT or Apache-2.0; the cabinet's art and sounds are made
   by our own scripts (`tools/art`, `tools/sfx`). Shino's and Fumiriya's voices (2026-10-12, the user's picks) were made

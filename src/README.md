@@ -24,8 +24,10 @@ python tools/models/fetch.py                             # local models -> src/I
 The models are optional: without the memory models the companion recalls by shared words only, and without
 SenseVoice (`fetch.py listening`, 240 MB) they can't be talked to aloud. `build.cmd` fetches all three when the folder is
 missing; `python tools/models/fetch.py small` beforehand gives a lighter build with only the small memory model.
-`build.cmd` and `release.py` stop, saying what's missing, when the folder holds none of them or one only in part (an
-emptied or half-fetched folder, or one without its `LICENSE.txt`, which the release's notices come from);
+`fetch.py` takes each file from a fixed revision and keeps it only if its SHA-256 is the one pinned there (a newer
+model is a new revision and SHA-256 there). `build.cmd` and `release.py` stop, saying what's wrong, when the folder
+holds none of them, one only in part (an emptied or half-fetched folder, or one without its `LICENSE.txt`, which the
+release's notices come from) or a file that isn't the pinned one;
 `python tools/models/fetch.py check` says the same without building. A worktree needs none of its own: run
 from source there, the app reads the main checkout's; `build.cmd` there fetches nothing and stops, since an export
 needs its own.
@@ -68,10 +70,11 @@ notice and a README, and zips it. It stops on any library its notices can't acco
 `export_presets.cfg` first (`application/file_version` and `product_version`: 0.1.0-preview.1 is 0.1.0.1).
 
 A version tag does the same on GitHub (`.github/workflows/release.yml`): pushing `v0.1.0-preview.2` sets up Godot and
-its template (pinned by SHA-256) and the models on a Windows runner, runs `release.py 0.1.0-preview.2`, and leaves a
-draft release (a pre-release for a version with a hyphen) with the zip and its SHA-256, for you to write the notes and
-publish. A pull request that changes the workflow, `tools/export`, `tools/models` or the export preset gets a dry run:
-the same build, versioned `0.1.0-dryrun.1` from the preset, kept only as the run's artifact for 7 days.
+its template (pinned by SHA-256) and the models (pinned too) on a Windows runner, with its actions pinned by commit,
+runs `release.py 0.1.0-preview.2`, and leaves a draft release (a pre-release for a version with a hyphen) with the zip
+and its SHA-256, for you to write the notes and publish. A pull request that changes the workflow, `tools/export`,
+`tools/models` or the export preset gets a dry run: the same build, versioned `0.1.0-dryrun.1` from the preset, kept
+only as the run's artifact for 7 days.
 
 ## Layout
 
