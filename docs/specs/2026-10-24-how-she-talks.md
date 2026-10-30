@@ -161,10 +161,11 @@ Each step is usable on its own.
    whatever she wrote before it (flow C) or nothing. A failed call, or a round with another tool in it, still goes back
    to her. **The CRT flash** shows what landed (the user, 2026-10-28: "A line from the cabinet would be good. pron not
    on the marquee since the text can be long"): AGENDA, CHANGED or CANCELLED, the day and time, and the item on up to
-   two lines broken at words, never inside a character (`Agenda.Flash`; the caption takes the hidden fuel bar's space
-   for a third line, and its font is chosen by its widest line, `CrtCaption`, so the screen never wraps it again),
-   four seconds each, several in one reply in turn; with an app open on the screen they wait for the readout to
-   unfold, and then show in turn. Her
+   two lines broken at words, never inside a character, planned at about 23 capitals a line (`Agenda.Flash`,
+   `CrtCaption`). The screen measures each line in its real font: the larger size only when every line fits it, and
+   a caption of three lines or more, as the label draws them, takes the hidden fuel bar's space, so a line of wide
+   capitals or emoji that wraps once more than planned is still shown whole. Four seconds each, one after another in
+   a single queue the screen keeps; with an app open on the screen they wait for the readout to unfold. Her
    note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
    drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed check
    after it (`<tools>\manner-bench\run-206`, #128's six agenda moments, Shino's card and the plain one, against

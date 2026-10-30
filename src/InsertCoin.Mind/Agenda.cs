@@ -348,8 +348,8 @@ public static partial class Agenda
 
     /// <summary>
     /// What the cabinet's screen flashes for it: AGENDA, CHANGED or CANCELLED, then the day and time, and the item on up
-    /// to two lines of its own, broken at words; one longer still ends "..." (the whole of it is in AGENDA). Its lines fit
-    /// the smaller caption font, which the screen then takes (see <see cref="CrtCaption.Font"/>).
+    /// to two lines of its own, broken at words; one longer still ends "..." (the whole of it is in AGENDA). Its lines are
+    /// planned for the caption's smaller size (<see cref="CrtCaption.SmallLine"/>); the screen measures and makes room.
     /// </summary>
     public static (string Big, string Caption) Flash(AgendaDone done)
     {

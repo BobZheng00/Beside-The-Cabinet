@@ -3,22 +3,14 @@ using System.Globalization;
 namespace InsertCoin.Mind;
 
 /// <summary>
-/// The caption under a flash on the cabinet's screen (ScreenView): which of its two fonts a caption takes, and how wide
-/// a line may be at each, so that a line wrapped here never wraps again on the screen, where its end would be cut off.
-/// Widths are in Latin capitals: a Chinese character, or an emoji, counts as two.
+/// The caption under a flash on the cabinet's screen (ScreenView): how wide a line is planned, in Latin capitals (a
+/// Chinese character, or an emoji, counts as two). The screen measures each line in its real font to pick its size,
+/// and gives a caption the room for every line it draws, so a plan that runs a little wide wraps once more, never cut.
 /// </summary>
 public static class CrtCaption
 {
-    /// <summary>The caption's two font sizes, in the screen's pixels.</summary>
-    public const int Large = 30, Small = 24;
-
-    /// <summary>How wide a line fits at <see cref="Large"/> and at <see cref="Small"/> (the spike's "JOB INTERVIEW AT NORTHWIND" just fits at 24 px).</summary>
-    public const int LargeLine = 20, SmallLine = 26;
-
-    /// <summary>
-    /// The font a caption is drawn in: the large one while every line fits it, and the caption is short; else the small.
-    /// </summary>
-    public static int Font(string caption) => caption.Length > 34 || caption.Split('\n').Max(Width) > LargeLine ? Small : Large;
+    /// <summary>How wide a planned line is, at most: about what fits at the caption's small size (24 px), wide capitals and all.</summary>
+    public const int SmallLine = 23;
 
     /// <summary>How wide <paramref name="line"/> is, in Latin capitals.</summary>
     public static int Width(string line) => Elements(line).Sum(Wide);

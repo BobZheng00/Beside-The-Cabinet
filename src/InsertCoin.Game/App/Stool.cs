@@ -351,23 +351,15 @@ public partial class Stool : Node2D
     /// <summary>How long the cabinet's screen shows what she put on the agenda: three lines to read.</summary>
     private const double AgendaFlashSeconds = 4.0;
 
-    private double _agendaFlashFree;                    // when the screen is free of the last agenda flash, in Godot's seconds
-
     /// <summary>
     /// What her reply just set on the agenda, flashed on the cabinet's screen as it reports her other tools (#193): her
-    /// reply ends at the call, so this is what shows it landed. Several in one reply take turns.
+    /// reply ends at the call, so this is what shows it landed. Several take turns (the screen keeps the order).
     /// </summary>
     private void Agended(AgendaDone done)
     {
         var (big, caption) = Agenda.Flash(done);
-        var now = Time.GetTicksMsec() / 1000.0;
-        var after = Math.Max(0, _agendaFlashFree - now);
-        _agendaFlashFree = now + after + AgendaFlashSeconds;
         GD.Print($"Agenda: the cabinet shows {big}: {caption.Replace('\n', ' ')}");
-        if (after == 0)
-            _cabinet.Screen.Flash(big, caption, AgendaFlashSeconds, waits: true);
-        else
-            GetTree().CreateTimer(after).Timeout += () => _cabinet.Screen.Flash(big, caption, AgendaFlashSeconds, waits: true);
+        _cabinet.Screen.Flash(big, caption, AgendaFlashSeconds, waits: true);
     }
 
     // ---- Check-ins: how did it go? ---------------------------------------------------------------------------------

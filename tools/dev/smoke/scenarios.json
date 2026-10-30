@@ -335,13 +335,13 @@
     },
     {
       "name": "agendaflash",
-      "about": "A plan the companion puts on the agenda with no words before the call ends the reply there: no bubble is left, and the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, two flashes wait for it to close and then show in turn, a whole day's item of 23 letters in the smaller font, whole.",
+      "about": "A plan the companion puts on the agenda with no words before the call ends the reply there: no bubble is left, and the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, two flashes wait for it to close and then show in turn; whole-day items of wide capitals (PHOTOGRAPHY WORKSHOP, PARENT-TEACHER CONFERENCE) show whole, at the size that fits them.",
       "covers": ["src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Mind/Agenda.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Chat.cs", "tools/dev/mock_mind.py"],
       "mind": true,
-      "mindRequests": 3,
-      "script": "nocall@1,chat:put_job_interview_at_Northwind_Bank_on_my_agenda_2027-01-14T14:00@3,crt:memos@10,chat:put_dentist_checkup_in_town_on_my_agenda_2027-01-15@12,chat:put_gym_on_my_agenda_2027-01-16@15,crtclose@18",
-      "shots": [7, 18, 22, 26],
-      "expect": ["^Agenda: the cabinet shows AGENDA: THU 14 JAN 14:00 JOB INTERVIEW AT NORTHWIND BANK$", "^Agenda: the cabinet shows AGENDA: FRI 15 JAN DENTIST CHECKUP IN TOWN$", "^Agenda: the cabinet shows AGENDA: SAT 16 JAN GYM$", "^Chat: no words came back"]
+      "mindRequests": 5,
+      "script": "nocall@1,chat:put_job_interview_at_Northwind_Bank_on_my_agenda_2027-01-14T14:00@3,crt:memos@10,chat:put_dentist_checkup_in_town_on_my_agenda_2027-01-15@12,chat:put_gym_on_my_agenda_2027-01-16@15,crtclose@18,chat:put_photography_workshop_on_my_agenda_2027-01-17@27,chat:put_parent-teacher_conference_on_my_agenda_2027-01-18@28",
+      "shots": [7, 18, 22, 26, 31, 35],
+      "expect": ["^Agenda: the cabinet shows AGENDA: THU 14 JAN 14:00 JOB INTERVIEW AT NORTHWIND BANK$", "^Agenda: the cabinet shows AGENDA: FRI 15 JAN DENTIST CHECKUP IN TOWN$", "^Agenda: the cabinet shows AGENDA: SAT 16 JAN GYM$", "^Agenda: the cabinet shows AGENDA: SUN 17 JAN PHOTOGRAPHY WORKSHOP$", "^Agenda: the cabinet shows AGENDA: MON 18 JAN PARENT-TEACHER CONFERENCE$", "^Chat: no words came back"]
     },
     {
       "name": "reminder",
