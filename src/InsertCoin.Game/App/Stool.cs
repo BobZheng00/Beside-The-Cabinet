@@ -541,6 +541,12 @@ public partial class Stool : Node2D
     private Whereabouts Where(DateTimeOffset now) => _pretend ?? Reaching.Where(Watching(now), AwayAfter, now);
 
     /// <summary>
+    /// The player has left the PC (away or asleep): the screen locked, or they said they were off. Playing keeps them
+    /// here however still they sit, so a program picked as play stops only then.
+    /// </summary>
+    internal bool LeftThePc => Where(DateTimeOffset.Now) is Whereabouts.Away or Whereabouts.Asleep;
+
+    /// <summary>
     /// What the cabinet watches: their last input, a locked screen, being with her (in a conversation, being listened
     /// to, writing to her) or playing, the quiet hours, and what they last told her about leaving.
     /// </summary>
@@ -1356,7 +1362,7 @@ public partial class Stool : Node2D
             _cabinet.Screen.Flash("VOICE", "NO CLIPS OR MODEL IN THAT FOLDER", 4.0);
     });
 
-    private void Pick(string title, FileDialog.FileModeEnum mode, string[] filters, Action<string[]> picked)
+    internal void Pick(string title, FileDialog.FileModeEnum mode, string[] filters, Action<string[]> picked)
     {
         var dialog = new FileDialog
         {

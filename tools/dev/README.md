@@ -105,7 +105,10 @@ Hands-free, without ever opening the real microphone: `fakemic` (from then on th
 to a skill, `allow` is Remember it and `deny` Not now; on the ChatGPT plan's backup card, Yes, Manage usage and Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
 change to a skill when told "tea-timer from now on new_words instead of old_words", as with
 `chat:tea-timer_from_now_on_rinse_the_pot_first_instead_of_warm_the_pot_first` after `skillseed`), and
-`fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway). With `--offscreen` a page they open is
+`fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway),
+`frontprogram:C:\Windows\notepad.exe` (that program's window is in front, and it's the only one running, for programs
+picked as play on Balance: `settings:balance` then `settingsdo:Running_now:1` picks it, `settingsdo:×` takes it off;
+`frontprogram:off`, none in front; a test run never reads the player's, and has none in front until told). With `--offscreen` a page they open is
 only logged, never opened. Memos: `memo:title:text` (they type one and send it, as the tool has them do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
 `memosheet:pin` (the latest sheet's tools: pin, off, edit, done, print, delete; `close` and `esc` as its × and Esc;
