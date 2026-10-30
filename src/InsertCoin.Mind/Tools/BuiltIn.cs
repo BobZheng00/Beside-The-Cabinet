@@ -37,8 +37,8 @@ public static class BuiltIn
     /// <param name="print">Prints it (the app keeps it and shows it coming out of the slot); returns what she is told.</param>
     public static Tool PrintMemo(Func<string, string, string> print) => new(
         AIFunctionFactory.Create(
-            ([Description("A short title, a few words, in the player's language")] string title,
-             [Description("The memo itself, in the player's language. Plain text; lists start lines with \"- \"; code goes in ``` blocks. A page at most.")] string text) =>
+            ([Description("A short title, a few words, in the language you reply in")] string title,
+             [Description("The memo itself, in the language you reply in. Plain text; lists start lines with \"- \"; code goes in ``` blocks. A page at most.")] string text) =>
                 print(title, text),
             "print_memo",
             "Prints a memo from the cabinet: paper the player reads at their own pace and can pin on the cabinet's side. Use it for whatever is too long " +
@@ -81,7 +81,7 @@ public static class BuiltIn
              [Description("Whether to remind them: on an add, none unless they asked to be reminded; then at_the_time, or before (with minutes_before) when they asked that long ahead. On a change or cancel, keep to leave it as it is")] string remind,
              [Description("For change or cancel: the item's number in the <agenda> block (12 for #12)")] long? item = null,
              [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. On a change, only if it moves")] string? when = null,
-             [Description("What it is, a few words in the player's language (on a change, only to rename it)")] string? what = null,
+             [Description("What it is, a few words in the language you reply in (on a change, only to rename it)")] string? what = null,
              [Description("With remind before: how many minutes ahead (10, 60 for an hour, 1440 for a day)")] int? minutes_before = null,
              [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null) =>
                 act(action.Trim().ToLowerInvariant(), remind.Trim().ToLowerInvariant().Replace('_', ' '), item, when, what, minutes_before, repeat),

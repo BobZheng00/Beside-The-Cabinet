@@ -59,6 +59,7 @@ var now = new DateTimeOffset(2026, 10, 21, 19, 30, 0, TimeSpan.FromHours(-4));
 var personas = new Dictionary<string, Persona>
 {
     ["shino"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")), null),      // as the app fills it, no name given
+    ["shino-zh"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.zh.md")), null, "zh"),   // her Chinese moments (#141)
     ["plain"] = Persona.Plain("Robin"),
 };
 // --card-files: Shino's draft cards to compare, {{user}} filled as no name given; "<name>-zh" is used for <name>'s Chinese moments
@@ -125,6 +126,13 @@ if (Habits.Copies(Card, "Ugh. That’s not fair, honestly.") != "that's not fair
     || Habits.Copies(Card, "Not fair at all.") is not null || Habits.Copies(Card, "They moved my exam up a week too.") is not null
     || Habits.Copies(Card, "啊？太突然了。") != "太突然了" || Habits.Copies(Card, "一周？") is not null || Habits.Copies(Card, "考试提前了一周啊") is not null)
     throw new InvalidOperationException("The copying isn't counted as it should be.");
+// only A1's and A3's short lines count whole (#141): not any short line of hers, nor four characters of one; nor A3's on a card without it
+const string Other = "Shino: Go to bed. You're not fixing it tonight.\n诗乃：别找了。你现在看什么都像对的，明天再说。\n" +
+                     "Shino: Without asking? A client did that to a cover of mine once. I'd have said something.\n诗乃：没跟你说？换我当场就问了。";
+if (Habits.Copies(Other, "Go to bed.") is not null || Habits.Copies(Other, "那就明天再说吧。") is not null || Habits.Copies(Other, "That's not fair.") is not null
+    || Habits.Copies(Other, "Honestly? I’d have said something.") != "i'd have said something" || Habits.Copies(Other, "换我当场就走了。") != "换我当场"
+    || Habits.Copies(Other, "Go to bed. You're not fixing it tonight.") is null)
+    throw new InvalidOperationException("The copying counts more short lines than A1's and A3's.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
 Moment[] moments =
@@ -282,7 +290,7 @@ void Summary()
     md.AppendLine($"\nSpent: {spent.Sum(r => r.Requests.Count)} requests, {spent.Sum(r => r.Input)} input tokens ({spent.Sum(r => r.Cached)} cached), {spent.Sum(r => r.Output)} output.");
     md.AppendLine("\nTools used unasked: a reply that called a tool its moment didn't ask for (cabinet_numbers, which only reads, aside). " +
                   "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one). " +
-                  "Copies the card: five words in a row of the card (six Chinese characters), or a short line of its examples whole (Habits.Copies). " +
+                  "Copies the card: five words in a row of the card (six Chinese characters), or A1's or A3's short line where the card has it (Habits.Copies). " +
                   "Another language: a reply not in the moment's. Agenda put down: in the moments that ask for the agenda (" +
                   string.Join(", ", agendaMoments) + "), an agenda call that went through, her agenda changed by it.");
     md.AppendLine("\n## The troubles moments, per variant, card and language\n");
@@ -389,11 +397,16 @@ static class Habits
     }
 
     /// <summary>
+    /// Her short example lines that sit by one of this check's moments, counted whole where her card has them, as a long
+    /// run lets them slip past: A1's by the vent moment and A3's by the deadline one (docs/research/2026-10-27-natural-reactions.md,
+    /// section 6 C). Any other short line of hers ("Go to bed.", 「明天再说」) is hers to say again.
+    /// </summary>
+    public static readonly string[] ShortLines = ["I'd have said something", "That's not fair", "换我当场", "太突然了"];
+
+    /// <summary>
     /// What of the card a reply says word for word (#140): five words in a row of the card's own text, her example lines
-    /// and its prose (six characters in Chinese), or a short sentence of her example lines whole, three or four words
-    /// ("That's not fair.", "I'd have said something."; four Chinese characters in a row of one of her lines, 「太突然了」),
-    /// which a long run lets slip past (docs/research/2026-10-27-natural-reactions.md, section 6 C). The player's example
-    /// lines aren't the card's words. Null when nothing is copied.
+    /// and its prose (six characters in Chinese), or one of <see cref="ShortLines"/> that her example lines have. The
+    /// player's example lines aren't the card's words. Null when nothing is copied.
     /// </summary>
     public static string? Copies(string card, string answer)
     {
@@ -408,14 +421,14 @@ static class Habits
             var mine = Bare(spoken);
             string? Run(IEnumerable<string> of, int n) => Enumerable.Range(0, Math.Max(0, mine.Length - n + 1)).Select(i => mine.Substring(i, n))
                                                             .FirstOrDefault(run => of.Any(l => Bare(l).Contains(run)));
-            return Run(lines, 6) ?? Run(hers, 4);
+            return Run(lines, 6) ?? ShortLines.FirstOrDefault(l => mine.Contains(l) && hers.Any(h => Bare(h).Contains(l)));
         }
         static string[] Words(string s) => [.. Regex.Matches(s.ToLowerInvariant().Replace('’', '\''), @"[\p{L}\d']+").Select(w => w.Value)];
+        static bool Within(string[] words, string[] run) => Enumerable.Range(0, Math.Max(0, words.Length - run.Length + 1)).Any(i => words.AsSpan(i, run.Length).SequenceEqual(run));
         var said = Words(spoken);
-        bool Within(string[] run) => Enumerable.Range(0, Math.Max(0, said.Length - run.Length + 1)).Any(i => said.AsSpan(i, run.Length).SequenceEqual(run));
         var fives = lines.Select(Words).SelectMany(w => Enumerable.Range(0, Math.Max(0, w.Length - 4)).Select(i => w[i..(i + 5)]));
-        var shorts = hers.SelectMany(l => Regex.Split(l, @"(?<=[.!?])\s+")).Select(Words).Where(w => w.Length is 3 or 4);
-        return fives.Concat(shorts).FirstOrDefault(Within) is { } found ? string.Join(' ', found) : null;
+        var shorts = ShortLines.Select(Words).Where(run => hers.Any(h => Within(Words(h), run)));
+        return fives.Concat(shorts).FirstOrDefault(run => Within(said, run)) is { } found ? string.Join(' ', found) : null;
     }
 
     /// <summary>

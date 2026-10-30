@@ -4,7 +4,10 @@
 Shino's two cards are in the appendices, in their seventh draft (2026-10-25), which the user accepted ("draft7 looks
 good for now"), with the research note's examples A1 to A5 folded in (2026-10-27). **Built** (#140): her English card
 (Appendix A is the shipped `persona.md`), `{{user}}` filled in a persona file, her first sentence on the Welcome, and the
-manner check's copying, language and agenda counts. The order is at the end.*
+manner check's copying, language and agenda counts. **Built** (#141): her Chinese card (Appendix B is the shipped
+`persona.zh.md`), `persona.<language>.md` for any character, Auto from the stored conversation, the Language setting,
+and the manner check's Chinese moments on her Chinese card, its copying count narrowed to A1's and A3's short lines.
+The order is at the end.*
 
 ## Why
 
@@ -109,7 +112,8 @@ way of interaction."
     becomes the forced language:
     - the base text's "the language the player last wrote in";
     - her voice block, and its subtitle's "a faithful translation in the player's language";
-    - memo and agenda titles (`BuiltIn`).
+    - memo and agenda titles (`BuiltIn`): as built (#141), its tools ask for them "in the language you reply in", which
+      the base text names, so the tools' descriptions stay the same whatever is chosen.
 - **The manner check** (`tools/bench/manner.cs`, landing with #127) measures the new card against today's. Its
   Chinese moments run on the Chinese card. Beside its habits, it counts:
   - **copying:** a long run of words shared with one of the card's examples;
@@ -291,7 +295,7 @@ Each step is usable on its own.
    - The first run's Welcome shows her first sentence.
    - One billed manner-check run compares it with today's card, the agenda moments included.
    - Comes after #127, which lands the manner check.
-2. **Her Chinese card and the Language setting** (#141). `persona.<language>.md`; Auto, from the player's stored lines;
+2. **Her Chinese card and the Language setting** (#141). *Built.* `persona.<language>.md`; Auto, from the player's stored lines;
    the setting that forces the card and her reply language; and the manner check's Chinese moments on it.
 3. **Fumiriya's cards** (#142), English then Chinese, designed with the user in a session of their own.
 

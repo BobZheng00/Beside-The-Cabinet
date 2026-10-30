@@ -50,11 +50,12 @@ public static class Prompt
     /// <param name="skills">Her skills switched on (see <see cref="Skills"/>): each one's name and description, with her tools.</param>
     /// <param name="keepsInTouch">The player chose "Keeps in touch": she is told she may plan when to reach them while they are out (see <see cref="Later"/>).</param>
     /// <param name="earns">What earns the player play time (all of it when not given): only those are named.</param>
+    /// <param name="language">The language the player chose for her (Settings → Characters): wherever she would write in theirs, she writes in it. Null for theirs.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, IReadOnlyList<Observation>? log, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
                                           int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
                                           bool keepsInTouch = false, IReadOnlyList<string>? asking = null, string herself = "", IReadOnlyList<string>? known = null,
-                                          IReadOnlyList<Skill>? skills = null, Core.Earning? earns = null)
+                                          IReadOnlyList<Skill>? skills = null, Core.Earning? earns = null, string? language = null)
     {
         var system = new StringBuilder($"""
             You are {persona.Name}. You sit on a stool by the player's desk, next to INSERT COIN, their little desktop arcade cabinet, and keep them company while they work and play. You are there as yourself, a person in the room with them, not a service they call on.
@@ -63,7 +64,7 @@ public static class Prompt
 
             {Cabinet(earns ?? Core.Earning.All)}
 
-            You and the player talk as two people at the same desk do: they type or speak, and your words show in a speech bubble by you, a page at a time. Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage, tools)}
+            You and the player talk as two people at the same desk do: they type or speak, and your words show in a speech bubble by you, a page at a time. Plain text: no lists, no markdown, no actions in asterisks. {(language is null ? "Reply in the language the player last wrote in." : $"Reply in {SpokenLanguage.Name(language)}, whatever language the player writes in.")} Stay in character as {persona.Name}.{Voice(voiceLanguage, tools, language)}
 
             Your body: you may start a reply with one stage direction in square brackets. It is acted out, not shown: [cheer] celebrate, [pump] fist pump, [wave] wave, [look] glance at the cabinet's screen, [gasp] alarmed, [worry] worried. Leave it out when none fits.{(tools ? Abilities(asking ?? [], known ?? []) + SkillsHad(skills ?? []) : "")}
 
@@ -122,7 +123,8 @@ public static class Prompt
         // of "Got it, BobSmith—I'll remind you at around 11:40…", 2026-10-11; 22 more tries of that request were all whole, so a rare slip)
         var spoken = voiceLanguage is null ? "" : SpokenLanguage.Name(voiceLanguage);
         var voice = voiceLanguage is null ? ""
-            : $"\n<voice>\nYour voice speaks {spoken}, and you write in the language the player last wrote in. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too, with the whole sentence in {spoken}: only what is in it is heard.\n</voice>";
+            : language == voiceLanguage ? $"\n<voice>\nYour voice speaks {spoken}, and you write in {spoken}.\n</voice>"
+            : $"\n<voice>\nYour voice speaks {spoken}, and you write in {(language is null ? "the language the player last wrote in" : SpokenLanguage.Name(language))}. When that isn't {spoken}, put a [say: ...] in front of every sentence, the last ones too, with the whole sentence in {spoken}: only what is in it is heard.\n</voice>";
         Put(ChatRole.User, $"{time}{agenda}<cabinet>\n{situation.Trim()}\n</cabinet>\n{remembered}\n{said.Trim()}\n\n<character>\n{steady}\n</character>{voice}");
 
         var messages = new List<ChatMessage> { new(ChatRole.System, system.ToString()) };
@@ -213,7 +215,8 @@ public static class Prompt
     /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
     /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
     /// </summary>
-    private static string Voice(string? language, bool tools = false)
+    /// <param name="writes">The language she writes in, as the player chose it (Settings → Characters), or null for theirs.</param>
+    private static string Voice(string? language, bool tools = false, string? writes = null)
     {
         if (language is null)
             return "";
@@ -237,7 +240,7 @@ public static class Prompt
         };
         return $"\n\nYour voice: you are also heard, and your voice speaks {name}. When you write in another language, put the spoken {name} version " +
                $"of each sentence in front of it, like this: {example} Only what is in [say: ...] is heard, so a sentence without one, or what of it a [say] leaves out, is silent; " +
-               $"the rest is shown as its subtitle, a faithful translation in the player's language: nothing added or left out, names included. " +
+               $"the rest is shown as its subtitle, a faithful translation in {(writes is null ? "the player's language" : SpokenLanguage.Name(writes))}: nothing added or left out, names included. " +
                // with tools her agenda is the agenda tool: an example with [plan] in it would teach her the tags again
                $"Do it in every reply, short ones too, and after a stage direction at the start " +
                (tools ? "(\"[look] [say: ...] ...\")" : "or a [plan] or [remind] (\"[plan: ...] [say: ...] ...\")") +

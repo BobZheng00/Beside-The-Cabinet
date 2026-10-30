@@ -1,7 +1,7 @@
 # Characters
 
 Shino and Fumiriya come with the app: VRoid's sample models "Sendagaya Shino" and "Sakurada Fumiriya", released
-by pixiv under CC0 (`SOURCE.txt` in each folder), with personas (`persona.md`) and voices (`voice.zip`) of our
+by pixiv under CC0 (`SOURCE.txt` in each folder), with personas (`persona.md`, and Shino's `persona.zh.md` in Chinese) and voices (`voice.zip`) of our
 own, which stay ours ([NOTICE.md](../../../NOTICE.md)).
 
 ## Adding a character
@@ -48,6 +48,16 @@ for word.
 `{{user}}` in a persona is filled in with the name the player asked to be called by, or "the player" when they gave
 none, as in a character card (`{{char}}` becomes the character's name). Keep `Player:` in the examples, so they are never
 taken for things the player really said.
+
+### A persona in another language
+
+`persona.<language>.md` beside `persona.md` (or `<file name>.<language>.md` beside a loose model) is their own card in
+that language, with the codes `en`, `ja`, `ko` and `zh`. Write it in that language from the start rather than
+translating: Shino's `persona.zh.md` has the same person and facts as `persona.md`, in Chinese wording of its own,
+with `玩家：` in its examples. Settings → Characters → Language decides when it's used: on Auto, once two of the
+player's messages in a row are in that language, until two in a row are in another; chosen, whatever the player
+writes. In a card in Chinese, `{{user}}` with no name given becomes "玩家". A character card stands for them in every
+language, so with one these files aren't read.
 
 What each kind of file gets:
 

@@ -6,6 +6,9 @@ public static class SpokenLanguage
     /// <summary>The ones offered for a voice: what the player asked for, and what GPT-SoVITS speaks best.</summary>
     public static readonly string[] Offered = ["en", "ja", "zh"];
 
+    /// <summary>The ones <see cref="Of"/> tells apart: a character's card in one of them is <c>persona.&lt;code&gt;.md</c>.</summary>
+    public static readonly string[] Told = ["en", "ja", "ko", "zh"];
+
     public static string Name(string code) => code switch
     {
         "en" => "English",
