@@ -161,8 +161,10 @@ Each step is usable on its own.
    whatever she wrote before it (flow C) or nothing. A failed call, or a round with another tool in it, still goes back
    to her. **The CRT flash** shows what landed (the user, 2026-10-28: "A line from the cabinet would be good. pron not
    on the marquee since the text can be long"): AGENDA, CHANGED or CANCELLED, the day and time, and the item on up to
-   two lines broken at words (`Agenda.Flash`; the caption takes the hidden fuel bar's space for a third line), four
-   seconds each, several in one reply in turn; with an app open on the screen it waits for the readout to unfold. Her
+   two lines broken at words, never inside a character (`Agenda.Flash`; the caption takes the hidden fuel bar's space
+   for a third line, and its font is chosen by its widest line, `CrtCaption`, so the screen never wraps it again),
+   four seconds each, several in one reply in turn; with an app open on the screen they wait for the readout to
+   unfold, and then show in turn. Her
    note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
    drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed manner
    check after it is the user's to allow (#193).
@@ -172,4 +174,5 @@ Each step is usable on its own.
    "Agenda, changed: …", "Agenda, cancelled: …", in English as the app's other lines by text are, under her words after
    a blank line, or the whole message when the reply ended silently; never an empty message. It covers what she sets
    through the tool and through her tags, and every text of hers (an answer on Telegram, a text she sends while the
-   player is out).
+   player is out). Something the cabinet had her pass on (a reminder) whose reply was only an agenda call goes as its
+   own plain line, with the app's line under it (`Reaching.TextOf`): what must reach them always does.

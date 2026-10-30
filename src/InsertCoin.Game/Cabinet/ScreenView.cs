@@ -70,7 +70,7 @@ public partial class ScreenView : Node2D
     private ShaderMaterial _material = null!;
     private ScreenState _state = new();
     private (string Big, string Caption)? _flash;
-    private (string Big, string Caption, double Seconds)? _waiting;    // a flash waiting for the readout to unfold
+    private readonly Queue<(string Big, string Caption, double Seconds)> _waiting = new();    // flashes waiting for the readout to unfold
     private bool _folded;                               // the readout is folded away, or folding
     private (string Big, string Caption, string Status)? _prompt;
     private (string Big, string Caption, float Done)? _focus;
@@ -157,13 +157,13 @@ public partial class ScreenView : Node2D
     /// <summary>Takes over the screen for a moment, e.g. "+2" or "CONTINUE?".</summary>
     /// <param name="waits">
     /// While the screen's system has the readout folded away (an app open on it), the flash waits and shows once it
-    /// unfolds, rather than passing unseen (what she put on the agenda); a later waiting flash takes its place.
+    /// unfolds, rather than passing unseen (what she put on the agenda); several waiting show in turn.
     /// </param>
     public void Flash(string big, string caption, double seconds, bool waits = false)
     {
         if (waits && _folded)
         {
-            _waiting = (big, caption, seconds);
+            _waiting.Enqueue((big, caption, seconds));
             return;
         }
         _flash = (big, caption);
@@ -293,12 +293,19 @@ public partial class ScreenView : Node2D
             _fold.Visible = false;
             Live = live;
             then?.Invoke();
-            if (!away && _waiting is { } waited)
-            {
-                _waiting = null;
-                Flash(waited.Big, waited.Caption, waited.Seconds);
-            }
+            if (!away)
+                Waited();
         }));
+    }
+
+    /// <summary>The flashes that waited for the readout, one after another, while it stays unfolded (any left wait for the next time).</summary>
+    private void Waited()
+    {
+        if (_folded || !_waiting.TryDequeue(out var next))
+            return;
+        Flash(next.Big, next.Caption, next.Seconds);
+        if (_waiting.Count > 0)
+            GetTree().CreateTimer(next.Seconds).Timeout += Waited;
     }
 
     /// <summary>
@@ -469,7 +476,7 @@ public partial class ScreenView : Node2D
         // Press Start 2P is square: fit the big line to the screen width.
         _big.LabelSettings.FontSize = Math.Clamp((int)((_width - 44) / Math.Max(_big.Text.Length, 1)), 16, 64);
         // Captions sit above the fuel bar; two-line captions use the bar's space when it is hidden.
-        _caption.LabelSettings.FontSize = _caption.Text.Length > 34 ? 24 : 30;
+        _caption.LabelSettings.FontSize = InsertCoin.Mind.CrtCaption.Font(_caption.Text);
         // a third line (what she put on the agenda, wrapped) takes the hidden bar's space too, rather than being cut off
         _caption.Size = _caption.Size with { Y = takenOver && _caption.Text.Count(c => c == '\n') >= 2 ? 112 : 76 };
         Refresh();

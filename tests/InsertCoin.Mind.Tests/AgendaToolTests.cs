@@ -136,6 +136,7 @@ public class AgendaToolTests
     [InlineData("Supercalifragilisticexpialidocious lessons", "SUPERCALIFRAGILISTICEXPIAL\nIDOCIOUS LESSONS")]
     [InlineData("Dinner with Grandma and Grandpa at the new Italian place downtown", "DINNER WITH GRANDMA AND\nGRANDPA AT THE NEW...")]
     [InlineData("下周三下午三点去看牙医然后去买菜再回家", "下周三下午三点去看牙医然后\n去买菜再回家")]
+    [InlineData("🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂", "🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂\n🎂")]       // never between an emoji's two halves (QA on #206)
     public void The_cabinet_s_flash_wraps_the_item_at_words_onto_two_lines_at_most(string what, string shown)
     {
         var at = new DateTimeOffset(2026, 10, 29, 14, 0, 0, TimeSpan.FromHours(-4));
@@ -144,7 +145,29 @@ public class AgendaToolTests
         Assert.Equal(("AGENDA", $"THU 29 OCT 14:00\n{shown}"), Mind.Agenda.Flash(new(AgendaChange.Added, plan)));
         Assert.Equal("CHANGED", Mind.Agenda.Flash(new(AgendaChange.Changed, plan)).Big);
         Assert.Equal(("CANCELLED", "THU 29 OCT\n" + shown), Mind.Agenda.Flash(new(AgendaChange.Cancelled, plan with { AllDay = true })));
-        Assert.All(shown.Split('\n'), line => Assert.True(line.Sum(c => c >= '⺀' ? 2 : 1) <= Mind.Agenda.FlashLine));
+        Assert.All(shown.Split('\n'), line => Assert.True(CrtCaption.Width(line) <= CrtCaption.SmallLine));
+    }
+
+    [Theory]
+    [InlineData("Dentist checkup in town")]                 // QA on #206: at 30 px the screen wrapped it again, and "TOWN" was cut off
+    [InlineData("Mum's birthday dinner")]
+    [InlineData("下周三下午三点去看牙医然后去")]
+    [InlineData("下周三下午三点去看牙医")]
+    [InlineData("Job interview at Northwind Bank")]
+    [InlineData("Gym")]
+    [InlineData("Dinner with Grandma and Grandpa at the new Italian place downtown")]
+    public void Every_line_of_the_flash_fits_the_font_the_screen_draws_its_caption_in(string what)
+    {
+        var at = new DateTimeOffset(2026, 10, 29, 14, 0, 0, TimeSpan.FromHours(-4));
+        foreach (var allDay in new[] { false, true })
+        {
+            var caption = Mind.Agenda.Flash(new(AgendaChange.Added, new Plan(7, what, at, allDay, null, null, Wednesday, "shino"))).Caption;
+            var fits = CrtCaption.Font(caption) == CrtCaption.Large ? CrtCaption.LargeLine : CrtCaption.SmallLine;
+            Assert.All(caption.Split('\n'), line => Assert.True(CrtCaption.Width(line) <= fits, $"\"{line}\" is wider than {fits} at {CrtCaption.Font(caption)} px"));
+        }
+        // the screen's other short captions keep the large font
+        Assert.Equal(CrtCaption.Large, CrtCaption.Font("PLAYING ON CREDIT"));
+        Assert.Equal(CrtCaption.Small, CrtCaption.Font("FRI 15 JAN\nDENTIST CHECKUP IN TOWN"));
     }
 
     [Fact]

@@ -566,28 +566,31 @@ public sealed class Chat : IDisposable
     /// <summary>
     /// Has her write what the cabinet asks as a text to the player's phone, as they are away from the PC (see
     /// <see cref="Reaching"/>): written as a remark is and kept in the conversation, but nothing is shown, acted or said
-    /// here. Her words as shown, with the app's line for what she set on the agenda (see <see cref="TextBack"/>), or null
-    /// when none came: her mind failed, or took longer than <paramref name="within"/>, and then nothing of hers is kept either.
+    /// here. Her words as shown, or null when none came: her mind failed, or took longer than <paramref name="within"/>,
+    /// and then nothing of hers is kept either; or her reply was only an agenda call. With what that reply set on the
+    /// agenda, for the app's line under her words (see <see cref="Reaching.TextOf"/>).
     /// </summary>
-    public async Task<string?> Text(string note, string situation, CompanionView view, string? voiceLanguage, TimeSpan? within = null)
+    public async Task<(string? Words, IReadOnlyList<AgendaDone> Set)> Text(string note, string situation, CompanionView view, string? voiceLanguage,
+                                                                          TimeSpan? within = null)
     {
         if (!Ready || Answering)
-            return null;
+            return (null, []);
         await Respond(note, fromCabinet: true, fallback: null, situation, view, speech: null, voiceLanguage, texting: true, within: within);
-        return Replied;
+        return (Replied, [.. _agended]);
     }
 
     /// <summary>
     /// Has her answer what the player texted her from their phone (see <see cref="Reaching.Texted"/>): as she answers at
-    /// the PC, and kept in the conversation, but nothing is shown or said here. Her words as shown, with the app's line
-    /// under them for what she set on the agenda (see <see cref="Agenda.Receipted"/>), or null when neither came.
+    /// the PC, and kept in the conversation, but nothing is shown or said here. Her words as shown, or null when none
+    /// came, with what her reply set on the agenda, for the app's line under them (see <see cref="Agenda.Receipted"/>).
     /// </summary>
-    public async Task<string?> TextBack(string said, IReadOnlyList<Attachment> handed, string situation, CompanionView view, string? voiceLanguage)
+    public async Task<(string? Words, IReadOnlyList<AgendaDone> Set)> TextBack(string said, IReadOnlyList<Attachment> handed, string situation,
+                                                                              CompanionView view, string? voiceLanguage)
     {
         if (!Ready || Answering)
-            return null;
+            return (null, []);
         await Respond(said, fromCabinet: false, fallback: null, situation, view, speech: null, voiceLanguage, handed: handed, texting: true, aside: Reaching.Texted);
-        return Replied;
+        return (Replied, [.. _agended]);
     }
 
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
@@ -748,9 +751,7 @@ public sealed class Chat : IDisposable
                     GD.Print($"Voice: nothing to say aloud: her reply had no [say: …] and isn't in her voice's language ({speech.Language})");
                 else if (speech is { Unheard: > 0 } partly)
                     GD.Print($"Voice: about {partly.Unheard} of her reply's sentences went unheard: the model gave them no [say: …] of their own");
-                // by text, the app's plain line for what she set comes under her words, or is the message when she said none (#129)
-                var sent = texting ? Agenda.Receipted(text, _agended, ReminderLead()) : text;
-                Replied = sent.Length > 0 ? sent : null;
+                Replied = text.Length > 0 ? text : null;
             }
         }
         catch (OperationCanceledException) when (_cutting)

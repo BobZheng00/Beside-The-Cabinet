@@ -152,10 +152,11 @@ They remember:
   stop it repeating, and they do it in that reply, to that same item, however far ahead it is; an item from a calendar you linked stays as the
   calendar has it. They write it down with a quick note on a pad, and the cabinet's screen flashes what was set:
   AGENDA (or CHANGED, or CANCELLED), the day and time, and the item, on two lines at most (a longer one ends "...";
-  all of it is in AGENDA); with an app open on the screen, the flash waits until it closes. Their reply ends there:
+  all of it is in AGENDA); with an app open on the screen, the flashes wait until it closes, then show in turn. Their reply ends there:
   whatever they said before writing it down stays, and nothing is said after it, so they don't read the date back to
   you; by text, the app's own line under their message says what was set ("Agenda: Thu 29 Oct, 14:00, Job interview
-  (reminder 13:00)"), and is the whole message when they said nothing. Something they set always has a reminder
+  (reminder 13:00)"), and is the whole message when they said nothing (a reminder texted to you still comes in its
+  own plain words then, with that line under it). Something they set always has a reminder
   chosen (none, at the time, or some time before), so they never promise one that isn't there. What the cabinet can't do (a time it can't read, a
   repeat it doesn't have such as every other week, an item that isn't there) is left undone, and they hear at once
   and say so in the same reply. With a provider whose model has no tools, they write it into their reply instead,

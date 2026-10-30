@@ -249,6 +249,19 @@ public static class Reaching
     public static bool MayTextOwn(Reach reach, Whereabouts where, TimeSpan awayFor, bool quiet) =>
         reach == Reach.KeepsInTouch && where == Whereabouts.Away && awayFor >= FirstChance && !quiet;
 
+    /// <summary>
+    /// The text for what the cabinet had her write while the player is out: her words, or else its plain line, as what
+    /// must reach them always does (a reply that was only an agenda call has no words, #193); with the app's line under
+    /// it for each item her reply set (see <see cref="Agenda.Receipted"/>). Null when there is nothing to send.
+    /// </summary>
+    public static Notice? TextOf(Telling telling, string herName, string? words, IEnumerable<AgendaDone> set, TimeSpan? lead = null)
+    {
+        if (words?.Trim() is { Length: > 0 } said)
+            return new Notice(herName, Agenda.Receipted(said, set, lead), Hers: true);
+        var plain = Agenda.Receipted(telling.Line, set, lead);
+        return plain.Length > 0 ? new Notice(telling.Heading, plain) : null;
+    }
+
     /// <summary>What her mind is told at her first chance: whether to say anything, and whether to plan a next, is hers.</summary>
     public static string OwnText(TimeSpan away) =>
         $"The player has been away from the PC for {Words.Span((long)away.TotalMilliseconds)}. If there's something you'd like to tell or ask them, " +
