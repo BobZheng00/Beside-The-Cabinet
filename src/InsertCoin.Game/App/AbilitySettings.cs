@@ -70,9 +70,9 @@ public partial class AbilitySettings : VBoxContainer
 
     /// <summary>
     /// The Privacy page: what she can look at that is the player's own, and what she is told in the background. All of it
-    /// goes to their provider with the conversation.
+    /// goes to their provider with the conversation. With no play time, nothing on it speaks of play time.
     /// </summary>
-    public void BuildPrivacy(Chat chat, string name, Provider? current, Privacy privacy)
+    public void BuildPrivacy(Chat chat, string name, Provider? current, Privacy privacy, SettingsFile settings)
     {
         _chat = chat;
         var provider = current is not null && Uri.TryCreate(current.BaseUrl, UriKind.Absolute, out var server) ? server.Host : "your AI provider";
@@ -86,9 +86,19 @@ public partial class AbilitySettings : VBoxContainer
         CheckBox music = null!, days = null!;
         void Chosen() => PrivacyChosen?.Invoke(privacy with { Music = music.ButtonPressed, Days = days.ButtonPressed });
         music = Form.Tick(this, "What's playing in your music app (track and artist)", privacy.Music, _ => Chosen());
-        days = Form.Tick(this, "What your record of days shows: nights running late, days without play", privacy.Days, _ => Chosen());
-        Form.Hint(this, $"Your play time, focus and what you've done today {name} always knows: the cabinet runs on them. Web searches go to your " +
-                        $"provider, or to your own SearXNG (Add-ons); pages {name} reads are fetched by this PC from their site.");
+        days = Form.Tick(this, "", privacy.Days, _ => Chosen());
+        var always = Form.Hint(this, "");
+        void Known()                                        // as what earns play time changes on Balance
+        {
+            var playTime = settings.Now.Earning.Any;
+            days.Text = "What your record of days shows: nights running late" + (playTime ? ", days without play" : "");
+            always.Text = (playTime ? $"Your play time, focus and what you've done today {name} always knows: the cabinet runs on them."
+                                    : $"What you've played, focused on and done today {name} always knows: the cabinet keeps them.") +
+                          $" Web searches go to your provider, or to your own SearXNG (Add-ons); pages {name} reads are fetched by this PC from their site.";
+        }
+        Known();
+        settings.Changed += Known;
+        TreeExiting += () => settings.Changed -= Known;
     }
 
     /// <summary>On a skill's page (Settings → Skills): how freely she uses her note tools in the folders skills work in.</summary>

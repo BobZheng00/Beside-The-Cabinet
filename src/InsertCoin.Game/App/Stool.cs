@@ -685,9 +685,11 @@ public partial class Stool : Node2D
             _toTell.Remove(telling);
             if (saying == Saying.Ticket)
             {
-                if (!telling.Ticketed && telling.Line.Length > 0)
+                var shown = !telling.Ticketed && telling.Line.Length > 0;
+                if (shown)
                     Notice?.Invoke(telling.Title, telling.Line);    // they can't be spoken to now: only the ticket
-                GD.Print($"Reaching: {telling.Title} only on a ticket: they can't be spoken to now");
+                GD.Print(shown ? $"Reaching: {telling.Title} only on a ticket: they can't be spoken to now"
+                               : $"Reaching: {telling.Title} let go: they can't be spoken to now, and it needs no ticket");
                 continue;
             }
             GD.Print($"Reaching: {telling.Title} told at the PC ({(route.Way == Way.Call ? "a word first" : "straight on")}" +
@@ -2161,7 +2163,7 @@ public partial class Stool : Node2D
     private Control PrivacyPage()
     {
         var page = new AbilitySettings();
-        page.BuildPrivacy(_chat, HerName(), ChatProvider(), _settings.Now.Privacy);
+        page.BuildPrivacy(_chat, HerName(), ChatProvider(), _settings.Now.Privacy, _settings);
         page.PermissionsChosen += ChoosePermissions;
         page.PrivacyChosen += privacy => _settings.Save(_settings.Now with { Privacy = privacy });
         return page;

@@ -73,6 +73,17 @@
       "expect": ["^Main: no play time, the balance kept out of sight \\(0 credits, [1-9]\\d* min owed\\)$", "^Main: play time is back, the balance as it was$"]
     },
     {
+      "name": "noplaytime-game",
+      "about": "With no play time from the start, a focus session and a game: the screen shows the time and the day, and when the companion can't speak, no corner ticket says GAME ON or GAME OVER (the cabinet shows nothing of a game).",
+      "covers": ["src/InsertCoin.Game/App/Lines.cs", "src/InsertCoin.Game/App/Director.cs"],
+      "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false",
+      "script": "nocall@1,focus@3,game@6,focus:skip@10,game@14",
+      "shots": [5, 9, 13, 18],
+      "desk": true,
+      "expect": ["^Main: no play time, the balance kept out of sight \\(0 credits, 0 min owed\\)$"],
+      "forbid": ["^Reaching: GAME (ON|OVER) only on a ticket", "^Reaching: (SOLVED|STREAK|DEBT PAID|TIME LEFT|OUT OF TIME|LATE NIGHT) "]
+    },
+    {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],

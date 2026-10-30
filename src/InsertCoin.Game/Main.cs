@@ -1154,8 +1154,15 @@ public partial class Main : Node2D
         GD.Print($"Main: play time is earned by {string.Join(", ", new[] { (earns.Focus, "focus"), (earns.Activities, "activities"), (earns.LeetCode, "LeetCode") }.Where(s => s.Item1).Select(s => s.Item2).DefaultIfEmpty("nothing"))}");
         _crt.Away("done", !earns.Activities);
         _tray.ShowCheck(earns.LeetCode);
-        // no play time: the coins and an IOU ticket in the slot go out of sight, kept as they are until play time is back
-        _cabinet.Tray.Visible = _cabinet.Printer.Visible = earns.Any;
+        // no play time: the coins, an IOU ticket in the slot and a game's receipt go out of sight, kept until play time is back
+        _cabinet.Tray.Visible = _cabinet.Printer.Visible = _cabinet.Receipt.Visible = earns.Any;
+        if (earns.Any && !was.Any)
+        {
+            // back as the state has it: LeetCode's last answer may have paid meanwhile, unseen
+            _cabinet.Tray.Set(_state.Credits);
+            if (_state.DebtMs == 0)
+                _cabinet.Printer.SetPartial(0);
+        }
         if (earns.Any != was.Any || !earns.Any)
             GD.Print(earns.Any ? "Main: play time is back, the balance as it was"
                                : $"Main: no play time, the balance kept out of sight ({_state.Credits} credits, {_state.DebtMs / 60_000} min owed)");

@@ -72,8 +72,9 @@ hours in a game all stay. What goes: credits and coins, the cap and the overnigh
 price after bedtime, and your companion's talk of earning. The screen shows the time and the day instead of the time
 left, with no attract pages, and the apps on it stay (DONE goes, as activities are off); Settings → Balance shows only
 the ticks and your bedtime. Games are still noticed, so the break after a long one, the bedtime words and your
-companion keeping quiet while you play still work, but nothing is spent, faded or shown. Coins you had and time you
-owed are kept out of sight (the coin tray and the IOU ticket in the slot empty, the tray icon says nothing of them)
+companion keeping quiet while you play still work, but nothing is spent, faded or shown, not even on a corner ticket. Settings
+→ Cabinet and Privacy then say nothing of play time either. Coins you had and time you
+owed are kept out of sight (the coin tray, the IOU ticket in the slot and a game's receipt go, the tray icon says nothing of them)
 and come back as they were when you tick something again: nothing is earned or lost meanwhile.
 
 ## The companion on the stool

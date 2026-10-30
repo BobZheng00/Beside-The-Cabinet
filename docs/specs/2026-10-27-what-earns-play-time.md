@@ -120,6 +120,8 @@ Today:
    only the game; her cabinet tool gives what was done and played, the bedtime and a day's record without its
    accounts, and its description and set_bedtime's name no balance or price (`Chat.PlayTime`); `Rest.Note` and
    `Rest.AskBedtime` name no price, and `Rest.Notice` is passed nothing banked. Balance shows only the ticks and the
-   bedtime, and Getting started says there's no play time. Turning LeetCode back on while a poll waits asks again at
-   the next check.
+   bedtime, and Getting started says there's no play time; Cabinet's ticket hint and Privacy's hints follow the ticks.
+   Her remarks about the cabinet go on no corner ticket, a debt paid or a streak from LeetCode's last answer isn't told,
+   and the coin tray is set afresh when play time is back. The day turns at 04:00 even with a game on. Turning LeetCode
+   back on while a poll waits asks again at the next check.
 3. **Programs that count as play** (#175). Picked on Balance, spent while in front.
