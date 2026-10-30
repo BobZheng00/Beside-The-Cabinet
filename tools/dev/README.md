@@ -204,9 +204,14 @@ script's header.
   Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for, a
   flatmate's pan, a deadline moved up, "how's your day?"), with Shino's card and a plain one, each from a fresh memory.
   Stock openers, a date or time said back, the player echoed, the bookkeeping narrated, offers of help, ending on a
-  question, length, tools used unasked, focus sessions started, replies with no words (ended at their agenda call,
-  #193) and replies that put something on the agenda are counted in code (the counting checks itself first) and
-  written to `manner.md`, side by side, with what the cabinet's screen flashed for each. Where the player brings a trouble (vent, vent-zh, bad, lost,
+  question, length, tools used unasked and focus sessions started are counted in code (the counting checks itself
+  first) and written to `manner.md`, side by side. So are *copies the card* (five words in a row of the card's text, or
+  six Chinese characters, or a three- or four-word sentence of its examples whole, "That's not fair.", or four Chinese
+  characters of one, 「太突然了」: the side by side says what was copied), *another language* (a reply not in the
+  moment's language), *agenda put down* (in the moments that ask for the agenda, an agenda call that changed it), and
+  *no words* (a reply that ended at its agenda call with nothing said, #193; the side by side gives what the cabinet's
+  screen flashed). A persona file is filled in as the app fills it, with no name given (`{{user}}` becomes "the
+  player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
   counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
   - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");

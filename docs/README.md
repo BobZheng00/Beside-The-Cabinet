@@ -55,7 +55,7 @@ problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), read from your p
 LeetCode off the cabinet never reads LeetCode and nothing names it (the attract screen, an IOU ticket, your
 companion's words); with activities off the DONE app leaves the screen and your companion has no tools for them; with
 focus off focus sessions still run, paying nothing. Your companion's base instructions and their cabinet tool name only
-what earns. "No play time, just keep me company" clears the three. A day (04:00 to 04:00) can earn at most 1:30
+what earns. "No play time, just keep me company" clears the three (see below). A day (04:00 to 04:00) can earn at most 1:30
 from Monday to Thursday, 2:00 on Friday and 2:30 at the weekend; past that, work still counts in the day's record but
 pays nothing (paying back time owed doesn't count towards it). Each night half of the unplayed time fades, so it
 can't be saved up for the weekend (time owed never fades). After the bedtime you set, until 04:00, play costs ×1.5
@@ -65,6 +65,17 @@ A day with a solve, an activity or 25 minutes of focus (of those that earn) is a
 thing each day earns brings a bonus star coin (STREAK xN BONUS). Every day is kept in a record (what was earned and
 from what, focused, played, when you were first and last at the PC), the start of your companion's sense of your
 patterns.
+
+With no play time (nothing ticked) the cabinet keeps you company without a balance. Your companion, their memory, the
+agenda and reminders, texting, focus sessions (paying nothing), the words around your bedtime and a break after two
+hours in a game all stay. What goes: credits and coins, the cap and the overnight fade, the streak, IOU tickets, the
+price after bedtime, and your companion's talk of earning. The screen shows the time and the day instead of the time
+left, with no attract pages, and the apps on it stay (DONE goes, as activities are off); Settings → Balance shows only
+the ticks and your bedtime. Games are still noticed, so the break after a long one, the bedtime words and your
+companion keeping quiet while you play still work, but nothing is spent, faded or shown, not even on a corner ticket. Settings
+→ Cabinet and Privacy then say nothing of play time either. Coins you had and time you
+owed are kept out of sight (the coin tray, the IOU ticket in the slot and a game's receipt go, the tray icon says nothing of them)
+and come back as they were when you tick something again: nothing is earned or lost meanwhile.
 
 ## The companion on the stool
 

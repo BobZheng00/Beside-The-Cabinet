@@ -33,8 +33,13 @@ public partial class CabinetSettings : VBoxContainer
         TreeExiting += () => settings.Changed -= Sync;
         Form.Hint(this, "The cabinet's sounds and your companion's voice. A reminder's chime can still ring (see Reminders).");
         Form.Tick(this, "Tickets while you play", now.InGameTickets, on => Tickets?.Invoke(on));
-        Form.Hint(this, "A ticket at the corner of the screen during a game: five minutes left, one minute left, out of time, time owed, past " +
-                        "your bedtime.");
+        var tickets = Form.Hint(this, "");
+        void Said() => tickets.Text = settings.Now.Earning.Any         // as what earns play time changes on Balance
+            ? "A ticket at the corner of the screen during a game: five minutes left, one minute left, out of time, time owed, past your bedtime."
+            : "With no play time there are none: nothing counts down or is owed.";
+        Said();
+        settings.Changed += Said;
+        TreeExiting += () => settings.Changed -= Said;
 
         Form.Subheading(this, "Energy");
         Form.Tick(this, "Energy saver", now.EnergySaver, on => SaveEnergy?.Invoke(on));

@@ -47,10 +47,12 @@ public static class Rest
         playedMs >= LongPlay.TotalMilliseconds && (lastBreakAtMs is not { } last || playedMs - last >= LongPlay.TotalMilliseconds);
 
     /// <summary>What she is told for a nudge, to say in her own words.</summary>
-    public static string Note(Nudge nudge, TimeSpan bedtime, double latePrice) => nudge switch
+    /// <param name="latePrice">What play costs after bedtime, or null with no play time (then no price is named).</param>
+    public static string Note(Nudge nudge, TimeSpan bedtime, double? latePrice) => nudge switch
     {
         Nudge.WindDown => $"It's half an hour to the player's bedtime ({Clock(bedtime)}). Give them a word to start winding down. Briefly, and no lecture.",
-        Nudge.Bedtime => $"It's the player's bedtime ({Clock(bedtime)}): time to sleep. Say so briefly; from now until 04:00 play costs x{latePrice.ToString("0.#", English)}. No lecture.",
+        Nudge.Bedtime => $"It's the player's bedtime ({Clock(bedtime)}): time to sleep. Say so briefly" +
+                         (latePrice is { } price ? $"; from now until 04:00 play costs x{price.ToString("0.#", English)}" : "") + ". No lecture.",
         Nudge.StillUp => $"It's half an hour past the player's bedtime ({Clock(bedtime)}) and they're still up. Say it once more, briefly and without lecturing: you won't again tonight.",
         _ => "The player has been in a game for two hours. Suggest a break: rest their eyes, stretch, some water. Briefly, and no lecture.",
     };
@@ -58,7 +60,7 @@ public static class Rest
     /// <summary>
     /// What she might notice in the record of days, to mention once: nights going on half an hour past bedtime (past
     /// one in the morning without one) on three of the last four; or three days without play while at least half an
-    /// hour is banked (rest counts too). Null when there is nothing.
+    /// hour is banked (rest counts too; never with no play time, which passes nothing banked). Null when there is nothing.
     /// </summary>
     public static string? Notice(IReadOnlyList<DayRecord> days, TimeSpan? bedtime, long bankedMs, TimeSpan dayStartsAt)
     {
@@ -111,12 +113,15 @@ public static class Rest
         return TimeSpan.FromTicks((middle + dayStartsAt).Ticks % Day.Ticks);
     }
 
-    /// <summary>What she is told when the player has no bedtime: to ask for one, once, with their usual time if the record shows one.</summary>
-    public static string AskBedtime(TimeSpan? usual) => usual is { } time
+    /// <summary>
+    /// What she is told when the player has no bedtime: to ask for one, once, with their usual time if the record shows
+    /// one; with <paramref name="price"/> (play time on), that play after it costs more.
+    /// </summary>
+    public static string AskBedtime(TimeSpan? usual, bool price = true) => usual is { } time
         ? $"The player has no bedtime set. From the record of days, their nights usually end around {Clock(time)}. Ask them once, briefly, what " +
           "time they'd like to be asleep by (around then or a little earlier, if they'd like a suggestion); if they say, use set_bedtime."
         : "The player has no bedtime set. Ask them once, briefly, what time they'd like to be asleep by; if they say, use set_bedtime. Half an " +
-          "hour before it you give a word to wind down, and play after it costs more.";
+          "hour before it you give a word to wind down" + (price ? ", and play after it costs more." : ".");
 
     /// <summary>A bedtime as the player gave it, "23:30" or "0:30": from 20:00 to 03:30, or null.</summary>
     public static TimeSpan? ParseBedtime(string? text) =>

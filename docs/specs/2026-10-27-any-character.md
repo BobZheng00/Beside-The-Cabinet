@@ -39,7 +39,8 @@ person in the room with them". The cabinet's lines name its own things as if she
     ships: #180's billed run puts both openings to #127's moments as well as the world moments, and the user decides from
     the counts (the user, 2026-10-27: "we want to sure on this").
   - **With no play time** (`2026-10-27-what-earns-play-time.md`, #174), the opening leaves out the balance: "INSERT
-    COIN, their little arcade cabinet, is with them and tells you what happens."
+    COIN, their little arcade cabinet, is with them and tells you what happens." *Built with #174 (2026-10-29)*, in
+    place of the balance paragraph of the opening as it is now (`Prompt.Cabinet`).
   - Her notetaker's and memory keeper's own requests (`Log.cs`, `Upkeep.cs`), which say she "sits beside the player's
     arcade cabinet", stay as they are: they describe her to the notetaker, not to her.
 - **The cabinet says what its own things are, in plain words, every time.** This covers its lines in her conversation

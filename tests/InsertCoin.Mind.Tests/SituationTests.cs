@@ -75,16 +75,53 @@ public class SituationTests
         Assert.Equal(leetCode, ledger.Contains("solve"));                   // nor a solve, as the week's problems or the streak's
     }
 
-    [Fact]
-    public void With_nothing_earning_her_cabinet_tool_says_so_and_names_no_streak()
+    private static readonly Rules NoPlayTime = Rules with { Earns = new Earning(false, false, false), Bedtime = TimeSpan.FromHours(23) };
+
+    /// <summary>A player with a balance from before (banked, owed, today's earning), who then chose no play time.</summary>
+    private static LedgerState Kept(Rules rules) => LedgerState.New(Friday.AddDays(-4), rules) with
     {
-        var rules = Rules with { Earns = new Earning(false, false, false) };
+        Credits = 3,
+        DebtMs = 20 * 60_000,
+        BestStreak = 7,
+        Week = new WeekStats { EarnedMs = 100 * 60_000, FocusedMs = 150 * 60_000, PlayedMs = 90 * 60_000 },
+        Today = DayRecord.Begin(new DateOnly(2026, 10, 2), rules) with { EarnedMs = 45 * 60_000, FocusedMs = 70 * 60_000, PlayedMs = 25 * 60_000 },
+        Session = new Session { GameNames = ["Hades"], PlayedMs = 25 * 60_000 },
+    };
 
-        var ledger = Situation.Ledger(LedgerState.New(Friday, rules), rules, Friday, "BobSmith", null);
+    /// <summary>What says nothing of a balance: no play time banked or owed, no earning, cap, fade, streak or price.</summary>
+    private static void NoBalanceIn(string text)
+    {
+        foreach (var word in new[] { "banked", "owed", "earn", "cap", "fade", "streak", "token", "IOU", "costs", "credit", "LeetCode" })
+            Assert.DoesNotMatch($@"(?i)\b{word}", text);
+    }
 
-        Assert.Contains("How play is earned: a token is 15 min of play. Nothing earns play time now. A day can earn at most its cap", ledger);
-        Assert.DoesNotContain("good day", ledger);
-        Assert.DoesNotContain("LeetCode", ledger);
+    [Fact]
+    public void With_no_play_time_her_turn_has_only_the_game_and_nothing_of_a_balance()
+    {
+        var playing = Situation.Describe(Kept(NoPlayTime), NoPlayTime, Friday.AddHours(4));      // past bedtime too
+        var quiet = Situation.Describe(LedgerState.New(Friday, NoPlayTime), NoPlayTime, Friday);
+        var away = Situation.Describe(Kept(NoPlayTime) with { Paused = true }, NoPlayTime, Friday);
+
+        Assert.Equal("Right now: playing Hades, 25 min into the session.", playing);
+        Assert.Equal("Right now: not playing.", quiet);
+        Assert.Equal("Right now: in a game of Hades, but the player stepped away.", away);
+    }
+
+    [Fact]
+    public void With_no_play_time_her_cabinet_tool_gives_what_was_done_and_played_and_nothing_of_a_balance()
+    {
+        var thursday = DayRecord.Begin(new DateOnly(2026, 10, 1), Rules) with { FocusedMs = 30 * 60_000, EarnedMs = 15 * 60_000, FadedMs = 10 * 60_000 };
+        var state = Kept(NoPlayTime) with { Days = [thursday] };
+
+        var ledger = Situation.Ledger(state, NoPlayTime, Friday, "BobSmith", "yesterday");
+
+        NoBalanceIn(ledger);
+        Assert.Contains("So far today: 1 h 10 min focused, 25 min played.", ledger);
+        Assert.Contains("Bedtime: 23:00.", ledger);
+        Assert.Contains("This week: 2 h 30 min focused, 1 h 30 min played.", ledger);
+        Assert.Contains("Right now: playing Hades, 25 min into the session.", ledger);
+        Assert.Contains("The player chose no play time: the cabinet keeps no balance, and their games cost nothing.", ledger);
+        Assert.EndsWith("Thursday 1 October 2026: The cabinet's record: focused 30 min.", ledger);
     }
 
     [Theory]
@@ -92,7 +129,6 @@ public class SituationTests
     [InlineData(true, true, false, " (focusing, their own activities)")]
     [InlineData(false, true, false, " (their own activities)")]
     [InlineData(true, false, true, " (solving problems, focusing)")]
-    [InlineData(false, false, false, "")]
     public void Her_base_text_names_only_what_earns(bool focus, bool activities, bool leetCode, string ways)
     {
         var persona = new Persona("Shino", "Shino is cheerful.");
@@ -100,6 +136,19 @@ public class SituationTests
         var system = Prompt.Build(persona, "", "", null, [], "", "hi", earns: new Earning(focus, activities, leetCode))[0].Text;
 
         Assert.Contains($"the player earns time for their games by doing good things{ways} and spends it playing.", system);
+    }
+
+    [Fact]
+    public void With_no_play_time_her_base_text_says_the_cabinet_is_there_and_nothing_of_earning()
+    {
+        var persona = new Persona("Shino", "Shino is cheerful.");
+
+        var system = Prompt.Build(persona, "", "", null, [], "", "hi", earns: new Earning(false, false, false))[0].Text;
+
+        Assert.Contains("INSERT COIN, their little arcade cabinet, is with them and tells you what happens; the <cabinet> block has what matters now.", system);
+        Assert.DoesNotContain("balance", system);
+        Assert.DoesNotMatch(@"\bearn", system);
+        Assert.DoesNotContain("spends it playing", system);
     }
 
     [Fact]
@@ -135,6 +184,16 @@ public class SituationTests
         Assert.Null(Situation.Witness(new Paused(), Rules));
         Assert.Null(Situation.Witness(new Faded(40 * 60_000, 40 * 60_000), Rules));
         Assert.Null(Situation.Witness(new CapReached(120 * 60_000), Rules));
+    }
+
+    [Fact]
+    public void With_no_play_time_what_a_last_payment_did_to_the_balance_isnt_witnessed()
+    {
+        Assert.Null(Situation.Witness(new DebtPaid(15 * 60_000, 1, 0, 0), NoPlayTime));
+        Assert.Null(Situation.Witness(new StreakStar(3, Paid(15)), NoPlayTime));
+        Assert.Equal("The player solved \"Two Sum\" (Easy).",
+                     Situation.Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, Friday), 2, true, 3, Paid(30)), NoPlayTime));
+        Assert.Equal("The player stopped playing after 20 min.", Situation.Witness(new SessionEnded(new Session { PlayedMs = 20 * 60_000 }), NoPlayTime));
     }
 
     private static Payout Paid(double minutes, double? credited = null)

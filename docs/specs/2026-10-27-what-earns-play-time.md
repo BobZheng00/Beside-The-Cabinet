@@ -1,6 +1,6 @@
 # What earns your play time, chosen on the first run, or no play time at all
 
-*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173); the order is at the end. Before Preview 2
+*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174); the order is at the end. Before Preview 2
 (#157), at the user's word.*
 
 ## Why
@@ -110,6 +110,18 @@ Today:
    screen's call names what earns: FOCUS OR SOLVE, FOCUS TO EARN, SOLVE TO EARN, GET THINGS DONE, or nothing. The
    cabinet's CHECK with LeetCode off says ALL UP TO DATE. A name kept on the first run while LeetCode didn't answer is
    checked when the cabinet first reads it, and dropped if LeetCode has no such player. A test run's LeetCode is a
-   stand-in. Until #174, "No play time" only stops earning: a game still spends.
-2. **No play time** (#174). The balance hidden and her earning talk gone, with the rest kept.
+   stand-in.
+2. **No play time** (#174). The balance hidden and her earning talk gone, with the rest kept. *Built 2026-10-29:* with
+   `Earning.Any` false the ledger keeps a game's time (a session, played time, the day's games) and spends, warns,
+   prices and fades nothing; the balance stays in the state as it was. The cabinet's screen shows the time and the day
+   (`ScreenState.PlayTime`) with no credits, streak, fuel bar or attract pages; the coin tray and the IOU printer are
+   hidden; the director shows nothing of a game or a balance; the tray icon's tip is the app's name. Her base text says
+   only that the cabinet is there and tells her what happens (the any-character spec's line); the `<cabinet>` block has
+   only the game; her cabinet tool gives what was done and played, the bedtime and a day's record without its
+   accounts, and its description and set_bedtime's name no balance or price (`Chat.PlayTime`); `Rest.Note` and
+   `Rest.AskBedtime` name no price, and `Rest.Notice` is passed nothing banked. Balance shows only the ticks and the
+   bedtime, and Getting started says there's no play time; Cabinet's ticket hint and Privacy's hints follow the ticks.
+   Her remarks about the cabinet go on no corner ticket, a debt paid or a streak from LeetCode's last answer isn't told,
+   and the coin tray is set afresh when play time is back. The day turns at 04:00 even with a game on. Turning LeetCode
+   back on while a poll waits asks again at the next check.
 3. **Programs that count as play** (#175). Picked on Balance, spent while in front.

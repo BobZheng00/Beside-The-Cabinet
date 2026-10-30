@@ -1,6 +1,7 @@
 # Makes a release from a version tag (v0.1.0-preview.2, v0.1.0): on a Windows runner, Godot 4.7.2 .NET and its
-# Windows export template (pinned by SHA-256), the models (tools/models/fetch.py), then tools/export/release.py, whose
-# own checks stop it on a library its notices can't account for or any trace of espeak-ng. The zip and its SHA-256 go
+# Windows export template (pinned by SHA-256), the models (tools/models/fetch.py, each pinned to a revision and a
+# SHA-256), then tools/export/release.py, whose own checks stop it on a library its notices can't account for or any
+# trace of espeak-ng. Every action is pinned by commit, its version beside it. The zip and its SHA-256 go
 # to a draft release (a pre-release for a version with a hyphen) for the user to write the notes and publish; nothing
 # here publishes it. Set the version in export_presets.cfg before tagging: release.py stops if they differ.
 #
@@ -40,11 +41,11 @@ jobs:
       DOTNET_NOLOGO: "true"
       DOTNET_CLI_TELEMETRY_OPTOUT: "true"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68   # v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -61,6 +62,7 @@ jobs:
 
       - name: Godot .NET and its Windows export template
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true   # every command that fails stops the step, not only the last
           $zip = "$env:RUNNER_TEMP\godot.zip"
           curl.exe -sSfL -o $zip "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_mono_win64.zip"
           if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $env:GODOT_ZIP_SHA256) { throw 'the Godot download is not the one pinned' }
@@ -81,17 +83,19 @@ jobs:
 
       - name: Build the game and import its resources
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true   # every command that fails stops the step, not only the last
           dotnet build src/InsertCoin.Game/InsertCoin.Game.csproj -p:NuGetAudit=false
           & ($env:GODOT -replace '\.exe$', '_console.exe') --headless --path src/InsertCoin.Game --import
 
       - name: Make the release (tools/export/release.py)
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true   # every command that fails stops the step, not only the last
           python tools/export/release.py $env:VERSION
           $zip = Get-Item "builds/release/$env:VERSION/BesideTheCabinet-$env:VERSION-windows-x64.zip"
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           [IO.File]::WriteAllText("$zip.sha256", "$hash  $($zip.Name)`n")
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
         with:
           name: release-${{ env.VERSION }}
           path: builds/release/${{ env.VERSION }}/BesideTheCabinet-*
