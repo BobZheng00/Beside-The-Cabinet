@@ -1947,9 +1947,7 @@ public partial class Stool : Node2D
 
     /// <summary>Who can sit on the stool, with who they are in their persona's first sentence (the first run's choice).</summary>
     internal (string Id, string Name, string About)[] Meetable() =>
-        [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name, FirstSentence(c.Persona(_characters, null).Description)))];
-
-    private static string FirstSentence(string text) => text.IndexOf(". ", StringComparison.Ordinal) is var end and > 0 and < 240 ? text[..(end + 1)] : "";
+        [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name, InsertCoin.Mind.Persona.FirstSentence(c.Persona(_characters, null).Description)))];
 
     /// <summary>The first run is over: she says hello, in her own words once her mind is connected, else that it isn't yet.</summary>
     internal void Greet()

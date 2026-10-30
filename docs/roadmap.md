@@ -36,7 +36,7 @@ to the card, the agenda result handed back as known so she reacts rather than re
 measures both (spikes #105 and #125). Step 1, the lean base text and the manner check (`tools/bench/manner.cs`),
 built 2026-10-26 (#127). With it, the default characters' cards (spec
 `docs/specs/2026-10-24-default-cards.md`, from the research note on character cards, #131): Shino rewritten as an
-adult illustration student and a friend, in labelled sections with example exchanges; her own card in Chinese, picked
+adult illustration student and a friend, in labelled sections with example exchanges (built 2026-10-29, #140); her own card in Chinese, picked
 by the player's language or forced by a setting; then Fumiriya's. Before Preview 2 (#157), what earns play time (spec
 `docs/specs/2026-10-27-what-earns-play-time.md`, #165): chosen on the first run (focus, the player's own activities,
 LeetCode) or none at all, and programs the player picks counting as play (#173, built 2026-10-28; #174, #175).
