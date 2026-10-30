@@ -24,7 +24,7 @@ public class NoPlayTimeTests
         Assert.Equal(0, m.State.DebtMs);
         Assert.Equal(0, m.State.Session.DrawnMs);
         Assert.Single(m.Events.OfType<SessionStarted>());
-        Assert.Empty(m.Events.Where(e => e is TokenInserted or LowTime or CreditsOut or IouPrinted or LateNight));
+        Assert.DoesNotContain(m.Events, e => e is TokenInserted or LowTime or CreditsOut or IouPrinted or LateNight);
     }
 
     [Fact]
