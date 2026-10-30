@@ -49,7 +49,7 @@ var zone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 var now = new DateTimeOffset(2026, 10, 21, 19, 30, 0, TimeSpan.FromHours(-4));
 var personas = new Dictionary<string, Persona>
 {
-    ["shino"] = new("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")).Trim()),
+    ["shino"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")), null),      // as the app fills it, no name given
     ["plain"] = Persona.Plain("Robin"),
 };
 

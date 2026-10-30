@@ -46,10 +46,7 @@ public sealed record CharacterCard(string Name, string Description, string Perso
     /// </summary>
     public Persona ToPersona(string? playerName)
     {
-        string Fill(string text) => text.Replace("{{char}}", Name, StringComparison.OrdinalIgnoreCase)
-            .Replace("<BOT>", Name, StringComparison.OrdinalIgnoreCase)
-            .Replace("{{user}}", playerName ?? "the player", StringComparison.OrdinalIgnoreCase)
-            .Replace("<USER>", playerName ?? "the player", StringComparison.OrdinalIgnoreCase).Trim();
+        string Fill(string text) => CharacterCard.Fill(text, Name, playerName);
         var parts = new List<string> { Fill(Description) };
         if (Personality.Trim().Length > 0)
             parts.Add($"Personality: {Fill(Personality)}");
@@ -69,6 +66,17 @@ public sealed record CharacterCard(string Name, string Description, string Perso
             Player = playerName,
         };
     }
+
+    /// <summary>
+    /// A card's or a persona file's text with its placeholders filled in: {{char}} (or &lt;BOT&gt;) with the character's
+    /// name, {{user}} (or &lt;USER&gt;) with the name the player asked to be called by, or <paramref name="nobody"/>
+    /// when they gave none.
+    /// </summary>
+    public static string Fill(string text, string name, string? playerName, string nobody = "the player") =>
+        text.Replace("{{char}}", name, StringComparison.OrdinalIgnoreCase)
+            .Replace("<BOT>", name, StringComparison.OrdinalIgnoreCase)
+            .Replace("{{user}}", playerName ?? nobody, StringComparison.OrdinalIgnoreCase)
+            .Replace("<USER>", playerName ?? nobody, StringComparison.OrdinalIgnoreCase).Trim();
 
     private static CharacterCard? FromPng(byte[] png)
     {

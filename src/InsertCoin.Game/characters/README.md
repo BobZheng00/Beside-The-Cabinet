@@ -27,6 +27,28 @@ folder, or `card.png` / `card.json` in their own folder; dropping a card on the 
 plain-text description: `persona.md` in the character's folder (built-in ones ship one), or `<file name>.md` beside
 a loose model file. Without either they are a plain friendly companion.
 
+### Writing a persona
+
+Any plain description works. Shino's own (`shino/persona.md`) suggests a layout, from the cards people share, if you
+want one: a first line saying who they are (the first run's "Who keeps you company?" shows that first sentence), then
+five sections and some examples:
+
+- **Looks:** what they look like and wear, matching their model, since the model they talk with never sees it;
+- **Personality:** what they're like day to day and underneath, what drives them, what they're afraid of;
+- **Background and life:** where they're from, what they're working on, what they like and don't;
+- **`<name>` and {{user}}:** what the two of them are to each other;
+- **How they talk:** their way of talking, and how it changes with their mood;
+- **Examples:** short exchanges, each a `Player:` line and their answer, in their own words.
+
+What helps most is what they do, not words for their manner ("she mentions it and goes back to her drawing" rather
+than "cheeky"), a life of their own, and examples of different shapes: some a word or two, a few questions, some about
+their own day. Keep the examples away from what players say most ("how was your day?"), as those come back nearly word
+for word.
+
+`{{user}}` in a persona is filled in with the name the player asked to be called by, or "the player" when they gave
+none, as in a character card (`{{char}}` becomes the character's name). Keep `Player:` in the examples, so they are never
+taken for things the player really said.
+
 What each kind of file gets:
 
 | | VRM made with VRoid Studio | other VRM | GLB / glTF with a humanoid skeleton |

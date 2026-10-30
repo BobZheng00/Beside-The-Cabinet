@@ -120,4 +120,26 @@ public class CharacterCardTests
         Assert.InRange(persona.Steady!.Length, 1, CharacterCard.SteadyLimit);
         Assert.EndsWith("perfect order.", persona.Steady);
     }
+
+    [Fact]
+    public void A_persona_file_calls_the_player_by_the_name_they_gave_or_the_player_when_they_gave_none()
+    {
+        const string text = "## {{char}} and {{user}}\nThey're friends. She sits by {{user}}'s desk.\n";
+
+        var named = Persona.Written("Shino", text, "Bob");
+        var nameless = Persona.Written("Shino", text, null);
+
+        Assert.Equal("## Shino and Bob\nThey're friends. She sits by Bob's desk.", named.Description);
+        Assert.Equal("Bob", named.Player);
+        Assert.Equal("## Shino and the player\nThey're friends. She sits by the player's desk.", nameless.Description);
+        Assert.Null(nameless.Player);
+    }
+
+    [Theory]
+    [InlineData("Shino is twenty. She draws every day.", "Shino is twenty.")]
+    [InlineData("Shino is twenty and studies illustration.\n\n## Looks\nLong hair.", "Shino is twenty and studies illustration.")]
+    [InlineData("诗乃（Shino），二十岁，学插画的。每天画。", "诗乃（Shino），二十岁，学插画的。")]
+    [InlineData("A single sentence with no end", "")]
+    public void The_first_run_shows_a_persona_up_to_its_first_full_stop(string description, string shown) =>
+        Assert.Equal(shown, Persona.FirstSentence(description));
 }

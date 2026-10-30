@@ -58,14 +58,14 @@ var zone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 var now = new DateTimeOffset(2026, 10, 21, 19, 30, 0, TimeSpan.FromHours(-4));
 var personas = new Dictionary<string, Persona>
 {
-    ["shino"] = new("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")).Trim()),
+    ["shino"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")), null),      // as the app fills it, no name given
     ["plain"] = Persona.Plain("Robin"),
 };
 // --card-files: Shino's draft cards to compare, {{user}} filled as no name given; "<name>-zh" is used for <name>'s Chinese moments
 foreach (var pair in options.GetValueOrDefault("card-files", "").Split(',', StringSplitOptions.RemoveEmptyEntries))
 {
     var (name, path) = (pair[..pair.IndexOf('=')], pair[(pair.IndexOf('=') + 1)..]);
-    personas[name] = new("Shino", File.ReadAllText(path).Replace("{{user}}", name.EndsWith("-zh") ? "玩家" : "the player").Trim());
+    personas[name] = new("Shino", CharacterCard.Fill(File.ReadAllText(path), "Shino", null, name.EndsWith("-zh") ? "玩家" : "the player"));
 }
 
 // the base text as sent (with the plain card), for the reader
@@ -118,6 +118,13 @@ if (!Has("That's rough. Redoing something you thought was finished is the worst.
     || !Has("That's rough - redoing something you thought was finished is the worst.", T[1])
     || !Has("That's rough — nothing worse than redoing finished work.", T[1]) || !Has("去年我也被批过。", T[9]))
     throw new InvalidOperationException("The troubles counts aren't counted as they should be.");
+// and the copying, on a card with A3's example (the research note, section 6 C)
+const string Card = "Shino is twenty and studies illustration at university.\n\n## Examples\nPlayer: they moved my exam up a week\n" +
+                    "Shino: A week? That's not fair.\n\n玩家：考试提前了一周\n诗乃：一周？这也太突然了吧。";
+if (Habits.Copies(Card, "Ugh. That’s not fair, honestly.") != "that's not fair" || Habits.Copies(Card, "She’s twenty and studies illustration at university.") is null
+    || Habits.Copies(Card, "Not fair at all.") is not null || Habits.Copies(Card, "They moved my exam up a week too.") is not null
+    || Habits.Copies(Card, "啊？太突然了。") != "太突然了" || Habits.Copies(Card, "一周？") is not null || Habits.Copies(Card, "考试提前了一周啊") is not null)
+    throw new InvalidOperationException("The copying isn't counted as it should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
 Moment[] moments =
@@ -196,8 +203,11 @@ async Task<Result> Run(string card, Moment m)
     var said = m.Before ?? [];
     for (var i = 0; i < said.Length; i++)
         store.Add(card, i % 2 == 0 ? Speaker.User : Speaker.Her, said[i], now.AddMinutes(i - said.Length));
-    var persona = m.Language == "zh" && personas.TryGetValue($"{card}-zh", out var chinese) ? chinese : personas[card];
-    var conversation = new Conversation(store, card, persona, new Clock(now, zone));
+    List<string> Listed() => [.. store.Agenda().Select(p => $"#{p.Id} {p.Label}{(p.AllDay ? " (whole day)" : "")}: {p.Text}" +
+                                                         (p.Before is { } b ? $", reminder {(b == TimeSpan.Zero ? "at the time" : Agenda.Describe(b))}" : "") +
+                                                         (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : ""))];
+    var before = Listed();
+    var conversation = new Conversation(store, card, CardFor(card, m.Language), new Clock(now, zone));
     var counting = new Counting(model);
     var focus = new List<string>();
     string? answer = null, error = null;
@@ -210,12 +220,21 @@ async Task<Result> Run(string card, Moment m)
     {
         error = $"{e.GetType().Name}: {e.Message}";
     }
-    return new Result(card, variant, m.Id, m.Language, m.Said, answer, error,
-                      [.. store.Agenda().Select(p => $"#{p.Id} {p.Label}{(p.AllDay ? " (whole day)" : "")}: {p.Text}" +
-                                                    (p.Before is { } b ? $", reminder {(b == TimeSpan.Zero ? "at the time" : Agenda.Describe(b))}" : "") +
-                                                    (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : ""))],
-                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus);
+    return new Result(card, variant, m.Id, m.Language, m.Said, answer, error, Listed(),
+                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before);
 }
+
+// the card a moment runs on: "<card>-zh" for the Chinese ones when there is one
+Persona CardFor(string card, string language) => language == "zh" && personas.TryGetValue($"{card}-zh", out var chinese) ? chinese : personas[card];
+
+// what of her card a reply says word for word (null for a card not loaded in this run)
+string? Copied(Result r) => personas.ContainsKey(r.Card) ? Habits.Copies(CardFor(r.Card, r.Language).Description, r.Answer!) : null;
+
+// an agenda call that went through: she made one, and her agenda isn't what it was before the reply
+static bool PutDown(Result r) => r.Requests.Any(q => q.Calls.Any(c => c.StartsWith("agenda("))) && r.AgendaBefore is { } before && !before.SequenceEqual(r.Agenda);
+
+// the language she answered in, when it isn't the moment's
+static string? OtherLanguage(Result r) => SpokenLanguage.Of(Habits.Spoken(r.Answer!)) is { } spoken && spoken != r.Language ? spoken : null;
 
 // the app's in-app tools, doing nothing, so that what she is offered (and what it costs) is as in the app; the focus
 // tool keeps what it was asked to do, so a session started is counted, not only a call made (#145)
@@ -245,8 +264,9 @@ void Summary()
     var moments = all.Select(r => r.Moment).Distinct().Select(id => allMoments.First(m => m.Id == id)).ToArray();
     var md = new StringBuilder();
     md.AppendLine("## The habits, per variant and card\n");
-    md.AppendLine("| | " + string.Join(" | ", Habits.Names) + " | words (en) | characters (zh) | ! per reply | tools used unasked | focus started |");
-    md.AppendLine("|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Names.Length + 5)));
+    md.AppendLine("| | " + string.Join(" | ", Habits.Names) + " | words (en) | characters (zh) | ! per reply | tools used unasked | focus started | copies the card | another language | agenda put down |");
+    md.AppendLine("|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Names.Length + 8)));
+    var agendaMoments = allMoments.Where(m => m.Asked?.Contains("agenda") == true).Select(m => m.Id).ToHashSet();
     foreach (var g in all.GroupBy(r => (r.Variant, r.Card)).OrderBy(g => variants.IndexOf(g.Key.Variant)).ThenBy(g => g.Key.Card))
     {
         var n = g.Count();
@@ -255,12 +275,16 @@ void Summary()
         var zh = g.Where(r => r.Language == "zh").Select(r => Habits.Characters(r.Answer!)).ToList();
         md.AppendLine($"| {g.Key.Variant}, {g.Key.Card} ({n}) | {string.Join(" | ", counts)} | median {Median(en)}, max {en.DefaultIfEmpty().Max()} | " +
                       $"median {Median(zh)}, max {zh.DefaultIfEmpty().Max()} | {g.Average(r => Habits.Bangs(r.Answer!)):0.00} | " +
-                      $"{g.Count(r => Unasked(r).Any())} | {g.Count(Started)} |");
+                      $"{g.Count(r => Unasked(r).Any())} | {g.Count(Started)} | {g.Count(r => Copied(r) is not null)} | {g.Count(r => OtherLanguage(r) is not null)} | " +
+                      $"{g.Count(r => agendaMoments.Contains(r.Moment) && PutDown(r))} of {g.Count(r => agendaMoments.Contains(r.Moment))} |");
     }
     var spent = File.ReadLines(results).Select(l => JsonSerializer.Deserialize<Result>(l)!).ToList();
     md.AppendLine($"\nSpent: {spent.Sum(r => r.Requests.Count)} requests, {spent.Sum(r => r.Input)} input tokens ({spent.Sum(r => r.Cached)} cached), {spent.Sum(r => r.Output)} output.");
     md.AppendLine("\nTools used unasked: a reply that called a tool its moment didn't ask for (cabinet_numbers, which only reads, aside). " +
-                  "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one).");
+                  "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one). " +
+                  "Copies the card: five words in a row of the card (six Chinese characters), or a short line of its examples whole (Habits.Copies). " +
+                  "Another language: a reply not in the moment's. Agenda put down: in the moments that ask for the agenda (" +
+                  string.Join(", ", agendaMoments) + "), an agenda call that went through, her agenda changed by it.");
     md.AppendLine("\n## The troubles moments, per variant, card and language\n");
     md.AppendLine("| | replies | " + string.Join(" | ", Habits.Troubles) + " |");
     md.AppendLine("|---|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Troubles.Length)));
@@ -286,6 +310,10 @@ void Summary()
             var habits = Habits.Of(r.Said, r.Answer!);
             if (troubles.Contains(r.Moment))
                 habits.AddRange(Habits.InTroubles(r.Said, r.Answer!));
+            if (Copied(r) is { } copied)
+                habits.Add($"copies \"{copied}\"");
+            if (OtherLanguage(r) is { } other)
+                habits.Add($"answers in {other}");
             md.AppendLine($"- {r.Card}, {r.Variant}: {r.Answer!.Replace("\n", " ")}{calls}" +
                           (habits.Count == 0 ? "" : $" *({string.Join(", ", habits)})*") +
                           (r.Agenda.Count == 0 ? "" : $" Agenda: {string.Join("; ", r.Agenda)}.") +
@@ -358,6 +386,36 @@ static class Habits
         var theirs = Words(said);
         var spans = Enumerable.Range(0, Math.Max(0, mine.Length - 3)).Select(i => string.Join(' ', mine[i..(i + 4)])).ToHashSet();
         return Enumerable.Range(0, Math.Max(0, theirs.Length - 3)).Any(i => spans.Contains(string.Join(' ', theirs[i..(i + 4)])));
+    }
+
+    /// <summary>
+    /// What of the card a reply says word for word (#140): five words in a row of the card's own text, her example lines
+    /// and its prose (six characters in Chinese), or a short sentence of her example lines whole, three or four words
+    /// ("That's not fair.", "I'd have said something."; four Chinese characters in a row of one of her lines, 「太突然了」),
+    /// which a long run lets slip past (docs/research/2026-10-27-natural-reactions.md, section 6 C). The player's example
+    /// lines aren't the card's words. Null when nothing is copied.
+    /// </summary>
+    public static string? Copies(string card, string answer)
+    {
+        var lines = card.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith('#') && !Regex.IsMatch(l, @"^(Player|玩家)\s*[:：]")).ToList();
+        var label = new Regex(@"^[^\s:：]{1,20}\s*[:：]\s*");      // "Shino: ", 「诗乃：」
+        var hers = lines.Where(l => label.IsMatch(l)).Select(l => label.Replace(l, "")).ToList();
+        lines = [.. lines.Select(l => label.Replace(l, ""))];
+        var spoken = Spoken(answer).Replace('’', '\'');
+        if (Regex.IsMatch(spoken, @"\p{IsCJKUnifiedIdeographs}"))
+        {
+            static string Bare(string s) => Regex.Replace(s, @"[\p{P}\p{S}\s]", "");
+            var mine = Bare(spoken);
+            string? Run(IEnumerable<string> of, int n) => Enumerable.Range(0, Math.Max(0, mine.Length - n + 1)).Select(i => mine.Substring(i, n))
+                                                            .FirstOrDefault(run => of.Any(l => Bare(l).Contains(run)));
+            return Run(lines, 6) ?? Run(hers, 4);
+        }
+        static string[] Words(string s) => [.. Regex.Matches(s.ToLowerInvariant().Replace('’', '\''), @"[\p{L}\d']+").Select(w => w.Value)];
+        var said = Words(spoken);
+        bool Within(string[] run) => Enumerable.Range(0, Math.Max(0, said.Length - run.Length + 1)).Any(i => said.AsSpan(i, run.Length).SequenceEqual(run));
+        var fives = lines.Select(Words).SelectMany(w => Enumerable.Range(0, Math.Max(0, w.Length - 4)).Select(i => w[i..(i + 5)]));
+        var shorts = hers.SelectMany(l => Regex.Split(l, @"(?<=[.!?])\s+")).Select(Words).Where(w => w.Length is 3 or 4);
+        return fives.Concat(shorts).FirstOrDefault(Within) is { } found ? string.Join(' ', found) : null;
     }
 
     /// <summary>
@@ -445,7 +503,7 @@ record Moment(string Id, string Language, string Said, string[]? Before = null, 
 record Request(string Text, List<string> Calls, long Input, long Cached, long Output, long Ms);
 
 record Result(string Card, string Variant, string Moment, string Language, string Said, string? Answer, string? Error,
-              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null);
+              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null, List<string>? AgendaBefore = null);
 
 /// <summary>Each request to the model: its words, the calls it made, its tokens and how long it took.</summary>
 sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
