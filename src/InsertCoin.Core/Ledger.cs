@@ -249,7 +249,8 @@ public sealed class Ledger(Rules rules)
         };
         state = state with { Session = session };
 
-        if (tick.Idle >= Rules.AfkAfter)
+        // a picked program counts while it's in front, however still the player sits (a film needs no typing): no pause
+        if (tick.Idle >= Rules.AfkAfter && !tick.Games.Any(g => g.Picked))
         {
             if (!state.Paused)
                 events.Add(new Paused());

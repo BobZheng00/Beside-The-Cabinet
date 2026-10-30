@@ -347,6 +347,9 @@ public partial class Main : Node2D
         var games = (detected ?? []).ToList();
         if (_devGame)
             games.Add(new RunningGame("dev", "Dev Game"));
+        // a program picked as play, while it's the window in front and the player hasn't left the PC
+        if (_settings.PlayPrograms.Length > 0 && PlayProgram.InFront(_settings.PlayPrograms, OpenWindows.FrontProgram(), _stool.LeftThePc) is { } program)
+            games.Add(program);
 
         Apply(new Tick(games, elapsed, Idle()));
         _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
@@ -463,7 +466,19 @@ public partial class Main : Node2D
         if (result.Events.Count > 0)
             Lively(6);
         foreach (var e in result.Events)
+        {
+            var session = e switch
+            {
+                SessionStarted s => $"a session starts: {string.Join(" + ", s.GameNames)}",
+                SessionEnded s => $"the session ends: {string.Join(" + ", s.Receipt.GameNames)}, {s.Receipt.PlayedMs / 1000} s played",
+                Paused => "the session pauses, the player away from the keyboard",
+                Resumed => "the session goes on",
+                _ => null,
+            };
+            if (session is not null)
+                GD.Print($"Main: {session}");
             _director.Play(e);
+        }
         _stool.Witness(result.Events, _rules);
         _stool.Record(_state);
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
@@ -789,6 +804,15 @@ public partial class Main : Node2D
             RefreshScreen();
             return;
         }
+        if (action.StartsWith("frontprogram:"))
+        {
+            // frontprogram:C:\path\app.exe: that program's window is in front, and the only one running (frontprogram:off, none)
+            var file = action["frontprogram:".Length..];
+            OpenWindows.FrontStandIn = file is "" or "off" ? null : file;
+            GD.Print($"Main: the program in front is {OpenWindows.FrontStandIn ?? "none"}, as a dev action has it");
+            Tick();
+            return;
+        }
         if (action.StartsWith("remindin:") && action.Split(':', 3) is [_, var after, var what])
         {
             // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
@@ -1085,8 +1109,19 @@ public partial class Main : Node2D
         var today = _state.Today is { } t
             ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
             : "";
-        page.Build(_settings, today);
-        page.Chosen += (weekday, friday, weekend, bedtime) =>
+        page.Build(_settings, today, [.. OpenWindows.RunningPrograms().Select(file => new PlayProgram(file, OpenWindows.ProgramName(file)))]);
+        page.Programs += programs =>
+        {
+            SaveSettings(_settings with { PlayPrograms = programs });
+            GD.Print($"Main: programs that count as play: {string.Join(", ", programs.Select(p => p.Name).DefaultIfEmpty("none"))}");
+        };
+        page.PickFile += () => _stool.Pick("A program that counts as play", FileDialog.FileModeEnum.OpenFile, ["*.exe ; Programs"], files =>
+        {
+            var file = Path.GetFullPath(files[0]);          // the dialog's forward slashes, as Windows names the program in front
+            if (IsInstanceValid(page))
+                page.Add(new PlayProgram(file, OpenWindows.ProgramName(file)));
+        });
+        page.Chosen +=(weekday, friday, weekend, bedtime) =>
         {
             SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
             UseRules();

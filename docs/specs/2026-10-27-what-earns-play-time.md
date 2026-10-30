@@ -1,6 +1,6 @@
 # What earns your play time, chosen on the first run, or no play time at all
 
-*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174); the order is at the end. Before Preview 2
+*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174), step 3 2026-10-30 (#175); the order is at the end. Before Preview 2
 (#157), at the user's word.*
 
 ## Why
@@ -124,4 +124,13 @@ Today:
    Her remarks about the cabinet go on no corner ticket, a debt paid or a streak from LeetCode's last answer isn't told,
    and the coin tray is set afresh when play time is back. The day turns at 04:00 even with a game on. Turning LeetCode
    back on while a poll waits asks again at the next check.
-3. **Programs that count as play** (#175). Picked on Balance, spent while in front.
+3. **Programs that count as play** (#175). Picked on Balance, spent while in front. *Built 2026-10-30:* Balance's
+   "Programs that count as play" (`AppSettings.PlayPrograms`, a Core `PlayProgram` of the file and its name from the
+   file's description) adds from "Running now" (processes with a window on the taskbar, Windows' own left out, never a
+   title: `OpenWindows.RunningPrograms`) or by the file, and × takes one off. Each check, the program in front
+   (`OpenWindows.FrontProgram`: the foreground window's process file; the one before it while a cabinet window is in
+   front) counts as a game, `RunningGame.Picked`, unless the player has left the PC (`Stool.LeftThePc`: `Reaching.Where`
+   away or asleep, which playing keeps from coming by idleness alone, so only a locked screen or their saying they were
+   off). The ledger pauses for idleness only when no picked program is among the games (`PlayProgram.InFront`). A test
+   run reads no program in front until `frontprogram:` gives a stand-in. Privacy has a note. Store apps, whose windows
+   belong to Windows' frame host, can't be picked.

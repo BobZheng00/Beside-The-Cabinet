@@ -10,7 +10,24 @@ public enum Size { Small, Medium, Big }
 /// <summary>An accepted problem reported by a task source. Difficulty is null until it has been looked up.</summary>
 public sealed record SolvedTask(string Id, string Title, Difficulty? Difficulty, DateTimeOffset AcceptedAt);
 
-public sealed record RunningGame(string Id, string Name);
+/// <summary>
+/// A game running now. <paramref name="Picked"/>: a program the player picked to count as play (see <see cref="PlayProgram"/>),
+/// counted while it is in front however still they sit: it doesn't pause when they're idle, as a game does.
+/// </summary>
+public sealed record RunningGame(string Id, string Name, bool Picked = false);
+
+/// <summary>A program the player picked to count as play (Settings → Balance): its file, and its name from the file's description.</summary>
+public sealed record PlayProgram(string Path, string Name)
+{
+    /// <summary>
+    /// The picked program that counts as a game now: the one whose window is in front (<paramref name="front"/>, its
+    /// file), unless the player has left the PC. Null when none does.
+    /// </summary>
+    public static RunningGame? InFront(IEnumerable<PlayProgram> picked, string? front, bool away) =>
+        away || front is null ? null
+        : picked.FirstOrDefault(p => string.Equals(p.Path, front, StringComparison.OrdinalIgnoreCase)) is { } program ? new RunningGame(program.Path, program.Name, Picked: true)
+        : null;
+}
 
 /// <summary>
 /// What earns play time, as the player chose it on the first run or on Balance (spec 2026-10-27-what-earns-play-time.md):

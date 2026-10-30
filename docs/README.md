@@ -66,6 +66,17 @@ thing each day earns brings a bonus star coin (STREAK xN BONUS). Every day is ke
 from what, focused, played, when you were first and last at the PC), the start of your companion's sense of your
 patterns.
 
+Play time is spent by Steam games, and by programs you pick on Settings → Balance under "Programs that count as play"
+(none to start with): a video player, a game launcher, whatever you count. Add one from "Running now" (the programs
+with a window open, found by their process, not Windows' own) or with "Add by its file…"; each shows its name from
+the file's description, and × takes it off. While a picked program is the window in front it counts as a game does:
+the clock runs, your companion is told what you're playing by the program's name, and the break after a long session
+applies. While one of the cabinet's own windows is in front (talking to your companion), the program in front before
+it still counts. A Steam game pauses after 10 minutes without input; a picked program doesn't, since a film needs no
+typing, and stops instead when the screen locks or you've left the PC (you told your companion you were off). With
+both running, the picked program in front keeps the clock going; behind another window, the game's pause applies.
+Only the program is known: no window title or browser tab is read for this.
+
 With no play time (nothing ticked) the cabinet keeps you company without a balance. Your companion, their memory, the
 agenda and reminders, texting, focus sessions (paying nothing), the words around your bedtime and a break after two
 hours in a game all stay. What goes: credits and coins, the cap and the overnight fade, the streak, IOU tickets, the
@@ -436,7 +447,9 @@ the cabinet's).
 
 Settings → Privacy gathers what your companion can see of yours: your window titles (allowed unless you change it)
 and your screen (they ask first), which Auto never skips; and what they are told in the background, each with a
-tick: what's playing in your music app, and what the record of days shows. What they see goes to your AI provider
+tick: what's playing in your music app, and what the record of days shows. A note there says what a program picked
+as play on Balance tells them: its name, while it's the window in front, and nothing of its window's title or a
+browser tab. What they see goes to your AI provider
 with the conversation; pages they read are fetched by this PC. Settings → Add-ons holds extras that stay off until
 you turn them on. The first is web search through SearXNG, a free, open-source search engine you run yourself (with
 Docker: `docker run -d -p 8888:8080 searxng/searxng`, then add `json` under `search: formats:` in its settings.yml);

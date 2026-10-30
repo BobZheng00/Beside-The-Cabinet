@@ -13,6 +13,7 @@ public sealed record AppSettings
     public string Initials { get; init; } = "AAA";
     public string Skin { get; init; } = "cozy";
     public string[] IgnoredSteamAppIds { get; init; } = ["431960"];   // Wallpaper Engine
+    public InsertCoin.Core.PlayProgram[] PlayPrograms { get; init; } = [];   // programs that count as play while in front (Settings → Balance)
     public bool AlwaysOnTop { get; init; }
     public string Size { get; init; } = "M";          // S, M or L
     public bool Muted { get; init; }
