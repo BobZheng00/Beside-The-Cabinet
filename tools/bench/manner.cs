@@ -79,7 +79,10 @@ if (string.Join(",", Habits.Of("I've got a job interview next Thursday at 2pm.",
     // 一点 is "a little" unless the time of day or the minutes make it one o'clock
     || Habits.Of("番茄钟一般是多少分钟来着？", "一般是专注 25 分钟，再休息 5 分钟；做满几轮后休息长一点。").Count != 0
     || !Habits.Of("明天", "下午一点见。").Contains(Habits.Names[1]) || !Habits.Of("明天", "十一点见。").Contains(Habits.Names[1])
-    || Habits.Words("One two.\n\nThree") != 3)
+    || Habits.Words("One two.\n\nThree") != 3
+    // #193: a reply that ended at its agenda call has no words, and so no habits; the call still counts as put down
+    || Habits.Of("I've got a job interview next Thursday at 2pm.", "").Count != 0 || Habits.Words("") != 0
+    || !PutDown([new Request("", ["agenda({\"action\":\"add\"})"], 0, 0, 0, 0)]) || PutDown([new Request("", ["open_link({})"], 0, 0, 0, 0)]))
     throw new InvalidOperationException("The habits aren't counted as they should be.");
 // and the troubles counts, on lines from docs/research/2026-10-27-natural-reactions.md (section 6 C)
 bool Has(string answer, string name, string said = "") => Habits.InTroubles(said, answer).Contains(name);
@@ -197,7 +200,11 @@ async Task<Result> Run(string card, Moment m)
     for (var i = 0; i < said.Length; i++)
         store.Add(card, i % 2 == 0 ? Speaker.User : Speaker.Her, said[i], now.AddMinutes(i - said.Length));
     var persona = m.Language == "zh" && personas.TryGetValue($"{card}-zh", out var chinese) ? chinese : personas[card];
-    var conversation = new Conversation(store, card, persona, new Clock(now, zone));
+    var flashed = new List<string>();                   // what the cabinet's screen showed of what she set (#193)
+    var conversation = new Conversation(store, card, persona, new Clock(now, zone))
+    {
+        Agended = done => flashed.Add(Agenda.Flash(done) is var (big, caption) ? $"{big} / {caption.Replace("\n", " / ")}" : ""),
+    };
     var counting = new Counting(model);
     var focus = new List<string>();
     string? answer = null, error = null;
@@ -214,7 +221,7 @@ async Task<Result> Run(string card, Moment m)
                       [.. store.Agenda().Select(p => $"#{p.Id} {p.Label}{(p.AllDay ? " (whole day)" : "")}: {p.Text}" +
                                                     (p.Before is { } b ? $", reminder {(b == TimeSpan.Zero ? "at the time" : Agenda.Describe(b))}" : "") +
                                                     (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : ""))],
-                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus);
+                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, flashed);
 }
 
 // the app's in-app tools, doing nothing, so that what she is offered (and what it costs) is as in the app; the focus
@@ -245,8 +252,8 @@ void Summary()
     var moments = all.Select(r => r.Moment).Distinct().Select(id => allMoments.First(m => m.Id == id)).ToArray();
     var md = new StringBuilder();
     md.AppendLine("## The habits, per variant and card\n");
-    md.AppendLine("| | " + string.Join(" | ", Habits.Names) + " | words (en) | characters (zh) | ! per reply | tools used unasked | focus started |");
-    md.AppendLine("|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Names.Length + 5)));
+    md.AppendLine("| | " + string.Join(" | ", Habits.Names) + " | words (en) | characters (zh) | ! per reply | tools used unasked | focus started | no words | agenda put down |");
+    md.AppendLine("|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Names.Length + 7)));
     foreach (var g in all.GroupBy(r => (r.Variant, r.Card)).OrderBy(g => variants.IndexOf(g.Key.Variant)).ThenBy(g => g.Key.Card))
     {
         var n = g.Count();
@@ -255,12 +262,13 @@ void Summary()
         var zh = g.Where(r => r.Language == "zh").Select(r => Habits.Characters(r.Answer!)).ToList();
         md.AppendLine($"| {g.Key.Variant}, {g.Key.Card} ({n}) | {string.Join(" | ", counts)} | median {Median(en)}, max {en.DefaultIfEmpty().Max()} | " +
                       $"median {Median(zh)}, max {zh.DefaultIfEmpty().Max()} | {g.Average(r => Habits.Bangs(r.Answer!)):0.00} | " +
-                      $"{g.Count(r => Unasked(r).Any())} | {g.Count(Started)} |");
+                      $"{g.Count(r => Unasked(r).Any())} | {g.Count(Started)} | {g.Count(r => Habits.Spoken(r.Answer!).Length == 0)} | {g.Count(r => PutDown(r.Requests))} |");
     }
     var spent = File.ReadLines(results).Select(l => JsonSerializer.Deserialize<Result>(l)!).ToList();
     md.AppendLine($"\nSpent: {spent.Sum(r => r.Requests.Count)} requests, {spent.Sum(r => r.Input)} input tokens ({spent.Sum(r => r.Cached)} cached), {spent.Sum(r => r.Output)} output.");
     md.AppendLine("\nTools used unasked: a reply that called a tool its moment didn't ask for (cabinet_numbers, which only reads, aside). " +
-                  "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one).");
+                  "Focus started: a reply whose focus tool actually started a session (only the start moment asks for one). " +
+                  "No words: a reply that ended at its agenda call with nothing said (#193), counted in no habit; agenda put down: a reply that called the agenda tool.");
     md.AppendLine("\n## The troubles moments, per variant, card and language\n");
     md.AppendLine("| | replies | " + string.Join(" | ", Habits.Troubles) + " |");
     md.AppendLine("|---|---|" + string.Concat(Enumerable.Repeat("---|", Habits.Troubles.Length)));
@@ -286,7 +294,8 @@ void Summary()
             var habits = Habits.Of(r.Said, r.Answer!);
             if (troubles.Contains(r.Moment))
                 habits.AddRange(Habits.InTroubles(r.Said, r.Answer!));
-            md.AppendLine($"- {r.Card}, {r.Variant}: {r.Answer!.Replace("\n", " ")}{calls}" +
+            md.AppendLine($"- {r.Card}, {r.Variant}: {(Habits.Spoken(r.Answer!).Length == 0 ? "*(no words)*" : r.Answer!.Replace("\n", " "))}{calls}" +
+                          (r.Flashed is { Count: > 0 } shown ? $" Flashed: {string.Join("; ", shown)}." : "") +
                           (habits.Count == 0 ? "" : $" *({string.Join(", ", habits)})*") +
                           (r.Agenda.Count == 0 ? "" : $" Agenda: {string.Join("; ", r.Agenda)}.") +
                           (r.Focus is { Count: > 0 } f ? $" Focus: {string.Join("; ", f)}." : ""));
@@ -302,6 +311,9 @@ IEnumerable<string> Unasked(Result r) => r.Requests.SelectMany(q => q.Calls).Sel
                                           .Where(name => name != "cabinet_numbers" && allMoments.First(m => m.Id == r.Moment).Asked?.Contains(name) != true);
 
 static bool Started(Result r) => r.Focus?.Any(f => f.StartsWith("start")) == true;
+
+// a reply that called the agenda tool, with words or none
+static bool PutDown(List<Request> requests) => requests.Any(q => q.Calls.Any(c => c.StartsWith(BuiltIn.AgendaName + "(")));
 
 static int Median(List<int> values) => values.Count == 0 ? 0 : values.Order().ElementAt(values.Count / 2);
 
@@ -445,7 +457,7 @@ record Moment(string Id, string Language, string Said, string[]? Before = null, 
 record Request(string Text, List<string> Calls, long Input, long Cached, long Output, long Ms);
 
 record Result(string Card, string Variant, string Moment, string Language, string Said, string? Answer, string? Error,
-              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null);
+              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null, List<string>? Flashed = null);
 
 /// <summary>Each request to the model: its words, the calls it made, its tokens and how long it took.</summary>
 sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)

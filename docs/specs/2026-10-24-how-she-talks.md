@@ -166,8 +166,12 @@ Each step is usable on its own.
    four seconds each, several in one reply in turn; with an app open on the screen they wait for the readout to
    unfold, and then show in turn. Her
    note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
-   drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed manner
-   check after it is the user's to allow (#193).
+   drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed check
+   after it (`<tools>\manner-bench\run-206`, #128's six agenda moments, Shino's card and the plain one, against
+   run-193's main): of 12 replies, the date said back 10 then 0, the bookkeeping narrated 6 then 0, stock openers 3
+   then 0; all 12 put the item down, and all 12 had no words, the flash saying what was set (one call that failed went
+   back to her and was put right, still silently). 13 requests, 41,810 input tokens. The manner check counts a reply
+   with no words, and one that put something on the agenda, since then.
 3. **By text, a plain line under her message** with what she set.
 
    *Built 2026-10-29 (#129, with #193).* `Agenda.Receipt`: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",
