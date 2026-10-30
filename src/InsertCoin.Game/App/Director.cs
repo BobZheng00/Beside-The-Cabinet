@@ -14,6 +14,8 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
     public void Play(LedgerEvent e)
     {
         var companion = companionNow();
+        if (!rules().Earns.Any && e is not (Paused or Resumed))
+            return;                                         // no play time: a game is only noticed, and the cabinet shows nothing of it or of a balance
         switch (e)
         {
             case CoinsEarned c:

@@ -99,6 +99,7 @@ public static class Lines
         LowTime { Level: Warning.FiveMinutes } => "Five minutes left. Look for a save point?",
         LowTime { Level: Warning.OneMinute } => "One minute! Save your game.",
         CreditsOut => $"Out of time. You're playing on credit now, at x{rules.DebtMultiplier.ToString("0.#", CultureInfo.InvariantCulture)}.",
+        SessionStarted when !rules.Earns.Any => "Have fun!",
         SessionStarted => state.TimeLeftMs(rules) > 0 ? $"Have fun! You've got {Span(state.TimeLeftMs(rules))}." : "No coins... this one goes on your tab.",
         SessionEnded end => $"Good game! {Span(end.Receipt.PlayedMs)} played.",
         LateNight l => $"It's past your bedtime. Play costs x{l.Multiplier.ToString("0.#", CultureInfo.InvariantCulture)} now.",

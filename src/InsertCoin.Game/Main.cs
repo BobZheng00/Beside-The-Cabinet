@@ -63,6 +63,7 @@ public partial class Main : Node2D
     private DateTimeOffset _lastSave, _lastCheck = DateTimeOffset.MinValue, _nextPoll = DateTimeOffset.MinValue;
     private DateTimeOffset _lastJoypad = DateTimeOffset.MinValue;
     private int _backoffSeconds = 60;
+    private int _leetCodeOn;                                // how many times LeetCode has been turned on to earn: a poll asked before the latest doesn't set the next one's wait
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
 
@@ -366,6 +367,7 @@ public partial class Main : Node2D
         }
         _polling = true;
         var user = _settings.Username!;
+        var on = _leetCodeOn;
         // after each answer: LeetCode turned off, or another name given, while it was asked, and the answer is no one's now
         bool Stale() => !_settings.Earning.LeetCode || _settings.Username != user;
         try
@@ -402,7 +404,14 @@ public partial class Main : Node2D
         finally
         {
             _polling = false;
-            _nextPoll = DateTimeOffset.Now.AddSeconds(_backoffSeconds);
+            if (on != _leetCodeOn)
+            {
+                // LeetCode turned on again while it was asked: asked afresh at the next check, not after this answer's wait
+                _backoffSeconds = 60;
+                _nextPoll = DateTimeOffset.MinValue;
+            }
+            else
+                _nextPoll = DateTimeOffset.Now.AddSeconds(_backoffSeconds);
             RefreshScreen();
         }
     }
@@ -410,7 +419,8 @@ public partial class Main : Node2D
     /// <summary>
     /// LeetCode turned off: it is asked once more, so what was solved before then is still paid, and then the cabinet lets
     /// the name go, so that turned on again later, what was solved meanwhile is seen without pay. If LeetCode doesn't
-    /// answer, what was solved since the last poll goes unpaid.
+    /// answer, what was solved since the last poll that it answered goes unpaid (up to a quarter of an hour or more, if
+    /// it was already not answering), and so does a solve whose difficulty it couldn't look up then.
     /// </summary>
     private async void LastPoll(string user, DateTimeOffset off)
     {
@@ -459,7 +469,7 @@ public partial class Main : Node2D
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
             _stool.Hand(remark);                            // in her own words, once she is free
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
+        if (_state.Session is null && _rules.Earns.Any && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
@@ -472,6 +482,7 @@ public partial class Main : Node2D
     private void RefreshScreen()
     {
         var s = _state;
+        var balance = _rules.Earns.Any;                     // no play time: nothing of a balance shows, and the screen shows the clock
         var playing = s.Session is not null && !s.Paused;
         // Between 5 s ticks, run the clock locally so the countdown moves every second.
         var late = GameCalendar.IsLateNight(s, DateTimeOffset.Now, _rules) ? _rules.LateNightMultiplier : 1;
@@ -503,10 +514,11 @@ public partial class Main : Node2D
                 { Activities: true } => "GET THINGS DONE",
                 _ => "",
             },
+            PlayTime = balance,
         });
-        var mood = shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
+        var mood = !balance ? TrayMood.Fine : shownDebt > 0 && shownLeft == 0 ? TrayMood.Debt : shownLeft < 15 * 60_000 ? TrayMood.Low : TrayMood.Fine;
         var streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules);
-        _tray.Set(mood, mood == TrayMood.Debt
+        _tray.Set(mood, !balance ? "Beside the Cabinet" : mood == TrayMood.Debt
             ? $"Beside the Cabinet — {shownDebt / 60_000} min owed ({s.IouTickets(_rules)} IOU)"
             : $"Beside the Cabinet — {shownLeft / 60_000} min left · {s.Credits} credits" + (streak > 0 ? $" · combo x{streak}" : ""));
         var power = s.Paused ? 0.3f : s.Session is not null ? 1f : 0.7f;
@@ -514,7 +526,7 @@ public partial class Main : Node2D
         _stool.Her?.SetScreenLight(power);
         SetPace();
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
-        if (s.Session is not null && shownLeft == 0)
+        if (balance && s.Session is not null && shownLeft == 0)
             _cabinet.Lights.SetModeIfNot(LightMode.Alarm);
         else
             _cabinet.Lights.SetModeIfNot(LightMode.Chase, onlyFrom: LightMode.Alarm);
@@ -523,9 +535,10 @@ public partial class Main : Node2D
     private string StatusLine()
     {
         var late = GameCalendar.IsLateNight(_state, DateTimeOffset.Now, _rules);
-        if (_state.Paused) return "PAUSED - AFK";
-        if (_state.Session is not null && late) return "LATE NIGHT - PLAY x1.5";
-        if (_state.Session is { } session) return "GAME: " + string.Join(" + ", session.GameNames).ToUpperInvariant();
+        var game = _rules.Earns.Any ? _state.Session : null;    // no play time: a game is only noticed, never shown
+        if (game is not null && _state.Paused) return "PAUSED - AFK";
+        if (game is not null && late) return "LATE NIGHT - PLAY x1.5";
+        if (game is not null) return "GAME: " + string.Join(" + ", game.GameNames).ToUpperInvariant();
         if (late) return "PAST BEDTIME";
         if (_noSteam) return "NO STEAM";
         if (!_settings.Earning.LeetCode) return $"PLAYER {_settings.Initials}";
@@ -965,10 +978,11 @@ public partial class Main : Node2D
     {
         static string Time(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
         var page = new GettingStarted();
-        page.Build(_stool.HerName(), _settings.CallMe, StartSteps(), _settings.StartLater,
-                   $"A day can earn up to {Time(_settings.WeekdayCapMinutes)} of play Monday to Thursday, {Time(_settings.FridayCapMinutes)} on Friday " +
-                   $"and {Time(_settings.WeekendCapMinutes)} at weekends; " +
-                   (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."));
+        page.Build(_stool.HerName(), _settings.CallMe, StartSteps(), _settings.StartLater, !_settings.Earning.Any
+                   ? "No play time, just company: nothing is earned or spent; " + (_settings.Bedtime is { } own ? $"your bedtime is {own}." : "no bedtime is set.")
+                   : $"A day can earn up to {Time(_settings.WeekdayCapMinutes)} of play Monday to Thursday, {Time(_settings.FridayCapMinutes)} on Friday " +
+                     $"and {Time(_settings.WeekendCapMinutes)} at weekends; " +
+                     (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."));
         page.Named += name =>
         {
             _stool.CallMe(name);
@@ -1140,12 +1154,18 @@ public partial class Main : Node2D
         GD.Print($"Main: play time is earned by {string.Join(", ", new[] { (earns.Focus, "focus"), (earns.Activities, "activities"), (earns.LeetCode, "LeetCode") }.Where(s => s.Item1).Select(s => s.Item2).DefaultIfEmpty("nothing"))}");
         _crt.Away("done", !earns.Activities);
         _tray.ShowCheck(earns.LeetCode);
+        // no play time: the coins and an IOU ticket in the slot go out of sight, kept as they are until play time is back
+        _cabinet.Tray.Visible = _cabinet.Printer.Visible = earns.Any;
+        if (earns.Any != was.Any || !earns.Any)
+            GD.Print(earns.Any ? "Main: play time is back, the balance as it was"
+                               : $"Main: no play time, the balance kept out of sight ({_state.Credits} credits, {_state.DebtMs / 60_000} min owed)");
         if (!earns.LeetCode && was.LeetCode && _state.Username is { } known)
             LastPoll(known, DateTimeOffset.Now);
         else if (!earns.LeetCode)
             _state = _state with { Username = null };      // starting with LeetCode off: on again later, the solves made meanwhile are seen without pay
         else if (!was.LeetCode)
         {
+            _leetCodeOn++;
             _backoffSeconds = 60;
             _nextPoll = DateTimeOffset.MinValue;            // asked at the next check
         }

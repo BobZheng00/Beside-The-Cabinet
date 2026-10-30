@@ -42,6 +42,27 @@ public class RestTests
     }
 
     [Fact]
+    public void With_no_play_time_her_words_about_bedtime_name_no_price()
+    {
+        Assert.Contains("play costs x1.5", Rest.Note(Nudge.Bedtime, Eleven, 1.5));
+        Assert.Equal("It's the player's bedtime (23:00): time to sleep. Say so briefly. No lecture.", Rest.Note(Nudge.Bedtime, Eleven, null));
+        foreach (var nudge in Enum.GetValues<Nudge>())
+            Assert.DoesNotContain("cost", Rest.Note(nudge, Eleven, null));
+        Assert.Contains("play after it costs more", Rest.AskBedtime(null));
+        Assert.EndsWith("Half an hour before it you give a word to wind down.", Rest.AskBedtime(null, price: false));
+        Assert.DoesNotContain("cost", Rest.AskBedtime(TimeSpan.FromHours(1), price: false));
+    }
+
+    [Fact]
+    public void With_no_play_time_nothing_banked_is_brought_up()
+    {
+        DayRecord[] days = [Night(3, 22, 0), Night(4, 22, 0), Night(5, 22, 0)];
+
+        Assert.NotNull(Rest.Notice(days, Eleven, 45 * 60_000, Four));
+        Assert.Null(Rest.Notice(days, Eleven, 0, Four));               // what no play time passes: no balance to enjoy
+    }
+
+    [Fact]
     public void A_break_after_two_hours_of_play_and_two_hours_after_the_last()
     {
         const long minute = 60_000;

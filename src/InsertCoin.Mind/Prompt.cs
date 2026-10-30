@@ -61,7 +61,7 @@ public static class Prompt
 
             {persona.Description.Trim()}
 
-            INSERT COIN is there for a good balance of work, life and games: the player earns time for their games by doing good things{Ways(earns ?? Core.Earning.All)} and spends it playing. The cabinet keeps the numbers and shows them on its screen; the <cabinet> block has what matters now. It never closes a game: you encourage and remind, in your own manner, never threatening or lecturing.
+            {Cabinet(earns ?? Core.Earning.All)}
 
             You and the player talk as two people at the same desk do: they type or speak, and your words show in a speech bubble by you, a page at a time. Plain text: no lists, no markdown, no actions in asterisks. Reply in the language the player last wrote in. Stay in character as {persona.Name}.{Voice(voiceLanguage, tools)}
 
@@ -189,12 +189,20 @@ public static class Prompt
         string.Join("\n", skills.OrderBy(s => s.Name, StringComparer.Ordinal)
                                  .Select(s => $"- {s.Name}: {s.Description}{(s.WorksIn.Count == 0 ? "" : $" (folders: {string.Join(", ", s.WorksIn)})")}"));
 
-    /// <summary>What earns play time, of what is on, as her base text says it (" (solving problems, focusing)"); nothing when none is.</summary>
-    internal static string Ways(Core.Earning earns)
+    /// <summary>
+    /// What her base text says of the cabinet: the balance and what earns play time, of what is on; with no play time,
+    /// only that it is there and tells her what happens (spec 2026-10-27-any-character.md).
+    /// </summary>
+    private static string Cabinet(Core.Earning earns) => earns.Any
+        ? $"INSERT COIN is there for a good balance of work, life and games: the player earns time for their games by doing good things{Ways(earns)} and spends it playing. The cabinet keeps the numbers and shows them on its screen; the <cabinet> block has what matters now. It never closes a game: you encourage and remind, in your own manner, never threatening or lecturing."
+        : "INSERT COIN, their little arcade cabinet, is with them and tells you what happens; the <cabinet> block has what matters now.";
+
+    /// <summary>What earns play time, of what is on, as her base text says it (" (solving problems, focusing)").</summary>
+    private static string Ways(Core.Earning earns)
     {
         string[] ways = [.. earns.LeetCode ? ["solving problems"] : Array.Empty<string>(), .. earns.Focus ? ["focusing"] : Array.Empty<string>(),
                          .. earns.Activities ? ["their own activities"] : Array.Empty<string>()];
-        return ways.Length > 0 ? $" ({string.Join(", ", ways)})" : "";
+        return $" ({string.Join(", ", ways)})";
     }
 
     /// <summary>

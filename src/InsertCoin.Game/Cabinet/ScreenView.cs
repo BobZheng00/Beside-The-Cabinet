@@ -19,6 +19,7 @@ public sealed record ScreenState
     public long TodayPlayedMs { get; init; }
     public string Initials { get; init; } = "";
     public string Earn { get; init; } = "FOCUS OR SOLVE";  // the attract screen's line under INSERT COIN: how play is earned, of what earns
+    public bool PlayTime { get; init; } = true;   // false: no play time, so no credits, streak, balance or attract pages, only the clock
 }
 
 /// <summary>
@@ -44,6 +45,7 @@ public partial class ScreenView : Node2D
         VariationOpentype = new Godot.Collections.Dictionary { [TextServerManager.GetPrimaryInterface().NameToTag("wght")] = 650 },
     };
     private const int PxPerUnit = 2;
+    private static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
 
     /// <summary>How wide the lifted screen is, at least, in the window's own pixels: its letters stay readable on the small cabinet.</summary>
     public const float LiftedWidth = 340;
@@ -425,17 +427,17 @@ public partial class ScreenView : Node2D
     private void Redraw()
     {
         var s = _state;
-        var inDebt = s.DebtMs > 0 && s.TimeLeftMs == 0;
+        var inDebt = s.PlayTime && s.DebtMs > 0 && s.TimeLeftMs == 0;
         var takenOver = _prompt is not null || _flash is not null;
-        var focus = s.Playing ? null : _focus;              // a game's clock comes first
-        var page = s.Playing || takenOver || focus is not null ? 0 : _attractPage;
+        var focus = s.Playing && s.PlayTime ? null : _focus;     // a game's clock comes first, while there is play time
+        var page = s.Playing || takenOver || focus is not null || !s.PlayTime ? 0 : _attractPage;
 
-        _top.Text = $"CREDIT {s.Credits:00}";
-        _topRight.Text = s.Streak > 0 ? $"x{s.Streak}" : "";
+        _top.Text = s.PlayTime ? $"CREDIT {s.Credits:00}" : "";
+        _topRight.Text = s.PlayTime && s.Streak > 0 ? $"x{s.Streak}" : "";
         _top.Visible = _prompt is null;
         _topRight.Visible = _prompt is null && !_listening;
         _mic.Visible = _listening;
-        _fuelBack.Visible = _fuelFill.Visible = page == 0 && !takenOver && (!inDebt || focus is not null);
+        _fuelBack.Visible = _fuelFill.Visible = page == 0 && !takenOver && (focus is not null || s.PlayTime && !inDebt);
         _fuelFill.Size = _fuelBack.Size with { X = _fuelBack.Size.X * Mathf.Clamp(focus?.Done ?? s.Fuel, 0, 1) };
         _status.Text = _prompt?.Status ?? s.Status;
         _big.LabelSettings.FontColor = inDebt && !takenOver && focus is null ? Debt : Ink;
@@ -446,6 +448,7 @@ public partial class ScreenView : Node2D
             2 => ($"{Hours(s.TodayEarnedMs)}/{Hours(s.TodayCapMs)}",
                   (s.TodayEarnedMs >= s.TodayCapMs ? "TODAY'S PLAY EARNED" : "EARNED TODAY / CAP") + $"\nFOCUS {Hours(s.TodayFocusedMs)} - PLAYED {Hours(s.TodayPlayedMs)}"),
             3 => ("INSERT", s.Earn.Length > 0 ? $"COIN\n{s.Earn}" : "COIN"),
+            _ when !s.PlayTime => (DateTime.Now.ToString("HH:mm", Invariant), DateTime.Now.ToString("ddd d MMM", Invariant).ToUpperInvariant()),     // the clock, with the day
             _ when inDebt => ($"-{Clock(s.DebtMs)}", $"OWED - {s.DebtMs / (15 * 60_000)} IOU"),
             _ => (Clock(s.TimeLeftMs), "TIME LEFT"),
         });

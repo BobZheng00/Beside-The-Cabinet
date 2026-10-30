@@ -15,13 +15,15 @@ public static class Situation
     /// the talk as it happens (see <see cref="Witness"/>): the whole ledger in every turn made her answer a "hey!" with
     /// tokens and streaks, and today's solves kept her opening with them (5 of 8 openers, then 3 of 8 with them still
     /// here; the user, 2026-10-12: the cabinet weighed too much in her mind). The time itself is in the turn's own
-    /// <c>now</c> (see <see cref="When"/>).
+    /// <c>now</c> (see <see cref="When"/>). With no play time, only the game being played: there is no balance to tell.
     /// </summary>
     public static string Describe(LedgerState s, Rules rules, DateTimeOffset now)
     {
         var lines = new List<string>();
-        if (Playing(s) is { } playing)
+        if (Playing(s, rules) is { } playing)
             lines.Add(playing);
+        if (!rules.Earns.Any)
+            return lines.Count > 0 ? lines[0] : "Right now: not playing.";
         var left = s.TimeLeftMs(rules);
         lines.Add(left > 0 ? $"Play time banked: {Words.Span(left)}." : "Play time banked: none.");
         if (s.DebtMs > 0)
@@ -37,10 +39,10 @@ public static class Situation
     }
 
     /// <summary>Right now: the game being played, or null when none is.</summary>
-    private static string? Playing(LedgerState s) => s.Session switch
+    private static string? Playing(LedgerState s, Rules rules) => s.Session switch
     {
         null => null,
-        _ when s.Paused => $"Right now: in a game of {string.Join(" + ", s.Session.GameNames)}, but the player stepped away (clock paused).",
+        _ when s.Paused => $"Right now: in a game of {string.Join(" + ", s.Session.GameNames)}, but the player stepped away{(rules.Earns.Any ? " (clock paused)" : "")}.",
         var session => $"Right now: playing {string.Join(" + ", session.GameNames)}, {Words.Span(session.PlayedMs)} into the session.",
     };
 
@@ -60,55 +62,69 @@ public static class Situation
 
     /// <summary>
     /// The cabinet's numbers in full, for her cabinet tool: where things stand, how play is earned, and, when
-    /// <paramref name="day"/> names one ("today", "yesterday", a date), that day's record with what it earned.
+    /// <paramref name="day"/> names one ("today", "yesterday", a date), that day's record with what it earned. With no
+    /// play time, what was done and played, the bedtime and the day's record, and nothing of a balance.
     /// </summary>
     public static string Ledger(LedgerState s, Rules rules, DateTimeOffset now, string? player, string? day)
     {
         var lines = new List<string>();
+        var balance = rules.Earns.Any;
         if (rules.Earns.LeetCode && !string.IsNullOrWhiteSpace(player))
             lines.Add($"The player's LeetCode account: {player}.");
 
         var left = s.TimeLeftMs(rules);
-        lines.Add(left > 0
-            ? $"Play time banked: {Words.Span(left)}. Each night at {Clock(rules.DayStartsAt)}, {Share(rules.NightlyFade)} of what isn't played fades."
-            : "Play time banked: none.");
-        lines.Add(s.DebtMs > 0 ? $"Owed: {Words.Span(s.DebtMs)} ({Words.Count(s.IouTickets(rules), "IOU ticket")})." : "Owed: nothing.");
+        if (balance)
+        {
+            lines.Add(left > 0
+                ? $"Play time banked: {Words.Span(left)}. Each night at {Clock(rules.DayStartsAt)}, {Share(rules.NightlyFade)} of what isn't played fades."
+                : "Play time banked: none.");
+            lines.Add(s.DebtMs > 0 ? $"Owed: {Words.Span(s.DebtMs)} ({Words.Count(s.IouTickets(rules), "IOU ticket")})." : "Owed: nothing.");
+        }
         if (s.Today is { } today)
         {
-            lines.Add(today.RoomMs() > 0
-                ? $"Today ({today.Day.DayOfWeek}): {Earned(today.EarnedMs)} of the day's cap of {Words.Span(today.CapMs)}; {Words.Span(today.RoomMs())} more can be earned."
-                : $"Today ({today.Day.DayOfWeek}): the day's cap of {Words.Span(today.CapMs)} is reached; nothing more is paid until {Clock(rules.DayStartsAt)}.");
+            if (balance)
+                lines.Add(today.RoomMs() > 0
+                    ? $"Today ({today.Day.DayOfWeek}): {Earned(today.EarnedMs)} of the day's cap of {Words.Span(today.CapMs)}; {Words.Span(today.RoomMs())} more can be earned."
+                    : $"Today ({today.Day.DayOfWeek}): the day's cap of {Words.Span(today.CapMs)} is reached; nothing more is paid until {Clock(rules.DayStartsAt)}.");
             if (Done(today) is { } done)
                 lines.Add($"So far today: {done}.");
             if (today.Bedtime is { } bedtime)
-                lines.Add(GameCalendar.IsLateNight(s, now, rules)
+                lines.Add(!balance ? $"Bedtime: {Clock(bedtime)}."
+                    : GameCalendar.IsLateNight(s, now, rules)
                     ? $"Bedtime: {Clock(bedtime)}, and it is past it: play costs x{Times(rules.LateNightMultiplier)} until {Clock(rules.DayStartsAt)}."
                     : $"Bedtime: {Clock(bedtime)}; play after it costs x{Times(rules.LateNightMultiplier)} until {Clock(rules.DayStartsAt)}.");
         }
 
         var streak = GameCalendar.CurrentStreak(s, now, rules);
-        if (rules.Earns.Any)
+        if (balance)
             lines.Add($"Streak of good days ({GoodDay(rules)}): {Words.Count(streak, "day")} (best {s.BestStreak}).");
         lines.Add("This week: " + (rules.Earns.LeetCode ? $"{Words.Count(s.Week.Solves, "problem")} solved, " : "") +
                   (s.Week.FocusedMs >= 60_000 ? $"{Words.Span(s.Week.FocusedMs)} focused, " : "no focus sessions, ") +
-                  $"{Earned(s.Week.EarnedMs)}, " +
+                  (balance ? $"{Earned(s.Week.EarnedMs)}, " : "") +
                   (s.Week.PlayedMs >= 60_000 ? $"{Words.Span(s.Week.PlayedMs)} played." : "no games played yet."));
 
-        lines.Add(Playing(s) ?? "Right now: not playing.");
+        lines.Add(Playing(s, rules) ?? "Right now: not playing.");
+        if (!balance)
+        {
+            lines.Add("The player chose no play time: the cabinet keeps no balance, and their games cost nothing. It never closes a game.");
+            if (day is { Length: > 0 })
+                lines.Add(Day(s, rules, now, day, balance));
+            return string.Join("\n", lines);
+        }
         lines.Add($"How play is earned: a token is {Words.Span(rules.TokenMs)} of play. {Pays(rules)} " +
-                  (rules.Earns.Any ? $"A good day has {GoodDay(rules)}; from the {Ordinal(rules.StreakBonusFromDay)} good day in a row, the day's first earning brings a bonus token. " : "") +
+                  $"A good day has {GoodDay(rules)}; from the {Ordinal(rules.StreakBonusFromDay)} good day in a row, the day's first earning brings a bonus token. " +
                   "A day can earn at most its cap " +
                   $"(Monday to Thursday {Words.Span(rules.WeekdayCapMs)}, Friday {Words.Span(rules.FridayCapMs)}, weekends {Words.Span(rules.WeekendCapMs)}). " +
                   $"Each night at {Clock(rules.DayStartsAt)}, {Share(rules.NightlyFade)} of what isn't played fades. Play after the player's bedtime costs " +
                   $"x{Times(rules.LateNightMultiplier)} until {Clock(rules.DayStartsAt)}; when time runs out the game goes on, on credit at " +
                   $"x{Times(rules.DebtMultiplier)}, and the cabinet prints IOU tickets. The cabinet never closes a game.");
         if (day is { Length: > 0 })
-            lines.Add(Day(s, rules, now, day));
+            lines.Add(Day(s, rules, now, day, balance));
         return string.Join("\n", lines);
     }
 
-    /// <summary>A day's record as the cabinet keeps it (see <see cref="Diary"/>): what was done, then what it earned.</summary>
-    private static string Day(LedgerState s, Rules rules, DateTimeOffset now, string asked)
+    /// <summary>A day's record as the cabinet keeps it (see <see cref="Diary"/>): what was done, then what it earned (with a balance).</summary>
+    private static string Day(LedgerState s, Rules rules, DateTimeOffset now, string asked, bool balance)
     {
         var today = GameCalendar.DayOf(now, rules);
         DateOnly? wanted = asked.Trim().ToLowerInvariant() switch
@@ -125,10 +141,10 @@ public static class Situation
             return $"{named.ToString("dddd d MMMM yyyy", English)}: no record (the cabinet keeps the last {rules.DaysKept} days).";
         var entry = Diary.Entry(record, s.StreakDays().Contains(named));
         return $"{named.ToString("dddd d MMMM yyyy", English)}{(named == today ? " (today, so far)" : "")}: {entry}" +
-               (Diary.Accounts(record) is { Length: > 0 } accounts ? $" {accounts}" : "");
+               (balance && Diary.Accounts(record) is { Length: > 0 } accounts ? $" {accounts}" : "");
     }
 
-    /// <summary>What pays, of what earns for this player only ("LeetCode problems pay …; focus pays …."), or that nothing does.</summary>
+    /// <summary>What pays, of what earns for this player only ("LeetCode problems pay …; focus pays ….").</summary>
     private static string Pays(Rules rules)
     {
         var pays = new List<string>();
@@ -139,7 +155,7 @@ public static class Situation
         if (rules.Earns.Focus)
             pays.Add($"focus pays {Words.Span(rules.TokenMs)} for every {Words.Span(rules.TokenMs * rules.FocusPerPlay)} focused");
         var said = string.Join("; ", pays);
-        return said.Length > 0 ? $"{char.ToUpperInvariant(said[0])}{said[1..]}." : "Nothing earns play time now.";
+        return $"{char.ToUpperInvariant(said[0])}{said[1..]}.";        // something earns: with nothing, Ledger says there's no play time instead
     }
 
     /// <summary>What makes a good day, of what earns ("a solve, an activity or 25 min of focus").</summary>

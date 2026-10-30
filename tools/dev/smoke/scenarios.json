@@ -64,6 +64,15 @@
       "expect": ["^Main: play time is earned by focus, activities$", "^Main: play time is earned by focus$", "^Crt: apps on the home screen focus, music, memos, agenda, settings$", "^Main: play time is earned by nothing$", "^Crt: apps on the home screen focus, done, music, memos, agenda, settings$"]
     },
     {
+      "name": "noplaytime",
+      "about": "A game played on credit leaves time owed; then \"No play time\" on Settings → Balance: the screen shows the time and the day (no credits, streak or attract pages), the IOU ticket leaves the slot, Balance shows only the ticks and the bedtime, a focus part and a game show nothing on the cabinet; unticked again, the debt is back as it was.",
+      "covers": ["src/InsertCoin.Core/Ledger.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Director.cs"],
+      "script": "nocall@1,game@2,warp@2.5,game@14,warp@14.5,settings:balance@18,settingsdo:No_play_time@20,focuspaid:30@24,game@28,game@36,settingsdo:No_play_time@40",
+      "shots": [17, 23, 27, 33, 44],
+      "window": "Settings",
+      "expect": ["^Main: no play time, the balance kept out of sight \\(0 credits, [1-9]\\d* min owed\\)$", "^Main: play time is back, the balance as it was$"]
+    },
+    {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
