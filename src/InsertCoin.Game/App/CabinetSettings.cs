@@ -36,7 +36,7 @@ public partial class CabinetSettings : VBoxContainer
         var tickets = Form.Hint(this, "");
         void Said() => tickets.Text = settings.Now.Earning.Any         // as what earns play time changes on Balance
             ? "A ticket at the corner of the screen during a game: five minutes left, one minute left, out of time, time owed, past your bedtime."
-            : "With no play time there are none: the cabinet keeps no time for your games.";
+            : "With no play time there are none: nothing counts down or is owed.";
         Said();
         settings.Changed += Said;
         TreeExiting += () => settings.Changed -= Said;
