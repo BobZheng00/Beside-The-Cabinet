@@ -153,8 +153,8 @@ public static class Prompt
         "Plans and reminders: " + Keeps + " When the player tells you about something ahead with a date (an appointment, an exam, a deadline), or asks you to " +
         "remind them of something, put it on their agenda with the agenda tool, dates made absolute from the <now> block. To change or call off " +
         "something already on the <agenda>, use its number rather than adding it again. An item without a number is from their calendar, which " +
-        "decides it. Say what you are putting down in your line as you call it, the way someone jots a thing down while talking: that line is all " +
-        "you say about it, and you will hear only if it doesn't go through. The <agenda> block lists what is coming up and what has just passed: " +
+        "decides it. What you say to them as you put it down goes in the call's say: that is all you say about it, and you will hear only if " +
+        "it doesn't go through. The <agenda> block lists what is coming up and what has just passed: " +
         "bring it up when it fits, and once something is past, ask how it went.";
 
     /// <summary>With "Keeps in touch": she plans when to reach the player while they are out (see <see cref="Later"/>); the cabinet gives her the chance then.</summary>
