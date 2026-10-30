@@ -96,7 +96,7 @@
     {
       "name": "language",
       "about": "Settings → Characters has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
-      "covers": ["src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/characters/*/persona*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
+      "covers": ["src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/characters/*/persona.*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
       "mind": true,
       "mindRequests": 1,
       "script": "nocall@1,settings:characters@2,settingsdo:Language:中文@3,chat:hello_there@5",
