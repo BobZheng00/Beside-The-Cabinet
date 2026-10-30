@@ -69,6 +69,23 @@ public class NoPlayTimeTests
     }
 
     [Fact]
+    public void A_game_past_four_turns_the_day_at_once_so_nothing_fades_when_play_time_is_back_before_it_ends()
+    {
+        var m = new Machine(At(30, 3, 50));
+        m.GiveTokens(4);
+        var on = m.Rules;
+        m.Change(on with { Earns = Nothing });
+
+        m.Play(TimeSpan.FromMinutes(20));                   // on past 04:00
+        Assert.Equal(new DateOnly(2026, 9, 30), m.State.Today!.Day);
+        m.Change(on);
+        m.Quit();
+
+        Assert.Empty(m.Events.OfType<Faded>());
+        Assert.Equal(4, m.State.Credits);
+    }
+
+    [Fact]
     public void A_debt_is_frozen_while_a_game_goes_on_and_is_there_as_it_was_when_play_time_is_back()
     {
         var m = new Machine();

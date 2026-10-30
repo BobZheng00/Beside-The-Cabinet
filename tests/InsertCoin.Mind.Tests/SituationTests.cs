@@ -186,6 +186,16 @@ public class SituationTests
         Assert.Null(Situation.Witness(new CapReached(120 * 60_000), Rules));
     }
 
+    [Fact]
+    public void With_no_play_time_what_a_last_payment_did_to_the_balance_isnt_witnessed()
+    {
+        Assert.Null(Situation.Witness(new DebtPaid(15 * 60_000, 1, 0, 0), NoPlayTime));
+        Assert.Null(Situation.Witness(new StreakStar(3, Paid(15)), NoPlayTime));
+        Assert.Equal("The player solved \"Two Sum\" (Easy).",
+                     Situation.Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, Friday), 2, true, 3, Paid(30)), NoPlayTime));
+        Assert.Equal("The player stopped playing after 20 min.", Situation.Witness(new SessionEnded(new Session { PlayedMs = 20 * 60_000 }), NoPlayTime));
+    }
+
     private static Payout Paid(double minutes, double? credited = null)
     {
         var earned = (long)(minutes * 60_000);

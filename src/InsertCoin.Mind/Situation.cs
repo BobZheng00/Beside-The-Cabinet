@@ -173,8 +173,9 @@ public static class Situation
     /// </summary>
     public static string? Witness(LedgerEvent e, Rules rules) => e switch
     {
+        DebtPaid or StreakStar when !rules.Earns.Any => null,     // paid as play time went off (LeetCode's last answer): no balance to tell of
         CoinsEarned c => $"The player solved \"{c.Task.Title}\" ({c.Task.Difficulty?.ToString() ?? "unknown difficulty"})" +
-                         (c.StarToken ? $": day {c.Streak} of a streak of good days." : "."),
+                         (c.StarToken && rules.Earns.Any ? $": day {c.Streak} of a streak of good days." : "."),
         FocusPaid f => $"A focus part ended: {Words.Span(f.FocusedMs)} focused.",
         StreakStar star => $"Today became a good day, day {star.Streak} of a streak.",
         ActivityPaid a => $"\"{a.Name}\" counted{(a.Total < 1 ? " by half for now" : a.Share < 1 ? " in full now" : "")}.",

@@ -28,7 +28,8 @@ public static class Lines
         var what = InsertCoin.Mind.Situation.Witness(e, rules) ?? line!;
         return new InsertCoin.Mind.Telling(Title(e), $"{what} Say something about it in a short sentence, in your own words.", line!,
                                            InsertCoin.Mind.Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3),
-                                           Ticketed: e is LowTime or CreditsOut or LateNight or SessionStarted);
+                                           // no play time: the cabinet shows nothing of a game, so nothing here goes on a ticket either
+                                           Ticketed: !rules.Earns.Any || e is LowTime or CreditsOut or LateNight or SessionStarted);
     }
 
     /// <summary>What a ticket or the log calls it.</summary>
@@ -92,8 +93,9 @@ public static class Lines
 
     private static string? For(LedgerEvent e, LedgerState state, Rules rules, Random random) => e switch
     {
-        CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, "A Hard one! Well done.", "You cracked a Hard one!") + Bonus(c),
-        CoinsEarned c => Pick(random, "Solved! Nice work.", "Another one done!") + Bonus(c),
+        DebtPaid or StreakStar when !rules.Earns.Any => null,     // a last LeetCode answer paying with no play time: no balance to talk of
+        CoinsEarned { Task.Difficulty: Difficulty.Hard } c => Pick(random, "A Hard one! Well done.", "You cracked a Hard one!") + Bonus(c, rules),
+        CoinsEarned c => Pick(random, "Solved! Nice work.", "Another one done!") + Bonus(c, rules),
         StreakStar s => Pick(random, $"Day {s.Streak} of your streak!", $"That's {s.Streak} good days in a row!"),
         DebtPaid { DebtLeftMs: 0 } => "Debt cleared. Clean slate!",
         LowTime { Level: Warning.FiveMinutes } => "Five minutes left. Look for a save point?",
@@ -106,7 +108,7 @@ public static class Lines
         _ => null,
     };
 
-    private static string Bonus(CoinsEarned c) => c.StarToken ? $" Day {c.Streak} of your streak!" : "";
+    private static string Bonus(CoinsEarned c, Rules rules) => c.StarToken && rules.Earns.Any ? $" Day {c.Streak} of your streak!" : "";
 
     private static int Urgency(LedgerEvent e) => e switch
     {

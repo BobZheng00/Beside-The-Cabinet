@@ -37,14 +37,14 @@ public sealed class Ledger(Rules rules)
     /// A new game day: of the unplayed time, <see cref="Rules.NightlyFade"/> fades for each night that passed (debt
     /// never does), today's record joins the past days, and the new day takes the cap and bedtime the rules hold now.
     /// While a game runs it waits for the session to end, or for the next earning, whichever comes first. With no play
-    /// time nothing fades: the balance is kept as it was until play time is back.
+    /// time nothing fades, the balance kept as it was until play time is back, and the day turns at once, game or not.
     /// </summary>
     private LedgerState TurnDay(LedgerState state, DateTimeOffset now, List<LedgerEvent> events, bool deferWhilePlaying)
     {
         var day = GameCalendar.DayOf(now, Rules);
         if (state.Today is not { } today)
             return NewWeek(state with { Today = DayRecord.Begin(day, Rules) }, day);  // a save from before days were kept
-        if (day <= today.Day || (deferWhilePlaying && state.Session is not null))
+        if (day <= today.Day || (deferWhilePlaying && state.Session is not null && Rules.Earns.Any))     // no play time: nothing a game could pay into, so no wait
             return state;
 
         var left = state.TimeLeftMs(Rules);
