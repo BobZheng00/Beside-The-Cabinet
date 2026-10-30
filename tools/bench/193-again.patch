@@ -1,0 +1,46 @@
+--- src-main/src/InsertCoin.Mind/Conversation.cs	2026-10-29 00:14:11.000000000 -0400
++++ src-d/src/InsertCoin.Mind/Conversation.cs	2026-10-29 21:11:52.792098000 -0400
+@@ -421,13 +421,18 @@
+         // words before it, or a round with another tool in it goes back to her. Only the round's last call can end it:
+         // ending at an earlier one would leave the rest unmade (FunctionInvokingChatClient stops there).
+         var roundWent = true;
++        var askAgain = false;
+         bool Ends(FunctionInvocationContext call)
+         {
+             if (call.FunctionCallIndex == 0)
+                 roundWent = true;
+             roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
+             agendaWent = false;                             // read once: a call refused before it ran (made twice, say) never counts
+-            return roundWent && call.FunctionCallIndex == call.FunctionCount - 1 && !string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone));
++            if (!roundWent || call.FunctionCallIndex != call.FunctionCount - 1)
++                return false;
++            if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone)))
++                askAgain = true;                            // spike #193, D': her reply asked for again, without the call
++            return true;
+         }
+         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
+         {
+@@ -480,6 +485,13 @@
+                         await Stream(Calling(client, tools!, Ends), sent, new ChatOptions { MaxOutputTokens = ReplyOptions.MaxOutputTokens, Tools = offered });
+                     else
+                         await Stream(client, sent, ReplyOptions);
++                    if (askAgain)
++                    {
++                        // spike #193, D': the call and its result left out; the new item is in <agenda> as the cabinet's, no tools
++                        askAgain = false;
++                        agenda = store.Agenda();
++                        await Stream(client, Messages(false, seeing), ReplyOptions);
++                    }
+                     // nothing at all came back, as a busy provider sometimes answers (R1): asked once more, unless a tool was
+                     // used, which asking again would repeat
+                     if (!wrote && !acted && again)
+--- src-main/tools/bench/manner.cs	2026-10-29 00:14:11.000000000 -0400
++++ src-d/tools/bench/manner.cs	2026-10-29 21:12:16.048115700 -0400
+@@ -135,6 +135,7 @@
+     new("good-zh", "zh", "我拿到实习offer了！！！"),
+     new("bad", "en", "Didn't get the job. They went with someone internal."),
+     new("lost", "en", "Just lost three ranked matches in a row. I'm done for tonight."),
++    new("probe-birthday", "en", "my birthday is on saturday", Asked: ["agenda"]),     // spike #193: free, on the mock only
+     new("ahead", "en", "I've got a job interview next Thursday at 2pm.", Asked: ["agenda"]),
+     new("ahead-zh", "zh", "下周三下午三点我要去看牙医。", Asked: ["agenda"]),
+     new("remind", "en", "Remind me to take my vitamins at 9 tomorrow morning.", Asked: ["agenda"]),
