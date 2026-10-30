@@ -314,6 +314,16 @@
       "expect": ["^Agenda app: changed while open, now 1 ahead"]
     },
     {
+      "name": "agendaflash",
+      "about": "A plan the companion puts on the agenda with no words before the call ends the reply there: no bubble is left, and the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, the flash waits for it to close.",
+      "covers": ["src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Mind/Agenda.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Chat.cs", "tools/dev/mock_mind.py"],
+      "mind": true,
+      "mindRequests": 2,
+      "script": "nocall@1,chat:put_job_interview_at_Northwind_Bank_on_my_agenda_2027-01-14T14:00@3,crt:memos@10,chat:put_dentist_on_my_agenda_2027-01-15@13,crtclose@17",
+      "shots": [7, 17, 21],
+      "expect": ["^Agenda: the cabinet shows AGENDA: THU 14 JAN 14:00 JOB INTERVIEW AT NORTHWIND BANK$", "^Agenda: the cabinet shows AGENDA: FRI 15 JAN DENTIST$", "^Chat: no words came back"]
+    },
+    {
       "name": "reminder",
       "about": "A reminder set a few seconds ahead goes off, with its ticket.",
       "covers": ["src/InsertCoin.Game/App/Reminders.cs", "src/InsertCoin.Game/Desktop/AlertTicket.cs", "src/InsertCoin.Mind/*"],

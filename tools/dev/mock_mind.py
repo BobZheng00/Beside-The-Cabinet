@@ -14,7 +14,8 @@ and answers the plain line once the result comes back (logged as "tool_result");
 append_to_note and the player's words name a note ("add a line to my note notes/today.md"), it reads that note, then
 appends "- A line from the mock mind." to it, then answers; and when it offers change_skill and the player's words say
 "<skill> from now on <new words> instead of <old words>", it suggests that change to the skill with change_skill
-(before reading any skill), then answers. --think waits that many seconds before answering, as a
+(before reading any skill), then answers; and when it offers agenda and the player's words say "put <what> on my agenda
+2027-01-14T14:00" (or a day), it adds that with no words before the call, then answers if asked again. --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
@@ -109,6 +110,19 @@ def change_call(body):
     return "change_skill", {"skill": said.group(1), "replaces": said.group(3).strip(), "with": said.group(2).strip()}
 
 
+def agenda_call(body):
+    """The agenda item to add: offered agenda, and the player's words say "put <what> on my agenda <YYYY-MM-DDTHH:MM>"
+    (or a day), it calls agenda once with no words before it, then answers (by the tool results since their words)."""
+    if not any((t.get("function") or {}).get("name") == "agenda" for t in body.get("tools") or []):
+        return None
+    messages = body.get("messages") or []
+    said = re.findall(r"put (\S.*?) on my agenda (\d{4}-\d\d-\d\d(?:T\d\d:\d\d)?)", last_user_text(messages))   # the latest: earlier lines come with it
+    last_user = max((i for i, m in enumerate(messages) if m.get("role") == "user"), default=-1)
+    if not said or any(m.get("role") == "tool" for m in messages[last_user + 1:]):
+        return None
+    return "agenda", {"action": "add", "when": said[-1][1], "what": said[-1][0], "remind": "none"}
+
+
 def pieces(text):
     words = text.split(" ")
     return [w + (" " if i < len(words) - 1 else "") for i, w in enumerate(words)]
@@ -169,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         messages = body.get("messages") or []
         change = None if fmt else change_call(body)
         skill = None if fmt or change else skill_wanted(body)
-        tool = None if fmt else change or (("read_skill", {"skill": skill}) if skill else note_call(body))
+        tool = None if fmt else change or (("read_skill", {"skill": skill}) if skill else note_call(body) or agenda_call(body))
         call = None if tool is None else {"index": 0, "id": f"call_mock_{n}", "type": "function",
                                           "function": {"name": tool[0], "arguments": json.dumps(tool[1])}}
         log({

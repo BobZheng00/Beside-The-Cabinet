@@ -153,4 +153,23 @@ Each step is usable on its own.
    lines saying she asks drove it in #143's runs.
 2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
    It is measured with the manner check before and after, stock openers included.
+
+   *Measured, then the fallback built 2026-10-29 (#193).* The result handed back as known didn't move the habits (#128:
+   the date said back in 10 of 12, the bookkeeping narrated in 8 of 12), nor did her words carried in the call or her
+   reply asked again without the call (the spike and probe on #193: 9 to 10 of 12 said the date back). So **the silent
+   call**: an agenda round whose calls all went through ends her reply, decided in code (`Conversation.Ends`), with
+   whatever she wrote before it (flow C) or nothing. A failed call, or a round with another tool in it, still goes back
+   to her. **The CRT flash** shows what landed (the user, 2026-10-28: "A line from the cabinet would be good. pron not
+   on the marquee since the text can be long"): AGENDA, CHANGED or CANCELLED, the day and time, and the item on up to
+   two lines broken at words (`Agenda.Flash`; the caption takes the hidden fuel bar's space for a third line), four
+   seconds each, several in one reply in turn; with an app open on the screen it waits for the readout to unfold. Her
+   note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
+   drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed manner
+   check after it is the user's to allow (#193).
 3. **By text, a plain line under her message** with what she set.
+
+   *Built 2026-10-29 (#129, with #193).* `Agenda.Receipt`: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",
+   "Agenda, changed: …", "Agenda, cancelled: …", in English as the app's other lines by text are, under her words after
+   a blank line, or the whole message when the reply ended silently; never an empty message. It covers what she sets
+   through the tool and through her tags, and every text of hers (an answer on Telegram, a text she sends while the
+   player is out).
