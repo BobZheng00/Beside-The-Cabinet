@@ -77,6 +77,17 @@ public class SituationTests
 
     private static readonly Rules NoPlayTime = Rules with { Earns = new Earning(false, false, false), Bedtime = TimeSpan.FromHours(23) };
 
+    [Fact]
+    public void A_picked_program_behind_another_window_is_told_as_open_with_its_clock_paused()
+    {
+        var state = LedgerState.New(Friday, Rules) with { Session = new Session { GameNames = ["VLC media player"], PlayedMs = 40 * 60_000 }, Held = true };
+
+        Assert.StartsWith("Right now: VLC media player is open behind another window (clock paused), 40 min into the session.",
+                          Situation.Describe(state, Rules, Friday));
+        Assert.StartsWith("Right now: VLC media player is open behind another window, 40 min into the session.",
+                          Situation.Describe(state, NoPlayTime, Friday));
+    }
+
     /// <summary>A player with a balance from before (banked, owed, today's earning), who then chose no play time.</summary>
     private static LedgerState Kept(Rules rules) => LedgerState.New(Friday.AddDays(-4), rules) with
     {

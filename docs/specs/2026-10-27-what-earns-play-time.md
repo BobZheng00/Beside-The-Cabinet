@@ -1,6 +1,6 @@
 # What earns your play time, chosen on the first run, or no play time at all
 
-*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174); the order is at the end. Before Preview 2
+*Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174), step 3 2026-10-30 (#175); the order is at the end. Before Preview 2
 (#157), at the user's word.*
 
 ## Why
@@ -60,13 +60,17 @@ Today:
   - **Turned off with a debt,** the debt is frozen and out of sight (the IOU ticket in the slot, the tray's "min
     owed"), and back as it was when play time is turned on again.
 - **Programs you choose count as play.** On Settings → Balance there's a list of programs that count as play, as well
-  as Steam games: a video player, a game launcher, whatever the player picks.
+  as Steam games: a video player, a game from outside Steam, whatever the player picks. Only the program's own
+  window counts, so a launcher picked doesn't make the games it starts count.
   - A program is picked from those running, or by its file.
   - While a picked program is the window in front, it spends play time as a Steam game does: the clock runs, she
     knows they're playing it, and the break after a long session applies.
   - **It doesn't pause when the player is idle**, since a film needs no typing. It stops when the screen locks or the
-    player has left the PC, as the cabinet already knows (`Presence`). Steam games keep their pause after 10 minutes
-    without input (`Rules.AfkAfter`).
+    player has left the PC, as the cabinet already knows (`Presence`), or Windows turns the display off. Steam games
+    keep their pause after 10 minutes without input (`Rules.AfkAfter`).
+  - **Behind another window it is held quietly**: nothing spent, nothing shown or said, and it goes on when the
+    program is back in front, one session whose time adds up towards the break. The session ends only when the
+    program closes or the player is away.
   - Only the program is known, by its name from the file. The running programs to pick from are listed by process,
     and nothing is read from browser tabs or window titles for this, so a site is never watched.
   - No program is picked to start with.
@@ -90,6 +94,12 @@ Today:
   "taking a break" the player says themselves). It's only programs, never browser tabs, so nothing private is read.
 - **A picked program counts while it's in front, and stops when the player is away** (the user, 2026-10-27, choosing
   it over pausing when idle, as games do, and over a choice per program).
+- **Behind another window, a picked program's session is held quietly** (the user, 2026-10-31, "Hold it quietly", after
+  QA found every switch away ended the session with a receipt): no flash or remark, on again in front, ended only when
+  the program closes or the player is away.
+- **The screen going dark counts as away for a picked program** (the user, 2026-10-31, "The screen going dark"): when
+  Windows turns the display off (its power setting) or locks, it stops counting; a film still counts while the screen
+  is on.
 - **Existing profiles keep what they had, and no source means no play time** (the PM, 2026-10-27, from the review of
   the spec: both follow from the choices above, and neither changes anything a player chose).
 
@@ -124,4 +134,18 @@ Today:
    Her remarks about the cabinet go on no corner ticket, a debt paid or a streak from LeetCode's last answer isn't told,
    and the coin tray is set afresh when play time is back. The day turns at 04:00 even with a game on. Turning LeetCode
    back on while a poll waits asks again at the next check.
-3. **Programs that count as play** (#175). Picked on Balance, spent while in front.
+3. **Programs that count as play** (#175). Picked on Balance, spent while in front. *Built 2026-10-30:* Balance's
+   "Programs that count as play" (`AppSettings.PlayPrograms`, a Core `PlayProgram` of the file and its name from the
+   file's description) adds from "Running now" (processes with a window on the taskbar, Windows' own left out, never a
+   title: `OpenWindows.RunningPrograms`) or by the file, and × takes one off. Each check, the program in front
+   (`OpenWindows.FrontProgram`: the foreground window's process file; the one before it while a cabinet window is in
+   front) counts as a game, `RunningGame.Picked`; one still running behind other windows (`OpenWindows.RunningPrograms`,
+   asked only while a session runs) is `Held`, and holds its own session quietly (`LedgerState.Held`: nothing spent, no
+   event; it starts nothing and keeps no other game's session going; and it isn't a game being played: focus
+   pays, her voice keeps the graphics card, the player can count as away, and the day turns at 04:00). None counts once the player has left the PC
+   (`Stool.LeftThePc`: the display off, `Presence.DisplayOff` from Windows' `GUID_CONSOLE_DISPLAY_STATE` through
+   `PowerSettingRegisterNotification`, or `Reaching.Where` away or asleep, which playing keeps from coming by idleness
+   alone, so only a locked screen or their saying they were off). The ledger pauses for idleness only when no picked
+   program in front is among the games (`PlayProgram.Seen`). A test run reads no program until `frontprogram:` gives a
+   stand-in (`frontprogram:behind`, `frontprogram:off`), and its display is on until `display:off`. Privacy has a
+   note. Store apps, whose windows belong to Windows' frame host, can't be picked (#210).

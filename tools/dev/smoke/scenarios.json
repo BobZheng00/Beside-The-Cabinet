@@ -84,6 +84,29 @@
       "forbid": ["^Reaching: GAME (ON|OVER) only on a ticket", "^Reaching: (SOLVED|STREAK|DEBT PAID|TIME LEFT|OUT OF TIME|LATE NIGHT) "]
     },
     {
+      "name": "playprogram",
+      "about": "A program picked as play on Settings → Balance (a stand-in in front, picked from Running now; a very long name beside it is cut short, the page no wider than the window) starts a session; behind another window for longer than a game's two missed checks it is held quietly and goes on when back in front, one session; Windows turning the display off ends it.",
+      "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs", "src/InsertCoin.Game/Desktop/Presence.cs"],
+      "settings": ", \"PlayPrograms\": [{\"Path\": \"D:/Games/launcher.exe\", \"Name\": \"The Extraordinarily Long Named Game Launcher and Media Centre Deluxe Edition 2026 for Windows\"}]",
+      "script": "nocall@1,frontprogram:C:\\Windows\\notepad.exe@2,settings:balance@3,settingsdo:Running_now:1@4,settingswidths@6,frontprogram:behind@14,frontprogram:C:\\Windows\\notepad.exe@28,display:off@34,display:on@42",
+      "shots": [9, 24, 32, 45],
+      "window": "Settings",
+      "expect": ["^Main: programs that count as play: The Extraordinarily .+, .+$", "^Main: a session starts: .+$", "^Main: the session is held, its program behind another window$",
+                 "^Main: the session goes on, its program in front$", "^Main: the display is off$", "^Main: the session ends: .+, \\d+ s played$"],
+      "forbid": ["^Settings: \\w+ needs \\d+ px"]
+    },
+    {
+      "name": "playprogram-held",
+      "about": "A picked program's session held behind another window isn't a game being played: the alarm lights of a game played on credit go off, a focus part shows its countdown on the screen (the shot at 20 s) and pays for its time, and the player going away with no input (afk) counts as away, which ends the held session, with no word of it going on.",
+      "covers": ["src/InsertCoin.Game/App/Focus.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs"],
+      "settings": ", \"PlayPrograms\": [{\"Path\": \"C:\\\\Windows\\\\notepad.exe\", \"Name\": \"Notepad\"}]",
+      "script": "nocall@1,frontprogram:C:\\Windows\\notepad.exe@2,frontprogram:behind@8,focus@14,focus:skip@26,whereabouts:off@28,afk@29,trayitems@40",
+      "shots": [20, 45],
+      "expect": ["^Main: a session starts: Notepad$", "^Main: the session is held, its program behind another window$", "^Main: focus pays for [1-9]\\d* s focused$",
+                 "^Main: the alarm lights go on, out of time in a game$", "^Main: the alarm lights go off$", "^Reaching: the player is away", "^Main: the session ends: Notepad, \\d+ s played$"],
+      "forbid": ["^Main: the session goes on"]
+    },
+    {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],

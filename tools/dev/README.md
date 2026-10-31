@@ -80,7 +80,7 @@ Undo after it is refused),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, idle),
 `later:now` (their plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
-again; a test run takes the player as here), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
+again; a test run takes the player as here, with no time since their last input whatever this PC's own user does, until `afk`), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
 Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
 stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → Mind,
 `settingsdo:Provider:1` and `settingsdo:Continue_with_ChatGPT`, and a test run visits the stand-in's sign-in itself,
@@ -105,7 +105,12 @@ Hands-free, without ever opening the real microphone: `fakemic` (from then on th
 to a skill, `allow` is Remember it and `deny` Not now; on the ChatGPT plan's backup card, Yes, Manage usage and Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
 change to a skill when told "tea-timer from now on new_words instead of old_words", as with
 `chat:tea-timer_from_now_on_rinse_the_pot_first_instead_of_warm_the_pot_first` after `skillseed`), and
-`fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway). With `--offscreen` a page they open is
+`fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway),
+`frontprogram:C:\Windows\notepad.exe` (that program's window is in front, and it's the only one running, for programs
+picked as play on Balance: `settings:balance` then `settingsdo:Running_now:1` picks it, `settingsdo:×` takes it off;
+`frontprogram:behind`, it runs on behind another window, holding its session; `frontprogram:off`, it has closed; a test
+run never reads the player's, and has none until told), `display:off` (as if Windows had turned the display off, which
+stops a picked program; `display:on`; `display:windows` asks Windows again; a test run's display is on). With `--offscreen` a page they open is
 only logged, never opened. Memos: `memo:title:text` (they type one and send it, as the tool has them do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
 `memosheet:pin` (the latest sheet's tools: pin, off, edit, done, print, delete; `close` and `esc` as its × and Esc;

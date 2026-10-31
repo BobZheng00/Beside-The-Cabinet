@@ -1,10 +1,12 @@
 using Godot;
+using InsertCoin.Core;
 
 namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → Balance: the balance of work, life and games. What earns play time (the first run's choices, to change
-/// them: focus, the player's own activities, LeetCode with their name, or no play time); how much play a day can earn,
+/// them: focus, the player's own activities, LeetCode with their name, or no play time); the programs that count as play
+/// besides Steam games, picked from those running or by their file; how much play a day can earn,
 /// Monday to Thursday, on Friday and at the weekend; and the player's bedtime, after which play costs more. What earns
 /// counts at once; a cap or bedtime is saved at once but counts from the next day, so the cap can't be raised, nor
 /// bedtime moved, in the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md). With no play time
@@ -21,13 +23,22 @@ public partial class BalanceSettings : VBoxContainer
     public event Action<bool, bool, bool>? Earning;
     /// <summary>"Change…" by the LeetCode name, or LeetCode ticked without one: the cabinet's screen asks for it.</summary>
     public event Action? ChangePlayer;
+    /// <summary>The programs that count as play, as they are after each change.</summary>
+    public event Action<PlayProgram[]>? Programs;
+    /// <summary>"Add by its file…": the cabinet asks for a program's file, and hands it back through <see cref="Add"/>.</summary>
+    public event Action? PickFile;
 
-    private OptionButton _weekday = null!, _friday = null!, _weekend = null!, _bedtime = null!;
+    private OptionButton _weekday = null!, _friday = null!, _weekend = null!, _bedtime = null!, _running = null!;
     private int[] _caps = Caps;
     private string?[] _bedtimes = [];
+    private List<PlayProgram> _programs = [];
+    private IReadOnlyList<PlayProgram> _runningNow = [];
+    private PlayProgram[] _offered = [];
+    private VBoxContainer _picked = null!;
 
     /// <param name="today">What holds today, which a change doesn't touch.</param>
-    public void Build(AppSettings settings, string today)
+    /// <param name="running">The programs running now, to pick from as play.</param>
+    public void Build(AppSettings settings, string today, IReadOnlyList<PlayProgram> running)
     {
         Form.Page(this, "Balance");
         var about = Form.Hint(this, "Good work earns play time, from what you tick below. A day can only earn so much, and each night half of the play " +
@@ -60,6 +71,23 @@ public partial class BalanceSettings : VBoxContainer
             ticked = leetCode;
             Shown(focus || activities || leetCode);
         });
+
+        Form.Subheading(this, "Programs that count as play");
+        _programs = [.. settings.PlayPrograms];
+        _runningNow = running;
+        _picked = new VBoxContainer();
+        AddChild(_picked);
+        _running = Form.Choice(Form.Grid(this), "Running now", ["Choose one to add…"], 0, index =>
+        {
+            if (index > 0)
+                Add(_offered[index - 1]);
+        }, wide: true);
+        Form.Button(Form.Buttons(this), "Add by its file…", () => PickFile?.Invoke());
+        Form.Hint(this, "Steam games count by themselves. A program added here counts as a game does while its own window is in front: " +
+                        "a video player, a game from outside Steam (add the game's own file), whatever you count. It doesn't pause while " +
+                        "you sit still; behind another window it waits, and it stops when it closes, the screen locks or goes dark, or " +
+                        "you've left the PC. Only the program is known, by its name: no window title or browser tab is read.");
+        ShowPrograms();
 
         balance.Add(Form.Subheading(this, "Play a day can earn"));
         _caps = [.. Caps.Union([settings.WeekdayCapMinutes, settings.FridayCapMinutes, settings.WeekendCapMinutes]).Order()];
@@ -123,6 +151,50 @@ public partial class BalanceSettings : VBoxContainer
             Changed();
         };
         leetCode.Visible = now.LeetCode;
+    }
+
+    /// <summary>Adds a program to those that count as play; one there already stays as it is.</summary>
+    public void Add(PlayProgram program)
+    {
+        if (!_programs.Any(p => p.Path.Equals(program.Path, StringComparison.OrdinalIgnoreCase)))
+        {
+            _programs.Add(program);
+            Programs?.Invoke([.. _programs]);
+        }
+        Callable.From(ShowPrograms).CallDeferred();         // not while "Running now" is still telling of its choice
+    }
+
+    /// <summary>The programs that count as play, each with its × to take it off, and those running that could be added.</summary>
+    private void ShowPrograms()
+    {
+        foreach (var row in _picked.GetChildren())
+        {
+            _picked.RemoveChild(row);
+            row.QueueFree();
+        }
+        if (_programs.Count == 0)
+            _picked.AddChild(Form.Hint("None yet."));
+        foreach (var program in _programs)
+        {
+            var row = Form.Buttons(_picked);
+            // a vendor's description can run long: cut short with an ellipsis rather than widening the page
+            row.AddChild(new Label { Text = program.Name, TooltipText = $"{program.Name}\n{program.Path}", MouseFilter = MouseFilterEnum.Pass,
+                                     SizeFlagsVertical = SizeFlags.ShrinkCenter, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                                     ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis });
+            Form.Button(row, "×", () =>
+            {
+                _programs.Remove(program);
+                Programs?.Invoke([.. _programs]);
+                ShowPrograms();
+            }).TooltipText = "Stop counting it as play";
+        }
+        _offered = [.. _runningNow.Where(r => !_programs.Any(p => p.Path.Equals(r.Path, StringComparison.OrdinalIgnoreCase))).OrderBy(r => r.Name)];
+        _running.Clear();
+        _running.AddItem(_offered.Length > 0 ? "Choose one to add…" : "None to add");
+        foreach (var program in _offered)
+            _running.AddItem(program.Name);
+        _running.Select(0);
+        _running.Disabled = _offered.Length == 0;
     }
 
     private void Changed() => Chosen?.Invoke(_caps[_weekday.Selected], _caps[_friday.Selected], _caps[_weekend.Selected], _bedtimes[_bedtime.Selected]);

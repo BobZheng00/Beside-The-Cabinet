@@ -10,7 +10,31 @@ public enum Size { Small, Medium, Big }
 /// <summary>An accepted problem reported by a task source. Difficulty is null until it has been looked up.</summary>
 public sealed record SolvedTask(string Id, string Title, Difficulty? Difficulty, DateTimeOffset AcceptedAt);
 
-public sealed record RunningGame(string Id, string Name);
+/// <summary>
+/// A game running now. <paramref name="Picked"/>: a program the player picked to count as play (see <see cref="PlayProgram"/>),
+/// counted while it is in front however still they sit: it doesn't pause when they're idle, as a game does.
+/// <paramref name="Held"/>: a picked program still running behind another window, which holds its session quietly.
+/// </summary>
+public sealed record RunningGame(string Id, string Name, bool Picked = false, bool Held = false);
+
+/// <summary>A program the player picked to count as play (Settings → Balance): its file, and its name from the file's description.</summary>
+public sealed record PlayProgram(string Path, string Name)
+{
+    /// <summary>
+    /// The picked programs as the ledger sees them now: the one whose window is in front (<paramref name="front"/>, its
+    /// file) counts; otherwise each still running (<paramref name="running"/>, their files, asked only then) is held
+    /// behind another window. None once the player has left the PC.
+    /// </summary>
+    public static IReadOnlyList<RunningGame> Seen(IReadOnlyList<PlayProgram> picked, string? front, Func<IEnumerable<string>> running, bool away)
+    {
+        if (away || picked.Count == 0)
+            return [];
+        if (picked.FirstOrDefault(p => string.Equals(p.Path, front, StringComparison.OrdinalIgnoreCase)) is { } inFront)
+            return [new RunningGame(inFront.Path, inFront.Name, Picked: true)];
+        var files = running().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return [.. picked.Where(p => files.Contains(p.Path)).Select(p => new RunningGame(p.Path, p.Name, Picked: true, Held: true))];
+    }
+}
 
 /// <summary>
 /// What earns play time, as the player chose it on the first run or on Balance (spec 2026-10-27-what-earns-play-time.md):
@@ -221,6 +245,9 @@ public sealed record LedgerState
 
     public Session? Session { get; init; }
     public bool Paused { get; init; }
+
+    /// <summary>The session's picked program is behind another window: held quietly, nothing spent, until it's in front again.</summary>
+    public bool Held { get; init; }
     public bool FirstWarningGiven { get; init; }
     public bool FinalWarningGiven { get; init; }
     public bool CreditsOutGiven { get; init; }

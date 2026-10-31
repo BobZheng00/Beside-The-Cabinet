@@ -541,6 +541,12 @@ public partial class Stool : Node2D
     private Whereabouts Where(DateTimeOffset now) => _pretend ?? Reaching.Where(Watching(now), AwayAfter, now);
 
     /// <summary>
+    /// The player has left the PC, for a program picked as play: the screen locked or gone dark (Windows turned the
+    /// display off), or they said they were off. Playing keeps them here however still they sit, so it stops only then.
+    /// </summary>
+    internal bool LeftThePc => Presence.DisplayOff || Where(DateTimeOffset.Now) is Whereabouts.Away or Whereabouts.Asleep;
+
+    /// <summary>
     /// What the cabinet watches: their last input, a locked screen, being with her (in a conversation, being listened
     /// to, writing to her) or playing, the quiet hours, and what they last told her about leaving.
     /// </summary>
@@ -548,8 +554,8 @@ public partial class Stool : Node2D
         new(Idle(), Presence.Locked, _listening.Conversing || _listening.Busy || _chatBox.IsOpen && !_chatBox.IsEmpty || Playing, Quiet(now.Hour),
             Reaching.Said(_chat.Store.Mark(Reaching.Mark)));
 
-    /// <summary>A game runs and isn't paused for being away from the keyboard.</summary>
-    private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false };
+    /// <summary>A game runs, isn't paused for being away from the keyboard, and isn't held behind another window.</summary>
+    private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false, Held: false };
 
     /// <summary>The away time the player chose (Settings → Your phone).</summary>
     private TimeSpan AwayAfter => TimeSpan.FromMinutes(Math.Clamp(_settings.Now.AwayMinutes, Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes));
@@ -1356,7 +1362,7 @@ public partial class Stool : Node2D
             _cabinet.Screen.Flash("VOICE", "NO CLIPS OR MODEL IN THAT FOLDER", 4.0);
     });
 
-    private void Pick(string title, FileDialog.FileModeEnum mode, string[] filters, Action<string[]> picked)
+    internal void Pick(string title, FileDialog.FileModeEnum mode, string[] filters, Action<string[]> picked)
     {
         var dialog = new FileDialog
         {
