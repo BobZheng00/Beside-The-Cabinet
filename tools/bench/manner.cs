@@ -83,7 +83,10 @@ if (string.Join(",", Habits.Of("I've got a job interview next Thursday at 2pm.",
     // #193: a reply that ended at its agenda call has no words, and so no habits; the item it changed still counts as put down
     || Habits.Of("I've got a job interview next Thursday at 2pm.", "").Count != 0 || Habits.Words("") != 0
     || !PutDown(new Result("", "", "", "en", "", "", null, ["#1 Thu 29 Oct 14:00: Job interview"], [new Request("", ["agenda({})"], 0, 0, 0, 0)], 0, 0, 0, AgendaBefore: []))
-    || PutDown(new Result("", "", "", "en", "", "", null, [], [new Request("", ["agenda({})"], 0, 0, 0, 0)], 0, 0, 0, AgendaBefore: [])))
+    || PutDown(new Result("", "", "", "en", "", "", null, [], [new Request("", ["agenda({})"], 0, 0, 0, 0)], 0, 0, 0, AgendaBefore: []))
+    // #206: her words in the call's say, as she wrote them
+    || !Says(new Result("", "", "", "en", "", "", null, [], [new Request("", ["agenda({\"say\":\"Good luck.\"})", "open_link({\"say\":\"x\"})"], 0, 0, 0, 0)], 0, 0, 0))
+           .SequenceEqual(["Good luck."]))
     throw new InvalidOperationException("The habits aren't counted as they should be.");
 // and the troubles counts, on lines from docs/research/2026-10-27-natural-reactions.md (section 6 C)
 bool Has(string answer, string name, string said = "") => Habits.InTroubles(said, answer).Contains(name);
@@ -239,6 +242,13 @@ Persona CardFor(string card, string language) => language == "zh" && personas.Tr
 string? Copied(Result r) => personas.ContainsKey(r.Card) ? Habits.Copies(CardFor(r.Card, r.Language).Description, r.Answer!) : null;
 
 // an agenda call that went through: she made one, and her agenda isn't what it was before the reply
+// what she wrote in her agenda calls' say (#206), before the app left out what the screen shows (Agenda.Saying)
+static IEnumerable<string> Says(Result r) =>
+    r.Requests.SelectMany(q => q.Calls).Where(c => c.StartsWith("agenda("))
+     .Select(c => JsonDocument.Parse(c["agenda(".Length..^1]).RootElement)
+     .Select(args => args.TryGetProperty("say", out var say) && say.ValueKind == JsonValueKind.String ? say.GetString()! : "")
+     .Where(s => s.Length > 0);
+
 static bool PutDown(Result r) => r.Requests.Any(q => q.Calls.Any(c => c.StartsWith("agenda("))) && r.AgendaBefore is { } before && !before.SequenceEqual(r.Agenda);
 
 // the language she answered in, when it isn't the moment's
@@ -324,6 +334,7 @@ void Summary()
                 habits.Add($"answers in {other}");
             md.AppendLine($"- {r.Card}, {r.Variant}: {(Habits.Spoken(r.Answer!).Length == 0 ? "*(no words)*" : r.Answer!.Replace("\n", " "))}{calls}" +
                           (r.Flashed is { Count: > 0 } shown ? $" Flashed: {string.Join("; ", shown)}." : "") +
+                          (Says(r).ToList() is { Count: > 0 } says ? $" Wrote in the call's say: \"{string.Join(" ", says)}\" (shown: the reply as given)." : "") +
                           (habits.Count == 0 ? "" : $" *({string.Join(", ", habits)})*") +
                           (r.Agenda.Count == 0 ? "" : $" Agenda: {string.Join("; ", r.Agenda)}.") +
                           (r.Focus is { Count: > 0 } f ? $" Focus: {string.Join("; ", f)}." : ""));

@@ -194,6 +194,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 .SelectMany(l => ToldOf.Matches(l.Text)).Select(m => long.Parse(m.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture)))
             .ToHashSet();
         var cancelled = new Dictionary<long, string>();     // called off in this reply, with what it was
+        var setInReply = new List<Plan>();                  // put down, changed or called off in this reply
         var refused = new List<string>();                   // her agenda changes that didn't go through, and why: told to her after her reply
         // calls off or changes an item she was shown, as it is now (a reminder may have gone off while she replied, moving
         // a repeat on); one called off is done with for this reply, so a [plan] that reuses its number is never changed by
@@ -211,7 +212,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             {
                 store.DeletePlan(item.Id);
                 cancelled[item.Id] = item.Text;
-                Agended?.Invoke(new AgendaDone(AgendaChange.Cancelled, item));
+                Tell(new AgendaDone(AgendaChange.Cancelled, item));
                 return null;
             }
             if (change.Unread is { } unread)
@@ -225,8 +226,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // told to the cabinet as soon as it is done (see Agended), as the item now is
         void Did(AgendaChange change, long id)
         {
-            if (Agended is { } told && store.Agenda().FirstOrDefault(p => p.Id == id) is { } item)
-                told(new AgendaDone(change, item));
+            if (store.Agenda().FirstOrDefault(p => p.Id == id) is { } item)
+                Tell(new AgendaDone(change, item));
+        }
+        void Tell(AgendaDone done)
+        {
+            setInReply.Add(done.Item);                      // what her words with the call mayn't say again (see Ends)
+            Agended?.Invoke(done);
         }
         // an item she knows of that she may change, as it is now; or why not
         (Plan? Item, string? Why) Changeable(long id) =>
@@ -443,15 +449,28 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // said before them (flow C, spike #105) or nothing; the cabinet shows what was set (Agended). Written after the
         // result, her words reported it back (#128: the date said back in 10 of 12). A failure, or a round with another
         // tool in it, goes back to her. Only the round's last call can end it: ending at an earlier one would leave the
-        // rest unmade (FunctionInvokingChatClient stops there).
+        // rest unmade (FunctionInvokingChatClient stops there). Her few words with the calls (their say, #206) are shown
+        // once the whole round went through, if she wrote none before it, less what the screen shows (Agenda.Saying); a
+        // round that goes back to her drops them unseen.
         var roundWent = true;
+        var sayings = new List<string>();
         bool Ends(FunctionInvocationContext call)
         {
             if (call.FunctionCallIndex == 0)
+            {
                 roundWent = true;
+                sayings.Clear();
+            }
             roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
             agendaWent = false;                             // read once: a call refused before it ran (made twice, say) never counts
-            return roundWent && call.FunctionCallIndex == call.FunctionCount - 1;
+            if (call.Arguments.TryGetValue("say", out var say) && say?.ToString()?.Trim() is { Length: > 0 } words)
+                sayings.Add(words);
+            if (!roundWent || call.FunctionCallIndex != call.FunctionCount - 1)
+                return false;
+            if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone))
+                && Agenda.Saying(string.Join(" ", sayings), setInReply) is { Length: > 0 } shown)
+                Show(stage.Feed(shown));
+            return true;
         }
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)
         {

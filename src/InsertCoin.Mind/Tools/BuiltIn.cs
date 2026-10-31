@@ -83,7 +83,9 @@ public static class BuiltIn
              [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. On a change, only if it moves")] string? when = null,
              [Description("What it is, a few words in the player's language (on a change, only to rename it)")] string? what = null,
              [Description("With remind before: how many minutes ahead (10, 60 for an hour, 1440 for a day)")] int? minutes_before = null,
-             [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null) =>
+             [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null,
+             // her words as she puts it down: read by Conversation once the round goes through (Agenda.Saying), not here
+             [Description("A few words of your own to the player as you put it down. The cabinet's screen shows them what and when")] string? say = null) =>
                 act(action.Trim().ToLowerInvariant(), remind.Trim().ToLowerInvariant().Replace('_', ' '), item, when, what, minutes_before, repeat),
             AgendaName,
             "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. Add " +

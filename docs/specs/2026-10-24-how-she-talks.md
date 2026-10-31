@@ -173,6 +173,21 @@ Each step is usable on its own.
    then 0; all 12 put the item down, and all 12 had no words, the flash saying what was set (one call that failed went
    back to her and was put right, still silently). 13 requests, 41,810 input tokens. The manner check counts a reply
    with no words, and one that put something on the agenda, since then.
+
+   *Her few words with the call (#206, the user, 2026-10-31: "I would imagine a simple response is still needed. For
+   example 'got it, would u like me to remind you at the time?' Or just 'okay got it'. what we want to avoid is the
+   response after the tool call").* The agenda tool takes `say`, her words as she puts it down. The reply still ends at
+   the call. Once the round went through, and only when she wrote nothing before it, `say` is shown (bubble, voice,
+   text), less what the screen shows, in code (`Agenda.Saying`): any sentence naming a day or time (in English or
+   Chinese), the item's own words, or the filing ("on the agenda", "I'll remind you", unless asked), and at most 12
+   words or 20 Chinese characters, whole sentences only. Nothing left: the flash alone. A round that goes back to her
+   drops it unseen. The "jot it down" line made way for a line saying the screen shows what and when, and that what
+   she says then goes in `say`. The billed check (`<tools>\manner-bench\run-206b`, the same 12 moments, 14 requests,
+   53,552 input tokens): she wrote a `say` in 12 of 12, but on this provider each was a label of the item ("Job
+   interview, Thursday at 2pm.", "Your vitamins.", 「记得给妈妈打电话。」, "Dinner with Alex is cancelled."), so the
+   trim left nothing: 12 of 12 shown no words, as run-206. Run-193's variant E, whose prompt line read "What you say
+   to them as you put it down goes in the call's say", trimmed the same way, would have shown words in 4 of 12 ("Ooh,
+   big one! You've got this!", "Got it!", "Ugh, again? I'm sorry.").
 3. **By text, a plain line under her message** with what she set.
 
    *Built 2026-10-29 (#129, with #193).* `Agenda.Receipt`: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",
