@@ -141,7 +141,8 @@ Today:
    (`OpenWindows.FrontProgram`: the foreground window's process file; the one before it while a cabinet window is in
    front) counts as a game, `RunningGame.Picked`; one still running behind other windows (`OpenWindows.RunningPrograms`,
    asked only while a session runs) is `Held`, and holds its own session quietly (`LedgerState.Held`: nothing spent, no
-   event; it starts nothing and keeps no other game's session going). None counts once the player has left the PC
+   event; it starts nothing and keeps no other game's session going; and it isn't a game being played: focus
+   pays, her voice keeps the graphics card, the player can count as away, and the day turns at 04:00). None counts once the player has left the PC
    (`Stool.LeftThePc`: the display off, `Presence.DisplayOff` from Windows' `GUID_CONSOLE_DISPLAY_STATE` through
    `PowerSettingRegisterNotification`, or `Reaching.Where` away or asleep, which playing keeps from coming by idleness
    alone, so only a locked screen or their saying they were off). The ledger pauses for idleness only when no picked

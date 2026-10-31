@@ -106,6 +106,24 @@ public class PlayProgramTests
     }
 
     [Fact]
+    public void A_session_held_behind_another_window_doesn_t_keep_the_day_from_turning_at_four()
+    {
+        var m = new Machine();
+        m.GiveTokens(4);
+        m.Now = new DateTimeOffset(2026, 10, 1, 3, 59, 0, T0.Offset);
+        m.Tick([Picked], Check, TimeSpan.Zero);
+        m.Tick([Picked], Check, TimeSpan.Zero);
+        m.Tick([Behind], Check, TimeSpan.Zero);
+
+        for (var i = 0; i < 12; i++)                        // past 04:00, still held
+            m.Tick([Behind], Check, TimeSpan.Zero);
+
+        Assert.Single(m.Events.OfType<Faded>());
+        Assert.Equal(new DateOnly(2026, 10, 1), m.State.Today!.Day);
+        Assert.NotNull(m.State.Session);
+    }
+
+    [Fact]
     public void With_a_steam_game_running_too_the_picked_program_in_front_keeps_the_clock_going_and_without_it_the_game_pauses()
     {
         var m = new Machine();

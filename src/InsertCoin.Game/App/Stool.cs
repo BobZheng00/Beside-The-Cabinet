@@ -554,8 +554,8 @@ public partial class Stool : Node2D
         new(Idle(), Presence.Locked, _listening.Conversing || _listening.Busy || _chatBox.IsOpen && !_chatBox.IsEmpty || Playing, Quiet(now.Hour),
             Reaching.Said(_chat.Store.Mark(Reaching.Mark)));
 
-    /// <summary>A game runs and isn't paused for being away from the keyboard.</summary>
-    private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false };
+    /// <summary>A game runs, isn't paused for being away from the keyboard, and isn't held behind another window.</summary>
+    private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false, Held: false };
 
     /// <summary>The away time the player chose (Settings → Your phone).</summary>
     private TimeSpan AwayAfter => TimeSpan.FromMinutes(Math.Clamp(_settings.Now.AwayMinutes, Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes));
