@@ -85,9 +85,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     private string? PlayersLanguage()
     {
-        // what she was handed ("[picture: …: what she saw]") is in her words, not theirs
+        // what she was handed isn't in their words: a text file kept word for word ("[file: x]\n…\n[end of x]"), and
+        // a picture's tag with what she saw in it ("[picture: …: what she saw]")
         var languages = store.Through(character, long.MaxValue, 200).Where(l => l.Speaker == Speaker.User)
-            .Select(l => SpokenLanguage.Of(System.Text.RegularExpressions.Regex.Replace(l.Text, @"\[[^\]]*\]", ""))).OfType<string>().ToList();
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l.Text, @"\[file: [^\]]*\].*?\[end of [^\]]*\]", "", System.Text.RegularExpressions.RegexOptions.Singleline))
+            .Select(text => SpokenLanguage.Of(System.Text.RegularExpressions.Regex.Replace(text, @"\[[^\]]*\]", ""))).OfType<string>().ToList();
         for (var i = languages.Count - 1; i > 0; i--)
             if (languages[i] == languages[i - 1])
                 return languages[i];
