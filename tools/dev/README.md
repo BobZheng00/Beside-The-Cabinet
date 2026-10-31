@@ -208,8 +208,10 @@ script's header.
   first) and written to `manner.md`, side by side. So are *copies the card* (five words in a row of the card's text, or
   six Chinese characters, or a three- or four-word sentence of its examples whole, "That's not fair.", or four Chinese
   characters of one, 「太突然了」: the side by side says what was copied), *another language* (a reply not in the
-  moment's language), and *agenda put down* (in the moments that ask for the agenda, an agenda call that changed it).
-  A persona file is filled in as the app fills it, with no name given (`{{user}}` becomes "the player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
+  moment's language), *agenda put down* (in the moments that ask for the agenda, an agenda call that changed it), and
+  *no words* (a reply that ended at its agenda call with nothing said, #193; the side by side gives what the cabinet's
+  screen flashed). A persona file is filled in as the app fills it, with no name given (`{{user}}` becomes "the
+  player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
   counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
   - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");
@@ -281,7 +283,8 @@ What a commit must pass before its pull request is marked ready, run the same wa
   (`smoke.ps1` with no options) runs everything.
 - `tools\dev\mock_mind.py <port>`: an OpenAI-compatible stand-in for the companion's mind with a fixed reply, logging
   each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
-  "ChatModel": "mock"`, and needs no key.
+  "ChatModel": "mock"`, and needs no key. Its header lists the tools it calls; "put <what> on my agenda
+  2027-01-14T14:00" (or a day) calls the agenda tool with no words before it, as GPT models do.
 - `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
   and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;

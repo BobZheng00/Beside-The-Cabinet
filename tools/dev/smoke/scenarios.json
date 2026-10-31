@@ -334,6 +334,17 @@
       "expect": ["^Agenda app: changed while open, now 1 ahead"]
     },
     {
+      "name": "agendaflash",
+      "about": "A plan the companion puts on the agenda ends the reply at the call, in one request: their reply given with the call (its say) shows in the bubble as written, and with no words no bubble is left; the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, two flashes wait for it to close and then show in turn; whole-day items of wide capitals (PHOTOGRAPHY WORKSHOP, PARENT-TEACHER CONFERENCE) show whole, at the size that fits them.",
+      "covers": ["src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Mind/Agenda.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Chat.cs", "tools/dev/mock_mind.py"],
+      "mind": true,
+      "mindRequests": 5,
+      "script": "nocall@1,chat:put_job_interview_at_Northwind_Bank_on_my_agenda_2027-01-14T14:00_saying_Next_Thursday_at_two._Got_it._Good_luck!@3,crt:memos@10,chat:put_dentist_checkup_in_town_on_my_agenda_2027-01-15@12,chat:put_gym_on_my_agenda_2027-01-16@15,crtclose@18,chat:put_photography_workshop_on_my_agenda_2027-01-17@27,chat:put_parent-teacher_conference_on_my_agenda_2027-01-18@28",
+      "shots": [6, 8, 18, 22, 26, 31, 35],
+      "desk": true,
+      "expect": ["^Agenda: the cabinet shows AGENDA: THU 14 JAN 14:00 JOB INTERVIEW AT NORTHWIND BANK$", "^Agenda: the cabinet shows AGENDA: FRI 15 JAN DENTIST CHECKUP IN TOWN$", "^Agenda: the cabinet shows AGENDA: SAT 16 JAN GYM$", "^Agenda: the cabinet shows AGENDA: SUN 17 JAN PHOTOGRAPHY WORKSHOP$", "^Agenda: the cabinet shows AGENDA: MON 18 JAN PARENT-TEACHER CONFERENCE$", "^Chat: no words came back", "^Chat: her bubble showed its first words \\d+ ms after asking"]
+    },
+    {
       "name": "reminder",
       "about": "A reminder set a few seconds ahead goes off, with its ticket.",
       "covers": ["src/InsertCoin.Game/App/Reminders.cs", "src/InsertCoin.Game/Desktop/AlertTicket.cs", "src/InsertCoin.Mind/*"],

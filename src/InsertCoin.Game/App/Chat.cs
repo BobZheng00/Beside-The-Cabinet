@@ -40,6 +40,7 @@ public sealed class Chat : IDisposable
     private CompanionView? _view;                       // where the reply under way is played
     private bool _folding, _upkeeping, _cutting;
     private bool _usedTool;                             // a tool ran in the reply under way: done, even with no words
+    private readonly List<AgendaDone> _agended = [];    // what the reply under way set on the agenda: a text carries it under her words
     private DateTimeOffset _upkeepAfter;
     private readonly Pages _pages = new(Pages.Web());
     private readonly LeetCodeProblems _leetCode = new(Http);
@@ -88,7 +89,7 @@ public sealed class Chat : IDisposable
             if (_view is not { } view || !GodotObject.IsInstanceValid(view) || tool.Name == "print_memo")
                 return;                                     // a memo is sent instead (see PrintMemo)
             if (tool.Name == BuiltIn.AgendaName)
-                view.Play(Moment.Note);                     // she jots it down as she says it, and her reply goes on
+                view.Play(Moment.Note);                     // she jots it down; if it goes through, her reply ends there and the cabinet flashes it
             else
                 view.Working();
         };
@@ -333,6 +334,9 @@ public sealed class Chat : IDisposable
     public string? Replied { get; private set; }
     public Conversation? Conversation => _conversation;
 
+    /// <summary>Her reply put an item on the agenda, changed it or called it off, just now: the cabinet shows it.</summary>
+    public event Action<AgendaDone>? Agended;
+
     /// <summary>What her voice makes of her latest reply (whether it is subtitled, say); null once she was cut off.</summary>
     public Speech? Speech => _speech;
 
@@ -421,7 +425,15 @@ public sealed class Chat : IDisposable
     public void Seat(string characterId, Persona persona)
     {
         _answering?.Cancel();
-        _conversation = new Conversation(Store, characterId, persona) { Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns };
+        _conversation = new Conversation(Store, characterId, persona)
+        {
+            Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns,
+            Agended = done =>
+            {
+                _agended.Add(done);
+                Agended?.Invoke(done);
+            },
+        };
         _recorded = default;                                // their diary catches up on the days too
     }
 
@@ -565,26 +577,30 @@ public sealed class Chat : IDisposable
     /// Has her write what the cabinet asks as a text to the player's phone, as they are away from the PC (see
     /// <see cref="Reaching"/>): written as a remark is and kept in the conversation, but nothing is shown, acted or said
     /// here. Her words as shown, or null when none came: her mind failed, or took longer than <paramref name="within"/>,
-    /// and then nothing of hers is kept either.
+    /// and then nothing of hers is kept either; or her reply was only an agenda call. With what that reply set on the
+    /// agenda, for the app's line under her words (see <see cref="Reaching.TextOf"/>).
     /// </summary>
-    public async Task<string?> Text(string note, string situation, CompanionView view, string? voiceLanguage, TimeSpan? within = null)
+    public async Task<(string? Words, IReadOnlyList<AgendaDone> Set)> Text(string note, string situation, CompanionView view, string? voiceLanguage,
+                                                                          TimeSpan? within = null)
     {
         if (!Ready || Answering)
-            return null;
+            return (null, []);
         await Respond(note, fromCabinet: true, fallback: null, situation, view, speech: null, voiceLanguage, texting: true, within: within);
-        return Replied;
+        return (Replied, [.. _agended]);
     }
 
     /// <summary>
     /// Has her answer what the player texted her from their phone (see <see cref="Reaching.Texted"/>): as she answers at
-    /// the PC, and kept in the conversation, but nothing is shown or said here. Her words as shown, or null when none came.
+    /// the PC, and kept in the conversation, but nothing is shown or said here. Her words as shown, or null when none
+    /// came, with what her reply set on the agenda, for the app's line under them (see <see cref="Agenda.Receipted"/>).
     /// </summary>
-    public async Task<string?> TextBack(string said, IReadOnlyList<Attachment> handed, string situation, CompanionView view, string? voiceLanguage)
+    public async Task<(string? Words, IReadOnlyList<AgendaDone> Set)> TextBack(string said, IReadOnlyList<Attachment> handed, string situation,
+                                                                              CompanionView view, string? voiceLanguage)
     {
         if (!Ready || Answering)
-            return null;
+            return (null, []);
         await Respond(said, fromCabinet: false, fallback: null, situation, view, speech: null, voiceLanguage, handed: handed, texting: true, aside: Reaching.Texted);
-        return Replied;
+        return (Replied, [.. _agended]);
     }
 
     private async Task Respond(string said, bool fromCabinet, string? fallback, string situation, CompanionView view, Speech? speech, string? voiceLanguage,
@@ -623,6 +639,7 @@ public sealed class Chat : IDisposable
         var refused = Tools.Refused;
         _usedTool = false;
         _wordsOut = false;
+        _agended.Clear();
         bool Here() => GodotObject.IsInstanceValid(view) && conversation == _conversation;     // not swapped for someone else meanwhile
         var clock = Stopwatch.StartNew();
         long? shown = null;

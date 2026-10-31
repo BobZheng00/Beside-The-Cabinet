@@ -179,6 +179,7 @@ public partial class Stool : Node2D
             change.Plainly + (change.Shortened ? "\nAll of it is under See the change." : ""), cancel, change.Lines);
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
+        _chat.Agended += Agended;
         _permission = new PermissionCard();
         AddChild(_permission);
         _chat.Plan.Stopping += why => Callable.From(() => { _ = TellPlan(why); }).CallDeferred();
@@ -346,6 +347,20 @@ public partial class Stool : Node2D
     public void Remind(IReadOnlyList<Plan> due, DateTimeOffset now) =>
         Hand(new Telling("REMINDER", Agenda.Announcement(due, now, _settings.Now.ReminderLead), Lines.Reminder(due, now), Matters.Must, Anywhere: true, now,
                          TimeSpan.FromMinutes(10), Ticketed: true, Plain: !_settings.Now.ReminderSpoken, Greet: true));
+
+    /// <summary>How long the cabinet's screen shows what she put on the agenda: three lines to read.</summary>
+    private const double AgendaFlashSeconds = 4.0;
+
+    /// <summary>
+    /// What her reply just set on the agenda, flashed on the cabinet's screen as it reports her other tools (#193): her
+    /// reply ends at the call, so this is what shows it landed. Several take turns (the screen keeps the order).
+    /// </summary>
+    private void Agended(AgendaDone done)
+    {
+        var (big, caption) = Agenda.Flash(done);
+        GD.Print($"Agenda: the cabinet shows {big}: {caption.Replace('\n', ' ')}");
+        _cabinet.Screen.Flash(big, caption, AgendaFlashSeconds, waits: true);
+    }
 
     // ---- Check-ins: how did it go? ---------------------------------------------------------------------------------
 
@@ -752,6 +767,7 @@ public partial class Stool : Node2D
     private async Task TextIt(Telling telling, Whereabouts where, bool herMind = true)
     {
         string? words = null;
+        IReadOnlyList<AgendaDone> set = [];                 // what her reply set on the agenda: the app's line for it goes too
         if (!herMind && telling.Line.Length > 0)
         {
             GD.Print("Reaching: she waits on a question by text; the plain line goes meanwhile");
@@ -762,8 +778,8 @@ public partial class Stool : Node2D
             _announcing = _texting = _chat.Tools.Away = true;
             try
             {
-                words = await _chat.Text($"{telling.Note}\n{Reaching.AsText}", Situation(), Her, _voice.Language,
-                                         telling.Matters == Matters.Must ? Reaching.HerWordsWithin : null);
+                (words, set) = await _chat.Text($"{telling.Note}\n{Reaching.AsText}", Situation(), Her, _voice.Language,
+                                                telling.Matters == Matters.Must ? Reaching.HerWordsWithin : null);
             }
             catch (Exception e)
             {
@@ -775,13 +791,11 @@ public partial class Stool : Node2D
             }
             if (words is null && telling.Line.Length > 0)
             {
-                GD.Print("Reaching: her words didn't come in time; the plain line goes");
+                GD.Print("Reaching: no words of hers came (in time); the plain line goes");
                 _chat.Said(telling.Line);                   // so she knows what reached them
             }
         }
-        var notice = words is { Length: > 0 } ? new Notice(HerName(), words, Hers: true)
-                     : telling.Line.Length > 0 ? new Notice(telling.Heading, telling.Line)
-                     : null;
+        var notice = Reaching.TextOf(telling, HerName(), words, set, _settings.Now.ReminderLead);
         if (notice is null)
         {
             GD.Print($"Reaching: {telling.Title} not texted: only her mind says it, and it {(telling.Matters == Matters.Could ? "let it be" : "couldn't")}");
@@ -847,8 +861,10 @@ public partial class Stool : Node2D
                 _chat.Conversation?.Witness(Reaching.TextingBegins);
             _texted = true;
             phone.Typing();
-            if (await _chat.TextBack(said, handed, Situation(), Her!, _voice.Language) is { } words)
-                await phone.Send(words);
+            var (words, set) = await _chat.TextBack(said, handed, Situation(), Her!, _voice.Language);
+            // the app's plain line for what she set comes under her words, or is the message when she said none (#129)
+            if (Agenda.Receipted(words ?? "", set, _settings.Now.ReminderLead) is { Length: > 0 } text)
+                await phone.Send(text);
         }
         catch (Exception e)
         {
@@ -866,12 +882,13 @@ public partial class Stool : Node2D
         if (Phone is not { } phone)
             return;
         string? words = null;
+        IReadOnlyList<AgendaDone> set = [];
         if (_chat.Ready && Her is not null && !Busy)
         {
             _announcing = _texting = true;
             try
             {
-                words = await _chat.Text("The player has just paired their phone with you on Telegram, so that you can text each other while they're " +
+                (words, set) = await _chat.Text("The player has just paired their phone with you on Telegram, so that you can text each other while they're " +
                                          "away from the PC. Say hello there, in a short text.", Situation(), Her, _voice.Language, Reaching.HerWordsWithin);
             }
             finally
@@ -879,7 +896,7 @@ public partial class Stool : Node2D
                 _announcing = _texting = false;
             }
         }
-        await phone.Send(words ?? $"Hi! It's {HerName()}. Text me here when you're away from the PC.");
+        await phone.Send(Agenda.Receipted(words ?? $"Hi! It's {HerName()}. Text me here when you're away from the PC.", set, _settings.Now.ReminderLead));
     }
 
     // ---- Her focus and music tools ---------------------------------------------------------------------------------------

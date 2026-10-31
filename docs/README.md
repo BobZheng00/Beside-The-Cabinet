@@ -161,9 +161,15 @@ They remember:
   interview", "vitamins every day at 8": a reminder can be some time ahead of its item and can repeat daily, on
   weekdays, weekly or monthly). Ask them to cancel something, move it, rename it, change or remove its reminder or
   stop it repeating, and they do it in that reply, to that same item, however far ahead it is; an item from a calendar you linked stays as the
-  calendar has it. They write it down as they say it ("Friday, half three, the dentist"), with a quick note on a pad,
-  and that line is all they say about it; something they set always has a reminder chosen (none, at the time, or
-  some time before), so they never promise one that isn't there. What the cabinet can't do (a time it can't read, a
+  calendar has it. They write it down with a quick note on a pad, and the cabinet's screen flashes what was set:
+  AGENDA (or CHANGED, or CANCELLED), the day and time, and the item, on two lines at most (a longer one ends "...";
+  all of it is in AGENDA); with an app open on the screen, the flashes wait until it closes, then show in turn. Their reply ends there:
+  whatever they said before writing it down stays, and nothing is said after it, so they don't read the date back to
+  you after the fact. What they reply as they write it down comes with it, as they said it ("Next Thursday at two.
+  Got it. Good luck with it."); if they say nothing, the flash says it alone; by text, the app's own line under their message says what was set ("Agenda: Thu 29 Oct, 14:00, Job interview
+  (reminder 13:00)"), and is the whole message when they said nothing (a reminder texted to you still comes in its
+  own plain words then, with that line under it). Something they set always has a reminder
+  chosen (none, at the time, or some time before), so they never promise one that isn't there. What the cabinet can't do (a time it can't read, a
   repeat it doesn't have such as every other week, an item that isn't there) is left undone, and they hear at once
   and say so in the same reply. With a provider whose model has no tools, they write it into their reply instead,
   and a change that can't be made, or that has something the cabinet can't read beside what it can (such as "every
@@ -220,7 +226,8 @@ bring it up in person.
 On Telegram you can text your companion back, from anywhere (Settings → Your phone, "Text with … on Telegram": make
 a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). They answer by text,
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
-reach them. A card by text waits two minutes, as on the PC: press a button, or type a short "yes", "always" or "no"
+reach them. What they put on your agenda, change or cancel comes as a plain line from the app under their message
+("Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)"; "Agenda, changed: …", "Agenda, cancelled: …"). A card by text waits two minutes, as on the PC: press a button, or type a short "yes", "always" or "no"
 (in Chinese, Japanese or Korean too); anything else you send leaves it unanswered, and then nothing it asked about is
 done (the chat says so). Only what you send after the card arrives answers it. A reminder due meanwhile still reaches you. What needs you at the PC (your screen, opening things) waits until you're back. What you texted while the
 cabinet was closed (Telegram keeps it a day) they read when it next runs, and answer once. Only your chat is listened

@@ -261,4 +261,23 @@ public class ReachingTests
                         sent[0].Text);
         Assert.Contains("Only when they are going now, not for plans later on.", sent[0].Text);
     }
+
+    [Fact]
+    public void A_reminder_texted_while_she_only_sets_something_on_the_agenda_still_reaches_them_with_the_app_s_line_under_it()
+    {
+        var reminder = new Telling("REMINDER", "note", "Reminder: stretch.", Matters.Must, true, Noon, TimeSpan.FromMinutes(10));
+        var check = new Telling("CHECK-IN", "note", "", Matters.Could, true, Noon, TimeSpan.FromMinutes(10));
+        Plan Item(string what) => new(3, what, Noon.AddDays(1), false, null, null, Noon, "shino");
+        AgendaDone[] set = [new(AgendaChange.Added, Item("Stretch"))];
+
+        // her reply was only an agenda call (#193 ends it there): the reminder's own line goes, not the receipt alone (QA on #206)
+        Assert.Equal(new Notice("Reminder", "Reminder: stretch.\n\nAgenda: Sun 11 Oct, 12:00, Stretch"), Reaching.TextOf(reminder, "Shino", null, set));
+        Assert.Equal(new Notice("Reminder", "Reminder: stretch.\n\nAgenda: Sun 11 Oct, 12:00, Stretch"), Reaching.TextOf(reminder, "Shino", "  ", set));
+        // her words, with the line under them; neither, the plain line alone
+        Assert.Equal(new Notice("Shino", "Time to stretch!\n\nAgenda: Sun 11 Oct, 12:00, Stretch", Hers: true), Reaching.TextOf(reminder, "Shino", "Time to stretch!", set));
+        Assert.Equal(new Notice("Reminder", "Reminder: stretch."), Reaching.TextOf(reminder, "Shino", null, []));
+        // something only her mind says, with nothing set, isn't sent; with something set, the app's line is
+        Assert.Null(Reaching.TextOf(check, "Shino", null, []));
+        Assert.Equal(new Notice("Check-in", "Agenda: Sun 11 Oct, 12:00, Stretch"), Reaching.TextOf(check, "Shino", null, set));
+    }
 }

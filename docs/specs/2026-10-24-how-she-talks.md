@@ -153,4 +153,52 @@ Each step is usable on its own.
    lines saying she asks drove it in #143's runs.
 2. **The agenda result handed back as known.** It builds on #114/#115 and step 1, and replaces the "jot it down" line.
    It is measured with the manner check before and after, stock openers included.
+
+   *Measured, then the fallback built 2026-10-29 (#193).* The result handed back as known didn't move the habits (#128:
+   the date said back in 10 of 12, the bookkeeping narrated in 8 of 12), nor did her words carried in the call or her
+   reply asked again without the call (the spike and probe on #193: 9 to 10 of 12 said the date back). So **the silent
+   call**: an agenda round whose calls all went through ends her reply, decided in code (`Conversation.Ends`), with
+   whatever she wrote before it (flow C) or nothing. A failed call, or a round with another tool in it, still goes back
+   to her. **The CRT flash** shows what landed (the user, 2026-10-28: "A line from the cabinet would be good. pron not
+   on the marquee since the text can be long"): AGENDA, CHANGED or CANCELLED, the day and time, and the item on up to
+   two lines broken at words, never inside a character, planned at about 23 capitals a line (`Agenda.Flash`,
+   `CrtCaption`). The screen measures each line in its real font: the larger size only when every line fits it, and
+   a caption of three lines or more, as the label draws them, takes the hidden fuel bar's space, so a line of wide
+   capitals or emoji that wraps once more than planned is still shown whole. Four seconds each, one after another in
+   a single queue the screen keeps; with an app open on the screen they wait for the readout to unfold. Her
+   note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
+   drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed check
+   after it (`<tools>\manner-bench\run-206`, #128's six agenda moments, Shino's card and the plain one, against
+   run-193's main): of 12 replies, the date said back 10 then 0, the bookkeeping narrated 6 then 0, stock openers 3
+   then 0; all 12 put the item down, and all 12 had no words, the flash saying what was set (one call that failed went
+   back to her and was put right, still silently). 13 requests, 41,810 input tokens. The manner check counts a reply
+   with no words, and one that put something on the agenda, since then.
+
+   *Her reply with the call (#206, the user, 2026-10-31: "I would imagine a simple response is still needed. For
+   example 'got it, would u like me to remind you at the time?' Or just 'okay got it'. what we want to avoid is the
+   response after the tool call"; then, on a trim in code: "Isn't repeating the time okay? But need to be natural like
+   '2pm on Thursday? Got it' I'm trying not to cap the LLM by post processing it. Try to tune the LLM itself").* The
+   agenda tool takes `say`, her reply as she puts it down. The reply still ends at the call. Once the round went
+   through, and only when she wrote nothing before it, `say` is shown as she wrote it (bubble, voice, text, with the
+   app's line under it by text); a round that goes back to her drops it unseen. Nothing of it is cut in code: what she
+   writes there is the wording's to ask for. The "jot it down" line made way for "Your reply to what they told you goes
+   in the call's say, said as you put it down: it is all you say then, and you will hear only if it doesn't go
+   through", and `say` is described as "Your reply to what the player just told you, said as you put it down".
+   Measured on #128's 12 agenda moments, billed (`<tools>\manner-bench\run-206b` and `run-206c`):
+   - "A few words of your own … the cabinet's screen shows them what and when" (round 4, with a trim since dropped):
+     12 of 12 were labels of the item ("Job interview, Thursday at 2pm.", "Your vitamins.").
+   - "reply" (kept): a reaction in 4 of 12; the date said back 10, the bookkeeping 6, stock openers 3 (main's own
+     numbers in run-193, in one request instead of two).
+   - "reply", with the screen named ("As it goes down, the cabinet's screen shows them what and when. What you say back
+     to them goes in the call's say, as you would reply to what they told you"): a reaction in 4 of 12; the date 10,
+     the bookkeeping 8, stock openers 4.
+
+   Every line is on #193 for the user to read: they judge the wording by how natural the lines are.
 3. **By text, a plain line under her message** with what she set.
+
+   *Built 2026-10-29 (#129, with #193).* `Agenda.Receipt`: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",
+   "Agenda, changed: …", "Agenda, cancelled: …", in English as the app's other lines by text are, under her words after
+   a blank line, or the whole message when the reply ended silently; never an empty message. It covers what she sets
+   through the tool and through her tags, and every text of hers (an answer on Telegram, a text she sends while the
+   player is out). Something the cabinet had her pass on (a reminder) whose reply was only an agenda call goes as its
+   own plain line, with the app's line under it (`Reaching.TextOf`): what must reach them always does.

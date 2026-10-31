@@ -40,6 +40,16 @@ public sealed record Plan(long Id, string Text, DateTimeOffset At, bool AllDay, 
 /// <summary>What a direction or upkeep asks to put on the agenda.</summary>
 public sealed record PlanSpec(DateTimeOffset At, bool AllDay, string Text, TimeSpan? Before, Repeat Repeat);
 
+/// <summary>What her reply did to an item on the agenda.</summary>
+public enum AgendaChange { Added, Changed, Cancelled }
+
+/// <summary>
+/// An item her reply put on the agenda or changed, as it now is, or called off, as it was: the cabinet shows it
+/// (<see cref="Agenda.Flash"/>), and a text carries it under her words (<see cref="Agenda.Receipt"/>), so her own words
+/// needn't report it (#193).
+/// </summary>
+public sealed record AgendaDone(AgendaChange Change, Plan Item);
+
 /// <summary>
 /// The player's agenda as she sees it: what is coming up in the next week and what has just passed (so she can ask
 /// how it went) go into every turn; reminders go off at their time; a repeating item moves on to its next time;
@@ -313,6 +323,75 @@ public static partial class Agenda
         return due.Count == 1
             ? $"A reminder the player set is going off: {One(due[0])}. Tell them in one or two short sentences, in your own words."
             : $"Reminders the player set are going off: {string.Join("; ", due.Select(One))}. Tell them in one to three short sentences, in your own words.";
+    }
+
+    /// <summary>
+    /// The app's plain line for a text, under her words: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",
+    /// "Agenda, changed: …", "Agenda, cancelled: …". The same in every language she writes in, as the app's other lines are.
+    /// </summary>
+    public static string Receipt(AgendaDone done, TimeSpan? lead = null)
+    {
+        var p = done.Item;
+        var reminder = done.Change == AgendaChange.Cancelled || p.RemindAt(lead) is not { } goesOff ? ""
+            : $" (reminder {goesOff.ToString(goesOff.Date == p.At.Date ? "HH:mm" : "ddd d MMM HH:mm", English)})";
+        var repeat = p.Repeat == Repeat.Once ? "" : $", {Describe(p.Repeat)}";
+        var heading = done.Change switch { AgendaChange.Changed => "Agenda, changed", AgendaChange.Cancelled => "Agenda, cancelled", _ => "Agenda" };
+        return $"{heading}: {p.At.ToString(p.AllDay ? "ddd d MMM" : "ddd d MMM, HH:mm", English)}, {p.Text}{repeat}{reminder}";
+    }
+
+    /// <summary>Her words for a text with the app's line for each item her reply set under them; empty when there is neither.</summary>
+    public static string Receipted(string words, IEnumerable<AgendaDone> done, TimeSpan? lead = null)
+    {
+        var lines = string.Join("\n", done.Select(d => Receipt(d, lead)));
+        return words.Trim() is { Length: > 0 } said ? lines.Length > 0 ? $"{said}\n\n{lines}" : said : lines;
+    }
+
+    /// <summary>
+    /// What the cabinet's screen flashes for it: AGENDA, CHANGED or CANCELLED, then the day and time, and the item on up
+    /// to two lines of its own, broken at words; one longer still ends "..." (the whole of it is in AGENDA). Its lines are
+    /// planned for the caption's smaller size (<see cref="CrtCaption.SmallLine"/>); the screen measures and makes room.
+    /// </summary>
+    public static (string Big, string Caption) Flash(AgendaDone done)
+    {
+        var p = done.Item;
+        var big = done.Change switch { AgendaChange.Changed => "CHANGED", AgendaChange.Cancelled => "CANCELLED", _ => "AGENDA" };
+        return (big, p.At.ToString(p.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", English).ToUpperInvariant() + "\n" +
+                     Wrapped(p.Text.Trim().ToUpperInvariant(), CrtCaption.SmallLine, 2));
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> on at most <paramref name="lines"/> lines of <paramref name="width"/> (see
+    /// <see cref="CrtCaption.Width"/>), broken at a space where there is one in the line's second half, never inside a
+    /// character (an emoji is two halves); what doesn't fit ends "...".
+    /// </summary>
+    private static string Wrapped(string text, int width, int lines)
+    {
+        var left = CrtCaption.Elements(text);
+        var shown = new List<string>();
+        while (left.Count > 0)
+        {
+            if (left.Sum(CrtCaption.Wide) <= width)
+            {
+                shown.Add(string.Concat(left));
+                break;
+            }
+            var last = shown.Count == lines - 1;
+            var room = last ? width - 3 : width;            // the last line keeps room for its "..."
+            var (end, used) = (0, 0);
+            while ((used += CrtCaption.Wide(left[end])) <= room)    // left[..end] fits
+                end++;
+            var space = left.LastIndexOf(" ", end);
+            var cut = space > end / 2 ? space : end;
+            var line = string.Concat(left.Take(cut));
+            if (last)
+            {
+                shown.Add(line.TrimEnd(' ', ',', '-') + "...");
+                break;
+            }
+            shown.Add(line.TrimEnd());
+            left = [.. left.Skip(cut).SkipWhile(e => e == " ")];
+        }
+        return string.Join("\n", shown);
     }
 
     /// <summary>
