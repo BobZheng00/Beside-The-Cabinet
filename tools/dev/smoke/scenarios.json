@@ -97,13 +97,13 @@
     },
     {
       "name": "playprogram-held",
-      "about": "A picked program's session held behind another window isn't a game being played: a focus part then pays for its time, and the player going away with no input (afk) counts as away, which ends the held session, with no word of it going on.",
+      "about": "A picked program's session held behind another window isn't a game being played: the alarm lights of a game played on credit go off, a focus part shows its countdown on the screen (the shot at 20 s) and pays for its time, and the player going away with no input (afk) counts as away, which ends the held session, with no word of it going on.",
       "covers": ["src/InsertCoin.Game/App/Focus.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs"],
       "settings": ", \"PlayPrograms\": [{\"Path\": \"C:\\\\Windows\\\\notepad.exe\", \"Name\": \"Notepad\"}]",
       "script": "nocall@1,frontprogram:C:\\Windows\\notepad.exe@2,frontprogram:behind@8,focus@14,focus:skip@26,whereabouts:off@28,afk@29,trayitems@40",
       "shots": [20, 45],
       "expect": ["^Main: a session starts: Notepad$", "^Main: the session is held, its program behind another window$", "^Main: focus pays for [1-9]\\d* s focused$",
-                 "^Reaching: the player is away", "^Main: the session ends: Notepad, \\d+ s played$"],
+                 "^Main: the alarm lights go on, out of time in a game$", "^Main: the alarm lights go off$", "^Reaching: the player is away", "^Main: the session ends: Notepad, \\d+ s played$"],
       "forbid": ["^Main: the session goes on"]
     },
     {

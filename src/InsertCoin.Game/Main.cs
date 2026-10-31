@@ -66,7 +66,7 @@ public partial class Main : Node2D
     private int _leetCodeOn;                                // how many times LeetCode has been turned on to earn: a poll asked before the latest doesn't set the next one's wait
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
-    private bool _displayOff;                               // as last logged
+    private bool _displayOff, _alarm;                       // as last logged
 
     public override void _Ready()
     {
@@ -526,7 +526,7 @@ public partial class Main : Node2D
             Fuel = Math.Max(0, s.FuelMs - since) / (float)_rules.TokenMs,
             Streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules),
             BestStreak = s.BestStreak,
-            Playing = s.Session is not null,
+            Playing = Gaming,                               // held behind another window, the screen is as with no game (a focus countdown shows)
             Status = StatusLine(),
             TodayEarnedMs = s.Today?.EarnedMs ?? 0,
             TodayCapMs = s.Today?.CapMs ?? 0,
@@ -553,7 +553,10 @@ public partial class Main : Node2D
         _stool.Her?.SetScreenLight(power);
         SetPace();
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
-        if (balance && s.Session is not null && shownLeft == 0)
+        var alarm = balance && Gaming && shownLeft == 0;    // out of time in a game being played: nothing is charged while held
+        if (alarm != _alarm)
+            GD.Print($"Main: the alarm lights {((_alarm = alarm) ? "go on, out of time in a game" : "go off")}");
+        if (alarm)
             _cabinet.Lights.SetModeIfNot(LightMode.Alarm);
         else
             _cabinet.Lights.SetModeIfNot(LightMode.Chase, onlyFrom: LightMode.Alarm);
