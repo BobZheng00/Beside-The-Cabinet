@@ -346,36 +346,6 @@ public static partial class Agenda
         return words.Trim() is { Length: > 0 } said ? lines.Length > 0 ? $"{said}\n\n{lines}" : said : lines;
     }
 
-    /// <summary>The most of her words with an agenda call that are shown: words, or Chinese, Japanese or Korean characters.</summary>
-    public const int MostSaidWords = 12, MostSaidCharacters = 20;
-
-    /// <summary>
-    /// What is shown of the words she gave with her agenda calls (their <c>say</c>, #206): the cabinet's screen already
-    /// shows what and when, so any sentence that names a day or time, any of <paramref name="items"/>' own words, or
-    /// the filing itself ("it's on the agenda", "I'll remind you", unless asked as a question) is left out, and what is
-    /// left is kept to a few words, whole sentences only. Empty when nothing is left: the flash speaks for itself.
-    /// </summary>
-    public static string Saying(string say, IEnumerable<Plan> items)
-    {
-        var named = items.SelectMany(p => Recall.Terms(p.Text)).ToHashSet();
-        var kept = new List<string>();
-        var (words, characters) = (0, 0);
-        // a piece with no word in it ("m." of "p.m.") is no sentence
-        foreach (var sentence in SentenceEnd().Split(say.Trim()).Select(s => s.Trim()).Where(s => s.Any(c => c >= '⺀') || Regex.IsMatch(s, @"\p{L}{2}")))
-        {
-            var plain = sentence.ToLowerInvariant();
-            if (TimeWords().IsMatch(plain) || SaidWhen().IsMatch(plain) || Recall.Terms(sentence).Any(named.Contains)
-                || !QuestionEnd().IsMatch(sentence) && SaidFiling().IsMatch(plain))
-                continue;
-            var cjk = sentence.Count(c => c >= '⺀');
-            (words, characters) = (words + sentence.Split(' ', StringSplitOptions.RemoveEmptyEntries).Count(w => w.Any(char.IsLetter) && w.All(c => c < '⺀')), characters + cjk);
-            if (words > MostSaidWords || characters > MostSaidCharacters)
-                break;
-            kept.Add(sentence);
-        }
-        return string.Join(kept.Any(s => s.Any(c => c >= '⺀')) ? "" : " ", kept);
-    }
-
     /// <summary>
     /// What the cabinet's screen flashes for it: AGENDA, CHANGED or CANCELLED, then the day and time, and the item on up
     /// to two lines of its own, broken at words; one longer still ends "..." (the whole of it is in AGENDA). Its lines are
@@ -509,21 +479,4 @@ public static partial class Agenda
                     @"|(?<!\b(every|each)\s+)\b(mon|tue|tues|wed|wednes|thu|thur|thurs|fri|sat|satur|sun)(day)?s?\b" +
                     @"|\b(january|february|march|april|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\b")]
     private static partial Regex TimeWords();
-    // what her words with an agenda call may not say, beyond TimeWords (see Saying): a time in figures or as a clock
-    // reads in words, a repeat, a reminder's lead; in Chinese, days, dates and times of day
-    [GeneratedRegex(@"\d|\bo'?clock\b|\bhalf\s+past\b|\bquarter\s+(past|to)\b|\b(every|each)\s+\w+|\b(daily|weekly|monthly|weekdays?)\b" +
-                    @"|\b(at|by|until|till|around|before|after|from)\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b" +
-                    @"|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)[\s-]+(thirty|fifteen|forty|hours?|minutes?|days?|weeks?)\b" +
-                    @"|\b(an?|half\s+an?)\s+(hour|minute|day|week)\s+(before|ahead|early|earlier)\b" +
-                    @"|周[一二三四五六日天末]|星期|礼拜|[零一二两三四五六七八九十]+\s*[号日点月]|[今明后昨]天|今晚|明早|明晚|[下这本上]周|下个|下星期|上午|下午|晚上|早上|中午|凌晨|傍晚|每[天周月日]")]
-    private static partial Regex SaidWhen();
-    // the filing told back: what the cabinet's screen shows already
-    [GeneratedRegex(@"\b(agenda|calendar|schedule[ds]?|noted|jotted|added|written|marked|logged|moved|cancell?ed|taken\s+(it\s+)?off|put\s+(\w+\s+)?down" +
-                    @"|set\s+(it|that|a\s+reminder|the\s+reminder|up)|i'?ll\s+remind|remind\s+you|reminder('?s|\s+is)?\s+(set|on|stays|is\s+set)|on\s+(the|your)\s+list|(it|that)'?s\s+(down|in))\b" +
-                    @"|记下|记好|记上|记住了|加到|加上|日程|安排上|设好|提醒你|取消了|改到|挪到|删掉")]
-    private static partial Regex SaidFiling();
-    [GeneratedRegex(@"(?<=[.!?。！？…][""”’)]*)(?![.!?。！？…""”’)])\s*")]
-    private static partial Regex SentenceEnd();
-    [GeneratedRegex(@"[?？][\s""”’)]*$")]
-    private static partial Regex QuestionEnd();
 }

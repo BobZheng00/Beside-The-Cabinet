@@ -174,20 +174,26 @@ Each step is usable on its own.
    back to her and was put right, still silently). 13 requests, 41,810 input tokens. The manner check counts a reply
    with no words, and one that put something on the agenda, since then.
 
-   *Her few words with the call (#206, the user, 2026-10-31: "I would imagine a simple response is still needed. For
+   *Her reply with the call (#206, the user, 2026-10-31: "I would imagine a simple response is still needed. For
    example 'got it, would u like me to remind you at the time?' Or just 'okay got it'. what we want to avoid is the
-   response after the tool call").* The agenda tool takes `say`, her words as she puts it down. The reply still ends at
-   the call. Once the round went through, and only when she wrote nothing before it, `say` is shown (bubble, voice,
-   text), less what the screen shows, in code (`Agenda.Saying`): any sentence naming a day or time (in English or
-   Chinese), the item's own words, or the filing ("on the agenda", "I'll remind you", unless asked), and at most 12
-   words or 20 Chinese characters, whole sentences only. Nothing left: the flash alone. A round that goes back to her
-   drops it unseen. The "jot it down" line made way for a line saying the screen shows what and when, and that what
-   she says then goes in `say`. The billed check (`<tools>\manner-bench\run-206b`, the same 12 moments, 14 requests,
-   53,552 input tokens): she wrote a `say` in 12 of 12, but on this provider each was a label of the item ("Job
-   interview, Thursday at 2pm.", "Your vitamins.", 「记得给妈妈打电话。」, "Dinner with Alex is cancelled."), so the
-   trim left nothing: 12 of 12 shown no words, as run-206. Run-193's variant E, whose prompt line read "What you say
-   to them as you put it down goes in the call's say", trimmed the same way, would have shown words in 4 of 12 ("Ooh,
-   big one! You've got this!", "Got it!", "Ugh, again? I'm sorry.").
+   response after the tool call"; then, on a trim in code: "Isn't repeating the time okay? But need to be natural like
+   '2pm on Thursday? Got it' I'm trying not to cap the LLM by post processing it. Try to tune the LLM itself").* The
+   agenda tool takes `say`, her reply as she puts it down. The reply still ends at the call. Once the round went
+   through, and only when she wrote nothing before it, `say` is shown as she wrote it (bubble, voice, text, with the
+   app's line under it by text); a round that goes back to her drops it unseen. Nothing of it is cut in code: what she
+   writes there is the wording's to ask for. The "jot it down" line made way for "Your reply to what they told you goes
+   in the call's say, said as you put it down: it is all you say then, and you will hear only if it doesn't go
+   through", and `say` is described as "Your reply to what the player just told you, said as you put it down".
+   Measured on #128's 12 agenda moments, billed (`<tools>\manner-bench\run-206b` and `run-206c`):
+   - "A few words of your own … the cabinet's screen shows them what and when" (round 4, with a trim since dropped):
+     12 of 12 were labels of the item ("Job interview, Thursday at 2pm.", "Your vitamins.").
+   - "reply" (kept): a reaction in 4 of 12; the date said back 10, the bookkeeping 6, stock openers 3 (main's own
+     numbers in run-193, in one request instead of two).
+   - "reply", with the screen named ("As it goes down, the cabinet's screen shows them what and when. What you say back
+     to them goes in the call's say, as you would reply to what they told you"): a reaction in 4 of 12; the date 10,
+     the bookkeeping 8, stock openers 4.
+
+   Every line is on #193 for the user to read: they judge the wording by how natural the lines are.
 3. **By text, a plain line under her message** with what she set.
 
    *Built 2026-10-29 (#129, with #193).* `Agenda.Receipt`: "Agenda: Thu 29 Oct, 14:00, Job interview (reminder 13:00)",

@@ -165,9 +165,8 @@ They remember:
   AGENDA (or CHANGED, or CANCELLED), the day and time, and the item, on two lines at most (a longer one ends "...";
   all of it is in AGENDA); with an app open on the screen, the flashes wait until it closes, then show in turn. Their reply ends there:
   whatever they said before writing it down stays, and nothing is said after it, so they don't read the date back to
-  you. The few words they give as they write it down are shown too, less any sentence that names its day or time,
-  the item itself or the filing (the screen shows those), and kept to a sentence or two; when nothing is left, the
-  flash says it alone; by text, the app's own line under their message says what was set ("Agenda: Thu 29 Oct, 14:00, Job interview
+  you after the fact. What they reply as they write it down comes with it, as they said it ("Next Thursday at two.
+  Got it. Good luck with it."); if they say nothing, the flash says it alone; by text, the app's own line under their message says what was set ("Agenda: Thu 29 Oct, 14:00, Job interview
   (reminder 13:00)"), and is the whole message when they said nothing (a reminder texted to you still comes in its
   own plain words then, with that line under it). Something they set always has a reminder
   chosen (none, at the time, or some time before), so they never promise one that isn't there. What the cabinet can't do (a time it can't read, a

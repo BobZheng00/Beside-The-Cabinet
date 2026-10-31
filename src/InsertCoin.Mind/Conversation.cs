@@ -194,7 +194,6 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 .SelectMany(l => ToldOf.Matches(l.Text)).Select(m => long.Parse(m.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture)))
             .ToHashSet();
         var cancelled = new Dictionary<long, string>();     // called off in this reply, with what it was
-        var setInReply = new List<Plan>();                  // put down, changed or called off in this reply
         var refused = new List<string>();                   // her agenda changes that didn't go through, and why: told to her after her reply
         // calls off or changes an item she was shown, as it is now (a reminder may have gone off while she replied, moving
         // a repeat on); one called off is done with for this reply, so a [plan] that reuses its number is never changed by
@@ -212,7 +211,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             {
                 store.DeletePlan(item.Id);
                 cancelled[item.Id] = item.Text;
-                Tell(new AgendaDone(AgendaChange.Cancelled, item));
+                Agended?.Invoke(new AgendaDone(AgendaChange.Cancelled, item));
                 return null;
             }
             if (change.Unread is { } unread)
@@ -227,12 +226,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         void Did(AgendaChange change, long id)
         {
             if (store.Agenda().FirstOrDefault(p => p.Id == id) is { } item)
-                Tell(new AgendaDone(change, item));
-        }
-        void Tell(AgendaDone done)
-        {
-            setInReply.Add(done.Item);                      // what her words with the call mayn't say again (see Ends)
-            Agended?.Invoke(done);
+                Agended?.Invoke(new AgendaDone(change, item));
         }
         // an item she knows of that she may change, as it is now; or why not
         (Plan? Item, string? Why) Changeable(long id) =>
@@ -449,9 +443,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // said before them (flow C, spike #105) or nothing; the cabinet shows what was set (Agended). Written after the
         // result, her words reported it back (#128: the date said back in 10 of 12). A failure, or a round with another
         // tool in it, goes back to her. Only the round's last call can end it: ending at an earlier one would leave the
-        // rest unmade (FunctionInvokingChatClient stops there). Her few words with the calls (their say, #206) are shown
-        // once the whole round went through, if she wrote none before it, less what the screen shows (Agenda.Saying); a
-        // round that goes back to her drops them unseen.
+        // rest unmade (FunctionInvokingChatClient stops there). Her words with the calls (their say, #206) are shown as
+        // she wrote them once the whole round went through, if she wrote none before it; a round that goes back to her
+        // drops them unseen. What she writes there is the prompt's to ask for, not the code's to cut (the user, 2026-10-31).
         var roundWent = true;
         var sayings = new List<string>();
         bool Ends(FunctionInvocationContext call)
@@ -467,9 +461,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 sayings.Add(words);
             if (!roundWent || call.FunctionCallIndex != call.FunctionCount - 1)
                 return false;
-            if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone))
-                && Agenda.Saying(string.Join(" ", sayings), setInReply) is { Length: > 0 } shown)
-                Show(stage.Feed(shown));
+            if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone)) && sayings.Count > 0)
+                Show(stage.Feed(string.Join(" ", sayings.Distinct())));
             return true;
         }
         async Task Stream(IChatClient talking, List<ChatMessage> sent, ChatOptions options)

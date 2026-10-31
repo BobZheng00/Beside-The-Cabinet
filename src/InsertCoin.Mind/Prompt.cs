@@ -147,16 +147,16 @@ public static class Prompt
     private const string Keeps = "the cabinet keeps the player's agenda, and reminds them by itself of what has a reminder, even when they are away.";
 
     /// <summary>
-    /// Plans and reminders through the agenda tool: the cabinet's screen shows what and when, her own few words go in the
-    /// call's say (#206; what of them is shown, Agenda.Saying), and she hears only of a call that didn't go through (the
-    /// code ends the reply after one that did, #193).
+    /// Plans and reminders through the agenda tool: her reply to what the player told her goes in the call's say, shown as
+    /// she wrote it (#206, run-206c's "reply" wording), and she hears only of a call that didn't go through (the code ends
+    /// the reply after one that did, #193).
     /// </summary>
     private const string AgendaTool =
         "Plans and reminders: " + Keeps + " When the player tells you about something ahead with a date (an appointment, an exam, a deadline), or asks you to " +
         "remind them of something, put it on their agenda with the agenda tool, dates made absolute from the <now> block. To change or call off " +
         "something already on the <agenda>, use its number rather than adding it again. An item without a number is from their calendar, which " +
-        "decides it. As it goes down, the cabinet's screen shows the player what and when; anything you say to them then goes in the call's say, " +
-        "and you will hear only if it doesn't go through. The <agenda> block lists what is coming up and what has just passed: " +
+        "decides it. Your reply to what they told you goes in the call's say, said as you put it down: it is all you say then, and you will " +
+        "hear only if it doesn't go through. The <agenda> block lists what is coming up and what has just passed: " +
         "bring it up when it fits, and once something is past, ask how it went.";
 
     /// <summary>With "Keeps in touch": she plans when to reach the player while they are out (see <see cref="Later"/>); the cabinet gives her the chance then.</summary>
