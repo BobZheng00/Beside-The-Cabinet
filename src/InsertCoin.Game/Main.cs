@@ -925,11 +925,16 @@ public partial class Main : Node2D
                 GD.Print($"Reaching: sent to {name}");
     }
 
-    /// <summary>How long since the player's last input: keys and the mouse, as Windows counts it, or a game pad (the dev key F7 pretends an hour).</summary>
+    /// <summary>
+    /// How long since the player's last input: keys and the mouse, as Windows counts it, or a game pad (the dev key F7
+    /// pretends an hour). A hidden test run never goes by the input of whoever uses this PC: its player is always just here.
+    /// </summary>
     private TimeSpan Idle()
     {
         if (_devAfk)
             return TimeSpan.FromHours(1);
+        if (Paper.OffScreen)
+            return TimeSpan.Zero;
         var sinceJoypad = DateTimeOffset.Now - _lastJoypad;
         var idle = UserActivity.IdleFor();
         return idle < sinceJoypad ? idle : sinceJoypad;
