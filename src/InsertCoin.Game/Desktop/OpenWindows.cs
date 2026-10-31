@@ -67,8 +67,11 @@ public static class OpenWindows
     /// <summary>A title as listed, without the app it belongs to.</summary>
     private static string Bare(string listed) => listed.EndsWith(')') && listed.LastIndexOf(" (", StringComparison.Ordinal) is > 0 and var app ? listed[..app] : listed;
 
-    /// <summary>Stand-in for the file of the program in front, and the only one running (test runs; the dev action <c>frontprogram</c>).</summary>
+    /// <summary>Stand-in for the file of the program in front (test runs; the dev action <c>frontprogram</c>).</summary>
     public static string? FrontStandIn { get; set; }
+
+    /// <summary>Stand-in for the only program running, in front or not (test runs; <c>frontprogram</c> and <c>frontprogram:behind</c>).</summary>
+    public static string? RunningStandIn { get; set; }
 
     private static string? _lastFront;                      // the player's program in front before one of the cabinet's windows came forward
 
@@ -79,7 +82,7 @@ public static class OpenWindows
     /// </summary>
     public static string? FrontProgram()
     {
-        if (Paper.OffScreen || FrontStandIn is not null)
+        if (Paper.OffScreen || RunningStandIn is not null)
             return FrontStandIn;
         GetWindowThreadProcessId(GetForegroundWindow(), out var process);
         if (process == Environment.ProcessId)
@@ -93,8 +96,8 @@ public static class OpenWindows
     /// </summary>
     public static IReadOnlyList<string> RunningPrograms()
     {
-        if (Paper.OffScreen || FrontStandIn is not null)
-            return FrontStandIn is { } standIn ? [standIn] : [];
+        if (Paper.OffScreen || RunningStandIn is not null)
+            return RunningStandIn is { } standIn ? [standIn] : [];
         var processes = new HashSet<uint>();
         EnumWindowsProc each = (window, _) =>
         {

@@ -42,6 +42,8 @@ public static class Situation
     private static string? Playing(LedgerState s, Rules rules) => s.Session switch
     {
         null => null,
+        _ when s.Held => $"Right now: {string.Join(" + ", s.Session.GameNames)} is open behind another window{(rules.Earns.Any ? " (clock paused)" : "")}, " +
+                         $"{Words.Span(s.Session.PlayedMs)} into the session.",
         _ when s.Paused => $"Right now: in a game of {string.Join(" + ", s.Session.GameNames)}, but the player stepped away{(rules.Earns.Any ? " (clock paused)" : "")}.",
         var session => $"Right now: playing {string.Join(" + ", session.GameNames)}, {Words.Span(session.PlayedMs)} into the session.",
     };

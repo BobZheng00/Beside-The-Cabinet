@@ -108,7 +108,9 @@ change to a skill when told "tea-timer from now on new_words instead of old_word
 `fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway),
 `frontprogram:C:\Windows\notepad.exe` (that program's window is in front, and it's the only one running, for programs
 picked as play on Balance: `settings:balance` then `settingsdo:Running_now:1` picks it, `settingsdo:×` takes it off;
-`frontprogram:off`, none in front; a test run never reads the player's, and has none in front until told). With `--offscreen` a page they open is
+`frontprogram:behind`, it runs on behind another window, holding its session; `frontprogram:off`, it has closed; a test
+run never reads the player's, and has none until told), `display:off` (as if Windows had turned the display off, which
+stops a picked program; `display:on`; `display:windows` asks Windows again; a test run's display is on). With `--offscreen` a page they open is
 only logged, never opened. Memos: `memo:title:text` (they type one and send it, as the tool has them do),
 `memoseed` (memos hanging, pinned and kept), `memoopen` (the one hanging; `memoopen:0` the one pinned first),
 `memosheet:pin` (the latest sheet's tools: pin, off, edit, done, print, delete; `close` and `esc` as its × and Esc;

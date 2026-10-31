@@ -235,10 +235,18 @@ public sealed class Ledger(Rules rules)
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
         state = Seen(state, tick, now);
-        if (tick.Games.Count == 0)
-            return state.Session is null ? state : MissGame(state, now, events);
+        var games = tick.Games.Where(g => !g.Held).ToList();
+        if (games.Count == 0)
+        {
+            if (state.Session is null)
+                return state;                               // a picked program behind other windows starts nothing
+            // the session's own picked program behind another window: held quietly, nothing spent, no event
+            if (tick.Games.Any(g => state.Session.GameNames.Contains(g.Name)))
+                return state with { Session = state.Session with { Misses = 0 }, Held = true };
+            return MissGame(state, now, events);
+        }
 
-        var names = tick.Games.Select(g => g.Name).Distinct().ToList();
+        var names = games.Select(g => g.Name).Distinct().ToList();
         if (state.Session is null)
             return StartSession(state, names, now, events);
 
@@ -247,10 +255,10 @@ public sealed class Ledger(Rules rules)
             Misses = 0,
             GameNames = state.Session.GameNames.AddRange(names.Except(state.Session.GameNames)),
         };
-        state = state with { Session = session };
+        state = state with { Session = session, Held = false };
 
         // a picked program counts while it's in front, however still the player sits (a film needs no typing): no pause
-        if (tick.Idle >= Rules.AfkAfter && !tick.Games.Any(g => g.Picked))
+        if (tick.Idle >= Rules.AfkAfter && !games.Any(g => g.Picked))
         {
             if (!state.Paused)
                 events.Add(new Paused());
@@ -282,6 +290,7 @@ public sealed class Ledger(Rules rules)
         {
             Session = new Session { GameNames = [.. names], StartedAt = now },
             Paused = false,
+            Held = false,
             FirstWarningGiven = false,
             FinalWarningGiven = false,
             CreditsOutGiven = false,
@@ -296,7 +305,7 @@ public sealed class Ledger(Rules rules)
             return state with { Session = session };
 
         events.Add(new SessionEnded(session));
-        return TurnDay(state with { Session = null, Paused = false }, now, events, deferWhilePlaying: false);
+        return TurnDay(state with { Session = null, Paused = false, Held = false }, now, events, deferWhilePlaying: false);
     }
 
     private LedgerState InsertIfEmpty(LedgerState state, List<LedgerEvent> events)

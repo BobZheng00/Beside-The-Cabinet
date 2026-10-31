@@ -84,6 +84,18 @@
       "forbid": ["^Reaching: GAME (ON|OVER) only on a ticket", "^Reaching: (SOLVED|STREAK|DEBT PAID|TIME LEFT|OUT OF TIME|LATE NIGHT) "]
     },
     {
+      "name": "playprogram",
+      "about": "A program picked as play on Settings → Balance (a stand-in in front, picked from Running now; a very long name beside it is cut short, the page no wider than the window) starts a session; behind another window for longer than a game's two missed checks it is held quietly and goes on when back in front, one session; Windows turning the display off ends it.",
+      "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs", "src/InsertCoin.Game/Desktop/Presence.cs"],
+      "settings": ", \"PlayPrograms\": [{\"Path\": \"D:/Games/launcher.exe\", \"Name\": \"The Extraordinarily Long Named Game Launcher and Media Centre Deluxe Edition 2026 for Windows\"}]",
+      "script": "nocall@1,frontprogram:C:\\Windows\\notepad.exe@2,settings:balance@3,settingsdo:Running_now:1@4,settingswidths@6,frontprogram:behind@14,frontprogram:C:\\Windows\\notepad.exe@28,display:off@34,display:on@42",
+      "shots": [9, 24, 32, 45],
+      "window": "Settings",
+      "expect": ["^Main: programs that count as play: The Extraordinarily .+, .+$", "^Main: a session starts: .+$", "^Main: the session is held, its program behind another window$",
+                 "^Main: the session goes on, its program in front$", "^Main: the display is off$", "^Main: the session ends: .+, \\d+ s played$"],
+      "forbid": ["^Settings: \\w+ needs \\d+ px"]
+    },
+    {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],

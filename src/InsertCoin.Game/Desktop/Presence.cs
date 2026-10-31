@@ -34,6 +34,58 @@ public static class Presence
     /// <summary>The screen is locked, or its saver runs: nobody is at the PC (Windows' "not present").</summary>
     public static bool Locked => SHQueryUserNotificationState(out var state) == 0 && state == 1;
 
+    /// <summary>
+    /// Windows has turned the display off (its power setting, after the minutes it was told): nobody is watching. A test
+    /// run never asks Windows: its display is on unless <see cref="DisplayStandIn"/> says otherwise.
+    /// </summary>
+    public static bool DisplayOff => DisplayStandIn ?? (!Companion.Paper.OffScreen && Display.State == 0);
+
+    /// <summary>Dev: whether the display is off, whatever Windows says (the dev action <c>display:off</c>); null asks Windows.</summary>
+    public static bool? DisplayStandIn { get; set; }
+
+    /// <summary>
+    /// The console display's state as Windows last told it: registered once, on first use, and kept up to date by
+    /// Windows' callback, which tells the state at once on registering (PowerSettingRegisterNotification, needing no window).
+    /// </summary>
+    private static class Display
+    {
+        private static volatile int _state = 1;             // first, so Windows' first answer (perhaps during Register) isn't overwritten
+        private static readonly Guid ConsoleDisplayState = new("6FE69556-704A-47A0-8F24-C28D936FDA47");
+        private const uint Callback = 2, SettingChange = 0x8013;
+        private static readonly PowerCallback Told = (_, type, setting) =>
+        {
+            // POWERBROADCAST_SETTING: the setting's GUID (16 bytes), the data's length (4), then the data: a DWORD here
+            if (type == SettingChange && setting != IntPtr.Zero && Marshal.ReadInt32(setting, 16) >= 4)
+                _state = Marshal.ReadInt32(setting, 20);
+            return 0;
+        };
+        private static readonly SubscribeParameters Subscribed = new() { Callback = Marshal.GetFunctionPointerForDelegate(Told) };
+        private static readonly IntPtr Registration = Register();
+
+        /// <summary>0 off, 1 on, 2 dimmed; on when Windows couldn't be asked.</summary>
+        public static int State => Registration == IntPtr.Zero ? 1 : _state;
+
+        private static IntPtr Register()
+        {
+            var guid = ConsoleDisplayState;
+            var parameters = Subscribed;
+            return PowerSettingRegisterNotification(ref guid, Callback, ref parameters, out var handle) == 0 ? handle : IntPtr.Zero;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct SubscribeParameters
+        {
+            public IntPtr Callback;
+            public IntPtr Context;
+        }
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate uint PowerCallback(IntPtr context, uint type, IntPtr setting);
+
+        [DllImport("powrprof.dll")]
+        private static extern uint PowerSettingRegisterNotification(ref Guid setting, uint flags, ref SubscribeParameters recipient, out IntPtr handle);
+    }
+
     /// <summary>Another app is using the microphone or the camera right now: most likely a call or a meeting.</summary>
     public static bool InCall => !IgnoreCalls && (InUse("microphone") || InUse("webcam"));
 

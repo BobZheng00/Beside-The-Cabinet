@@ -541,10 +541,10 @@ public partial class Stool : Node2D
     private Whereabouts Where(DateTimeOffset now) => _pretend ?? Reaching.Where(Watching(now), AwayAfter, now);
 
     /// <summary>
-    /// The player has left the PC (away or asleep): the screen locked, or they said they were off. Playing keeps them
-    /// here however still they sit, so a program picked as play stops only then.
+    /// The player has left the PC, for a program picked as play: the screen locked or gone dark (Windows turned the
+    /// display off), or they said they were off. Playing keeps them here however still they sit, so it stops only then.
     /// </summary>
-    internal bool LeftThePc => Where(DateTimeOffset.Now) is Whereabouts.Away or Whereabouts.Asleep;
+    internal bool LeftThePc => Presence.DisplayOff || Where(DateTimeOffset.Now) is Whereabouts.Away or Whereabouts.Asleep;
 
     /// <summary>
     /// What the cabinet watches: their last input, a locked screen, being with her (in a conversation, being listened

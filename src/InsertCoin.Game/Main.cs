@@ -66,6 +66,7 @@ public partial class Main : Node2D
     private int _leetCodeOn;                                // how many times LeetCode has been turned on to earn: a poll asked before the latest doesn't set the next one's wait
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
+    private bool _displayOff;                               // as last logged
 
     public override void _Ready()
     {
@@ -347,11 +348,19 @@ public partial class Main : Node2D
         var games = (detected ?? []).ToList();
         if (_devGame)
             games.Add(new RunningGame("dev", "Dev Game"));
-        // a program picked as play, while it's the window in front and the player hasn't left the PC
-        if (_settings.PlayPrograms.Length > 0 && PlayProgram.InFront(_settings.PlayPrograms, OpenWindows.FrontProgram(), _stool.LeftThePc) is { } program)
-            games.Add(program);
+        // programs picked as play: the one in front counts, one behind other windows holds its session, none once the player has left
+        if (_settings.PlayPrograms.Length > 0)
+        {
+            if (Presence.DisplayOff != _displayOff)
+                GD.Print($"Main: the display is {((_displayOff = !_displayOff) ? "off" : "on")}");
+            games.AddRange(PlayProgram.Seen(_settings.PlayPrograms, OpenWindows.FrontProgram(),
+                                            () => _state.Session is null ? [] : OpenWindows.RunningPrograms(), _stool.LeftThePc));
+        }
 
+        var held = _state.Held;
         Apply(new Tick(games, elapsed, Idle()));
+        if (_state.Held != held)
+            GD.Print(_state.Held ? "Main: the session is held, its program behind another window" : "Main: the session goes on, its program in front");
         _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
@@ -498,7 +507,7 @@ public partial class Main : Node2D
     {
         var s = _state;
         var balance = _rules.Earns.Any;                     // no play time: nothing of a balance shows, and the screen shows the clock
-        var playing = s.Session is not null && !s.Paused;
+        var playing = s.Session is not null && !s.Paused && !s.Held;
         // Between 5 s ticks, run the clock locally so the countdown moves every second.
         var late = GameCalendar.IsLateNight(s, DateTimeOffset.Now, _rules) ? _rules.LateNightMultiplier : 1;
         var since = playing ? (long)((_clock.Elapsed - _lastTick).TotalMilliseconds * (_devWarp ? 60 : 1) * late) : 0;
@@ -806,10 +815,19 @@ public partial class Main : Node2D
         }
         if (action.StartsWith("frontprogram:"))
         {
-            // frontprogram:C:\path\app.exe: that program's window is in front, and the only one running (frontprogram:off, none)
+            // frontprogram:C:\path\app.exe: that program's window is in front, and the only one running; frontprogram:behind, it
+            // runs on behind another window; frontprogram:off, it has closed
             var file = action["frontprogram:".Length..];
-            OpenWindows.FrontStandIn = file is "" or "off" ? null : file;
-            GD.Print($"Main: the program in front is {OpenWindows.FrontStandIn ?? "none"}, as a dev action has it");
+            OpenWindows.RunningStandIn = file switch { "" or "off" => null, "behind" => OpenWindows.RunningStandIn, _ => file };
+            OpenWindows.FrontStandIn = file is "" or "off" or "behind" ? null : file;
+            GD.Print($"Main: the program in front is {OpenWindows.FrontStandIn ?? "none"}, and running {OpenWindows.RunningStandIn ?? "none"}, as a dev action has it");
+            Tick();
+            return;
+        }
+        if (action.StartsWith("display:"))
+        {
+            // display:off, as if Windows had turned the display off; display:on; display:windows asks Windows again
+            Presence.DisplayStandIn = action["display:".Length..] switch { "off" => true, "on" => false, _ => null };
             Tick();
             return;
         }
@@ -1121,7 +1139,7 @@ public partial class Main : Node2D
             if (IsInstanceValid(page))
                 page.Add(new PlayProgram(file, OpenWindows.ProgramName(file)));
         });
-        page.Chosen +=(weekday, friday, weekend, bedtime) =>
+        page.Chosen += (weekday, friday, weekend, bedtime) =>
         {
             SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
             UseRules();

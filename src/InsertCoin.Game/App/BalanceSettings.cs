@@ -83,9 +83,10 @@ public partial class BalanceSettings : VBoxContainer
                 Add(_offered[index - 1]);
         }, wide: true);
         Form.Button(Form.Buttons(this), "Add by its file…", () => PickFile?.Invoke());
-        Form.Hint(this, "Steam games count by themselves. A program added here counts as a game does while its window is in front: a " +
-                        "video player, a game launcher, whatever you count. It doesn't pause while you sit still, only when the screen " +
-                        "locks or you've left the PC. Only the program is known, by its name: no window title or browser tab is read.");
+        Form.Hint(this, "Steam games count by themselves. A program added here counts as a game does while its own window is in front: " +
+                        "a video player, a game from outside Steam (add the game's own file), whatever you count. It doesn't pause while " +
+                        "you sit still; behind another window it waits, and it stops when it closes, the screen locks or goes dark, or " +
+                        "you've left the PC. Only the program is known, by its name: no window title or browser tab is read.");
         ShowPrograms();
 
         balance.Add(Form.Subheading(this, "Play a day can earn"));
@@ -176,7 +177,10 @@ public partial class BalanceSettings : VBoxContainer
         foreach (var program in _programs)
         {
             var row = Form.Buttons(_picked);
-            row.AddChild(new Label { Text = program.Name, TooltipText = program.Path, MouseFilter = MouseFilterEnum.Pass, SizeFlagsVertical = SizeFlags.ShrinkCenter });
+            // a vendor's description can run long: cut short with an ellipsis rather than widening the page
+            row.AddChild(new Label { Text = program.Name, TooltipText = $"{program.Name}\n{program.Path}", MouseFilter = MouseFilterEnum.Pass,
+                                     SizeFlagsVertical = SizeFlags.ShrinkCenter, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                                     ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis });
             Form.Button(row, "×", () =>
             {
                 _programs.Remove(program);
