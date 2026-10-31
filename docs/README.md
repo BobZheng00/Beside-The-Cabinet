@@ -91,6 +91,14 @@ apart, often a foot down off the ring, a hand on each thigh, one nearer the hip,
 to a tune instead of a sway); they move into it as it is chosen, and "Show me" plays a few seconds of it. Fumiriya
 starts relaxed, the others neat; the first run and "Meet …" ask it too.
 
+Shino has a card in Chinese as well as an English one, written in Chinese rather than translated. Settings →
+Characters → Language decides which one your companion uses. On Auto, the default, they follow you: two of your
+messages in a row in Chinese (typed, spoken or texted) take them to their Chinese card, and two in a row in another
+language take them back to their main card. Either way they reply in the language you last wrote in. Choose English
+or 中文 instead and they use that card and reply in that language whatever you write, reminders and check-ins
+included. A character without a card in that language uses their main one, and a character card you gave them stands
+for them in every language.
+
 ## Talking together, and what they remember
 
 Your companion can also talk. In Settings → Mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a

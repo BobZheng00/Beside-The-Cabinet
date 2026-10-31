@@ -66,6 +66,36 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>What earns the player play time, as set now: her base text names only those.</summary>
     public Func<Core.Earning> Earns { get; init; } = () => Core.Earning.All;
 
+    /// <summary>
+    /// The language the player chose for her (Settings → Characters, "Language"), as set now: she replies in it whatever
+    /// they write, with her card in it if she has one. Null for Auto: the player's own language (see <see cref="CardLanguage"/>).
+    /// </summary>
+    public Func<string?> Language { get; init; } = () => null;
+
+    /// <summary>
+    /// The language of the card she replies with now (<see cref="Persona.Languages"/>), worked out each time from the
+    /// stored conversation, so it holds across a restart: the language chosen, or else the latest two of the player's own
+    /// lines in a row that are in the same language (by text or at the PC; the cabinet's lines never count, nor a line with
+    /// no letters). Null for her main card: no two lines agree yet, or she has no card in theirs.
+    /// </summary>
+    public string? CardLanguage => (Language() ?? PlayersLanguage()) is { } language && persona.Languages.ContainsKey(language) ? language : null;
+
+    /// <summary>Her card as she replies now (see <see cref="CardLanguage"/>).</summary>
+    private Persona Speaking => CardLanguage is { } language ? persona.Languages[language] : persona;
+
+    private string? PlayersLanguage()
+    {
+        // what she was handed isn't in their words: a text file kept word for word ("[file: x]\n…\n[end of x]"), and
+        // a picture's tag with what she saw in it ("[picture: …: what she saw]")
+        var languages = store.Through(character, long.MaxValue, 200).Where(l => l.Speaker == Speaker.User)
+            .Select(l => System.Text.RegularExpressions.Regex.Replace(l.Text, @"\[file: [^\]]*\].*?\[end of [^\]]*\]", "", System.Text.RegularExpressions.RegexOptions.Singleline))
+            .Select(text => SpokenLanguage.Of(System.Text.RegularExpressions.Regex.Replace(text, @"\[[^\]]*\]", ""))).OfType<string>().ToList();
+        for (var i = languages.Count - 1; i > 0; i--)
+            if (languages[i] == languages[i - 1])
+                return languages[i];
+        return null;
+    }
+
     /// <summary>Her skills switched on now, named with her tools (see <see cref="Mind.Skills"/>); set before each reply.</summary>
     public IReadOnlyList<Skill> Skills { get; set; } = [];
 
@@ -114,9 +144,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var now = _clock.GetLocalNow();
         var folded = store.Folded(character);
         Equip(tools);
-        var sent = Prompt.Build(persona, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
+        var sent = Prompt.Build(Speaking, Known(MindStore.Shared), Known(character), Log.Left(store.Observations(character), folded),
                                 store.After(character, folded), "", $"[cabinet] {WordFirst.Ask}", memories: null,
-                                voiceLanguage: VoiceLanguage, window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known, skills: Skills, earns: Earns());
+                                voiceLanguage: VoiceLanguage, language: Language(), window: Window, now: now, tools: tools?.Offered is not null, keepsInTouch: KeepsInTouch(), asking: tools?.AsksFirst, herself: Known(MindStore.Herself(character)), known: tools?.Known, skills: Skills, earns: Earns());
         var written = new StringBuilder();
         await foreach (var update in client.GetStreamingResponseAsync(sent, ReplyOptions, cancel))
             written.Append(update.Text);
@@ -347,9 +377,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         List<ChatMessage> Messages(bool withTools, bool seeing)
         {
             var turn = (fromCabinet ? $"[cabinet] {said.Trim()}" : said.Trim()) + (aside is null ? "" : $"\n{aside}") + Handing(handed, seeing);
-            var built = Prompt.Build(persona, aboutPlayer, aboutUs,
+            var built = Prompt.Build(Speaking, aboutPlayer, aboutUs,
                                      log, recent, situation, turn, [.. lore, .. memories],
-                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills, earns: Earns());
+                                     VoiceLanguage, Window, now, Agenda.Block(agenda, now, ReminderLead()), withTools, KeepsInTouch(), asking: tools?.AsksFirst, herself: aboutHer, known: tools?.Known, skills: Skills, earns: Earns(), language: Language());
             foreach (var thing in handed)
                 if (thing.Text)
                     built[^1].Contents.Add(new TextContent($"\n--- {thing.Name} ---\n{thing.Words()}\n--- end of {thing.Name} ---"));

@@ -40,7 +40,7 @@ answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupres
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
-from 0, or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
+from 0 or by what it says (`settingsdo:Language:中文`), or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
@@ -202,12 +202,15 @@ script's header.
   with no model, in seconds.
 - `tools/bench/manner.cs`: how the companion talks (`docs/specs/2026-10-24-how-she-talks.md`). 24 moments in English and
   Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for, a
-  flatmate's pan, a deadline moved up, "how's your day?"), with Shino's card and a plain one, each from a fresh memory.
+  flatmate's pan, a deadline moved up, "how's your day?"), with Shino's card and a plain one, each from a fresh memory
+  (the Chinese moments on Shino's card in Chinese, `persona.zh.md`).
   Stock openers, a date or time said back, the player echoed, the bookkeeping narrated, offers of help, ending on a
   question, length, tools used unasked and focus sessions started are counted in code (the counting checks itself
   first) and written to `manner.md`, side by side. So are *copies the card* (five words in a row of the card's text, or
-  six Chinese characters, or a three- or four-word sentence of its examples whole, "That's not fair.", or four Chinese
-  characters of one, 「太突然了」: the side by side says what was copied), *another language* (a reply not in the
+  six Chinese characters, or, where the card has them, the two short lines that sit by the check's own moments, too short
+  for a run: A1's "I'd have said something" 「换我当场」 by the vent moment and A3's "That's not fair" 「太突然了」 by the
+  deadline one, `Habits.ShortLines`; any other short line, "Go to bed." or 「明天再说」, isn't counted. The side by side
+  says what was copied), *another language* (a reply not in the
   moment's language), and *agenda put down* (in the moments that ask for the agenda, an agenda call that changed it).
   A persona file is filled in as the app fills it, with no name given (`{{user}}` becomes "the player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a

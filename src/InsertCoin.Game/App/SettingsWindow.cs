@@ -158,7 +158,9 @@ public partial class SettingsWindow : Window
         var at = all.FindIndex(c => c is Label named && named.Text.Equals(label, StringComparison.OrdinalIgnoreCase));
         switch (at < 0 ? null : all.Skip(at + 1).FirstOrDefault(c => c is OptionButton or LineEdit or Godot.Range))
         {
-            case OptionButton choice when int.TryParse(value, out var index) && index < choice.ItemCount:
+            // a choice by its place in the list (0 first) or by what it says ("中文")
+            case OptionButton choice when (int.TryParse(value, out var number) ? number : Enumerable.Range(0, choice.ItemCount).FirstOrDefault(i => choice.GetItemText(i) == value, -1))
+                                          is var index and >= 0 && index < choice.ItemCount:
                 choice.Select(index);
                 choice.EmitSignal(OptionButton.SignalName.ItemSelected, (long)index);
                 GD.Print($"Settings: {label} is \"{choice.GetItemText(index)}\"");
