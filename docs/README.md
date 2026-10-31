@@ -67,15 +67,20 @@ from what, focused, played, when you were first and last at the PC), the start o
 patterns.
 
 Play time is spent by Steam games, and by programs you pick on Settings → Balance under "Programs that count as play"
-(none to start with): a video player, a game launcher, whatever you count. Add one from "Running now" (the programs
-with a window open, found by their process, not Windows' own) or with "Add by its file…"; each shows its name from
-the file's description, and × takes it off. While a picked program is the window in front it counts as a game does:
-the clock runs, your companion is told what you're playing by the program's name, and the break after a long session
-applies. While one of the cabinet's own windows is in front (talking to your companion), the program in front before
-it still counts. A Steam game pauses after 10 minutes without input; a picked program doesn't, since a film needs no
-typing, and stops instead when the screen locks or you've left the PC (you told your companion you were off). With
-both running, the picked program in front keeps the clock going; behind another window, the game's pause applies.
-Only the program is known: no window title or browser tab is read for this.
+(none to start with): a video player, a game from outside Steam, whatever you count. Only the program's own window
+counts: a launcher picked doesn't make the games it starts count, so pick the game's own file. Add one from "Running
+now" (the programs with a window open, found by their process, not Windows' own) or with "Add by its file…"; each
+shows its name from the file's description (cut short with "…" if it's long), and × takes it off. While a picked
+program is the window in front it counts as a game does: the clock runs, your companion is told what you're playing
+by the program's name, and the break after a long session applies. While one of the cabinet's own windows is in
+front (talking to your companion), the program in front before it still counts. Behind another window (answering a
+message, say) its session is held quietly: nothing is spent, nothing shows or is said, and it goes on when the
+program is back in front, its time adding up towards the break as one session. A Steam game pauses after 10 minutes
+without input; a picked program doesn't, since a film needs no typing. Its session ends when the program closes, the
+screen locks, Windows turns the display off (its power setting: a film still counts while the screen is on), or
+you've told your companion you were off. With both running, the picked program in front keeps the clock going;
+behind another window, the game's pause applies. Only the program is known: no window title or browser tab is read
+for this.
 
 With no play time (nothing ticked) the cabinet keeps you company without a balance. Your companion, their memory, the
 agenda and reminders, texting, focus sessions (paying nothing), the words around your bedtime and a break after two
