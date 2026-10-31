@@ -44,7 +44,7 @@ public sealed class Ledger(Rules rules)
         var day = GameCalendar.DayOf(now, Rules);
         if (state.Today is not { } today)
             return NewWeek(state with { Today = DayRecord.Begin(day, Rules) }, day);  // a save from before days were kept
-        if (day <= today.Day || (deferWhilePlaying && state.Session is not null && Rules.Earns.Any))     // no play time: nothing a game could pay into, so no wait
+        if (day <= today.Day || (deferWhilePlaying && state.Session is not null && !state.Held && Rules.Earns.Any))     // no play time, or a session held: nothing being played, so no wait
             return state;
 
         var left = state.TimeLeftMs(Rules);

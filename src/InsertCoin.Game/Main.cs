@@ -359,8 +359,10 @@ public partial class Main : Node2D
 
         var held = _state.Held;
         Apply(new Tick(games, elapsed, Idle()));
-        if (_state.Held != held)
-            GD.Print(_state.Held ? "Main: the session is held, its program behind another window" : "Main: the session goes on, its program in front");
+        if (_state.Held && !held)
+            GD.Print("Main: the session is held, its program behind another window");
+        else if (held && _state.Session is not null && !_state.Held)
+            GD.Print("Main: the session goes on, its program in front");
         _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
@@ -471,7 +473,7 @@ public partial class Main : Node2D
     {
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
-        _stool.GameRunning = _state.Session is not null;      // her voice and its training give the game the graphics card
+        _stool.GameRunning = Gaming;                        // her voice and its training give the game the graphics card; focus isn't paid for game time
         if (result.Events.Count > 0)
             Lively(6);
         foreach (var e in result.Events)
@@ -482,6 +484,7 @@ public partial class Main : Node2D
                 SessionEnded s => $"the session ends: {string.Join(" + ", s.Receipt.GameNames)}, {s.Receipt.PlayedMs / 1000} s played",
                 Paused => "the session pauses, the player away from the keyboard",
                 Resumed => "the session goes on",
+                FocusPaid f => $"focus pays for {f.FocusedMs / 1000} s focused",
                 _ => null,
             };
             if (session is not null)
@@ -493,7 +496,7 @@ public partial class Main : Node2D
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
             _stool.Hand(remark);                            // in her own words, once she is free
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && _rules.Earns.Any && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
+        if (!Gaming && _rules.Earns.Any && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
@@ -588,11 +591,14 @@ public partial class Main : Node2D
         DisplayServer.WindowSetPosition(bottomRight - size);      // grow/shrink from the feet, not the top-left
     }
 
+    /// <summary>A game is being played now: a session, and not one held while its picked program is behind another window.</summary>
+    private bool Gaming => _state.Session is not null && !_state.Held;
+
     /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
     private void SetPace()
     {
         // Lights and glows animate all the time, so without a cap the window redraws at the monitor's rate.
-        var slow = _state.Session is not null                                       // a game is running: stay out of its way
+        var slow = Gaming                                                           // a game is being played: stay out of its way
                    || (_settings.EnergySaver && _clock.Elapsed > _livelyUntil);
         Engine.MaxFps = slow ? SlowPace : FullPace;
     }
