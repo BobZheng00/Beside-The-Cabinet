@@ -108,6 +108,23 @@ public class CardLanguageTests
     }
 
     [Fact]
+    public async Task A_file_handed_over_with_a_line_is_not_the_players_words()
+    {
+        using var temp = new TempStore();
+        var conversation = Seated(temp);
+        await Say(conversation, "今天好累");
+        var notes = new Attachment("notes.txt", "text/plain", System.Text.Encoding.UTF8.GetBytes(
+            "Meeting notes. The release moves to Friday, and the tests still fail on the build server every other night."));
+
+        var model = new FakeModel("嗯。");
+        await conversation.Answer(model, "看看这个", "", _ => { }, (_, _) => { }, handed: [notes]);
+
+        Assert.Contains("[file: notes.txt]", temp.Store.After("shino", 0).Last(l => l.Speaker == Speaker.User).Text);
+        Assert.Contains("诗乃每天画画。", Told(model).System);
+        Assert.Equal("zh", conversation.CardLanguage);
+    }
+
+    [Fact]
     public async Task Her_own_remarks_go_by_the_same_lines()
     {
         using var temp = new TempStore();
