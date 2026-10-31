@@ -55,6 +55,23 @@ public class CapTests
         Assert.Equal(Min(minutes), m.State.TimeLeftMs(m.Rules));
     }
 
+    [Theory]
+    [InlineData(2026, 10, 26, 9)]                        // Monday morning
+    [InlineData(2026, 10, 30, 20)]                       // Friday evening
+    [InlineData(2026, 10, 31, 3)]                        // Saturday before the day starts: still Friday's game day
+    [InlineData(2026, 10, 31, 9)]                        // Saturday morning (#213)
+    [InlineData(2026, 10, 31, 20)]                       // Saturday evening
+    [InlineData(2026, 11, 1, 9)]                         // Sunday morning
+    public void A_game_played_on_credit_owes_the_same_whatever_the_day_or_the_hour(int year, int month, int day, int hour)
+    {
+        var m = new Machine(new DateTimeOffset(year, month, day, hour, 0, 0, T0.Offset));
+
+        m.Play(TimeSpan.FromMinutes(20));
+        m.Quit();
+
+        Assert.Equal(Min(30), m.State.DebtMs);           // the cap bounds what is earned, never what is owed
+    }
+
     [Fact]
     public void A_friday_night_past_midnight_keeps_fridays_cap()
     {
