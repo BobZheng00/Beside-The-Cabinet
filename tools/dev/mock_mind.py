@@ -15,7 +15,8 @@ append_to_note and the player's words name a note ("add a line to my note notes/
 appends "- A line from the mock mind." to it, then answers; and when it offers change_skill and the player's words say
 "<skill> from now on <new words> instead of <old words>", it suggests that change to the skill with change_skill
 (before reading any skill), then answers; and when it offers agenda and the player's words say "put <what> on my agenda
-2027-01-14T14:00" (or a day), it adds that with no words before the call, then answers if asked again. --think waits that many seconds before answering, as a
+2027-01-14T14:00" (or a day), it adds that with no words before the call, then answers if asked again ("... saying
+<words>" after the date gives the call those words as its say). --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
@@ -112,15 +113,17 @@ def change_call(body):
 
 def agenda_call(body):
     """The agenda item to add: offered agenda, and the player's words say "put <what> on my agenda <YYYY-MM-DDTHH:MM>"
-    (or a day), it calls agenda once with no words before it, then answers (by the tool results since their words)."""
+    (or a day), it calls agenda once with no words before it, then answers (by the tool results since their words);
+    "... saying <words>" after the date puts those words in the call's say, her reply as she puts it down."""
     if not any((t.get("function") or {}).get("name") == "agenda" for t in body.get("tools") or []):
         return None
     messages = body.get("messages") or []
-    said = re.findall(r"put (\S.*?) on my agenda (\d{4}-\d\d-\d\d(?:T\d\d:\d\d)?)", last_user_text(messages))   # the latest: earlier lines come with it
+    said = re.findall(r"put (\S.*?) on my agenda (\d{4}-\d\d-\d\d(?:T\d\d:\d\d)?)(?: saying ([^\n]+))?", last_user_text(messages))   # the latest: earlier lines come with it
     last_user = max((i for i, m in enumerate(messages) if m.get("role") == "user"), default=-1)
     if not said or any(m.get("role") == "tool" for m in messages[last_user + 1:]):
         return None
-    return "agenda", {"action": "add", "when": said[-1][1], "what": said[-1][0], "remind": "none"}
+    what, when, say = said[-1]
+    return "agenda", {"action": "add", "when": when, "what": what, "remind": "none", **({"say": say.strip()} if say else {})}
 
 
 def pieces(text):
