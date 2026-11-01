@@ -121,7 +121,7 @@ public class AgendaToolTests
                                                speech.Direction, tools: tools);
         speech.Finish();
 
-        // her reply's convention for her voice (Chisa's answered in Japanese only, 2026-11-01, when the argument was "say")
+        // her reply's convention for her voice (Hana's answered in Japanese only, 2026-11-01, when the argument was "say")
         Assert.Contains("written as any reply of yours is", model.Requests[0][0].Text);
         Assert.Contains("your voice speaks Japanese", model.Requests[0][0].Text);
         Assert.Equal("Nine it is. Don't forget!", shown.ToString());

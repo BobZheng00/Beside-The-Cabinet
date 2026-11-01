@@ -178,7 +178,7 @@ Each step is usable on its own.
    example 'got it, would u like me to remind you at the time?' Or just 'okay got it'. what we want to avoid is the
    response after the tool call"; then, on a trim in code: "Isn't repeating the time okay? But need to be natural like
    '2pm on Thursday? Got it' I'm trying not to cap the LLM by post processing it. Try to tune the LLM itself").* The
-   agenda tool takes `reply`, her reply as she puts it down (named `say` until 2026-11-01: with Chisa, whose voice
+   agenda tool takes `reply`, her reply as she puts it down (named `say` until 2026-11-01: with Hana, whose voice
    speaks Japanese, the model took it for her voice's `[say: …]` and wrote Japanese there, shown in the bubble with no
    subtitle). The reply still ends at the call. Once the round went through, and only when she wrote nothing before it,
    `reply` is fed as her replies are: her voice's `[say: …]` spoken, the rest in her bubble, and by text with the app's
