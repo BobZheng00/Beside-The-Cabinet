@@ -292,7 +292,7 @@ What a commit must pass before its pull request is marked ready, run the same wa
   each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
   "ChatModel": "mock"`, and needs no key. Its header lists the tools it calls; "put <what> on my agenda
   2027-01-14T14:00" (or a day) calls the agenda tool with no words before it, as GPT models do, and "… saying
-  <words>" after the date gives the call those words as its `say`, the companion's reply as they put it down.
+  <words>" after the date gives the call those words as its `reply`, the companion's reply as they put it down.
 - `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
   and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;

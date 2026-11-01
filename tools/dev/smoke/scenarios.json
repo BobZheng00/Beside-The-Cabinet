@@ -369,7 +369,7 @@
     },
     {
       "name": "agendaflash",
-      "about": "A plan the companion puts on the agenda ends the reply at the call, in one request: their reply given with the call (its say) shows in the bubble as written, and with no words no bubble is left; the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, two flashes wait for it to close and then show in turn; whole-day items of wide capitals (PHOTOGRAPHY WORKSHOP, PARENT-TEACHER CONFERENCE) show whole, at the size that fits them.",
+      "about": "A plan the companion puts on the agenda ends the reply at the call, in one request: their reply given with the call (its reply) shows in the bubble as written, and with no words no bubble is left; the CRT flashes AGENDA, the day and time, and the item on two lines; with an app open on the CRT, two flashes wait for it to close and then show in turn; whole-day items of wide capitals (PHOTOGRAPHY WORKSHOP, PARENT-TEACHER CONFERENCE) show whole, at the size that fits them.",
       "covers": ["src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Mind/Agenda.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Chat.cs", "tools/dev/mock_mind.py"],
       "mind": true,
       "mindRequests": 5,

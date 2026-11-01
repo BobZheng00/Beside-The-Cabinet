@@ -16,7 +16,7 @@ appends "- A line from the mock mind." to it, then answers; and when it offers c
 "<skill> from now on <new words> instead of <old words>", it suggests that change to the skill with change_skill
 (before reading any skill), then answers; and when it offers agenda and the player's words say "put <what> on my agenda
 2027-01-14T14:00" (or a day), it adds that with no words before the call, then answers if asked again ("... saying
-<words>" after the date gives the call those words as its say). --think waits that many seconds before answering, as a
+<words>" after the date gives the call those words as its reply). --think waits that many seconds before answering, as a
 slow model would. It stops when killed, or after --quit-after seconds.
 """
 
@@ -114,7 +114,7 @@ def change_call(body):
 def agenda_call(body):
     """The agenda item to add: offered agenda, and the player's words say "put <what> on my agenda <YYYY-MM-DDTHH:MM>"
     (or a day), it calls agenda once with no words before it, then answers (by the tool results since their words);
-    "... saying <words>" after the date puts those words in the call's say, her reply as she puts it down."""
+    "... saying <words>" after the date puts those words in the call's reply, her reply as she puts it down."""
     if not any((t.get("function") or {}).get("name") == "agenda" for t in body.get("tools") or []):
         return None
     messages = body.get("messages") or []
@@ -123,7 +123,7 @@ def agenda_call(body):
     if not said or any(m.get("role") == "tool" for m in messages[last_user + 1:]):
         return None
     what, when, say = said[-1]
-    return "agenda", {"action": "add", "when": when, "what": what, "remind": "none", **({"say": say.strip()} if say else {})}
+    return "agenda", {"action": "add", "when": when, "what": what, "remind": "none", **({"reply": say.strip()} if say else {})}
 
 
 def pieces(text):

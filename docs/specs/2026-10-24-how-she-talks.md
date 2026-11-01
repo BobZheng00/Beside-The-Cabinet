@@ -178,12 +178,15 @@ Each step is usable on its own.
    example 'got it, would u like me to remind you at the time?' Or just 'okay got it'. what we want to avoid is the
    response after the tool call"; then, on a trim in code: "Isn't repeating the time okay? But need to be natural like
    '2pm on Thursday? Got it' I'm trying not to cap the LLM by post processing it. Try to tune the LLM itself").* The
-   agenda tool takes `say`, her reply as she puts it down. The reply still ends at the call. Once the round went
-   through, and only when she wrote nothing before it, `say` is shown as she wrote it (bubble, voice, text, with the
-   app's line under it by text); a round that goes back to her drops it unseen. Nothing of it is cut in code: what she
-   writes there is the wording's to ask for. The "jot it down" line made way for "Your reply to what they told you goes
-   in the call's say, said as you put it down: it is all you say then, and you will hear only if it doesn't go
-   through", and `say` is described as "Your reply to what the player just told you, said as you put it down".
+   agenda tool takes `reply`, her reply as she puts it down (named `say` until 2026-11-01: with Chisa, whose voice
+   speaks Japanese, the model took it for her voice's `[say: …]` and wrote Japanese there, shown in the bubble with no
+   subtitle). The reply still ends at the call. Once the round went through, and only when she wrote nothing before it,
+   `reply` is fed as her replies are: her voice's `[say: …]` spoken, the rest in her bubble, and by text with the app's
+   line under it; a round that goes back to her drops it unseen. Nothing of it is cut in code: what she writes there is
+   the wording's to ask for. The "jot it down" line made way for "Your reply to what they told you goes in the call's
+   reply, said as you put it down and written as any reply of yours is: it is all you say then, and you will hear only
+   if it doesn't go through", and `reply` is described as "Your reply to what the player just told you, said as you put
+   it down, written as any reply of yours is" (the last clause added with the rename).
    Measured on #128's 12 agenda moments, billed (`<tools>\manner-bench\run-206b` and `run-206c`):
    - "A few words of your own … the cabinet's screen shows them what and when" (round 4, with a trim since dropped):
      12 of 12 were labels of the item ("Job interview, Thursday at 2pm.", "Your vitamins.").

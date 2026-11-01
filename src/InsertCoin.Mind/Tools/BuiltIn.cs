@@ -67,6 +67,9 @@ public static class BuiltIn
 
     public const string AgendaName = "agenda";
 
+    /// <summary>The agenda call's argument with her reply as she puts it down (see <see cref="Conversation"/>): not "say", which her voice's [say: …] is.</summary>
+    public const string AgendaReply = "reply";
+
     /// <summary>
     /// Her agenda as a tool, in place of the [plan], [remind], [change] and [cancel] she writes when the provider has no
     /// tools. Whether to remind the player is always chosen (none, at the time, or minutes before), and what it says back
@@ -84,8 +87,8 @@ public static class BuiltIn
              [Description("What it is, a few words in the language you reply in (on a change, only to rename it)")] string? what = null,
              [Description("With remind before: how many minutes ahead (10, 60 for an hour, 1440 for a day)")] int? minutes_before = null,
              [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null,
-             // her words as she puts it down: read by Conversation once the round goes through, not here
-             [Description("Your reply to what the player just told you, said as you put it down")] string? say = null) =>
+             // her reply as she puts it down (AgendaReply): read by Conversation once the round goes through, not here
+             [Description("Your reply to what the player just told you, said as you put it down, written as any reply of yours is")] string? reply = null) =>
                 act(action.Trim().ToLowerInvariant(), remind.Trim().ToLowerInvariant().Replace('_', ' '), item, when, what, minutes_before, repeat),
             AgendaName,
             "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. Add " +

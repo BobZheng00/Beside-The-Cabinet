@@ -473,9 +473,9 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         // said before them (flow C, spike #105) or nothing; the cabinet shows what was set (Agended). Written after the
         // result, her words reported it back (#128: the date said back in 10 of 12). A failure, or a round with another
         // tool in it, goes back to her. Only the round's last call can end it: ending at an earlier one would leave the
-        // rest unmade (FunctionInvokingChatClient stops there). Her words with the calls (their say, #206) are shown as
-        // she wrote them once the whole round went through, if she wrote none before it; a round that goes back to her
-        // drops them unseen. What she writes there is the prompt's to ask for, not the code's to cut (the user, 2026-10-31).
+        // rest unmade (FunctionInvokingChatClient stops there). Her reply with the calls (their reply, #206) is shown as she
+        // wrote it once the whole round went through, if she wrote none before it; a round that goes back to her drops it
+        // unseen. What she writes there is the prompt's to ask for, not the code's to cut (the user, 2026-10-31).
         var roundWent = true;
         var sayings = new List<string>();
         bool Ends(FunctionInvocationContext call)
@@ -487,10 +487,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             }
             roundWent &= call.Function.Name == BuiltIn.AgendaName && agendaWent;
             agendaWent = false;                             // read once: a call refused before it ran (made twice, say) never counts
-            if (call.Arguments.TryGetValue("say", out var say) && say?.ToString()?.Trim() is { Length: > 0 } words)
+            if (call.Arguments.TryGetValue(BuiltIn.AgendaReply, out var said) && said?.ToString()?.Trim() is { Length: > 0 } words)
                 sayings.Add(words);
             if (!roundWent || call.FunctionCallIndex != call.FunctionCount - 1)
                 return false;
+            // fed as her reply is: its stage directions acted, her voice's [say: …] spoken, the rest in her bubble
             if (string.IsNullOrWhiteSpace(reply.ToString(toolsDone, reply.Length - toolsDone)) && sayings.Count > 0)
                 Show(stage.Feed(string.Join(" ", sayings.Distinct())));
             return true;
