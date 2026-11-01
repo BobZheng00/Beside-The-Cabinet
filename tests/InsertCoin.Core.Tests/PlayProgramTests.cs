@@ -61,7 +61,7 @@ public class PlayProgramTests
             m.Tick([Behind], Check, TimeSpan.Zero);
 
         Assert.True(m.State.Held);
-        Assert.Equal(fuel, m.State.FuelMs);
+        Assert.Equal(fuel - 5_000, m.State.FuelMs);         // only the check it was last seen in front
         Assert.DoesNotContain(m.Events, e => e is SessionEnded or SessionStarted or Paused or Resumed);
 
         for (var i = 0; i < 12; i++)
@@ -71,6 +71,24 @@ public class PlayProgramTests
         Assert.Equal(startedAt, m.State.Session!.StartedAt);   // the same session: the long-session break keeps adding up
         Assert.DoesNotContain(m.Events, e => e is SessionEnded or SessionStarted or Paused or Resumed);
         Assert.Equal(fuel - Min(1), m.State.FuelMs);
+    }
+
+    [Fact]
+    public void Each_check_is_spent_as_the_session_stood_at_the_last_one_so_the_time_left_counted_down_between_checks_never_goes_back()
+    {
+        var m = new Machine();
+        m.GiveTokens(1);
+        m.Tick([Picked], Check, TimeSpan.Zero);             // the session starts: the screen counts down from here
+        var left = m.State.TimeLeftMs(m.Rules);
+
+        m.Tick([Behind], Check, TimeSpan.Zero);             // gone behind another window since the last check, as the screen counted on
+        Assert.Equal(left - 5_000, m.State.TimeLeftMs(m.Rules));
+
+        m.Tick([Picked], Check, TimeSpan.Zero);             // back in front: the screen stood still while it was held
+        Assert.Equal(left - 5_000, m.State.TimeLeftMs(m.Rules));
+
+        m.Tick([Picked], Check, TimeSpan.Zero);
+        Assert.Equal(left - 10_000, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]

@@ -67,6 +67,7 @@ public partial class Main : Node2D
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
     private bool _displayOff, _alarm;                       // as last logged
+    private (long Left, long Earned)? _shownInGame;         // the time left last shown in a session, and what was earned by then
 
     public override void _Ready()
     {
@@ -517,6 +518,11 @@ public partial class Main : Node2D
         var left = s.TimeLeftMs(_rules);
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
+        // the time left never goes up in a game unless something was earned meanwhile: logged, for the smoke suite to catch
+        var earned = s.Today?.EarnedMs ?? 0;
+        if (_shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
+            GD.Print($"Main: the time left shown went up in a game, from {last.Left} to {shownLeft} ms");
+        _shownInGame = s.Session is null ? null : (shownLeft, earned);
 
         _cabinet.Screen.Show(new ScreenState
         {
