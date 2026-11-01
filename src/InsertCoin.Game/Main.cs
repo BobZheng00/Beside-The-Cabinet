@@ -66,6 +66,7 @@ public partial class Main : Node2D
     private int _leetCodeOn;                                // how many times LeetCode has been turned on to earn: a poll asked before the latest doesn't set the next one's wait
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
+    private bool _displayOff, _alarm;                       // as last logged
 
     public override void _Ready()
     {
@@ -347,8 +348,21 @@ public partial class Main : Node2D
         var games = (detected ?? []).ToList();
         if (_devGame)
             games.Add(new RunningGame("dev", "Dev Game"));
+        // programs picked as play: the one in front counts, one behind other windows holds its session, none once the player has left
+        if (_settings.PlayPrograms.Length > 0)
+        {
+            if (Presence.DisplayOff != _displayOff)
+                GD.Print($"Main: the display is {((_displayOff = !_displayOff) ? "off" : "on")}");
+            games.AddRange(PlayProgram.Seen(_settings.PlayPrograms, OpenWindows.FrontProgram(),
+                                            () => _state.Session is null ? [] : OpenWindows.RunningPrograms(), _stool.LeftThePc));
+        }
 
+        var held = _state.Held;
         Apply(new Tick(games, elapsed, Idle()));
+        if (_state.Held && !held)
+            GD.Print("Main: the session is held, its program behind another window");
+        else if (held && _state.Session is not null && !_state.Held)
+            GD.Print("Main: the session goes on, its program in front");
         _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
@@ -459,17 +473,30 @@ public partial class Main : Node2D
     {
         var result = _ledger.Step(_state, input, DateTimeOffset.Now);
         _state = result.State;
-        _stool.GameRunning = _state.Session is not null;      // her voice and its training give the game the graphics card
+        _stool.GameRunning = Gaming;                        // her voice and its training give the game the graphics card; focus isn't paid for game time
         if (result.Events.Count > 0)
             Lively(6);
         foreach (var e in result.Events)
+        {
+            var session = e switch
+            {
+                SessionStarted s => $"a session starts: {string.Join(" + ", s.GameNames)}",
+                SessionEnded s => $"the session ends: {string.Join(" + ", s.Receipt.GameNames)}, {s.Receipt.PlayedMs / 1000} s played",
+                Paused => "the session pauses, the player away from the keyboard",
+                Resumed => "the session goes on",
+                FocusPaid f => $"focus pays for {f.FocusedMs / 1000} s focused",
+                _ => null,
+            };
+            if (session is not null)
+                GD.Print($"Main: {session}");
             _director.Play(e);
+        }
         _stool.Witness(result.Events, _rules);
         _stool.Record(_state);
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
             _stool.Hand(remark);                            // in her own words, once she is free
         // Moments worth seeing rise above other windows for a few seconds — never over a running game.
-        if (_state.Session is null && _rules.Earns.Any && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
+        if (!Gaming && _rules.Earns.Any && result.Events.Any(e => e is CoinsEarned or FocusPaid or ActivityPaid or StreakStar or SessionEnded or Faded))
             _window.Rise(6, _settings.AlwaysOnTop);
         if (result.Events.Count > 0 || input is PlayerSet)
             Save();
@@ -483,7 +510,7 @@ public partial class Main : Node2D
     {
         var s = _state;
         var balance = _rules.Earns.Any;                     // no play time: nothing of a balance shows, and the screen shows the clock
-        var playing = s.Session is not null && !s.Paused;
+        var playing = s.Session is not null && !s.Paused && !s.Held;
         // Between 5 s ticks, run the clock locally so the countdown moves every second.
         var late = GameCalendar.IsLateNight(s, DateTimeOffset.Now, _rules) ? _rules.LateNightMultiplier : 1;
         var since = playing ? (long)((_clock.Elapsed - _lastTick).TotalMilliseconds * (_devWarp ? 60 : 1) * late) : 0;
@@ -499,7 +526,7 @@ public partial class Main : Node2D
             Fuel = Math.Max(0, s.FuelMs - since) / (float)_rules.TokenMs,
             Streak = GameCalendar.CurrentStreak(s, DateTimeOffset.Now, _rules),
             BestStreak = s.BestStreak,
-            Playing = s.Session is not null,
+            Playing = Gaming,                               // held behind another window, the screen is as with no game (a focus countdown shows)
             Status = StatusLine(),
             TodayEarnedMs = s.Today?.EarnedMs ?? 0,
             TodayCapMs = s.Today?.CapMs ?? 0,
@@ -526,7 +553,10 @@ public partial class Main : Node2D
         _stool.Her?.SetScreenLight(power);
         SetPace();
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
-        if (balance && s.Session is not null && shownLeft == 0)
+        var alarm = balance && Gaming && shownLeft == 0;    // out of time in a game being played: nothing is charged while held
+        if (alarm != _alarm)
+            GD.Print($"Main: the alarm lights {((_alarm = alarm) ? "go on, out of time in a game" : "go off")}");
+        if (alarm)
             _cabinet.Lights.SetModeIfNot(LightMode.Alarm);
         else
             _cabinet.Lights.SetModeIfNot(LightMode.Chase, onlyFrom: LightMode.Alarm);
@@ -564,11 +594,14 @@ public partial class Main : Node2D
         DisplayServer.WindowSetPosition(bottomRight - size);      // grow/shrink from the feet, not the top-left
     }
 
+    /// <summary>A game is being played now: a session, and not one held while its picked program is behind another window.</summary>
+    private bool Gaming => _state.Session is not null && !_state.Held;
+
     /// <summary>Picks the frame rate: slow while a game runs or when saving energy, full otherwise.</summary>
     private void SetPace()
     {
         // Lights and glows animate all the time, so without a cap the window redraws at the monitor's rate.
-        var slow = _state.Session is not null                                       // a game is running: stay out of its way
+        var slow = Gaming                                                           // a game is being played: stay out of its way
                    || (_settings.EnergySaver && _clock.Elapsed > _livelyUntil);
         Engine.MaxFps = slow ? SlowPace : FullPace;
     }
@@ -789,6 +822,24 @@ public partial class Main : Node2D
             RefreshScreen();
             return;
         }
+        if (action.StartsWith("frontprogram:"))
+        {
+            // frontprogram:C:\path\app.exe: that program's window is in front, and the only one running; frontprogram:behind, it
+            // runs on behind another window; frontprogram:off, it has closed
+            var file = action["frontprogram:".Length..];
+            OpenWindows.RunningStandIn = file switch { "" or "off" => null, "behind" => OpenWindows.RunningStandIn, _ => file };
+            OpenWindows.FrontStandIn = file is "" or "off" or "behind" ? null : file;
+            GD.Print($"Main: the program in front is {OpenWindows.FrontStandIn ?? "none"}, and running {OpenWindows.RunningStandIn ?? "none"}, as a dev action has it");
+            Tick();
+            return;
+        }
+        if (action.StartsWith("display:"))
+        {
+            // display:off, as if Windows had turned the display off; display:on; display:windows asks Windows again
+            Presence.DisplayStandIn = action["display:".Length..] switch { "off" => true, "on" => false, _ => null };
+            Tick();
+            return;
+        }
         if (action.StartsWith("remindin:") && action.Split(':', 3) is [_, var after, var what])
         {
             // remindin:seconds:text sets a reminder that far ahead (negative: one missed while the cabinet was closed)
@@ -883,11 +934,16 @@ public partial class Main : Node2D
                 GD.Print($"Reaching: sent to {name}");
     }
 
-    /// <summary>How long since the player's last input: keys and the mouse, as Windows counts it, or a game pad (the dev key F7 pretends an hour).</summary>
+    /// <summary>
+    /// How long since the player's last input: keys and the mouse, as Windows counts it, or a game pad (the dev key F7
+    /// pretends an hour). A hidden test run never goes by the input of whoever uses this PC: its player is always just here.
+    /// </summary>
     private TimeSpan Idle()
     {
         if (_devAfk)
             return TimeSpan.FromHours(1);
+        if (Paper.OffScreen)
+            return TimeSpan.Zero;
         var sinceJoypad = DateTimeOffset.Now - _lastJoypad;
         var idle = UserActivity.IdleFor();
         return idle < sinceJoypad ? idle : sinceJoypad;
@@ -1085,7 +1141,18 @@ public partial class Main : Node2D
         var today = _state.Today is { } t
             ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
             : "";
-        page.Build(_settings, today);
+        page.Build(_settings, today, [.. OpenWindows.RunningPrograms().Select(file => new PlayProgram(file, OpenWindows.ProgramName(file)))]);
+        page.Programs += programs =>
+        {
+            SaveSettings(_settings with { PlayPrograms = programs });
+            GD.Print($"Main: programs that count as play: {string.Join(", ", programs.Select(p => p.Name).DefaultIfEmpty("none"))}");
+        };
+        page.PickFile += () => _stool.Pick("A program that counts as play", FileDialog.FileModeEnum.OpenFile, ["*.exe ; Programs"], files =>
+        {
+            var file = Path.GetFullPath(files[0]);          // the dialog's forward slashes, as Windows names the program in front
+            if (IsInstanceValid(page))
+                page.Add(new PlayProgram(file, OpenWindows.ProgramName(file)));
+        });
         page.Chosen += (weekday, friday, weekend, bedtime) =>
         {
             SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });

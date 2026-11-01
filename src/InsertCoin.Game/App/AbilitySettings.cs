@@ -88,7 +88,9 @@ public partial class AbilitySettings : VBoxContainer
         music = Form.Tick(this, "What's playing in your music app (track and artist)", privacy.Music, _ => Chosen());
         days = Form.Tick(this, "", privacy.Days, _ => Chosen());
         var always = Form.Hint(this, "");
-        void Known()                                        // as what earns play time changes on Balance
+        Form.Hint(this, $"Programs you add on Balance count as play while one is the window in front, and {name} is told which by its " +
+                        "name. Only the program is known: no window title or browser tab is read for it.");
+        void Known()                                       // as what earns play time changes on Balance
         {
             var playTime = settings.Now.Earning.Any;
             days.Text = "What your record of days shows: nights running late" + (playTime ? ", days without play" : "");
