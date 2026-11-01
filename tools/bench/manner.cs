@@ -241,14 +241,14 @@ Persona CardFor(string card, string language) => language == "zh" && personas.Tr
 // what of her card a reply says word for word (null for a card not loaded in this run)
 string? Copied(Result r) => personas.ContainsKey(r.Card) ? Habits.Copies(CardFor(r.Card, r.Language).Description, r.Answer!) : null;
 
-// an agenda call that went through: she made one, and her agenda isn't what it was before the reply
-// what she wrote in her agenda calls' say (#206), before the app left out what the screen shows (Agenda.Saying)
+// what she wrote in her agenda calls' say (#206): every call's, a call that went back to her too
 static IEnumerable<string> Says(Result r) =>
     r.Requests.SelectMany(q => q.Calls).Where(c => c.StartsWith("agenda("))
      .Select(c => JsonDocument.Parse(c["agenda(".Length..^1]).RootElement)
      .Select(args => args.TryGetProperty("say", out var say) && say.ValueKind == JsonValueKind.String ? say.GetString()! : "")
      .Where(s => s.Length > 0);
 
+// an agenda call that went through: she made one, and her agenda isn't what it was before the reply
 static bool PutDown(Result r) => r.Requests.Any(q => q.Calls.Any(c => c.StartsWith("agenda("))) && r.AgendaBefore is { } before && !before.SequenceEqual(r.Agenda);
 
 // the language she answered in, when it isn't the moment's

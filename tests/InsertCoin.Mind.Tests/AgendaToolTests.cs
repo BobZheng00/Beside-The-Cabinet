@@ -106,6 +106,26 @@ public class AgendaToolTests
     }
 
     [Fact]
+    public async Task Her_words_in_the_call_are_in_her_history_once_and_an_unseen_say_not_at_all()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        var model = new FakeToolModel([Agenda("seen", ("action", "add"), ("when", "2026-10-29T14:00"), ("what", "Job interview"), ("remind", "none"), ("say", "Ooh, good luck!"))],
+                                      [Agenda("unseen", ("action", "add"), ("when", "next Friday"), ("what", "Dentist"), ("remind", "none"), ("say", "Hang in there!"))],
+                                      ["What time on Friday?"]);
+
+        await conversation.Answer(model, "job interview next thursday at 2", "", _ => { }, (_, _) => { }, tools: tools);
+        await conversation.Answer(model, "dentist next friday", "", _ => { }, (_, _) => { }, tools: tools);
+
+        var history = temp.Store.After("shino", 0).Select(l => l.Text).ToList();
+        Assert.Single(history, l => l.Contains("Ooh, good luck!"));
+        Assert.DoesNotContain(history, l => l.Contains("Hang in there"));
+        // the record still names the item it added, for a later reply to move it by its number (#185)
+        var plan = Assert.Single(temp.Store.Agenda());
+        Assert.Contains(Recorded(temp), l => l.Contains($"): Added #{plan.Id}: Job interview"));
+    }
+
+    [Fact]
     public async Task Her_words_written_before_the_call_stand_and_the_call_s_say_is_not_added()
     {
         using var temp = new TempStore();

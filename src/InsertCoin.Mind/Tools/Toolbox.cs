@@ -319,8 +319,11 @@ public sealed class Toolbox
         e is not OperationCanceledException && e is not TimeoutException
         && (e.Message.Contains("web search", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("web_search", StringComparison.OrdinalIgnoreCase));
 
+    // the agenda tool's say is her own line, kept as hers when shown; in the record too it would be in her history twice,
+    // or, after a round that went back to her, there as words the player never saw (#206)
     private static string Describe(AIFunctionArguments arguments) =>
-        arguments.Count == 0 ? "" : Short(JsonSerializer.Serialize(arguments.ToDictionary(a => a.Key, a => a.Value), Readable), 160);
+        arguments.Count(a => a.Key != "say") == 0 ? ""
+            : Short(JsonSerializer.Serialize(arguments.Where(a => a.Key != "say").ToDictionary(a => a.Key, a => a.Value), Readable), 160);
 
     private static string Short(string text, int length = RecordLength) => text.Length <= length ? text : text[..(length - 1)] + "…";
 }
