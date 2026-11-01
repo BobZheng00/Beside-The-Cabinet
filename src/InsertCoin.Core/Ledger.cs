@@ -234,15 +234,25 @@ public sealed class Ledger(Rules rules)
 
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
+        // a picked program going behind another window or back in front: the time since the last check is spent as the
+        // session stood then, as the screen counted it down meanwhile (#219: the time left shown jumped back otherwise)
+        var held = state.Held;
+        var played = state.Session is { Misses: 0 } && !state.Paused && !held;
+        var elapsedMs = (long)Math.Clamp(tick.Elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
+
         state = Seen(state, tick, now);
         var games = tick.Games.Where(g => !g.Held).ToList();
         if (games.Count == 0)
         {
             if (state.Session is null)
                 return state;                               // a picked program behind other windows starts nothing
-            // the session's own picked program behind another window: held quietly, nothing spent, no event
+            // the session's own picked program behind another window: held quietly, nothing spent from then on, no event
             if (tick.Games.Any(g => state.Session.GameNames.Contains(g.Name)))
-                return state with { Session = state.Session with { Misses = 0 }, Held = true };
+            {
+                if (played)
+                    state = Warn(Charge(state, elapsedMs, now, events), events);
+                return state with { Session = state.Session! with { Misses = 0 }, Held = true };
+            }
             return MissGame(state, now, events);
         }
 
@@ -270,8 +280,7 @@ public sealed class Ledger(Rules rules)
             state = state with { Paused = false };
         }
 
-        var elapsedMs = (long)Math.Clamp(tick.Elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
-        return Warn(Charge(state, elapsedMs, now, events), events);
+        return held ? state : Warn(Charge(state, elapsedMs, now, events), events);
     }
 
     /// <summary>The player is using the PC (input in the last minute): when they were first and last seen today.</summary>
