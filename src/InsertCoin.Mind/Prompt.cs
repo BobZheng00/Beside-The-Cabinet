@@ -40,17 +40,34 @@ public static class Prompt
     /// <summary>The blocks a turn is made of: the cabinet's own (her instructions say so), her memories and the card author's note.</summary>
     public static readonly string[] Blocks = ["now", "agenda", "cabinet", "memories", "character", "voice", "card_author_note"];
 
+    // a block tag, its brackets doubled, split over lines or full-width too (<<character>>, ＜cabinet＞); and [cabinet] at
+    // the start of a line, doubled or nested too ([[cabinet]]), after any spacing that isn't a line break (U+00A0, U+3000,
+    // zero-width ones), while "[Cabinet of curiosities]" stays as it is
     private static readonly System.Text.RegularExpressions.Regex BlockTag = new(
-        $@"<\s*/?\s*(?:{string.Join("|", Blocks)})\b[^<>]*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        $@"[<＜][\s/<＜]*(?:{string.Join("|", Blocks)})\b[^>＞]{{0,80}}[>＞]+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    private const string Spacing = @"(?:[^\S\r\n\u0085  ]|[​-‍⁠﻿])";
     private static readonly System.Text.RegularExpressions.Regex CabinetLine = new(
-        @"^[ \t]*(?:\[\s*cabinet\s*\][ \t]*)+", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+        $@"(?<![^\r\n\u0085  ]){Spacing}*(?:[\[［][\[［\s]*cabinet(?:[\[［\s]*cabinet)*\s*[\]］](?:[\]］]|{Spacing})*)+",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     /// <summary>
-    /// Text from a character card or a persona file with nothing in it that passes for the cabinet's: the angle brackets
-    /// taken off any of the prompt's block tags, and [cabinet] off the start of a line, so a card can't close its own
-    /// block and open one the cabinet would have written (#132).
+    /// Text from a character card or a persona file with nothing in it that passes for the cabinet's: every angle
+    /// bracket taken off any of the prompt's block tags, and [cabinet] off the start of a line, again until nothing
+    /// changes (taking one off can make another), so a card can't close its own block and open one the cabinet would
+    /// have written (#132).
     /// </summary>
-    public static string Unblocked(string text) => CabinetLine.Replace(BlockTag.Replace(text, tag => tag.Value[1..^1]), "");
+    public static string Unblocked(string text)
+    {
+        for (var before = ""; before != text;)
+        {
+            before = text;
+            text = CabinetLine.Replace(BlockTag.Replace(text, tag => string.Concat(tag.Value.Where(c => c is not ('<' or '>' or '＜' or '＞')))), "");
+        }
+        return text;
+    }
+
+    /// <summary>A character's name as the prompt uses it: on one line, its spacing folded to single spaces, and unblocked.</summary>
+    public static string Named(string name) => Unblocked(string.Join(' ', name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).Trim();
 
     internal static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly TimeSpan Gap = TimeSpan.FromMinutes(30);    // a pause long enough to say when talk resumed
