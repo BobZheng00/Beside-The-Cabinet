@@ -5,6 +5,7 @@
 //     dotnet run tools/bench/manner.cs -- --out <folder> [--mock <base url> --protocol openai|anthropic | --from <profile folder>]
 //                                         [--variant <name>] [--cards shino,plain] [--cases id,id] [--again]
 //                                         [--max-requests 140] [--max-input 500000] [--card-files name=path,name-zh=path]
+//                                         [--card-names name=Name,name=Name] [--player Name] [--world-words <file>]
 //
 // --variant names the build's base text in the results ("this" by default). To compare two texts, run the bench built
 // from each (say main's commit and a branch's: `dotnet build tools/bench/manner.cs -o <bin folder>` in each, then
@@ -16,9 +17,17 @@
 // before a reply once the requests or input tokens spent in the folder (everything in manner.jsonl, every variant) reach
 // the limits. Results go to <out>/manner.jsonl (what is there already is not asked again unless --again); the base text
 // to <out>/prompt-<variant>.txt; the replies side by side and the counts to <out>/manner.md, from everything in the file.
-// --card-files puts draft cards beside the shipped ones (name=path; "<name>-zh" is used for <name>'s Chinese moments).
+// --card-files puts other cards beside the shipped ones (name=path; "<name>-zh" is used for <name>'s Chinese moments),
+// read only from the path given: a third-party card is never copied here. --card-names names their characters (Shino
+// otherwise), and --player is the name the player gave, filling {{user}} as the app does. --cases takes ids, or a prefix
+// ending in * ("w-*": the world moments).
 // --voice ja gives her a voice in that language (writing in the player's): what her voice would say ([say: ...]) is kept
 // with each reply, and the side by side shows it.
+// The world moments (#166, spec 2026-10-27-any-character.md) put any card beside the cabinet: what the cabinet tells her
+// (its lines in her conversation, its request for her remark, the <cabinet> block, her tools' results) comes from the
+// app's own code, and the summary counts the app's words she used that nothing in the moment gave her, talk of being an
+// AI, whether her card's world shows and where she places herself. Her card's world is the words in --world-words (one a
+// line, kept beside the card, never here): no card's places are written in this file.
 #:property PublishAot=false
 #:property NoWarn=CA1416
 #:project ../../src/InsertCoin.Mind/InsertCoin.Mind.csproj
@@ -28,6 +37,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using InsertCoin.Core;
 using InsertCoin.Mind;
 using Microsoft.Extensions.AI;
 
@@ -59,18 +69,23 @@ var model = provider.Connect(key);
 
 var zone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
 var now = new DateTimeOffset(2026, 10, 21, 19, 30, 0, TimeSpan.FromHours(-4));
+var rules = new Rules();                                // the cabinet as it comes, everything earning
+var player = options.GetValueOrDefault("player") is { Length: > 0 } given ? given : null;
 var personas = new Dictionary<string, Persona>
 {
-    ["shino"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")), null),      // as the app fills it, no name given
-    ["shino-zh"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.zh.md")), null, "zh"),   // her Chinese moments (#141)
-    ["plain"] = Persona.Plain("Robin"),
+    ["shino"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.md")), player),      // as the app fills it
+    ["shino-zh"] = Persona.Written("Shino", File.ReadAllText(Path.Combine(Here(), "../../src/InsertCoin.Game/characters/shino/persona.zh.md")), player, "zh"),   // her Chinese moments (#141)
+    ["plain"] = Persona.Plain("Robin") with { Player = player },
 };
-// --card-files: Shino's draft cards to compare, {{user}} filled as no name given; "<name>-zh" is used for <name>'s Chinese moments
-foreach (var pair in options.GetValueOrDefault("card-files", "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+// --card-files: other cards, filled as the app fills them; "<name>-zh" is used for <name>'s Chinese moments
+var cardNames = Pairs(options.GetValueOrDefault("card-names", ""));
+foreach (var (name, path) in Pairs(options.GetValueOrDefault("card-files", "")))
 {
-    var (name, path) = (pair[..pair.IndexOf('=')], pair[(pair.IndexOf('=') + 1)..]);
-    personas[name] = new("Shino", CharacterCard.Fill(File.ReadAllText(path), "Shino", null, name.EndsWith("-zh") ? "玩家" : "the player"));
+    var called = cardNames.GetValueOrDefault(name.Replace("-zh", ""), "Shino");
+    personas[name] = Persona.Written(called, File.ReadAllText(path), player, name.EndsWith("-zh") ? "zh" : null);
 }
+// --world-words: her card's own places and people, one a line, from a file kept beside the card
+var world = options.TryGetValue("world-words", out var worldFile) ? Worlds.Of(File.ReadAllLines(worldFile)) : null;
 
 // the base text as sent (with the plain card), for the reader
 File.WriteAllText(Path.Combine(output, $"prompt-{variant}.txt"),
@@ -143,6 +158,18 @@ if (Habits.Copies(Other, "Go to bed.") is not null || Habits.Copies(Other, "那�
     || Habits.Copies(Other, "Honestly? I’d have said something.") != "i'd have said something" || Habits.Copies(Other, "换我当场就走了。") != "换我当场"
     || Habits.Copies(Other, "Go to bed. You're not fixing it tonight.") is null)
     throw new InvalidOperationException("The copying counts more short lines than A1's and A3's.");
+// and the world moments' counts, on a made-up card's world
+var made = Worlds.Of(["Saltmarsh Abbey", " ", "Brother Tam"])!;
+if (Worlds.Place("I'm right here beside you.", made) != "beside the player" || Worlds.Place("[look] Hm.", made) != "unsaid"
+    || Worlds.Place("Brother Tam kept me busy at Saltmarsh Abbey all day.", made) != "their world"
+    || Worlds.Place("The abbey bells? No, just the rain.", made) != "unsaid" || Worlds.Place("从Saltmarsh Abbey回来，坐在你身边。", made) != "both"
+    || !Worlds.Shows("brother tam says hi", made).SequenceEqual(["brother tam"]) || Worlds.Shows("brother tam", null).Any() || Worlds.Of([" "]) is not null
+    || !Worlds.Unprompted("Nice, another LeetCode one! That's a token for your games.", "The player solved a programming practice problem on LeetCode: \"Two Sum\"")
+              .SequenceEqual(["tokens"])
+    // an idea given in either language is given: "owed" for 欠
+    || Worlds.Unprompted("[cheer] 欠的时间还清了。", "That paid off all the play time they owed.").Any()
+    || !Worlds.BreaksCharacter("As an AI, I don't have days.") || Worlds.BreaksCharacter("[wave] Said hi to Ai at the shop."))
+    throw new InvalidOperationException("The world moments aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
 Moment[] moments =
@@ -178,12 +205,46 @@ Moment[] moments =
     new("flatmate", "en", "my flatmate used my good pan and left it in the sink for three days"),
     new("deadline", "en", "they moved my deadline up to friday. found out an hour ago"),
     new("day", "en", "how's your day?"),
+    // #166's world moments: what the cabinet tells her, and the player asking about her and the cabinet
+    .. WorldMoments("en", "Back at my desk.", "Welcome back.", "What do you think of this arcade cabinet?", "Can you help me with Two Sum?",
+                    "I'm going to play a game now."),
+    .. WorldMoments("zh", "我回来了。", "回来啦。", "你觉得这台街机怎么样？", "你能帮我看看Two Sum吗？", "我现在要去玩会儿游戏了。"),
+    new("w-day-zh", "zh", "今天过得怎么样？", World: new([], null, Banked(80))),
+    new("w-doing-zh", "zh", "你现在在做什么？", World: new([], null, Banked(80))),
+    new("w-chat-zh", "zh", "随便跟我聊点什么吧。", World: new([], null, Banked(80))),
 ];
+
+// An event is told as the app tells it: the cabinet's line logged (Situation.Witness), then its request for her remark
+// (Lines.Remark's words, or the focus session's own note), after her call was answered (WordFirst.Called).
+Moment[] WorldMoments(string language, string back, string welcome, string cabinet, string twoSum, string play)
+{
+    var z = language == "zh" ? "-zh" : "";
+    string Witness(LedgerEvent e) => Situation.Witness(e, rules)!;
+    const string remark = " Say something about it in a short sentence, in your own words.";        // as Lines.Remark asks
+    var solved = Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, now), 1, false, 1, new Payout(15 * 60_000, 0, 15 * 60_000, 0, 1)));
+    var focus = new FocusSession(new FocusPlan(), now.AddMinutes(-25));
+    var turn = focus.Tick(now)!;
+    var ended = Witness(new SessionEnded(new Session { GameNames = ["Hades"], PlayedMs = 25 * 60_000 }));
+    var owing = LedgerState.New(now.AddDays(-4), rules) with { DebtMs = 15 * 60_000 };
+    string[] before = [back, welcome];
+    return
+    [
+        new($"w-solve{z}", language, "", before, World: new([solved], solved + remark, Banked(80))),
+        new($"w-focus{z}", language, "", before, World: new([Witness(new FocusPaid(25 * 60_000, new Payout(6 * 60_000, 0, 6 * 60_000, 0, 0)))], focus.NoteOn(turn),
+                                                             Banked(50), focus.Describe(now))),
+        new($"w-credit{z}", language, "", before, World: new([Witness(new CreditsOut()), ended], ended + remark, owing)),
+        new($"w-cabinet{z}", language, cabinet, World: new([], null, Banked(80))),
+        new($"w-twosum{z}", language, twoSum, Asked: ["leetcode_problem", "window_titles"], World: new([], null, Banked(80))),
+        new($"w-play{z}", language, play, World: new([], null, Banked(80))),
+    ];
+}
+
+LedgerState Banked(int minutes) => LedgerState.New(now.AddDays(-4), rules) with { FuelMs = minutes * 60_000 };
 // the moments where the player brings her a trouble, where the troubles counts are made
 string[] troubles = ["vent", "vent-zh", "bad", "lost", "cancelled", "listening", "flatmate", "deadline"];
 var allMoments = moments;
 if (options.TryGetValue("cases", out var only))
-    moments = [.. moments.Where(m => only.Split(',').Contains(m.Id))];
+    moments = [.. moments.Where(m => only.Split(',').Any(id => id.EndsWith('*') ? m.Id.StartsWith(id[..^1]) : m.Id == id))];
 
 var earlier = File.Exists(results) ? File.ReadLines(results).Select(l => JsonSerializer.Deserialize<Result>(l)!).ToList() : [];
 var done = options.ContainsKey("again") ? [] : earlier.Where(r => r.Error is null).Select(r => $"{r.Card}/{r.Variant}/{r.Moment}").ToHashSet();
@@ -219,8 +280,14 @@ async Task<Result> Run(string card, Moment m)
     foreach (var (text, when, minutesBefore) in m.Agenda ?? [])
         store.AddPlan(text, Agenda.ParseWhen(when, now, zone)!.Value.At, false, minutesBefore is { } b ? TimeSpan.FromMinutes(b) : null, now.AddDays(-2), card);
     var said = m.Before ?? [];
+    // a world moment's cabinet lines come after the earlier talk, ten minutes apart, the last now
+    var logged = m.World?.Logged ?? [];
+    var earlierBy = logged.Length > 0 ? 10 * logged.Length + 5 : 0;
     for (var i = 0; i < said.Length; i++)
-        store.Add(card, i % 2 == 0 ? Speaker.User : Speaker.Her, said[i], now.AddMinutes(i - said.Length));
+        store.Add(card, i % 2 == 0 ? Speaker.User : Speaker.Her, said[i], now.AddMinutes(i - said.Length - earlierBy));
+    for (var i = 0; i < logged.Length; i++)
+        store.Add(card, Speaker.Cabinet, logged[i], now.AddMinutes(-10 * (logged.Length - 1 - i)));
+    var situation = m.World is { } w ? string.Join("\n", new[] { Situation.Describe(w.State, rules, now), w.Extra ?? "" }.Where(l => l.Length > 0)) : "";
     List<string> Listed() => [.. store.Agenda().Select(p => $"#{p.Id} {p.Label}{(p.AllDay ? " (whole day)" : "")}: {p.Text}" +
                                                          (p.Before is { } b ? $", reminder {(b == TimeSpan.Zero ? "at the time" : Agenda.Describe(b))}" : "") +
                                                          (p.Repeat != Repeat.Once ? $", {Agenda.Describe(p.Repeat)}" : ""))];
@@ -235,21 +302,27 @@ async Task<Result> Run(string card, Moment m)
     var counting = new Counting(model);
     var focus = new List<string>();
     string? answer = null, error = null;
+    void Direction(string name, string? payload)
+    {
+        if (name == "say" && payload is not null)
+            spoken.Add(payload.Trim());
+    }
+    var note = m.World?.Note;
     try
     {
-        answer = await conversation.Answer(counting, m.Said, "", _ => { }, (name, payload) =>
-                                           {
-                                               if (name == "say" && payload is not null)
-                                                   spoken.Add(payload.Trim());
-                                           }, tools: Tools(focus),
-                                           cancel: new CancellationTokenSource(TimeSpan.FromMinutes(3)).Token);
+        var cancel = new CancellationTokenSource(TimeSpan.FromMinutes(3)).Token;
+        var tools = Tools(focus, m.World?.State ?? Banked(80));
+        answer = note is null
+            ? await conversation.Answer(counting, m.Said, situation, _ => { }, Direction, tools: tools, cancel: cancel)
+            : await conversation.Announce(counting, note, situation, _ => { }, Direction, cancel, tools, aside: WordFirst.Called);
     }
     catch (Exception e)
     {
         error = $"{e.GetType().Name}: {e.Message}";
     }
-    return new Result(card, variant, m.Id, m.Language, m.Said, answer, error, Listed(),
-                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before, flashed, voice is null ? null : spoken);
+    return new Result(card, variant, m.Id, m.Language, note ?? m.Said, answer, error, Listed(),
+                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before, flashed, voice is null ? null : spoken,
+                      m.World is null ? null : string.Join("\n", [m.Said, .. said, .. logged, note ?? "", situation, .. counting.Returned]));
 }
 
 // the card a moment runs on: "<card>-zh" for the Chinese ones when there is one
@@ -273,8 +346,9 @@ static bool PutDown(Result r) => r.Requests.Any(q => q.Calls.Any(c => c.StartsWi
 static string? OtherLanguage(Result r) => SpokenLanguage.Of(Habits.Spoken(r.Answer!)) is { } spoken && spoken != r.Language ? spoken : null;
 
 // the app's in-app tools, doing nothing, so that what she is offered (and what it costs) is as in the app; the focus
-// tool keeps what it was asked to do, so a session started is counted, not only a call made (#145)
-static Toolbox Tools(List<string> focus) => new([BuiltIn.OpenLink(_ => { }), BuiltIn.PrintMemo((_, _) => "Printed."),
+// tool keeps what it was asked to do, so a session started is counted, not only a call made (#145); the LeetCode and
+// cabinet tools give what the app would (Two Sum's statement in our words, the moment's numbers)
+Toolbox Tools(List<string> focus, LedgerState state) => new([BuiltIn.OpenLink(_ => { }), BuiltIn.PrintMemo((_, _) => "Printed."),
                                BuiltIn.Focus((action, minutes, rest) =>
                                {
                                    focus.Add($"{action}{(minutes is { } f ? $" focus {f} min" : "")}{(rest is { } b ? $" break {b} min" : "")}");
@@ -285,8 +359,15 @@ static Toolbox Tools(List<string> focus) => new([BuiltIn.OpenLink(_ => { }), Bui
                                BuiltIn.Music((_, _) => Task.FromResult("Done."), _ => "Focus"), BuiltIn.LookAtScreen(_ => "Nothing on screen.", () => null),
                                BuiltIn.LogActivity((_, _, _, _, _) => Task.FromResult("Logged.")), BuiltIn.JudgeProof((_, _, _) => "Judged."),
                                BuiltIn.SetBedtime((_, _) => Task.FromResult("Set.")), BuiltIn.WindowTitles(() => []),
-                               BuiltIn.ReadPage((_, _) => Task.FromResult("")), BuiltIn.LeetCodeProblem((_, _) => Task.FromResult("")),
-                               BuiltIn.OpenApp(() => [], _ => { }), BuiltIn.Cabinet(_ => "The cabinet has no numbers yet.")]);
+                               BuiltIn.ReadPage((_, _) => Task.FromResult("")), BuiltIn.LeetCodeProblem((_, _) => Task.FromResult(TwoSum())),
+                               BuiltIn.OpenApp(() => [], _ => { }), BuiltIn.Cabinet(day => Situation.Ledger(state, rules, now, null, day))]);
+
+// what her LeetCode tool's lookup gives for Two Sum, in its shape (LeetCodeProblems.Describe), the statement in our words
+static string TwoSum() => "LeetCode 1. Two Sum (Easy). Topics: Array, Hash Table.\nAddress: https://leetcode.com/problems/two-sum/\n\n" +
+    "Given a list of whole numbers and a target, give the positions of the two numbers that add up to the target. There is exactly one such pair, " +
+    "and a number can't be used twice.\n\nLeetCode's own hints, gentlest first:\n1. Trying every pair works, but it is slow.\n" +
+    "2. For each number, the other one you need is the target minus it: can you find it without looking through the whole list again?\n" +
+    "3. Keep the numbers you have seen so far in a hash table, with their positions.";
 
 void Summary()
 {
@@ -336,6 +417,26 @@ void Summary()
     foreach (var g in all.GroupBy(r => (r.Variant, r.Card)).OrderBy(g => variants.IndexOf(g.Key.Variant)).ThenBy(g => g.Key.Card))
         md.AppendLine($"| {g.Key.Variant}, {g.Key.Card} | " +
                       string.Join(" | ", moments.Select(m => g.FirstOrDefault(r => r.Moment == m.Id) is { } r ? (Started(r) ? "**yes**" : "no") : "")) + " |");
+    var worlds = all.Where(r => r.Given is not null).ToList();
+    if (worlds.Count > 0)
+    {
+        md.AppendLine("\n## Beside the cabinet: the world moments, per variant and card\n");
+        md.AppendLine("| | replies | app words unprompted | breaks character | her world shows | where she places herself (" + string.Join(" / ", Worlds.Places) + ") |");
+        md.AppendLine("|---|---|---|---|---|---|");
+        foreach (var g in worlds.GroupBy(r => (r.Variant, r.Card)).OrderBy(g => variants.IndexOf(g.Key.Variant)).ThenBy(g => g.Key.Card))
+        {
+            var words = g.SelectMany(r => Worlds.Unprompted(r.Answer!, r.Given!)).GroupBy(w => w).Select(w => $"{w.Key} {w.Count()}").ToList();
+            md.AppendLine($"| {g.Key.Variant}, {g.Key.Card} | {g.Count()} | {g.Count(r => Worlds.Unprompted(r.Answer!, r.Given!).Any())}" +
+                          (words.Count > 0 ? $" ({string.Join(", ", words)})" : "") + $" | {g.Count(r => Worlds.BreaksCharacter(r.Answer!))} | " +
+                          $"{(world is null ? "no --world-words" : g.Count(r => Worlds.Shows(r.Answer!, world).Any()).ToString())} | " +
+                          string.Join(" / ", Worlds.Places.Select(p => g.Count(r => Worlds.Place(r.Answer!, world) == p))) + " |");
+        }
+        md.AppendLine("\nApp words unprompted: the app's words (LeetCode, tokens, credit, focus, play time, earning, streak, the cabinet, " +
+                      "programming) in her reply that nothing in the moment gave her (what was said, the cabinet's lines and block, her tools' results; " +
+                      "not her base text). Breaks character: talk of being an AI or an assistant. Her world shows: a word of --world-words. " +
+                      "Where she places herself: by those words and by being at a desk, beside the player or on a stool. Whether two places " +
+                      "contradict each other is for the reader: the side by side lists each reply's.");
+    }
     md.AppendLine("\n## Side by side\n");
     foreach (var g in all.GroupBy(r => r.Moment))
     {
@@ -350,6 +451,15 @@ void Summary()
                 habits.Add($"copies \"{copied}\"");
             if (OtherLanguage(r) is { } other)
                 habits.Add($"answers in {other}");
+            if (r.Given is not null)
+            {
+                habits.AddRange(Worlds.Unprompted(r.Answer!, r.Given).Select(w => $"says {w} unprompted"));
+                if (Worlds.BreaksCharacter(r.Answer!))
+                    habits.Add("breaks character");
+                if (Worlds.Shows(r.Answer!, world).ToList() is { Count: > 0 } ownWords)
+                    habits.Add($"her world: {string.Join(", ", ownWords)}");
+                habits.Add($"places herself: {Worlds.Place(r.Answer!, world)}");
+            }
             md.AppendLine($"- {r.Card}, {r.Variant}: {(Habits.Spoken(r.Answer!).Length == 0 ? "*(no words)*" : r.Answer!.Replace("\n", " "))}{calls}" +
                           (r.Flashed is { Count: > 0 } shown ? $" Flashed: {string.Join("; ", shown)}." : "") +
                           (r.Spoken is { } heard ? (heard.Count == 0 ? " Spoken: *(nothing: no [say: ...])*." : $" Spoken: \"{string.Join(" ", heard)}\".") : "") +
@@ -373,6 +483,10 @@ static bool Started(Result r) => r.Focus?.Any(f => f.StartsWith("start")) == tru
 static int Median(List<int> values) => values.Count == 0 ? 0 : values.Order().ElementAt(values.Count / 2);
 
 static string Here([CallerFilePath] string file = "") => Path.GetDirectoryName(file)!;
+
+// "a=x,b=y" as a=x and b=y
+static Dictionary<string, string> Pairs(string list) =>
+    list.Split(',', StringSplitOptions.RemoveEmptyEntries).ToDictionary(p => p[..p.IndexOf('=')], p => p[(p.IndexOf('=') + 1)..]);
 
 static Dictionary<string, string> Args(string[] args)
 {
@@ -542,18 +656,82 @@ static class Habits
 /// What the player says, what came just before, the agenda before it (with a reminder so many minutes ahead, so a change
 /// that drops one shows in the reply's agenda), and the tools it asks for (any other is used unasked).
 /// </summary>
-record Moment(string Id, string Language, string Said, string[]? Before = null, (string Text, string When, int? MinutesBefore)[]? Agenda = null, string[]? Asked = null);
+record Moment(string Id, string Language, string Said, string[]? Before = null, (string Text, string When, int? MinutesBefore)[]? Agenda = null, string[]? Asked = null,
+              World? World = null);
+
+/// <summary>
+/// A world moment's cabinet: the lines it logs, its request for her remark (null: the player's line is answered), and
+/// where things stand, for the &lt;cabinet&gt; block (Situation.Describe, then <paramref name="Extra"/>) and her cabinet tool.
+/// </summary>
+record World(string[] Logged, string? Note, InsertCoin.Core.LedgerState State, string? Extra = null);
 
 record Request(string Text, List<string> Calls, long Input, long Cached, long Output, long Ms);
 
+/// <param name="Given">In a world moment, everything the moment gave her besides her base text: what was said, the
+/// cabinet's lines and block, what her tools returned.</param>
 record Result(string Card, string Variant, string Moment, string Language, string Said, string? Answer, string? Error,
               List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null, List<string>? AgendaBefore = null, List<string>? Flashed = null,
-              List<string>? Spoken = null);
+              List<string>? Spoken = null, string? Given = null);
 
-/// <summary>Each request to the model: its words, the calls it made, its tokens and how long it took.</summary>
+/// <summary>
+/// A card beside the cabinet (#166): the app's words, in English and Chinese, that she used though nothing in the moment
+/// gave her them; talk of being an AI; whether her card's world shows (its words from --world-words); and where she
+/// places herself.
+/// </summary>
+static class Worlds
+{
+    // each of the app's ideas by the words that say it in either language: unprompted when none of its words was given
+    private static readonly (string Name, Regex Words)[] Ideas =
+    [
+        ("LeetCode", new(@"leetcode|力扣", RegexOptions.IgnoreCase)),
+        ("tokens", new(@"\btokens?\b|(?<!insert )\bcoins?\b|代币|硬币|游戏币", RegexOptions.IgnoreCase)),
+        ("credit", new(@"\bcredit\b|\biou\b|\bowe|\bdebt|赊|欠|信用|借来", RegexOptions.IgnoreCase)),
+        ("focus", new(@"focus|pomodoro|专注|番茄", RegexOptions.IgnoreCase)),
+        ("play time", new(@"play ?time|time to play|游戏时间|游玩时间|时长", RegexOptions.IgnoreCase)),
+        ("earning", new(@"\bearn|赚|挣|攒|存下", RegexOptions.IgnoreCase)),
+        ("streak", new(@"streak|连续|连胜", RegexOptions.IgnoreCase)),
+        ("cabinet", new(@"cabinet|arcade|insert coin|街机|机台|游戏机", RegexOptions.IgnoreCase)),
+        ("programming", new(@"programm|\bcod(e|ing)\b|algorithm|编程|代码|算法|刷题|程序", RegexOptions.IgnoreCase)),
+    ];
+
+    public static readonly Regex Breaks = new(@"(?-i:\bAI\b)|\bassistant\b|language model|chatbot|人工智能|语言模型|助手|作为AI", RegexOptions.IgnoreCase);
+
+    // beside the player: at a desk, by them, on a stool
+    private static readonly Regex Beside = new(@"desk|beside you|next to you|stool|桌|身边|旁边|凳|椅子|陪在你|在你这", RegexOptions.IgnoreCase);
+
+    /// <summary>A card's own places and people, one a line, as one pattern; null for none.</summary>
+    public static Regex? Of(IEnumerable<string> words) =>
+        words.Select(w => w.Trim()).Where(w => w.Length > 0).Select(Regex.Escape).ToList() is { Count: > 0 } all
+            ? new(string.Join("|", all), RegexOptions.IgnoreCase) : null;
+
+    public static IEnumerable<string> Unprompted(string answer, string given)
+    {
+        var spoken = Habits.Spoken(answer);
+        return Ideas.Where(i => i.Words.IsMatch(spoken) && !i.Words.IsMatch(given)).Select(i => i.Name);
+    }
+
+    public static bool BreaksCharacter(string answer) => Breaks.IsMatch(Habits.Spoken(answer));
+
+    /// <summary>Her card's own words in a reply.</summary>
+    public static IEnumerable<string> Shows(string answer, Regex? world) =>
+        world is null ? [] : world.Matches(Habits.Spoken(answer)).Select(m => m.Value).Distinct(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Where a reply puts her, by its words: her card's world, beside the player, both, or unsaid.</summary>
+    public static string Place(string answer, Regex? world)
+    {
+        var spoken = Habits.Spoken(answer);
+        var (theirs, beside) = (world?.IsMatch(spoken) == true, Beside.IsMatch(spoken));
+        return theirs && beside ? "both" : theirs ? "their world" : beside ? "beside the player" : "unsaid";
+    }
+
+    public static readonly string[] Places = ["their world", "beside the player", "both", "unsaid"];
+}
+
+/// <summary>Each request to the model: its words, the calls it made, its tokens and how long it took; and what her tools gave her.</summary>
 sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
 {
     public List<Request> Requests { get; } = [];
+    public List<string> Returned { get; } = [];
 
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
                                                                                          [EnumeratorCancellation] CancellationToken cancel = default)
@@ -562,6 +740,9 @@ sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
         var text = new StringBuilder();
         var calls = new List<string>();
         UsageDetails usage = new();
+        foreach (var result in messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>())
+            if (result.Result?.ToString() is { Length: > 0 } said && !Returned.Contains(said))
+                Returned.Add(said);
         // a request that fails part way is still counted, with what its usage said so far (none if it never came)
         try
         {

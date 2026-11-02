@@ -24,19 +24,19 @@ public class SituationTests
 
         var text = Situation.Describe(state, Rules, Friday);
 
-        Assert.Equal("Right now: playing Hades, 25 min into the session.\nPlay time banked: 50 min.", text);
+        Assert.Equal("Right now: playing Hades, 25 min into the session.\nPlay time the player has earned for their games and not yet used: 50 min.", text);
         var quiet = Situation.Describe(LedgerState.New(Friday, Rules), Rules, Friday);
-        Assert.Equal("Play time banked: none.", quiet);                     // a new player: nothing of LeetCode, rates or zeros
+        Assert.Equal("Play time the player has earned for their games and not yet used: none.", quiet);                     // a new player: nothing of LeetCode, rates or zeros
 
         var ledger = Situation.Ledger(state, Rules, Friday, "BobSmith", null);
         Assert.Contains("The player's LeetCode account: BobSmith.", ledger);
-        Assert.Contains("Play time banked: 50 min. Each night at 04:00, half of what isn't played fades.", ledger);
-        Assert.Contains("Today (Friday): 45 min earned of the day's cap of 2 h; 1 h 15 min more can be earned.", ledger);
+        Assert.Contains("Play time the player has earned for their games and not yet used: 50 min. Each night at 04:00, half of what isn't played fades.", ledger);
+        Assert.Contains("Today (Friday): 45 min earned of the day's cap of 2 h, the most play time a day can earn; 1 h 15 min more can be earned.", ledger);
         Assert.Contains("So far today: 1 problem solved, 1 h 10 min focused, 25 min played.", ledger);
         Assert.Contains("Streak of good days (a solve, an activity or 25 min of focus): 2 days (best 7).", ledger);
         Assert.Contains("This week: 4 problems solved, 2 h 30 min focused, 1 h 40 min earned, 1 h 30 min played.", ledger);
-        Assert.Contains("LeetCode problems pay Easy 1 token, Medium 2, Hard 4", ledger);
-        Assert.Contains("focus pays 15 min for every 1 h focused", ledger);
+        Assert.Contains("Solving a problem on LeetCode (a site of programming practice problems) pays by how hard it is: an easy one 1 token, a medium one 2, a hard one 4", ledger);
+        Assert.Contains("focused work, timed by the cabinet, pays 15 min of play for every 1 h focused", ledger);
         Assert.Contains("from the third good day in a row", ledger);
         Assert.Contains("(Monday to Thursday 1 h 30 min, Friday 2 h, weekends 2 h 30 min)", ledger);
     }
@@ -56,12 +56,12 @@ public class SituationTests
     }
 
     [Theory]
-    [InlineData(true, true, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4; the player's own activities pay by their size (small 1, medium 2, big 4); focus pays 15 min for every 1 h focused.", "a solve, an activity or 25 min of focus")]
-    [InlineData(true, true, false, "The player's own activities pay by their size (small 1, medium 2, big 4); focus pays 15 min for every 1 h focused.", "an activity or 25 min of focus")]
-    [InlineData(true, false, false, "Focus pays 15 min for every 1 h focused.", "25 min of focus")]
-    [InlineData(false, true, false, "The player's own activities pay by their size (small 1, medium 2, big 4).", "an activity")]
-    [InlineData(false, false, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4.", "a solve")]
-    [InlineData(true, false, true, "LeetCode problems pay Easy 1 token, Medium 2, Hard 4; focus pays 15 min for every 1 h focused.", "a solve or 25 min of focus")]
+    [InlineData(true, true, true, "Solving a problem on LeetCode (a site of programming practice problems) pays by how hard it is: an easy one 1 token, a medium one 2, a hard one 4; the player's own activities (the gym, a run, a chore) pay by their size (small 1, medium 2, big 4); focused work, timed by the cabinet, pays 15 min of play for every 1 h focused.", "a solve, an activity or 25 min of focus")]
+    [InlineData(true, true, false, "The player's own activities (the gym, a run, a chore) pay by their size (small 1, medium 2, big 4); focused work, timed by the cabinet, pays 15 min of play for every 1 h focused.", "an activity or 25 min of focus")]
+    [InlineData(true, false, false, "Focused work, timed by the cabinet, pays 15 min of play for every 1 h focused.", "25 min of focus")]
+    [InlineData(false, true, false, "The player's own activities (the gym, a run, a chore) pay by their size (small 1, medium 2, big 4).", "an activity")]
+    [InlineData(false, false, true, "Solving a problem on LeetCode (a site of programming practice problems) pays by how hard it is: an easy one 1 token, a medium one 2, a hard one 4.", "a solve")]
+    [InlineData(true, false, true, "Solving a problem on LeetCode (a site of programming practice problems) pays by how hard it is: an easy one 1 token, a medium one 2, a hard one 4; focused work, timed by the cabinet, pays 15 min of play for every 1 h focused.", "a solve or 25 min of focus")]
     public void Her_cabinet_tool_says_how_play_is_earned_by_only_what_earns(bool focus, bool activities, bool leetCode, string pays, string goodDay)
     {
         var rules = Rules with { Earns = new Earning(focus, activities, leetCode) };
@@ -69,7 +69,8 @@ public class SituationTests
 
         var ledger = Situation.Ledger(state, rules, Friday, "BobSmith", null);
 
-        Assert.Contains($"How play is earned: a token is 15 min of play. {pays} A good day has {goodDay}; from the third", ledger);
+        Assert.Contains("How play is earned: the cabinet keeps a balance of the player's work, life and games. Doing good things earns play time for their games, " +
+                        $"counted in tokens (the cabinet's own coins); a token is 15 min of play. {pays} A good day has {goodDay}; from the third", ledger);
         Assert.Contains($"Streak of good days ({goodDay}): ", ledger);
         Assert.Equal(leetCode, ledger.Contains("LeetCode"));                // the account, the rates: nothing names it when it is off
         Assert.Equal(leetCode, ledger.Contains("solve"));                   // nor a solve, as the week's problems or the streak's
@@ -156,10 +157,50 @@ public class SituationTests
 
         var system = Prompt.Build(persona, "", "", null, [], "", "hi", earns: new Earning(false, false, false))[0].Text;
 
-        Assert.Contains("INSERT COIN, their little arcade cabinet, is with them and tells you what happens; the <cabinet> block has what matters now.", system);
+        Assert.Contains("INSERT COIN, their little arcade cabinet, is with them and tells you what happens.", system);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(system, "INSERT COIN"));      // introduced once (#204's review)
         Assert.DoesNotContain("balance", system);
         Assert.DoesNotMatch(@"\bearn", system);
         Assert.DoesNotContain("spends it playing", system);
+    }
+
+    [Fact]
+    public void Her_base_text_says_what_is_there_and_never_where_she_is()
+    {
+        var persona = new Persona("Shino", "Shino is cheerful.");
+
+        foreach (var system in new[] { Prompt.Build(persona, "", "", null, [], "", "hi")[0].Text,
+                                       Prompt.Build(persona, "", "", null, [], "", "hi", tools: true, asking: ["open_link"])[0].Text })
+        {
+            Assert.StartsWith("You are Shino. You keep the player company while they work and play, as yourself, not a service they call on. " +
+                              "INSERT COIN, their little arcade cabinet, is with them: it keeps their balance of work and play and tells you what happens.", system);
+            // a card's own world and place stand wherever it sets them (spec 2026-10-27-any-character.md)
+            foreach (var word in new[] { "stool", "desk", "room", "a person in the room" })
+                Assert.DoesNotMatch($@"(?i)\b{word}\b", system);
+            Assert.Contains("The player types or speaks to you, and your words show in a speech bubble, a page at a time.", system);
+            Assert.Contains("add [out] to your reply; when they are going to sleep, [sleep].", system);
+        }
+        Assert.Contains("These ask the player on a card before they act: open_link;", Prompt.Build(persona, "", "", null, [], "", "hi", tools: true, asking: ["open_link"])[0].Text);
+    }
+
+    [Fact]
+    public void The_cabinets_own_things_are_said_in_plain_words()
+    {
+        var owing = LedgerState.New(Friday.AddDays(-4), Rules) with { DebtMs = 15 * 60_000 };
+        var owingMore = owing with { DebtMs = 35 * 60_000 };
+
+        Assert.Contains("Owed: 15 min of play time, played on credit (1 IOU, a slip the cabinet printed).", Situation.Describe(owing, Rules, Friday));
+        Assert.Contains("Owed: 35 min of play time, played on credit (2 IOUs, slips the cabinet printed).", Situation.Ledger(owingMore, Rules, Friday, null, null));
+        Assert.Equal("The player's play time for their games ran out; the game goes on, on credit (it costs 1.5 times as much), and the cabinet prints IOUs, " +
+                     "slips for the play time owed.", Situation.Witness(new CreditsOut(), Rules));
+        Assert.Equal("That paid off all the play time they owed.", Situation.Witness(new DebtPaid(15 * 60_000, 0, 0, 0), Rules));
+        Assert.Equal("5 min of play time left for their games.", Situation.Witness(new LowTime(Warning.FiveMinutes, 5 * 60_000), Rules));
+        Assert.Equal("Today became a good day (it has a solve, an activity or 25 min of focus), day 3 of a streak of good days.",
+                     Situation.Witness(new StreakStar(3, Paid(15)), Rules));
+        Assert.Contains("When their play time runs out the game goes on, on credit (it costs 1.5 times as much), and the cabinet prints IOUs, slips for the play time owed.",
+                        Situation.Ledger(owing, Rules, Friday, null, null));
+        foreach (var line in new[] { Situation.Describe(owing, Rules, Friday), Situation.Ledger(owing, Rules, Friday, null, null) })
+            Assert.DoesNotMatch(@"banked|\bx\d|IOU ticket", line);           // the cabinet's shorthand, which one card read wrong
     }
 
     [Fact]
@@ -174,21 +215,21 @@ public class SituationTests
         var evening = Situation.Describe(state, rules, Friday);
         var late = Situation.Describe(state, rules, Friday.AddHours(4));
 
-        Assert.Contains("Today's cap of 2 h is reached: nothing more is paid until 04:00.", evening);
+        Assert.Contains("Today's cap of 2 h, the most play time a day can earn, is reached: nothing more is earned until 04:00.", evening);
         Assert.DoesNotContain("bedtime", evening);                          // only once it matters
-        Assert.Contains("It is past their bedtime (23:00): play costs x1.5 until 04:00.", late);
+        Assert.Contains("It is past their bedtime (23:00): play costs 1.5 times as much play time until 04:00.", late);
     }
 
     [Fact]
     public void Witnesses_what_happened_not_what_it_paid_and_skips_the_bookkeeping()
     {
-        Assert.Equal("The player solved \"Two Sum\" (Easy).",
+        Assert.Equal("The player solved a programming practice problem on LeetCode: \"Two Sum\", an easy one.",
                      Situation.Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, Friday), 1, false, 1, Paid(15)), Rules));
-        Assert.Equal("The player solved \"LRU Cache\" (Medium): day 3 of a streak of good days.",
+        Assert.Equal("The player solved a programming practice problem on LeetCode: \"LRU Cache\", a medium one; day 3 of a streak of good days.",
                      Situation.Witness(new CoinsEarned(new SolvedTask("2", "LRU Cache", Difficulty.Medium, Friday), 2, true, 3, Paid(30, credited: 10)), Rules));
         Assert.Equal("A focus part ended: 30 min focused.", Situation.Witness(new FocusPaid(30 * 60_000, Paid(7.5, credited: 0)), Rules));
         Assert.Equal("Play went past the player's bedtime (00:30).", Situation.Witness(new LateNight(new TimeSpan(0, 30, 0), 1.5), Rules));
-        Assert.Equal("\"the gym\" counted by half for now.", Situation.Witness(new ActivityPaid("the gym", Size.Medium, 0.5, 0.5, Paid(15)), Rules));
+        Assert.Equal("The player's own activity \"the gym\" counted towards their play time by half for now.", Situation.Witness(new ActivityPaid("the gym", Size.Medium, 0.5, 0.5, Paid(15)), Rules));
         Assert.Equal("The player stopped playing after 1 h 5 min.",
                      Situation.Witness(new SessionEnded(new Session { PlayedMs = 65 * 60_000, IousPrinted = 2 }), Rules));
         Assert.Null(Situation.Witness(new TokenInserted(2), Rules));
@@ -202,7 +243,7 @@ public class SituationTests
     {
         Assert.Null(Situation.Witness(new DebtPaid(15 * 60_000, 1, 0, 0), NoPlayTime));
         Assert.Null(Situation.Witness(new StreakStar(3, Paid(15)), NoPlayTime));
-        Assert.Equal("The player solved \"Two Sum\" (Easy).",
+        Assert.Equal("The player solved a programming practice problem: \"Two Sum\", an easy one.",       // LeetCode's last answer, and nothing names it
                      Situation.Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, Friday), 2, true, 3, Paid(30)), NoPlayTime));
         Assert.Equal("The player stopped playing after 20 min.", Situation.Witness(new SessionEnded(new Session { PlayedMs = 20 * 60_000 }), NoPlayTime));
     }

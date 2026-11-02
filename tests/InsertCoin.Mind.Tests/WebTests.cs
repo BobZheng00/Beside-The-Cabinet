@@ -161,6 +161,17 @@ public class WebTests
         return Page("""{"data":{"question":null}}""", "application/json");
     });
 
+    [Fact]
+    public async Task Her_LeetCode_tool_says_what_LeetCode_is()
+    {
+        var tool = BuiltIn.LeetCodeProblem((_, _) => Task.FromResult("LeetCode 1. Two Sum (Easy)."));
+
+        var result = await tool.Function.InvokeAsync(new Microsoft.Extensions.AI.AIFunctionArguments { ["problem"] = "two sum" });
+
+        // a character who has never heard of it learns it from the tool, not from a rule (spec 2026-10-27-any-character.md)
+        Assert.Equal("From LeetCode, a site of programming practice problems:\nLeetCode 1. Two Sum (Easy).", result?.ToString());
+    }
+
     [Theory]
     [InlineData("1. Two Sum - LeetCode - Google Chrome")]
     [InlineData("1. 两数之和 - 力扣（LeetCode） - Microsoft Edge")]

@@ -959,8 +959,8 @@ public class AgendaToolTests
             Assert.DoesNotContain("Only say you did something", told);
             Assert.DoesNotContain("say when you will", told);
             Assert.DoesNotContain("lightly", told);
-            Assert.Contains("a person in the room with them, not a service they call on", told);
-            Assert.Contains("your words show in a speech bubble by you, a page at a time", told);
+            Assert.Contains("as yourself, not a service they call on", told);
+            Assert.Contains("your words show in a speech bubble, a page at a time", told);
             Assert.Contains("Reply in the language the player last wrote in.", told);
             Assert.Contains("add [out] to your reply; when they are going to sleep, [sleep]", told);
             Assert.Contains("never threatening or lecturing", told);

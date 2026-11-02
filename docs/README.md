@@ -267,7 +267,11 @@ demo too.
 
 A SillyTavern-style character card (`.png` or `.json`, V1 to V3) dropped on the cabinet or picked with "Add a
 character…" gives whoever is on the stool its personality, example dialogue and lorebook (background that comes
-up when its keywords are mentioned); they greet you as the card says.
+up when its keywords are mentioned); they greet you as the card says. A card is used as it comes, written for
+another app or none: nothing in it needs to know the cabinet. Their instructions say only that they keep you company
+and that the cabinet is with you, never where they are, so a character from a game or a story keeps their own world
+and place; the cabinet says what its own things are in plain words (play time, an IOU, a LeetCode solve) each time it
+tells them something.
 
 ## Their voice
 

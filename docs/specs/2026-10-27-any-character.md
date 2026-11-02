@@ -1,8 +1,8 @@
 # Any character beside the cabinet: the app says what's there, never where she is
 
 *Decided with the user, 2026-10-27 (#166), from two billed spikes (their code is kept on the PM's PC, off GitHub,
-since it named a game card's places). Nothing
-built yet; the order is at the end. It builds on the lean base text (`2026-10-24-how-she-talks.md`, #127).*
+since it named a game card's places). Built
+with #180 (2026-11-02), but for the opening's final version, which waits for the billed run; the order is at the end. It builds on the lean base text (`2026-10-24-how-she-talks.md`, #127).*
 
 ## Why
 
@@ -117,3 +117,12 @@ person in the room with them". The cabinet's lines name its own things as if she
 
 1. **The blurred opening, the cabinet's plain words, LeetCode said in its tool, and the moments in the manner check**
    (#180). After #169. It also ties in with #173, which names only the sources that are on.
+
+   *Built 2026-11-02 (#180).* `Prompt.Opening` is the blurred text, shipped for now with "as yourself, not a service
+   they call on" until the billed run's counts decide; with no play time it is the opening alone that says the cabinet
+   is there (the paragraph after the card no longer says it again). `Situation`'s lines, `<cabinet>` block and "How
+   play is earned" say what play time, an IOU, credit, the cap and a solve are; a solve names LeetCode only while it
+   earns. The `leetcode_problem` tool's result starts "From LeetCode, a site of programming practice problems". The
+   voice's Test line asks how the player's day is going rather than about solving one more problem. The manner check
+   has the world moments (`w-*`: the first spike's six in English and Chinese, the second's three in Chinese), with
+   `--card-names`, `--player` and `--world-words`, and counts them in a table of its own.
