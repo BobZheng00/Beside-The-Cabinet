@@ -6,16 +6,16 @@ public enum TrayMood { Fine, Low, Debt }
 
 /// <summary>
 /// System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu: the cabinet, Settings…,
-/// Getting started… while anything is left of it, her books, a memo, a check of LeetCode, the switches flipped often
+/// Getting started… while anything is left of it, who keeps the player company, her books, a memo, a check of LeetCode, the switches flipped often
 /// (sounds, her voice, a conversation), and Quit.
 /// Everything else is in Settings (see <see cref="App.SettingsWindow"/>).
 /// </summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, Settings, GettingStarted, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
+    public event Action? ShowCabinet, Settings, GettingStarted, Characters, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
     public event Action<bool>? MutedChanged, VoiceChanged, ConversationChanged;
 
-    private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9, StartId = 10;
+    private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9, StartId = 10, CharactersId = 11;
     private static readonly Dictionary<TrayMood, Color> Tint = new()
     {
         [TrayMood.Fine] = new Color("4dd9e8"), [TrayMood.Low] = new Color("ffb347"), [TrayMood.Debt] = new Color("ff4f9a"),
@@ -148,6 +148,7 @@ public partial class TrayIcon : Node
             case ShowId: ShowCabinet?.Invoke(); break;
             case SettingsId: Settings?.Invoke(); break;
             case StartId: GettingStarted?.Invoke(); break;
+            case CharactersId: Characters?.Invoke(); break;
             case MemoryId: MemoryBook?.Invoke(); break;
             case HistoryId: ChatHistory?.Invoke(); break;
             case MemoId: WriteMemo?.Invoke(); break;
@@ -166,7 +167,8 @@ public partial class TrayIcon : Node
         menu.IdPressed += OnMenu;
         into.AddChild(menu);
         menu.AddItem("Show cabinet", ShowId);
-        menu.AddItem("Settings…", SettingsId);
+        menu.AddItem("Settings…", SettingsId);           // "Getting started…" goes under it while anything is left of it (see ShowStart)
+        menu.AddItem("Who keeps you company…", CharactersId);
         menu.AddSeparator();
         menu.AddItem("Memory book…", MemoryId);
         menu.AddItem("Chat history…", HistoryId);

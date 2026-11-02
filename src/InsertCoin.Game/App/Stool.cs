@@ -1359,10 +1359,16 @@ public partial class Stool : Node2D
     /// <summary>The character chosen for the stool (whether shown or not), with the name their persona goes by.</summary>
     private (string Id, string Name)? OnStool()
     {
-        if (_chat.Conversation is { } conversation)
+        var conversation = _chat.Conversation;
+        if (conversation is not null && conversation.Character == _settings.Now.Companion)
             return (conversation.Character, conversation.Persona.Name);
         var characters = CompanionView.Available(_characters);
-        return (characters.FirstOrDefault(c => c.Id == _settings.Now.Companion) ?? characters.FirstOrDefault()) is { } c ? (c.Id, c.Name) : null;
+        // the one talking, unless another was chosen while the stool is empty: they talk once seated
+        if (conversation is not null && characters.All(c => c.Id != _settings.Now.Companion))
+            return (conversation.Character, conversation.Persona.Name);
+        // the name their card or persona file gives, as when they talk (read from disk only here, with the stool empty)
+        return (characters.FirstOrDefault(c => c.Id == _settings.Now.Companion) ?? characters.FirstOrDefault()) is { } c
+            ? (c.Id, c.Persona(_characters, null).Name) : null;
     }
 
     // ---- Bringing characters, cards and voices in -------------------------------------------------------------------------
@@ -1574,10 +1580,10 @@ public partial class Stool : Node2D
             Meet(open: false);
             return;
         }
-        if (added.Count > 0)
-            SettingsChanged?.Invoke("characters");          // one more to choose from
         _settings.Save(_settings.Now with { ShowCompanion = true });
         Seat(added.FirstOrDefault() ?? OnStool()!.Value.Id);        // seated again, so a new card takes effect
+        if (added.Count > 0)
+            SettingsChanged?.Invoke("characters");          // one more to choose from, and seated: made after the seating, so ticked
         _lively(6);
         Her?.Play(Moment.Greet);
         if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)
@@ -1948,15 +1954,16 @@ public partial class Stool : Node2D
     // ---- Her pages of the settings ---------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Her pages of the settings (see <see cref="SettingsWindow"/>): her mind, her voice, talking aloud, characters, her
-    /// abilities, privacy and add-ons, and what her requests used. Each change is saved and used at once.
+    /// Her pages of the settings (see <see cref="SettingsWindow"/>): characters (who sits on the stool), her mind, her
+    /// voice, talking aloud, her abilities, privacy and add-ons, and what her requests used. Each change is saved and
+    /// used at once.
     /// </summary>
     public IEnumerable<SettingsPage> SettingsPages() =>
     [
         new("mind", SettingsWindow.Companion, "Mind", () => MindPage()),
         new("voice", SettingsWindow.Companion, "Voice", VoicePage),
         new("listening", SettingsWindow.Companion, "Talking aloud", ListeningPage),
-        new("characters", SettingsWindow.Companion, "Characters", CharactersPage),
+        new("characters", SettingsWindow.First, "Characters", CharactersPage),        // above the groups: who sits there, not something about them
         new("abilities", SettingsWindow.Companion, "Abilities", AbilitiesPage),
         new("privacy", SettingsWindow.Companion, "Privacy", PrivacyPage),
         new("skills", SettingsWindow.Companion, "Skills", SkillsPage, Fresh: true),     // made again each time: skills change on disk

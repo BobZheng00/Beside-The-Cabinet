@@ -67,6 +67,7 @@ public partial class Main : Node2D
     private bool _polling, _noSteam, _linkDown;
     private bool _devGame, _devWarp, _devAfk;
     private bool _displayOff, _alarm;                       // as last logged
+    private (long Left, long Earned)? _shownInGame;         // the time left last shown in a game being played, and what was earned by then
 
     public override void _Ready()
     {
@@ -267,11 +268,14 @@ public partial class Main : Node2D
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.Settings += () => OpenSettings(null);
         _tray.GettingStarted += () => OpenSettings("start");
+        _tray.Characters += () => OpenSettings("characters");
         _stool.OpenSettings += OpenSettings;
         _stool.SettingsChanged += page =>
         {
-            if (IsInstanceValid(_settingsWindow))
-                _settingsWindow!.RefreshPage(page);
+            if (!IsInstanceValid(_settingsWindow))
+                return;
+            _settingsWindow!.Rename(_stool.HerName(), choosingOn: "characters");     // someone else on the stool, say
+            _settingsWindow.RefreshPage(page);
         };
         _tray.MemoryBook += _stool.OpenMemoryBook;
         _tray.WriteMemo += _stool.WriteMemo;
@@ -517,6 +521,13 @@ public partial class Main : Node2D
         var left = s.TimeLeftMs(_rules);
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
+        // the time left never goes up in a game being played (its program seen at the last check, held or not, and not
+        // paused) unless something was earned meanwhile: logged, for the smoke suite to catch (#221: pausing and closing)
+        var earned = s.Today?.EarnedMs ?? 0;
+        var inGame = s.Session is { Misses: 0 } && !s.Paused;
+        if (inGame && _shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
+            GD.Print($"Main: the time left shown went up in a game, from {last.Left} to {shownLeft} ms");
+        _shownInGame = inGame ? (shownLeft, earned) : null;
 
         _cabinet.Screen.Show(new ScreenState
         {
@@ -963,7 +974,9 @@ public partial class Main : Node2D
         }
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
-        _settingsWindow.Build([.. SettingsPages(page), .. _stool.SettingsPages()], page, _stool.HerName());
+        SettingsPage[] pages = [.. SettingsPages(page), .. _stool.SettingsPages()];
+        // Settings… opens at Getting started while it is listed, else at her mind: Characters, listed first, has its own entry
+        _settingsWindow.Build(pages, page ?? (pages[0].Id == "start" ? "start" : "mind"), _stool.HerName());
         _settingsWindow.Open();
     }
 

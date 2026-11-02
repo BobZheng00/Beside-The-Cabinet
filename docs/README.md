@@ -9,9 +9,10 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
 tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
-(and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), the
-memory book and chat history, a memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped
-often (Mute sounds, Voice, Conversation). A
+(and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), Who
+keeps you company… (Settings → Characters, to choose who sits on the stool), the memory book and chat history, a
+memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
+Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
 one to move it), SETTINGS last (on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
 switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it), which opens Settings as the tray does; along its top bar the same three switches, lit
@@ -21,8 +22,9 @@ off, and a name flips on whole the moment the pointer rests on its button, as an
 name too long for it scrolls through, a column at a time); INSERT COIN comes back drawn in a column at a time. While
 the screen is lifted out it covers the marquee, so a switch's name also shows on the screen's top bar, in place of
 the time, while the pointer is on it. Settings is one window with a page
-for each thing, listed down its left side: Getting started; under your companion's name, Mind, Voice, Talking aloud,
-Characters, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins, Your phone, Calendars and Balance;
+for each thing, listed down its left side: Getting started and Characters; under your companion's name (whoever is on the
+stool now), Mind, Voice, Talking aloud, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins,
+Your phone, Calendars and Balance;
 under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
 the cabinet rises for a moment or is kept on top ("Always on top" on Cabinet).

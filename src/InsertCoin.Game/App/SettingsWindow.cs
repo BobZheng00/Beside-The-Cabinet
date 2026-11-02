@@ -12,9 +12,10 @@ namespace InsertCoin.Game.App;
 public sealed record SettingsPage(string Id, string Group, string Name, Func<Control> Make, bool Fresh = false);
 
 /// <summary>
-/// Every setting in one window (tray → Settings…): the pages listed on the left in three groups (her, the player's day,
-/// the cabinet), the one chosen on the right. A page is saved as it is changed, so there is nothing to save or cancel;
-/// only a connection to something outside (her provider) waits for its own button (spec 2026-10-10-settings-and-setup.md).
+/// Every setting in one window (tray → Settings…): the pages listed on the left, Getting started and Characters above
+/// three groups (her, headed by her name, the player's day, the cabinet), the one chosen on the right. A page is saved
+/// as it is changed, so there is nothing to save or cancel; only a connection to something outside (her provider) waits
+/// for its own button (spec 2026-10-10-settings-and-setup.md).
 /// </summary>
 public partial class SettingsWindow : Window
 {
@@ -27,6 +28,8 @@ public partial class SettingsWindow : Window
     private MarginContainer _area = null!;
     private PanelContainer _sheet = null!;
     private string? _showing;
+    private Label? _her;                                    // the companion's group's heading: their name
+    private readonly HashSet<string> _stale = [];           // pages to make again when next shown (see Rename)
 
     /// <param name="open">The page to show first, or null for the first one.</param>
     /// <param name="companion">Who is on the stool: their name heads the companion's pages.</param>
@@ -64,19 +67,27 @@ public partial class SettingsWindow : Window
                     list.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
                 group = page.Group;
                 if (group != First)
-                    list.AddChild(new Label { Text = (group == Companion ? companion : group).ToUpperInvariant(), ThemeTypeVariation = "Group" });
+                {
+                    var heading = new Label { Text = (group == Companion ? companion : group).ToUpperInvariant(), ThemeTypeVariation = "Group" };
+                    list.AddChild(heading);
+                    if (group == Companion)
+                        _her = heading;
+                }
             }
             var entry = new Button { Text = page.Name, ThemeTypeVariation = "Side", ToggleMode = true, ButtonGroup = chosen, Alignment = HorizontalAlignment.Left };
             entry.Pressed += () => ShowPage(page.Id);
             list.AddChild(entry);
             _entries[page.Id] = entry;
         }
+        var listed = string.Join(" | ", list.GetChildren().Select(c => (c as Button)?.Text ?? (c as Label)?.Text).OfType<string>());
         list.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         list.AddChild(new Label { Text = "Changes are saved as you make them.", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });
 
         _area = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         row.AddChild(_area);
         ShowPage(open is not null && _pages.ContainsKey(open) ? open : all[0].Id);
+        if (Paper.OffScreen)                                // a test run logs the list, headings in capitals, and the page it opened at
+            GD.Print($"Settings: the list: {listed}; opened at {_showing}");
     }
 
     public void Open() => Paper.Open(this, new Vector2(820, 704));      // tall enough for every page in the list, and its note
@@ -89,8 +100,11 @@ public partial class SettingsWindow : Window
     {
         if (!_pages.TryGetValue(id, out var page))
             return;
-        if (page.Fresh && _showing != id && _made.Remove(id, out var stale))
+        if ((page.Fresh || _stale.Contains(id)) && _showing != id && _made.Remove(id, out var stale))
+        {
             stale.QueueFree();
+            _stale.Remove(id);
+        }
         if (!_made.TryGetValue(id, out var made))
         {
             made = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
@@ -111,12 +125,32 @@ public partial class SettingsWindow : Window
     /// <summary>Makes a page again if it has been made, as what it shows changed elsewhere (a voice added, a character).</summary>
     public void RefreshPage(string id)
     {
+        _stale.Remove(id);
         if (!_made.Remove(id, out var made))
             return;
         made.Visible = false;
         made.QueueFree();
         if (_showing == id)
             ShowPage(id);
+    }
+
+    /// <summary>
+    /// Someone else took the stool: their name heads the companion's pages, and every page made before, which may say
+    /// the old name, is made again: the one showing at once, others when next shown. The one showing stays as it is
+    /// when it is <paramref name="choosingOn"/> (the player may be choosing on it), and is made again when next shown.
+    /// </summary>
+    public void Rename(string companion, string choosingOn)
+    {
+        if (_her is null || _her.Text == companion.ToUpperInvariant())
+            return;
+        _her.Text = companion.ToUpperInvariant();
+        foreach (var id in _made.Keys.Where(id => id != _showing).ToList())
+            RefreshPage(id);
+        if (_showing == choosingOn)
+            _stale.Add(_showing);
+        else if (_showing is not null)
+            RefreshPage(_showing);
+        GD.Print($"Settings: the companion's pages headed {_her.Text}; {_showing} made again {(_showing == choosingOn ? "when next shown" : "now")}");
     }
 
     /// <summary>The page made for <paramref name="id"/>, if it has been.</summary>
