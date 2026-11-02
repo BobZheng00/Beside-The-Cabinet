@@ -17,18 +17,22 @@ internal sealed class FakeModel(params string[] pieces) : IChatClient
     public Queue<string> Answers { get; } = new();
     /// <summary>How non-streamed answers end, one per request (cut off at the length limit, say), before they simply stop.</summary>
     public Queue<ChatFinishReason> Finishes { get; } = new();
+    /// <summary>Awaited before each non-streamed answer, given how many requests came before it: a slow call, during which the test acts.</summary>
+    public Func<int, Task>? Thinking { get; init; }
 
-    public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         Requests.Add([.. messages]);
         Options.Add(options);
+        if (Thinking is not null)
+            await Thinking(Requests.Count - 1);
         if (Fails is not null)
             throw Fails;
         var text = Answers.Count > 0 ? Answers.Dequeue() : string.Concat(pieces);
-        return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
+        return new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
         {
             FinishReason = Finishes.Count > 0 ? Finishes.Dequeue() : ChatFinishReason.Stop,
-        });
+        };
     }
 
     public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
