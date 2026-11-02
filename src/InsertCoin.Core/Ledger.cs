@@ -232,13 +232,29 @@ public sealed class Ledger(Rules rules)
 
     // ---- Spending ----
 
+    /// <summary>
+    /// The play time spent since the last check, as the next check will spend it and the cabinet's screen counts it
+    /// down meanwhile: none unless the session was being played then (not paused or held), at most
+    /// <see cref="Rules.MaxTick"/> (a stall or the PC's sleep), and more past bedtime.
+    /// </summary>
+    public long SpentSince(LedgerState state, TimeSpan sinceCheck, DateTimeOffset now)
+    {
+        if (!Played(state))
+            return 0;
+        var ms = Capped(sinceCheck);
+        return Rules.Earns.Any && GameCalendar.IsLateNight(state, now, Rules) ? (long)Math.Round(ms * Rules.LateNightMultiplier) : ms;
+    }
+
+    private static bool Played(LedgerState state) => state.Session is not null && !state.Paused && !state.Held;
+
+    private long Capped(TimeSpan elapsed) => (long)Math.Clamp(elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
+
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
-        // a picked program going behind another window or back in front: the time since the last check is spent as the
-        // session stood then, as the screen counted it down meanwhile (#219: the time left shown jumped back otherwise)
-        var held = state.Held;
-        var played = state.Session is { Misses: 0 } && !state.Paused && !held;
-        var elapsedMs = (long)Math.Clamp(tick.Elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
+        // the time since the last check is spent as the session stood then, as the screen counted it down meanwhile, so
+        // a check in which a game pauses, closes, goes unseen or goes behind another window is spent too (#219, #221)
+        if (Played(state))
+            state = Warn(Charge(state, Capped(tick.Elapsed), now, events), events);
 
         state = Seen(state, tick, now);
         var games = tick.Games.Where(g => !g.Held).ToList();
@@ -248,11 +264,7 @@ public sealed class Ledger(Rules rules)
                 return state;                               // a picked program behind other windows starts nothing
             // the session's own picked program behind another window: held quietly, nothing spent from then on, no event
             if (tick.Games.Any(g => state.Session.GameNames.Contains(g.Name)))
-            {
-                if (played)
-                    state = Warn(Charge(state, elapsedMs, now, events), events);
                 return state with { Session = state.Session! with { Misses = 0 }, Held = true };
-            }
             return MissGame(state, now, events);
         }
 
@@ -280,7 +292,7 @@ public sealed class Ledger(Rules rules)
             state = state with { Paused = false };
         }
 
-        return held ? state : Warn(Charge(state, elapsedMs, now, events), events);
+        return state;
     }
 
     /// <summary>The player is using the PC (input in the last minute): when they were first and last seen today.</summary>

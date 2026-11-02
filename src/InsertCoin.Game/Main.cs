@@ -514,17 +514,15 @@ public partial class Main : Node2D
     {
         var s = _state;
         var balance = _rules.Earns.Any;                     // no play time: nothing of a balance shows, and the screen shows the clock
-        var playing = s.Session is not null && !s.Paused && !s.Held;
-        // Between 5 s ticks, run the clock locally so the countdown moves every second.
-        var late = GameCalendar.IsLateNight(s, DateTimeOffset.Now, _rules) ? _rules.LateNightMultiplier : 1;
-        var since = playing ? (long)((_clock.Elapsed - _lastTick).TotalMilliseconds * (_devWarp ? 60 : 1) * late) : 0;
+        // Between 5 s ticks, run the clock locally so the countdown moves every second, as the next tick will spend it.
+        var since = _ledger.SpentSince(s, (_clock.Elapsed - _lastTick) * (_devWarp ? 60 : 1), DateTimeOffset.Now);
         var left = s.TimeLeftMs(_rules);
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
-        // the time left never goes up in a game being played (its program seen at the last check, held or not, and not
-        // paused) unless something was earned meanwhile: logged, for the smoke suite to catch (#221: pausing and closing)
+        // the time left never goes up in a game (played, paused, held or unseen) unless something was earned meanwhile:
+        // logged, for the smoke suite to catch
         var earned = s.Today?.EarnedMs ?? 0;
-        var inGame = s.Session is { Misses: 0 } && !s.Paused;
+        var inGame = s.Session is not null;
         if (inGame && _shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
             GD.Print($"Main: the time left shown went up in a game, from {last.Left} to {shownLeft} ms");
         _shownInGame = inGame ? (shownLeft, earned) : null;

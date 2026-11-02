@@ -24,7 +24,7 @@ public class DayRecordTests
         Assert.Equal(1, wednesday.Solves);
         Assert.Equal(Min(50), wednesday.FocusedMs);
         Assert.Equal(Min(30 + 12.5), wednesday.EarnedMs);
-        Assert.Equal(Min(20), wednesday.PlayedMs);
+        Assert.Equal(Min(20) + 10_000, wednesday.PlayedMs);     // and the two checks it went unseen in as it closed
         Assert.NotNull(wednesday.LastPlayed);
         Assert.Equal(new DateOnly(2026, 10, 1), m.State.Today!.Day);
     }

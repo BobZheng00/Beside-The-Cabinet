@@ -76,7 +76,8 @@ shows its name from the file's description (cut short with "…" if it's long), 
 program is the window in front it counts as a game does: the clock runs, your companion is told what you're playing
 by the program's name, and the break after a long session applies. While one of the cabinet's own windows is in
 front (talking to your companion), the program in front before it still counts. Behind another window (answering a
-message, say) its session is held quietly: nothing is spent, nothing shows or is said, and it goes on when the
+message, say) its session is held quietly: nothing is spent or said, the screen's time left stands still (its other
+pages coming round between, as with no game, and its status line still naming the program), and it goes on when the
 program is back in front, its time adding up towards the break as one session. While held it isn't a game being
 played: focus pays, and you can count as away from the PC (which ends it), as with no game at all. A Steam game pauses after 10 minutes
 without input; a picked program doesn't, since a film needs no typing. Its session ends when the program closes, the
