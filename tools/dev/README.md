@@ -215,9 +215,10 @@ script's header.
   six Chinese characters, or, where the card has them, the two short lines that sit by the check's own moments, too short
   for a run: A1's "I'd have said something" 「换我当场」 by the vent moment and A3's "That's not fair" 「太突然了」 by the
   deadline one, `Habits.ShortLines`; any other short line, "Go to bed." or 「明天再说」, isn't counted. The side by side
-  says what was copied), *another language* (a reply not in the
-  moment's language), and *agenda put down* (in the moments that ask for the agenda, an agenda call that changed it).
-  A persona file is filled in as the app fills it, with no name given (`{{user}}` becomes "the player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
+  says what was copied), *another language* (a reply not in the moment's language), *agenda put down* (in the moments
+  that ask for the agenda, an agenda call that changed it), and *no words* (a reply that ended at its agenda call with
+  nothing said, #193; the side by side gives what the cabinet's screen flashed). A persona file is filled in as the app
+  fills it, with no name given (`{{user}}` becomes "the player"). Where the player brings a trouble (vent, vent-zh, bad, lost,
   cancelled, listening, flatmate, deadline), a second table counts whether the companion takes their side, and what a
   counsellor or an assistant does instead (`docs/research/2026-10-27-natural-reactions.md`, section 6 C):
   - *a label*: a sentence that only rates it, among the first two ("That's rough.", "That really stings.");
@@ -251,7 +252,8 @@ script's header.
   `--variant` into the same `--out`. One card on two texts was about 56 requests and 183k input tokens with 21
   moments (#127's run); the three added in #187 make it about a seventh more, and both cards about twice that.
   `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead (`tools/bench/agenda_mock.py`), free;
-  `--card-files name=path` adds draft cards. Run it when the companion's instructions or tools change.
+  `--card-files name=path` adds draft cards; `--voice ja` gives the companion a voice in that language, and the side
+  by side shows what it would say. Run it when the companion's instructions or tools change.
 
 ## Checks and the smoke suite
 
@@ -289,7 +291,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   (`smoke.ps1` with no options) runs everything.
 - `tools\dev\mock_mind.py <port>`: an OpenAI-compatible stand-in for the companion's mind with a fixed reply, logging
   each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
-  "ChatModel": "mock"`, and needs no key.
+  "ChatModel": "mock"`, and needs no key. Its header lists the tools it calls; "put <what> on my agenda
+  2027-01-14T14:00" (or a day) calls the agenda tool with no words before it, as GPT models do, and "… saying
+  <words>" after the date gives the call those words as its `reply`, the companion's reply as they put it down.
 - `tools\dev\mock_chatgpt.py <port>`: a stand-in ChatGPT plan: OpenAI's sign-in (PKCE checked, a redirect back to the
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
   and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;

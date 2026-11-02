@@ -259,7 +259,7 @@ public sealed class Toolbox
     /// <returns>What the model is told, and a line for the conversation saying what happened.</returns>
     public async Task<(object? Result, string Record)> Use(AIFunction function, AIFunctionArguments arguments, CancellationToken cancel = default)
     {
-        var given = Describe(arguments);
+        var given = Describe(function.Name, arguments);
         if (!_tools.TryGetValue(function.Name, out var tool))
             return ($"There is no tool called {function.Name}.", $"You tried to use {function.Name}, which you don't have.");
         if (Away && tool.AtThePc)
@@ -319,8 +319,13 @@ public sealed class Toolbox
         e is not OperationCanceledException && e is not TimeoutException
         && (e.Message.Contains("web search", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("web_search", StringComparison.OrdinalIgnoreCase));
 
-    private static string Describe(AIFunctionArguments arguments) =>
-        arguments.Count == 0 ? "" : Short(JsonSerializer.Serialize(arguments.ToDictionary(a => a.Key, a => a.Value), Readable), 160);
+    // the agenda call's reply is her own line, kept as hers when shown; in the record too it would be in her history
+    // twice, or, after a round that went back to her, there as words the player never saw (#206)
+    private static string Describe(string tool, AIFunctionArguments arguments)
+    {
+        var given = arguments.Where(a => !(tool == BuiltIn.AgendaName && a.Key == BuiltIn.AgendaReply)).ToDictionary(a => a.Key, a => a.Value);
+        return given.Count == 0 ? "" : Short(JsonSerializer.Serialize(given, Readable), 160);
+    }
 
     private static string Short(string text, int length = RecordLength) => text.Length <= length ? text : text[..(length - 1)] + "…";
 }
