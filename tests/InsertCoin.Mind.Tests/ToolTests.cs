@@ -189,7 +189,7 @@ public class ToolTests
         var model = new FakeToolModel(["Hi!"], ["Hi!"], ["Hi!"]);
 
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
-        Assert.Contains("These ask the player on a card by your stool before they act: open_link; the rest act straight away.", model.Requests[0][0].Text);
+        Assert.Contains("These ask the player on a card before they act: open_link; the rest act straight away.", model.Requests[0][0].Text);
 
         tools.Choose(new Dictionary<string, Permission> { ["open_link"] = Permission.Allowed });   // Always, as the player set music
         await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);

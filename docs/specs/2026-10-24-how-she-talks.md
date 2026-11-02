@@ -132,7 +132,8 @@ Each step is usable on its own.
    "only", leaving the PC, and the agenda tool's "jot it down" line kept for now), `tools/bench/manner.cs` lands, and
    one billed run compares the build with today's text.
 
-   *Built 2026-10-26 (#127).* `Prompt.Build`'s base text is the lean one: where she sits and who she is to the player
+   *Built 2026-10-26 (#127); its opening, the stool, the desk and "a person in the room", replaced by what's there and
+   never where she is (#180, `2026-10-27-any-character.md`).* `Prompt.Build`'s base text is the lean one: where she sits and who she is to the player
    ("a person in the room with them, not a service they call on"), the two of them talking at one desk with her words
    in a bubble "a page at a time", the cabinet keeping the agenda and reminding "by itself of what has a reminder" (said
    so because #115 found every false claim was about a reminder), and that what a tool does comes back to her. Gone:

@@ -25,10 +25,10 @@ public partial class Voice : Node
     /// <summary>What Test says, and a few words said once after loading (the first sentence afterwards is slow).</summary>
     private static string Sample(string language) => language switch
     {
-        "ja" => "やっほー！声が出るようになったよ。もう一問、解いてみる？",
-        "zh" => "嗨！我现在可以说话了。要不要再做一道题？",
-        "ko" => "안녕! 이제 말할 수 있어. 한 문제 더 풀어 볼까?",
-        _ => "Hi! I can talk now. Shall we solve one more problem?",
+        "ja" => "やっほー！声が出るようになったよ。今日はどんな一日？",
+        "zh" => "嗨！我现在可以说话了。今天过得怎么样？",
+        "ko" => "안녕! 이제 말할 수 있어. 오늘 하루 어땠어?",
+        _ => "Hi! I can talk now. How's your day going?",
     };
 
     private static string WarmUp(string language) => language switch

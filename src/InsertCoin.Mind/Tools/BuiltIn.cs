@@ -246,7 +246,7 @@ public static class BuiltIn
         AIFunctionFactory.Create(
             async ([Description("The problem: its link, number (\"1\"), name (\"Two Sum\") or a browser tab's title (\"1. Two Sum - LeetCode\")")] string problem,
                    CancellationToken cancel = default) =>
-                await describe(problem, cancel),
+                $"From LeetCode, {Situation.LeetCodeIs}:\n{await describe(problem, cancel)}",
             "leetcode_problem",
             "Looks up a LeetCode problem: its statement, difficulty, topics and LeetCode's own hints, to help the player with it a step at a time. " +
             "To see which problem they are on, read their window titles first, if you can."),

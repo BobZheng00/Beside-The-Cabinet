@@ -208,7 +208,7 @@ script's header.
   with no model, in seconds.
 - `tools/bench/manner.cs`: how the companion talks (`docs/specs/2026-10-24-how-she-talks.md`). 24 moments in English and
   Chinese (venting, news good and bad, quick questions, plans and reminders, opinions, a focus session asked for, a
-  flatmate's pan, a deadline moved up, "how's your day?"), with Shino's card and a plain one, each from a fresh memory
+  flatmate's pan, a deadline moved up, "how's your day?"), and 15 world moments (below), with Shino's card and a plain one, each from a fresh memory
   (the Chinese moments on Shino's card in Chinese, `persona.zh.md`).
   Stock openers, a date or time said back, the player echoed, the bookkeeping narrated, offers of help, ending on a
   question, length, tools used unasked and focus sessions started are counted in code (the counting checks itself
@@ -253,8 +253,25 @@ script's header.
   `--variant` into the same `--out`. One card on two texts was about 56 requests and 183k input tokens with 21
   moments (#127's run); the three added in #187 make it about a seventh more, and both cards about twice that.
   `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead (`tools/bench/agenda_mock.py`), free;
-  `--card-files name=path` adds draft cards; `--voice ja` gives the companion a voice in that language, and the side
-  by side shows what it would say. Run it when the companion's instructions or tools change.
+  `--card-files name=path` adds other cards, read from that path only (a third-party card is never copied into the
+  repository), `--card-names name=Name` names their characters (Shino otherwise) and `--player Name` is the name the
+  player gave, filling `{{user}}` as the app does; `--cases` takes ids or a prefix ending in `*`; `--voice ja` gives the
+  companion a voice in that language, and the side by side shows what it would say. Run it when the companion's
+  instructions or tools change.
+
+  The **world moments** (`w-*`, `docs/specs/2026-10-27-any-character.md`) put any card beside the cabinet: a solve, a
+  focus part ending, a game played on credit, what they think of the cabinet, help with Two Sum and going to play (in
+  English and Chinese), then how their day was, what they're doing now and talk about anything (in Chinese). What the
+  cabinet tells them comes from the app's own code: its line in the conversation (`Situation.Witness`), its request for
+  their remark after their call was answered, the `<cabinet>` block (`Situation.Describe`) and their tools' results
+  (`Situation.Ledger`, the LeetCode tool's wording). A table of their own counts, per variant and card: *app words
+  unprompted* (LeetCode, tokens, credit, focus, play time, earning, streak, the cabinet, programming, in English or
+  Chinese, when nothing in the moment gave them: not counting the base text), *breaks character* (talk of being an AI or
+  an assistant), *her world shows* (a word of `--world-words <file>`: the card's own places and people, one a line, kept
+  beside the card; none are written in the bench) and *where she places herself* (her world, beside the player, both,
+  or unsaid). Whether two places contradict each other is read in the side by side, which lists each reply's counts.
+  The two spikes' runs on one model (#166) were 28 requests and about 210k input tokens for the first six moments on
+  two cards, and 24 requests and about 250k for the last three twice each on three framings.
 
 ## Checks and the smoke suite
 
