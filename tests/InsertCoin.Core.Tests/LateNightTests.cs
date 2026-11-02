@@ -48,6 +48,7 @@ public class LateNightTests
         Assert.Equal(Min(10), m.State.Session!.PlayedMs);
         Assert.Equal(Min(5), m.State.Session.LateExtraMs);
         Assert.Equal(Min(5), m.State.Today!.LateExtraMs);
+        Assert.Equal(7_500, m.Ledger.SpentSince(m.State, Check, m.Now + Check));    // the screen counts down as fast
     }
 
     [Fact]
@@ -85,11 +86,11 @@ public class LateNightTests
         m.Quit();
         m.Events.Clear();
 
-        m.Now = At(10, 1, 9);                            // Thursday morning: the fade leaves 26.25
-        m.Play(TimeSpan.FromMinutes(10));
+        m.Now = At(10, 1, 9);                            // Thursday morning: the fade leaves 26.25, less half the 15 s
+        m.Play(TimeSpan.FromMinutes(10));                // of the two checks the game went unseen in as it closed
 
         Assert.Empty(m.Events.OfType<LateNight>());
-        Assert.Equal(Min(26.25 - 10), m.State.TimeLeftMs(m.Rules));
+        Assert.Equal(Min(26.25 - 10) - 7_500, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]

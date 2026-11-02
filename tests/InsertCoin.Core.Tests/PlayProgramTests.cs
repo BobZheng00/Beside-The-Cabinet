@@ -78,17 +78,32 @@ public class PlayProgramTests
     {
         var m = new Machine();
         m.GiveTokens(1);
-        m.Tick([Picked], Check, TimeSpan.Zero);             // the session starts: the screen counts down from here
-        var left = m.State.TimeLeftMs(m.Rules);
+        var away = TimeSpan.FromMinutes(20);
+        var checks = new (RunningGame[] Games, TimeSpan Idle, TimeSpan Elapsed)[]
+        {
+            ([Picked], TimeSpan.Zero, Check),               // the session starts: the screen counts down from here
+            ([Behind], TimeSpan.Zero, Check),               // gone behind another window since the last check: spent
+            ([Picked], TimeSpan.Zero, Check),               // back in front: the screen stood still while it was held
+            ([Steam], away, Check),                         // a game left alone pauses for AFK: spent
+            ([Steam], TimeSpan.Zero, Check),                // and goes on: the screen stood still while it was paused
+            ([], TimeSpan.Zero, Check),                     // missed once: spent
+            ([Behind], TimeSpan.Zero, Check),               // then held: spent, as the screen counted on through the miss
+            ([Picked], TimeSpan.Zero, Check),
+            ([Picked], TimeSpan.Zero, TimeSpan.FromMinutes(2)),   // a stall: capped on the screen as in the check
+            ([], TimeSpan.Zero, Check),                     // closed: both checks it goes unseen in are spent
+            ([], TimeSpan.Zero, Check),
+        };
 
-        m.Tick([Behind], Check, TimeSpan.Zero);             // gone behind another window since the last check, as the screen counted on
-        Assert.Equal(left - 5_000, m.State.TimeLeftMs(m.Rules));
+        foreach (var (games, idle, elapsed) in checks)
+        {
+            var shown = m.State.TimeLeftMs(m.Rules) - m.Ledger.SpentSince(m.State, elapsed, m.Now + elapsed);
+            m.Tick(games, elapsed, idle);
+            Assert.Equal(shown, m.State.TimeLeftMs(m.Rules));
+        }
 
-        m.Tick([Picked], Check, TimeSpan.Zero);             // back in front: the screen stood still while it was held
-        Assert.Equal(left - 5_000, m.State.TimeLeftMs(m.Rules));
-
-        m.Tick([Picked], Check, TimeSpan.Zero);
-        Assert.Equal(left - 10_000, m.State.TimeLeftMs(m.Rules));
+        var ended = Assert.Single(m.Events.OfType<SessionEnded>());
+        Assert.Equal(6 * 5_000 + 30_000, ended.Receipt.PlayedMs);   // six checks spent, and the stall's 30 s
+        Assert.Equal(Min(15) - ended.Receipt.PlayedMs, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]
@@ -106,7 +121,7 @@ public class PlayProgramTests
         Assert.Null(m.State.Session);
         Assert.False(m.State.Held);
         Assert.Equal(new[] { "VLC media player" }, ended.Receipt.GameNames);
-        Assert.Equal(5_000, ended.Receipt.PlayedMs);
+        Assert.Equal(15_000, ended.Receipt.PlayedMs);       // the check it went behind in, and the two it went unseen in
     }
 
     [Fact]
@@ -157,7 +172,7 @@ public class PlayProgramTests
         m.Tick([Steam, Behind], Check, idle);               // another window in front: the game's own pause
         Assert.Single(m.Events.OfType<Paused>());
         Assert.True(m.State.Paused);
-        Assert.Equal(Min(14), m.State.FuelMs);
+        Assert.Equal(Min(14) - 5_000, m.State.FuelMs);      // the check it paused in, as the screen counted it down
     }
 
     [Fact]

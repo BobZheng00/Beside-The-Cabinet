@@ -35,7 +35,7 @@ public class NoPlayTimeTests
 
         var ended = Assert.Single(m.Quit().OfType<SessionEnded>());
 
-        Assert.Equal(Min(10), ended.Receipt.PlayedMs);
+        Assert.Equal(Min(10) + 10_000, ended.Receipt.PlayedMs);   // and the two checks it went unseen in
         Assert.Null(m.State.Session);
     }
 
@@ -79,10 +79,10 @@ public class NoPlayTimeTests
         m.Play(TimeSpan.FromMinutes(20));                   // on past 04:00
         Assert.Equal(new DateOnly(2026, 9, 30), m.State.Today!.Day);
         m.Change(on);
-        m.Quit();
+        m.Quit();                                           // the two checks it goes unseen in, with play time back: 10 s
 
         Assert.Empty(m.Events.OfType<Faded>());
-        Assert.Equal(4, m.State.Credits);
+        Assert.Equal(4 * m.Rules.TokenMs - 10_000, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]

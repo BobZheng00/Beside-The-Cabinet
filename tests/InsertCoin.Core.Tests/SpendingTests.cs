@@ -128,11 +128,11 @@ public class SpendingTests
         m.Play(TimeSpan.FromMinutes(30), idle: TimeSpan.FromMinutes(10));
         Assert.Single(m.Events.OfType<Paused>());
         Assert.True(m.State.Paused);
-        Assert.Equal(Min(14), m.State.FuelMs);
+        Assert.Equal(Min(14) - 5_000, m.State.FuelMs);   // the check it paused in is spent, as the screen counted it down
 
         m.Play(TimeSpan.FromMinutes(1));
         Assert.Single(m.Events.OfType<Resumed>());
-        Assert.Equal(Min(13), m.State.FuelMs);
+        Assert.Equal(Min(13), m.State.FuelMs);           // and the one it resumed in isn't, as the screen stood still
     }
 
     [Fact]
@@ -148,6 +148,20 @@ public class SpendingTests
     }
 
     [Fact]
+    public void The_countdown_between_checks_stops_where_a_check_is_capped_so_the_time_left_shown_never_jumps_up_after_a_stall()
+    {
+        var m = new Machine();
+        m.GiveTokens(1);
+        m.Play(TimeSpan.Zero);
+        var shown = m.State.TimeLeftMs(m.Rules) - m.Ledger.SpentSince(m.State, TimeSpan.FromHours(8), m.Now);
+
+        m.Tick([new RunningGame("1", "G")], TimeSpan.FromHours(8), TimeSpan.Zero);   // the PC asleep
+
+        Assert.Equal(Min(15) - 30_000, shown);
+        Assert.Equal(shown, m.State.TimeLeftMs(m.Rules));
+    }
+
+    [Fact]
     public void Session_ends_after_two_missed_checks_with_a_receipt()
     {
         var m = new Machine();
@@ -158,9 +172,9 @@ public class SpendingTests
         var ended = Assert.Single(m.Tick([], Check, TimeSpan.Zero).OfType<SessionEnded>());
 
         Assert.Null(m.State.Session);
-        Assert.Equal(Min(20), ended.Receipt.PlayedMs);
+        Assert.Equal(Min(20) + 10_000, ended.Receipt.PlayedMs);      // and the two missed checks: the screen counted on
         Assert.Equal(Min(15), ended.Receipt.DrawnMs);
-        Assert.Equal(Min(7.5), ended.Receipt.DebtAddedMs);
+        Assert.Equal(Min(7.5) + 15_000, ended.Receipt.DebtAddedMs);
         Assert.Equal(new[] { "Graveyard Keeper 2" }, ended.Receipt.GameNames);
     }
 

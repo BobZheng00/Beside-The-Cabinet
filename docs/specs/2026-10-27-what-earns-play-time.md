@@ -68,7 +68,8 @@ Today:
   - **It doesn't pause when the player is idle**, since a film needs no typing. It stops when the screen locks or the
     player has left the PC, as the cabinet already knows (`Presence`), or Windows turns the display off. Steam games
     keep their pause after 10 minutes without input (`Rules.AfkAfter`).
-  - **Behind another window it is held quietly**: nothing spent, nothing shown or said, and it goes on when the
+  - **Behind another window it is held quietly**: nothing spent or said, the screen's time left standing still (its
+    attract pages coming round between, its status line still naming the program), and it goes on when the
     program is back in front, one session whose time adds up towards the break. The session ends only when the
     program closes or the player is away.
   - Only the program is known, by its name from the file. The running programs to pick from are listed by process,
@@ -144,7 +145,10 @@ Today:
    event; it starts nothing and keeps no other game's session going; and it isn't a game being played: focus
    pays, her voice keeps the graphics card, the player can count as away, and the day turns at 04:00). The check it goes
    behind in is spent and the one it comes back in front in isn't, as the screen counts down between checks (#219: the
-   time left shown jumped back as the player looked away). None counts once the player has left the PC
+   time left shown jumped back as the player looked away; #221 made it the rule for every check). Held, the screen
+   shows what it does with no game (`ScreenState.Playing` false: the attract pages in turn, a focus countdown first),
+   its time left standing still and its status line still naming the program (the user saw it so in #211's try, and
+   it stays). None counts once the player has left the PC
    (`Stool.LeftThePc`: the display off, `Presence.DisplayOff` from Windows' `GUID_CONSOLE_DISPLAY_STATE` through
    `PowerSettingRegisterNotification`, or `Reaching.Where` away or asleep, which playing keeps from coming by idleness
    alone, so only a locked screen or their saying they were off). The ledger pauses for idleness only when no picked
