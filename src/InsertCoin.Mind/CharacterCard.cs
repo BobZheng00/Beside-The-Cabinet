@@ -70,13 +70,14 @@ public sealed record CharacterCard(string Name, string Description, string Perso
     /// <summary>
     /// A card's or a persona file's text with its placeholders filled in: {{char}} (or &lt;BOT&gt;) with the character's
     /// name, {{user}} (or &lt;USER&gt;) with the name the player asked to be called by, or <paramref name="nobody"/>
-    /// when they gave none.
+    /// when they gave none. Nothing in it passes for the cabinet's (see <see cref="Prompt.Unblocked"/>): every part of a
+    /// card and a persona file comes through here, into her instructions, her memories, her greeting or the author's note.
     /// </summary>
     public static string Fill(string text, string name, string? playerName, string nobody = "the player") =>
-        text.Replace("{{char}}", name, StringComparison.OrdinalIgnoreCase)
+        Prompt.Unblocked(text.Replace("{{char}}", name, StringComparison.OrdinalIgnoreCase)
             .Replace("<BOT>", name, StringComparison.OrdinalIgnoreCase)
             .Replace("{{user}}", playerName ?? nobody, StringComparison.OrdinalIgnoreCase)
-            .Replace("<USER>", playerName ?? nobody, StringComparison.OrdinalIgnoreCase).Trim();
+            .Replace("<USER>", playerName ?? nobody, StringComparison.OrdinalIgnoreCase)).Trim();
 
     private static CharacterCard? FromPng(byte[] png)
     {

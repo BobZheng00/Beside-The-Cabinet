@@ -31,7 +31,9 @@ A card's post-history instructions and its character's note (`depth_prompt`), up
 just before every reply, marked as notes from the card's author on how to play the character, and the app's own
 reminder to stay in character comes after them. They never speak for the app: a card written for another chat app
 that says "ignore the rules above" can change how they talk, but not what the app lets them do (what acts outside the
-app still asks you first, and nothing closes a game).
+app still asks you first, and nothing closes a game). Anywhere in a card or a persona file, the app's own markup is
+taken off as it is read (the angle brackets of its tags such as `<character>` or `<cabinet>`, and `[cabinet]` at the
+start of a line), so no part of a card can pass for the app's words.
 
 ### Writing a persona
 
