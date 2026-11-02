@@ -10,7 +10,8 @@ public sealed record Persona(string Name, string Description)
     public string? Greeting { get; init; }
     /// <summary>
     /// What keeps the character steady late in a long conversation: the card's post-history instructions and
-    /// character's note, read at the end of every turn (see <see cref="Prompt.Build"/>); null for the plain reminder.
+    /// character's note, read at the end of every turn as the card author's note, before the cabinet's own reminder
+    /// (see <see cref="Prompt.Build"/>); null when the card has neither.
     /// </summary>
     public string? Steady { get; init; }
     /// <summary>The name the player asked to be called by (Getting started), or null when they haven't given one.</summary>

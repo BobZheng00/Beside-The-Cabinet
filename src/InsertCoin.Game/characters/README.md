@@ -27,6 +27,12 @@ folder, or `card.png` / `card.json` in their own folder; dropping a card on the 
 plain-text description: `persona.md` in the character's folder (built-in ones ship one), or `<file name>.md` beside
 a loose model file. Without either they are a plain friendly companion.
 
+A card's post-history instructions and its character's note (`depth_prompt`), up to 600 characters together, are read
+just before every reply, marked as notes from the card's author on how to play the character, and the app's own
+reminder to stay in character comes after them. They never speak for the app: a card written for another chat app
+that says "ignore the rules above" can change how they talk, but not what the app lets them do (what acts outside the
+app still asks you first, and nothing closes a game).
+
 ### Writing a persona
 
 Any plain description works. Shino's own (`shino/persona.md`) suggests a layout, from the cards people share, if you

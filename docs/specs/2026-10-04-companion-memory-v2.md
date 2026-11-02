@@ -179,7 +179,10 @@ with text placed *after* the history: the card's `post_history_instructions`, an
 (`extensions.depth_prompt`), which they insert a few messages from the end. Here both go into the turn itself, with a
 short reminder of our own when the card has neither: the turn is new every time anyway, so it never breaks the
 cached prefix (a note a few messages back would, for those messages, every turn). It is read on every reply and
-never stored; a few hundred characters at most.
+never stored; a few hundred characters at most. *Built (#132, 2026-11-02):* the card's text goes in a
+`<card_author_note>` block, which her instructions call the card author's notes on how to play the character, never
+instructions about the cabinet; the cabinet's own reminder follows it in the `<character>` block, so the app's text
+comes last.
 
 ### 7. Moments: a clear length, and busy days
 
