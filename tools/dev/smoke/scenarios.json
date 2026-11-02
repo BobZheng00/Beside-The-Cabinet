@@ -48,7 +48,7 @@
       "shots": [7, 9, 14],
       "window": "Welcome",
       "desk": true,
-      "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
+      "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
       "forbid": ["^Main: play time is earned by .*LeetCode", "^LeetCode: ", "Check LeetCode now"]
     },
     {
@@ -143,13 +143,30 @@
       "shots": [12, 18],
       "window": "Settings",
       "expect": [
-        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
         "^Menu: pressed Voice$",
         "^Tray: .*\\| Voice \\[ \\] \\|",
         "^Menu: at .*\\| Voice \\[ \\] \\|",
         "^Menu: pressed Settings$",
         "^Settings: \"Shino speaks aloud\" ticked$",
-        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
+      ],
+      "forbid": ["^Menu: no entry"]
+    },
+    {
+      "name": "character-menu",
+      "about": "Choosing who keeps you company is an entry of its own in the menu (the tray's and the right-click's): it opens Settings at Characters, listed above the groups, not under the companion's name. Choosing Fumiriya there heads the companion's pages with FUMIRIYA at once, and a page of theirs made before (Mind) is made again with the new name.",
+      "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
+      "script": "trayitems@2,menu@3,menupress:Who_keeps@4,settings:mind@6,settings:characters@7,settingsdo:Fumiriya@8,settings:mind@11",
+      "shots": [7, 10, 13],
+      "window": "Settings",
+      "expect": [
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
+        "^Menu: pressed Who keeps$",
+        "^Settings: the list: Getting started \\| Characters \\| SHINO \\| Mind \\| Voice \\| Talking aloud \\| Abilities ",
+        "^Settings: \"Fumiriya\" ticked$",
+        "^Settings: the companion's pages headed FUMIRIYA$"
       ],
       "forbid": ["^Menu: no entry"]
     },
