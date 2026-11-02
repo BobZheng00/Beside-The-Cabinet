@@ -39,7 +39,7 @@ answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupres
 `menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `chattype:some_text` (type it into the slip, unsent), `settings`
 (Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
 `reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`; a test run logs its list of pages as it opens,
-headings in capitals), `settingsdo:Label` (presses the button or
+headings in capitals, and the page it opened at), `settingsdo:Label` (presses the button or
 flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
 from 0 or by what it says (`settingsdo:Language:中文`), or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its

@@ -1360,13 +1360,15 @@ public partial class Stool : Node2D
     private (string Id, string Name)? OnStool()
     {
         var conversation = _chat.Conversation;
-        if (conversation?.Character == _settings.Now.Companion)
-            return (conversation!.Character, conversation.Persona.Name);
+        if (conversation is not null && conversation.Character == _settings.Now.Companion)
+            return (conversation.Character, conversation.Persona.Name);
         var characters = CompanionView.Available(_characters);
         // the one talking, unless another was chosen while the stool is empty: they talk once seated
         if (conversation is not null && characters.All(c => c.Id != _settings.Now.Companion))
             return (conversation.Character, conversation.Persona.Name);
-        return (characters.FirstOrDefault(c => c.Id == _settings.Now.Companion) ?? characters.FirstOrDefault()) is { } c ? (c.Id, c.Name) : null;
+        // the name their card or persona file gives, as when they talk (read from disk only here, with the stool empty)
+        return (characters.FirstOrDefault(c => c.Id == _settings.Now.Companion) ?? characters.FirstOrDefault()) is { } c
+            ? (c.Id, c.Persona(_characters, null).Name) : null;
     }
 
     // ---- Bringing characters, cards and voices in -------------------------------------------------------------------------
@@ -1578,10 +1580,10 @@ public partial class Stool : Node2D
             Meet(open: false);
             return;
         }
-        if (added.Count > 0)
-            SettingsChanged?.Invoke("characters");          // one more to choose from
         _settings.Save(_settings.Now with { ShowCompanion = true });
         Seat(added.FirstOrDefault() ?? OnStool()!.Value.Id);        // seated again, so a new card takes effect
+        if (added.Count > 0)
+            SettingsChanged?.Invoke("characters");          // one more to choose from, and seated: made after the seating, so ticked
         _lively(6);
         Her?.Play(Moment.Greet);
         if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)

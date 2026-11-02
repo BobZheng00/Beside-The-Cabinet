@@ -161,7 +161,11 @@ of the current character"): choosing who sits on the stool is the cabinet's ques
 menu has "Who keeps you company…" (the first run's question) under Settings… and Getting started…, opening Settings →
 Characters, and Characters is listed above the groups in Settings, under Getting started. The companion's group is
 headed by the name of whoever sits on the stool now: after a change it follows at once (it kept the old name until
-Settings was opened again), and their pages made before are made again, with the new name, when next shown.
+Settings was opened again), and every page made before is made again with the new name: the one showing at once, the
+others when next shown. Characters, if it is showing, stays as it is while the player chooses on it, and is made again
+when next shown. Settings… still opens at Getting started while it is listed, else at Mind. A page made again loses
+what was typed and not yet saved there (her provider's fields before Save): it only happens when someone else takes
+the stool while Settings is open.
 
 ## Order
 
