@@ -147,10 +147,11 @@ cache at a tenth of that or less.
   none), the result says what was there and what is there now, and goes back to her rather than ending the reply. A change can now also rename, remove a reminder and stop a repeat; a repeat outside the list ("every other
   week") or a time it can't read is turned down with its reason. *Said as written* (flow C), in code
   (`Conversation.Reply`, `Ends`): she says what she is putting down and calls the tool in the same reply; when every
-  call of the round was an agenda call that went through and words came before them, the reply ends there (one
-  request; `FunctionInvocationContext.Terminate`, set only on the round's last call, as an earlier one would skip the
-  rest unmade). A failure, a call with no words before it, or a round with another tool goes back to her, so she
-  speaks once. Upkeep's plans take the same fields (`remind`, `minutes_before`, a `repeat` from the list), and "when"
+  call of the round was an agenda call that went through, the reply ends there (one request;
+  `FunctionInvocationContext.Terminate`, set only on the round's last call, as an earlier one would skip the rest
+  unmade). Since #193 (2026-10-29) that holds with no words before the call too (the silent call: the cabinet's screen
+  flashes what was set, and a text carries the app's line, `2026-10-24-how-she-talks.md`); until then a call with no
+  words went back to her. A failure, or a round with another tool, goes back to her, so she speaks once. Upkeep's plans take the same fields (`remind`, `minutes_before`, a `repeat` from the list), and "when"
   is always the thing's own time. Her body: the note-taking gesture (pad and pencil) as the call goes out, not the
   working pose of other tools. `tools/bench/agenda.cs` compares it with the tags on a stand-in or a real provider.
   *Changed 2026-10-26 (#137): the same thing at two times in one day is two items.* Pills at 8 and at 20 (once or

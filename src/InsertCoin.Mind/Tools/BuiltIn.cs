@@ -67,6 +67,9 @@ public static class BuiltIn
 
     public const string AgendaName = "agenda";
 
+    /// <summary>The agenda call's argument with her reply as she puts it down (see <see cref="Conversation"/>): not "say", which her voice's [say: …] is.</summary>
+    public const string AgendaReply = "reply";
+
     /// <summary>
     /// Her agenda as a tool, in place of the [plan], [remind], [change] and [cancel] she writes when the provider has no
     /// tools. Whether to remind the player is always chosen (none, at the time, or minutes before), and what it says back
@@ -75,7 +78,8 @@ public static class BuiltIn
     /// <see cref="Conversation"/>, as it works on the agenda that reply shows.
     /// </summary>
     /// <param name="act">Does it (the action; the reminder; the item's number; when; what; minutes before; repeat) and says what came of it.</param>
-    public static Tool Agenda(Func<string, string, long?, string?, string?, int?, string?, string> act) => new(
+    /// <param name="replyVoice">What the call's reply needs for her voice, as <see cref="Prompt.AgendaReplyVoice"/> says it (empty: nothing).</param>
+    public static Tool Agenda(Func<string, string, long?, string?, string?, int?, string?, string> act, string replyVoice = "") => new(
         AIFunctionFactory.Create(
             ([Description("add, change or cancel")] string action,
              [Description("Whether to remind them: on an add, none unless they asked to be reminded; then at_the_time, or before (with minutes_before) when they asked that long ahead. On a change or cancel, keep to leave it as it is")] string remind,
@@ -83,11 +87,14 @@ public static class BuiltIn
              [Description("When it is, from the <now> block: YYYY-MM-DDTHH:MM, or YYYY-MM-DD for a whole day. On a change, only if it moves")] string? when = null,
              [Description("What it is, a few words in the language you reply in (on a change, only to rename it)")] string? what = null,
              [Description("With remind before: how many minutes ahead (10, 60 for an hour, 1440 for a day)")] int? minutes_before = null,
-             [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null) =>
+             [Description("once, daily, weekdays, weekly (on the weekday of when) or monthly. Leave it out for once (on a change, to keep it as it is)")] string? repeat = null,
+             // her reply as she puts it down (AgendaReply): read by Conversation once the round goes through, not here
+             [Description("Your reply to what the player just told you, said as you put it down, written as any reply of yours is")] string? reply = null) =>
                 act(action.Trim().ToLowerInvariant(), remind.Trim().ToLowerInvariant().Replace('_', ' '), item, when, what, minutes_before, repeat),
             AgendaName,
             "The player's agenda on the cabinet: what is ahead with a date (an appointment, an exam, a deadline) and reminders they ask for. Add " +
-            "something new, or change or cancel an item already on the <agenda> by its number. It says what was done, the reminder included, or why not."),
+            "something new, or change or cancel an item already on the <agenda> by its number. It says what was done, the reminder included, or why not." +
+            replyVoice),
         "Agenda",
         OutsideApp: false);
 
