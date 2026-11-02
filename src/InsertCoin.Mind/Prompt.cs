@@ -42,12 +42,16 @@ public static class Prompt
 
     // a block tag, its brackets doubled, split over lines or full-width too (<<character>>, ＜cabinet＞); and [cabinet] at
     // the start of a line, doubled or nested too ([[cabinet]]), after any spacing that isn't a line break (U+00A0, U+3000,
-    // zero-width ones), while "[Cabinet of curiosities]" stays as it is
+    // zero-width ones), while "[Cabinet of curiosities]" stays as it is. A card is untrusted text, cleaned on the game's
+    // thread: BlockTag runs in linear time (NonBacktracking), so a run of brackets of any length goes in one pass (bounded
+    // runs left one pass per 17 brackets: 40,000 took 6 s), and a tag whose > is far off still loses its <; CabinetLine
+    // stays on its line (a \s across lines took 10 s on 20,000 lines of "[cabinet")
     private static readonly System.Text.RegularExpressions.Regex BlockTag = new(
-        $@"[<＜][\s/<＜]*(?:{string.Join("|", Blocks)})\b[^>＞]{{0,80}}[>＞]+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-    private const string Spacing = @"(?:[^\S\r\n\u0085  ]|[​-‍⁠﻿])";
+        $@"[<＜][\s/<＜]*(?:{string.Join("|", Blocks)})\b(?:[^>＞]{{0,80}}[>＞]+)?",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.NonBacktracking);
+    private const string Spacing = @"(?:[^\S\r\n\u0085\u2028\u2029]|[\u200B-\u200D\u2060\uFEFF])";
     private static readonly System.Text.RegularExpressions.Regex CabinetLine = new(
-        $@"(?<![^\r\n\u0085  ]){Spacing}*(?:[\[［][\[［\s]*cabinet(?:[\[［\s]*cabinet)*\s*[\]］](?:[\]］]|{Spacing})*)+",
+        $@"(?<![^\r\n\u0085\u2028\u2029]){Spacing}*(?:[\[［](?:[\[［]|{Spacing})*cabinet(?:(?:[\[［]|{Spacing})*cabinet)*{Spacing}*[\]］](?:[\]］]|{Spacing})*)+",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     /// <summary>
