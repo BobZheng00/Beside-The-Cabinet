@@ -289,13 +289,54 @@ public class MemoryTests
         Assert.Equal(3, clashes.Count);
         Assert.Contains("upkeep left \"The player has an exam next week.\" as the player has it (now \"The player's exam is on Tuesday 6 October 2026.\") instead of \"The player's exam is on Monday 5 October 2026.\"", clashes);
         Assert.Contains("upkeep left \"The player is learning Rust.\" as the player has it (now \"The player is learning Rust slowly.\") instead of retiring it", clashes);
-        Assert.Contains("upkeep left \"Dentist\" on the agenda as the player has it instead of: cancel", clashes);
+        Assert.Contains("upkeep left \"Dentist\" on the agenda as it is now (changed meanwhile) instead of: cancel", clashes);
 
         static Task Release(TaskCompletionSource asked, TaskCompletionSource answer)
         {
             asked.SetResult();
             return answer.Task;
         }
+    }
+
+    [Fact]
+    public async Task Nothing_of_hers_is_kept_when_the_player_wrote_the_same_words_or_forgot_the_fact_while_upkeep_was_thinking()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var tea = store.AddFact(MindStore.Shared, "The player likes green tea.", 4, Friday.AddDays(-5));
+        var rust = store.AddFact(MindStore.Shared, "The player is learning Rust.", 5, Friday.AddDays(-5));
+        var job = store.AddFact(MindStore.Shared, "The player works at a bakery.", 5, Friday.AddDays(-5));
+        store.Add("shino", Speaker.User, "black tea these days, Rust is going well, and I work at a bookshop now", Friday);
+        var clashes = new List<string>();
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11))) { Clashed = clashes.Add };
+        var model = new FakeModel
+        {
+            // the player, in the memory book, while she thinks: tea as she would put it, and Rust forgotten
+            Thinking = n =>
+            {
+                if (n == 1)
+                {
+                    MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == tea), "The player drinks black tea now.");
+                    MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == rust), "");
+                }
+                return Task.CompletedTask;
+            },
+        };
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Black tea now; Rust going well; works at a bookshop."}]}""");
+        model.Answers.Enqueue($$"""
+            {"facts": [
+              {"op": "update", "id": {{tea}}, "text": "The player drinks black tea now."},
+              {"op": "update", "id": {{rust}}, "text": "The player is learning Rust and enjoying it."},
+              {"op": "update", "id": {{job}}},
+              {"op": "update", "id": {{job}}, "text": "The player works at a bookshop."}]}
+            """);
+
+        Assert.True(await conversation.Digest(model));
+
+        Assert.Equal(["The player drinks black tea now.", "The player works at a bookshop."], store.Facts("shino").Select(f => f.Text));
+        // their Forget holds, and the same words aren't kept twice; the bakery is history, as any change keeps it
+        Assert.Equal([("The player works at a bakery.", "changed to: The player works at a bookshop.")], store.Retired("shino").Select(f => (f.Text, f.Why)));
+        Assert.Equal("upkeep left \"The player is learning Rust.\" as the player has it (forgotten) instead of \"The player is learning Rust and enjoying it.\"", Assert.Single(clashes));
     }
 
     [Fact]

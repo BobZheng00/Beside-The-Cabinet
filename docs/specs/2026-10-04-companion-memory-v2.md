@@ -302,8 +302,9 @@ list's × stays one click); only Close is left.
   Each change is written only if the item is still as it was read (as the book matches it: id and learned or added
   date, then its words and pin, or an agenda item's words, time, reminder and repeat). Otherwise the player changed it
   meanwhile, in the book or with Chat history's Edit, and theirs stays: her new words for a fact are kept as what it
-  said before theirs (retired, "changed to: " theirs), and the log names each change left unmade, an agenda item's
-  included (`Chat: upkeep left …`). A merge with such a fact is left whole. Upkeep doesn't write the two notes.
+  said before theirs (retired, "changed to: " theirs), unless theirs already says it or they forgot the fact (their
+  Forget holds), and the log names each change left unmade, an agenda item's included (`Chat: upkeep left …`; an
+  agenda item changed meanwhile may also be her own reply's doing). A merge with such a fact is left whole. Upkeep doesn't write the two notes.
 
 ### 13. The chat history leaves out what the app tells her (decided 2026-10-14, built)
 

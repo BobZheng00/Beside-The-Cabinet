@@ -1114,7 +1114,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     break;
                 // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
                 // new one learned now; the same thing in other words is just rewritten
-                case "update" when change.Id is { } id && byId.Remove(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2 && AsRead(old, text2, now):
+                case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2
+                                    && byId.Remove(id) && AsRead(old, text2, now):         // one change an item, once it's usable
                     if (Recall.Same(old.Text, text2))
                         store.UpdateFact(id, text2, change.Importance);
                     else
@@ -1124,7 +1125,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     }
                     break;
                 // no longer true: retired, not deleted, so what used to be can still be recalled
-                case "delete" when change.Id is { } id && byId.Remove(id, out var gone) && !gone.Pinned && AsRead(gone, null, now):
+                case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned && byId.Remove(id) && AsRead(gone, null, now):
                     store.Retire(id, Ended, now);
                     break;
             }
@@ -1173,27 +1174,34 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>
     /// The fact is still as upkeep read it before asking the model. Else the player changed it meanwhile (a call can take
     /// a minute or more): theirs stays, her new words for it (if any) are kept as what it said before theirs, retired as
-    /// changed to theirs as the memory book keeps hers, and the log says so.
+    /// changed to theirs as the memory book keeps hers, and the log says so. Nothing of hers is kept when theirs already
+    /// says it, or when they forgot the fact: their Forget holds.
     /// </summary>
-    private bool AsRead(Fact read, string? hers, DateTimeOffset now)
+    /// <param name="unmade">What she would have done with no new words of hers, for the log.</param>
+    private bool AsRead(Fact read, string? hers, DateTimeOffset now, string unmade = "retiring it")
     {
         var stored = MemoryEdits.Current(store, character, read);
         if (stored is not null && stored.Text == read.Text && stored.Pinned == read.Pinned)
             return true;
-        if (hers is not null && stored?.Text != read.Text)         // a pin alone changes nothing she would say
-            store.Retire(store.AddFact(read.Scope, hers, read.Importance, now), stored is null ? Ended : $"{Changed} {stored.Text}", now);
+        if (hers is not null && hers == stored?.Text)
+            return false;                                           // the player wrote what she would have: nothing to keep
+        if (hers is not null && stored is not null && stored.Text != read.Text)      // a pin alone changes nothing she would say
+            store.Retire(store.AddFact(read.Scope, hers, read.Importance, now), $"{Changed} {stored.Text}", now);
         var theirs = stored is null ? "forgotten" : stored.Text != read.Text ? $"now \"{stored.Text}\"" : "pinned";
-        Clashed?.Invoke($"upkeep left \"{read.Text}\" as the player has it ({theirs}) instead of {(hers is null ? "retiring it" : $"\"{hers}\"")}");
+        Clashed?.Invoke($"upkeep left \"{read.Text}\" as the player has it ({theirs}) instead of {(hers is null ? unmade : $"\"{hers}\"")}");
         return false;
     }
 
-    /// <summary>The agenda item is still as upkeep read it before asking the model; else the player's stays and the log has her change.</summary>
+    /// <summary>
+    /// The agenda item is still as upkeep read it before asking the model; else it changed meanwhile (the player, or her
+    /// own reply), that stays, and the log has her change.
+    /// </summary>
     private bool AsRead(Plan read, PlanChange change)
     {
         if (MemoryEdits.Current(store, read) is { } stored
             && (stored.Text, stored.At, stored.AllDay, stored.Before, stored.Repeat) == (read.Text, read.At, read.AllDay, read.Before, read.Repeat))
             return true;
-        Clashed?.Invoke($"upkeep left \"{read.Text}\" on the agenda as the player has it instead of: {change.Op} {change.When} {change.Text} {change.Options}".TrimEnd());
+        Clashed?.Invoke($"upkeep left \"{read.Text}\" on the agenda as it is now (changed meanwhile) instead of: {change.Op} {change.When} {change.Text} {change.Options}".TrimEnd());
         return false;
     }
 
@@ -1243,7 +1251,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             foreach (var id in merge.Ids)
                 mine.Remove(id);
             // one the player changed while she was thinking stays theirs, and so do the others she would merge it with
-            if (merged.Count(x => !AsRead(x, merged.Count == 1 ? merge.Text : null, now)) > 0)
+            if (merged.Count(x => !AsRead(x, merged.Count == 1 ? merge.Text : null, now, "merging it")) > 0)
                 continue;
             var importance = merge.Importance ?? merged.Max(x => x.Importance);
             if (merged.Count == 1)
