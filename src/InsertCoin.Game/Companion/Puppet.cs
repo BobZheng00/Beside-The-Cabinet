@@ -516,11 +516,15 @@ internal sealed class Puppet
         _awake += (1 - _on["doze"] - _awake) * (1 - Mathf.Exp(-dt * 3f));
         // Poses come in and go out smoothly (a critically damped ease of about a quarter second) ...
         const float rate = Mathf.Tau * 2.6f;
+        // eased in steps of at most a 25th of a second: at the slow pace while a game runs (15 frames a second) a single
+        // step swings past further each frame, until the pose flickers on and off and the numbers overflow (#216)
+        var steps = Mathf.CeilToInt(dt * 25);
         foreach (var name in Overlays.Keys)
-        {
-            _shownSpeed[name] += dt * (rate * rate * (_on[name] - _shown[name]) - 2 * rate * _shownSpeed[name]);
-            _shown[name] = Mathf.Clamp(_shown[name] + dt * _shownSpeed[name], 0, 1);
-        }
+            for (var i = 0; i < steps; i++)
+            {
+                _shownSpeed[name] += dt / steps * (rate * rate * (_on[name] - _shown[name]) - 2 * rate * _shownSpeed[name]);
+                _shown[name] = Mathf.Clamp(_shown[name] + dt / steps * _shownSpeed[name], 0, 1);
+            }
         Fidget();
         LegPosture(dt);
         // a long think: finger to her chin, once nothing else is going on

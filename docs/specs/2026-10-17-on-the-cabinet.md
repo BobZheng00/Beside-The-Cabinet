@@ -15,7 +15,8 @@ does nothing yet, and right-clicking the character for its menu is a habit deskt
 
 ## What it does
 
-- **A right-click on her or the cabinet** shows the same menu as the tray, at the pointer: Settings…, the memory book,
+- **A right-click on her or the cabinet** shows the same menu as the tray, at the pointer: Settings…, Who keeps you
+  company… (#220: choosing who sits on the stool, Settings → Characters), the memory book,
   Chat history, the switches, Quit and the rest. It is the tray's menu, built once, so the two never differ.
 - **A SETTINGS app on the CRT** opens the Settings window beside the cabinet, as the tray's Settings… does; the
   screen settles back into the cabinet. It sits on the home screen with the other apps and can be moved like them.
