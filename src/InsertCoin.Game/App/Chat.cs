@@ -428,6 +428,7 @@ public sealed class Chat : IDisposable
         _conversation = new Conversation(Store, characterId, persona)
         {
             Embedder = _embedder, Window = Window, ReminderLead = ReminderLead, KeepsInTouch = KeepsInTouch, Earns = Earns, Language = Language,
+            Clashed = line => GD.Print($"Chat: {line}"),
             Agended = done =>
             {
                 _agended.Add(done);

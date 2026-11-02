@@ -246,6 +246,59 @@ public class MemoryTests
     }
 
     [Fact]
+    public async Task What_the_player_saves_while_upkeep_is_thinking_stays_theirs_and_hers_is_kept()
+    {
+        // upkeep read the facts and the agenda, then asked a model that took its time (#34)
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var exam = store.AddFact(MindStore.Shared, "The player has an exam next week.", 6, Friday.AddDays(-5));
+        var rust = store.AddFact(MindStore.Shared, "The player is learning Rust.", 5, Friday.AddDays(-5));
+        var tea = store.AddFact(MindStore.Shared, "The player likes green tea.", 4, Friday.AddDays(-5));
+        var dentist = store.AddPlan("Dentist", Friday.AddDays(3), false, null, Friday.AddDays(-1), "shino");
+        store.Add("shino", Speaker.User, "exam's on Monday now, no more Rust, I drink black tea these days, and the dentist is off", Friday);
+        var clashes = new List<string>();
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11))) { Clashed = clashes.Add };
+        var asked = new TaskCompletionSource();
+        var answer = new TaskCompletionSource();
+        var model = new FakeModel { Thinking = n => n == 1 ? Release(asked, answer) : Task.CompletedTask };
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "high", "text": "The exam moved to Monday; no more Rust; black tea now; the dentist is off."}]}""");
+        model.Answers.Enqueue($$"""
+            {"facts": [
+              {"op": "update", "id": {{exam}}, "text": "The player's exam is on Monday 5 October 2026."},
+              {"op": "delete", "id": {{rust}}},
+              {"op": "update", "id": {{tea}}, "text": "The player drinks black tea now."}],
+             "plans": [{"op": "cancel", "id": {{dentist}}}]}
+            """);
+
+        var upkeep = conversation.Digest(model);
+        await asked.Task;
+        // the player, in the memory book, while she thinks: the exam corrected, Rust reworded, the dentist moved
+        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == exam), "The player's exam is on Tuesday 6 October 2026."));
+        Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == rust), "The player is learning Rust slowly."));
+        Assert.Equal(Kept.Saved, MemoryEdits.PlanText(store, store.Agenda().Single(), "Dentist at 4"));
+        answer.SetResult();
+        Assert.True(await upkeep);
+
+        Assert.Equal(["The player's exam is on Tuesday 6 October 2026.", "The player is learning Rust slowly.", "The player drinks black tea now."],
+                     store.Facts("shino").Select(f => f.Text));
+        // hers isn't lost: the exam as she had it, changed to the player's words; what she left alone changes as before
+        Assert.Equal([("The player likes green tea.", "changed to: The player drinks black tea now."),
+                      ("The player's exam is on Monday 5 October 2026.", "changed to: The player's exam is on Tuesday 6 October 2026.")],
+                     store.Retired("shino").Select(f => (f.Text, f.Why)).OrderBy(f => f.Text, StringComparer.Ordinal));
+        Assert.Equal("Dentist at 4", store.Agenda().Single().Text);
+        Assert.Equal(3, clashes.Count);
+        Assert.Contains("upkeep left \"The player has an exam next week.\" as the player has it (now \"The player's exam is on Tuesday 6 October 2026.\") instead of \"The player's exam is on Monday 5 October 2026.\"", clashes);
+        Assert.Contains("upkeep left \"The player is learning Rust.\" as the player has it (now \"The player is learning Rust slowly.\") instead of retiring it", clashes);
+        Assert.Contains("upkeep left \"Dentist\" on the agenda as the player has it instead of: cancel", clashes);
+
+        static Task Release(TaskCompletionSource asked, TaskCompletionSource answer)
+        {
+            asked.SetResult();
+            return answer.Task;
+        }
+    }
+
+    [Fact]
     public async Task Upkeep_that_cannot_be_read_is_retried_then_skipped()
     {
         using var temp = new TempStore();

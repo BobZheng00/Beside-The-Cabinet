@@ -63,6 +63,12 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>Told at once of each item her reply puts on the agenda, changes or calls off: the cabinet shows it (see <see cref="AgendaDone"/>).</summary>
     public Action<AgendaDone>? Agended { get; init; }
 
+    /// <summary>
+    /// Told of each change upkeep left unmade because the player changed that fact or agenda item while it was thinking
+    /// (in the memory book, or Chat history's Edit): theirs stays, and the log says so.
+    /// </summary>
+    public Action<string>? Clashed { get; init; }
+
     /// <summary>The player chose "Keeps in touch", as set now: she may plan when to reach them while they are out (see <see cref="Later"/>).</summary>
     public Func<bool> KeepsInTouch { get; init; } = () => false;
 
@@ -1108,7 +1114,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     break;
                 // a fact that changed keeps its history: the old one retired as changed, recalled as what used to be, and the
                 // new one learned now; the same thing in other words is just rewritten
-                case "update" when change.Id is { } id && byId.TryGetValue(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2:
+                case "update" when change.Id is { } id && byId.Remove(id, out var old) && !old.Pinned && change.Text is { Length: > 2 } text2 && AsRead(old, text2, now):
                     if (Recall.Same(old.Text, text2))
                         store.UpdateFact(id, text2, change.Importance);
                     else
@@ -1118,7 +1124,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     }
                     break;
                 // no longer true: retired, not deleted, so what used to be can still be recalled
-                case "delete" when change.Id is { } id && byId.TryGetValue(id, out var gone) && !gone.Pinned:
+                case "delete" when change.Id is { } id && byId.Remove(id, out var gone) && !gone.Pinned && AsRead(gone, null, now):
                     store.Retire(id, Ended, now);
                     break;
             }
@@ -1134,10 +1140,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     var (before, repeat) = Agenda.ParseOptions(change.Options);
                     AddPlan(new PlanSpec(at.At, at.AllDay, text2, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
                     break;
-                case "update" when change.Id is { } id && plans.TryGetValue(id, out var plan):
+                case "update" when change.Id is { } id && plans.Remove(id, out var plan) && AsRead(plan, change):
                     ChangePlan(plan, when, change.Text, change.Options, change.Remind);
                     break;
-                case "cancel" when change.Id is { } id && plans.ContainsKey(id):
+                case "cancel" when change.Id is { } id && plans.Remove(id, out var called) && AsRead(called, change):
                     store.DeletePlan(id);
                     break;
             }
@@ -1162,6 +1168,33 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         store.LapseThreads(now - Threads.Lapse, now);
         store.SetMark(KeptMark, notes[^1].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return true;
+    }
+
+    /// <summary>
+    /// The fact is still as upkeep read it before asking the model. Else the player changed it meanwhile (a call can take
+    /// a minute or more): theirs stays, her new words for it (if any) are kept as what it said before theirs, retired as
+    /// changed to theirs as the memory book keeps hers, and the log says so.
+    /// </summary>
+    private bool AsRead(Fact read, string? hers, DateTimeOffset now)
+    {
+        var stored = MemoryEdits.Current(store, character, read);
+        if (stored is not null && stored.Text == read.Text && stored.Pinned == read.Pinned)
+            return true;
+        if (hers is not null && stored?.Text != read.Text)         // a pin alone changes nothing she would say
+            store.Retire(store.AddFact(read.Scope, hers, read.Importance, now), stored is null ? Ended : $"{Changed} {stored.Text}", now);
+        var theirs = stored is null ? "forgotten" : stored.Text != read.Text ? $"now \"{stored.Text}\"" : "pinned";
+        Clashed?.Invoke($"upkeep left \"{read.Text}\" as the player has it ({theirs}) instead of {(hers is null ? "retiring it" : $"\"{hers}\"")}");
+        return false;
+    }
+
+    /// <summary>The agenda item is still as upkeep read it before asking the model; else the player's stays and the log has her change.</summary>
+    private bool AsRead(Plan read, PlanChange change)
+    {
+        if (MemoryEdits.Current(store, read) is { } stored
+            && (stored.Text, stored.At, stored.AllDay, stored.Before, stored.Repeat) == (read.Text, read.At, read.AllDay, read.Before, read.Repeat))
+            return true;
+        Clashed?.Invoke($"upkeep left \"{read.Text}\" on the agenda as the player has it instead of: {change.Op} {change.When} {change.Text} {change.Options}".TrimEnd());
+        return false;
     }
 
     /// <summary>How often her facts are reviewed (sooner when many new ones have come), and how many are read at once.</summary>
@@ -1207,6 +1240,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                                                         && Prompt.Tokens(m.Text) <= MergedTokens && (m.Ids.Count == 1 || m.Ids.All(id => Recall.Within(mine[id].Text, m.Text)))))
         {
             var merged = merge.Ids.Select(id => mine[id]).ToList();
+            foreach (var id in merge.Ids)
+                mine.Remove(id);
+            // one the player changed while she was thinking stays theirs, and so do the others she would merge it with
+            if (merged.Count(x => !AsRead(x, merged.Count == 1 ? merge.Text : null, now)) > 0)
+                continue;
             var importance = merge.Importance ?? merged.Max(x => x.Importance);
             if (merged.Count == 1)
                 store.UpdateFact(merged[0].Id, merge.Text, importance);
@@ -1217,10 +1255,8 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 foreach (var old in merged)
                     store.Retire(old.Id, why, now);
             }
-            foreach (var id in merge.Ids)
-                mine.Remove(id);
         }
-        foreach (var retirement in verdict.Retirements.Where(r => mine.ContainsKey(r.Id)))
+        foreach (var retirement in verdict.Retirements.Where(r => mine.Remove(r.Id, out var read) && AsRead(read, null, now)))
         {
             store.Retire(retirement.Id, retirement.Why, now);
         }

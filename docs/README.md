@@ -564,7 +564,9 @@ more ("Forget?") and forgets on the second click. The line beside Close says wha
 change is waiting for you to choose. Only what you changed is written. While it is open it follows what upkeep,
 their replies, reminders and the chat history change, except a field you have changed and not yet left; if they
 changed that same thing meanwhile, the row shows theirs and asks which to keep. Closing with that unanswered keeps
-yours (a fact of theirs written over is kept under "Retired by the review", as changed to yours). A time that can't
+yours (a fact of theirs written over is kept under "Retired by the review", as changed to yours). The other way
+round holds too: upkeep never writes over a fact or an agenda item you saved while it was thinking; yours stays, and
+a fact of theirs is kept the same way, as changed to yours. A time that can't
 be read can't be saved: Close says so first, and a second Close closes without that one change. "Clear the chat" starts the conversation afresh and keeps what they remember;
 "Forget all with …" clears the conversation and everything about the two of you; "Forget all about me" clears what
 every character knows about you, and your agenda, and leaves the conversations. It stays in the profile folder
