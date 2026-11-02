@@ -1342,9 +1342,13 @@ public partial class Stool : Node2D
     /// <summary>The character chosen for the stool (whether shown or not), with the name their persona goes by.</summary>
     private (string Id, string Name)? OnStool()
     {
-        if (_chat.Conversation is { } conversation)
-            return (conversation.Character, conversation.Persona.Name);
+        var conversation = _chat.Conversation;
+        if (conversation?.Character == _settings.Now.Companion)
+            return (conversation!.Character, conversation.Persona.Name);
         var characters = CompanionView.Available(_characters);
+        // the one talking, unless another was chosen while the stool is empty: they talk once seated
+        if (conversation is not null && characters.All(c => c.Id != _settings.Now.Companion))
+            return (conversation.Character, conversation.Persona.Name);
         return (characters.FirstOrDefault(c => c.Id == _settings.Now.Companion) ?? characters.FirstOrDefault()) is { } c ? (c.Id, c.Name) : null;
     }
 
@@ -1931,15 +1935,16 @@ public partial class Stool : Node2D
     // ---- Her pages of the settings ---------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Her pages of the settings (see <see cref="SettingsWindow"/>): her mind, her voice, talking aloud, characters, her
-    /// abilities, privacy and add-ons, and what her requests used. Each change is saved and used at once.
+    /// Her pages of the settings (see <see cref="SettingsWindow"/>): characters (who sits on the stool), her mind, her
+    /// voice, talking aloud, her abilities, privacy and add-ons, and what her requests used. Each change is saved and
+    /// used at once.
     /// </summary>
     public IEnumerable<SettingsPage> SettingsPages() =>
     [
         new("mind", SettingsWindow.Companion, "Mind", () => MindPage()),
         new("voice", SettingsWindow.Companion, "Voice", VoicePage),
         new("listening", SettingsWindow.Companion, "Talking aloud", ListeningPage),
-        new("characters", SettingsWindow.Companion, "Characters", CharactersPage),
+        new("characters", SettingsWindow.First, "Characters", CharactersPage),        // above the groups: who sits there, not something about them
         new("abilities", SettingsWindow.Companion, "Abilities", AbilitiesPage),
         new("privacy", SettingsWindow.Companion, "Privacy", PrivacyPage),
         new("skills", SettingsWindow.Companion, "Skills", SkillsPage, Fresh: true),     // made again each time: skills change on disk

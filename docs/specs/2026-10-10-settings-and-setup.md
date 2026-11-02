@@ -26,7 +26,7 @@ Each page is short enough to read without scrolling much, and is named for what 
 | Her | Her mind | her provider (server, key, model; Test, Save); memory search; word for word | Chat settings → Connection |
 | | Her voice | her voice on or off; GPT-SoVITS; the voice of whoever is on the stool; training | Voice settings…, tray → Voice |
 | | Talking aloud | the talk key; listening without it | Chat settings → Listening |
-| | Characters | who is on the stool, or nobody; speech bubbles; adding a character; the folder | tray |
+| | Characters | who is on the stool, or nobody; speech bubbles; adding a character; the folder (above the groups since #220) | tray |
 | | Abilities | Auto; each tool's permission; sites allowed always | Chat settings → Abilities |
 | | Privacy | what she may look at of yours; what she is told in the background | Chat settings → Privacy |
 | | Add-ons | web search with SearXNG | Chat settings → Add-ons |
@@ -150,11 +150,18 @@ short flow for what she can't do without, the checklist for the rest.
 
 ## The tray
 
-About ten entries: Show cabinet, Settings…, Getting started… (while unfinished), Memory book…, Chat history…, Write a
+About ten entries: Show cabinet, Settings…, Getting started… (while unfinished), Who keeps you company… (#220), Memory book…, Chat history…, Write a
 memo…, Check LeetCode now, the switches flipped often (Mute sounds, Voice, Conversation), Quit.
 
 *Changed 2026-10-17* (the user): the same menu also opens from a right-click on her or the cabinet, and the CRT gets a
 SETTINGS app and a row of the switches: `2026-10-17-on-the-cabinet.md`. The tray itself stays as it is.
+
+*Changed 2026-11-01* (the user, #220: "the choice of character is not intuitive. the characters option is under the name
+of the current character"): choosing who sits on the stool is the cabinet's question, not something about them. The
+menu has "Who keeps you company…" (the first run's question) under Settings… and Getting started…, opening Settings →
+Characters, and Characters is listed above the groups in Settings, under Getting started. The companion's group is
+headed by the name of whoever sits on the stool now: after a change it follows at once (it kept the old name until
+Settings was opened again), and their pages made before are made again, with the new name, when next shown.
 
 ## Order
 

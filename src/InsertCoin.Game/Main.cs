@@ -267,11 +267,14 @@ public partial class Main : Node2D
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.Settings += () => OpenSettings(null);
         _tray.GettingStarted += () => OpenSettings("start");
+        _tray.Characters += () => OpenSettings("characters");
         _stool.OpenSettings += OpenSettings;
         _stool.SettingsChanged += page =>
         {
-            if (IsInstanceValid(_settingsWindow))
-                _settingsWindow!.RefreshPage(page);
+            if (!IsInstanceValid(_settingsWindow))
+                return;
+            _settingsWindow!.Rename(_stool.HerName());     // someone else on the stool, say
+            _settingsWindow.RefreshPage(page);
         };
         _tray.MemoryBook += _stool.OpenMemoryBook;
         _tray.WriteMemo += _stool.WriteMemo;
