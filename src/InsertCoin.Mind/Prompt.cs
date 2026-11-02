@@ -37,6 +37,20 @@ public static class Prompt
     public const int DefaultWindow = 32_000, LocalWindow = 8_000;
     /// <summary>Stage directions she may start a reply with; each is acted out by her body.</summary>
     public static readonly string[] Moments = ["cheer", "pump", "wave", "look", "gasp", "worry"];
+    /// <summary>The blocks a turn is made of: the cabinet's own (her instructions say so), her memories and the card author's note.</summary>
+    public static readonly string[] Blocks = ["now", "agenda", "cabinet", "memories", "character", "voice", "card_author_note"];
+
+    private static readonly System.Text.RegularExpressions.Regex BlockTag = new(
+        $@"<\s*/?\s*(?:{string.Join("|", Blocks)})\b[^<>]*>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    private static readonly System.Text.RegularExpressions.Regex CabinetLine = new(
+        @"^[ \t]*(?:\[\s*cabinet\s*\][ \t]*)+", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+
+    /// <summary>
+    /// Text from a character card or a persona file with nothing in it that passes for the cabinet's: the angle brackets
+    /// taken off any of the prompt's block tags, and [cabinet] off the start of a line, so a card can't close its own
+    /// block and open one the cabinet would have written (#132).
+    /// </summary>
+    public static string Unblocked(string text) => CabinetLine.Replace(BlockTag.Replace(text, tag => tag.Value[1..^1]), "");
 
     internal static readonly CultureInfo English = CultureInfo.InvariantCulture;
     private static readonly TimeSpan Gap = TimeSpan.FromMinutes(30);    // a pause long enough to say when talk resumed

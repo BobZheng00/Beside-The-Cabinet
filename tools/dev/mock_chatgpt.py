@@ -74,9 +74,10 @@ def words_of(body):
 
 
 def newest(words):
-    """Only the newest thing they said: the last paragraph before the closing <character> note. A turn also carries
-    what went unanswered before it, which mustn't trip a trigger a second time."""
-    words = words.rsplit("<character>", 1)[0]
+    """Only the newest thing they said: the last paragraph before the closing <character> note, and before a card's
+    <card_author_note> (whose text may have blank lines of its own). A turn also carries what went unanswered before
+    it, which mustn't trip a trigger a second time."""
+    words = words.rsplit("<character>", 1)[0].rsplit("<card_author_note>", 1)[0]
     paragraphs = [p.strip() for p in words.split("\n\n") if p.strip() and not p.strip().startswith("<")]
     return paragraphs[-1] if paragraphs else ""
 
