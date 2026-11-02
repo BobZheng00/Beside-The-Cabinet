@@ -155,20 +155,33 @@
     },
     {
       "name": "character-menu",
-      "about": "Choosing who keeps you company is an entry of its own in the menu (the tray's and the right-click's): it opens Settings at Characters, listed above the groups, not under the companion's name. Choosing Fumiriya there heads the companion's pages with FUMIRIYA at once, and a page of theirs made before (Mind) is made again with the new name.",
+      "about": "Choosing who keeps you company is an entry of its own in the menu (the tray's and the right-click's): it opens Settings at Characters, listed above the groups, not under the companion's name, and again from Mind once Settings is open. Choosing Fumiriya there heads the companion's pages with FUMIRIYA at once, and Mind, made before, is made again with the new name.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
-      "script": "trayitems@2,menu@3,menupress:Who_keeps@4,settings:mind@6,settings:characters@7,settingsdo:Fumiriya@8,settings:mind@11",
-      "shots": [8, 12, 15],
+      "script": "trayitems@2,menu@3,menupress:Who_keeps@4,settings:mind@6,menupress:Who_keeps@7,settingsdo:Fumiriya@8,settings:mind@10",
+      "shots": [5.5, 11, 13.5],
       "window": "Settings",
       "expect": [
         "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
         "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
         "^Menu: pressed Who keeps$",
-        "^Settings: the list: Getting started \\| Characters \\| SHINO \\| Mind \\| Voice \\| Talking aloud \\| Abilities ",
+        "^Settings: the list: Getting started \\| Characters \\| SHINO \\| Mind \\| Voice \\| Talking aloud \\| Abilities .*; opened at characters$",
         "^Settings: \"Fumiriya\" ticked$",
-        "^Settings: the companion's pages headed FUMIRIYA$"
+        "^Settings: the companion's pages headed FUMIRIYA; characters made again when next shown$"
       ],
-      "forbid": ["^Menu: no entry"]
+      "forbid": ["^Menu: no entry", "^Settings: nothing called"]
+    },
+    {
+      "name": "character-elsewhere",
+      "about": "With Getting started done, Settings… opens at Mind, not at Characters. Someone else taking the stool from outside Settings (as a model dropped on the cabinet does) while Mind is showing: the heading and Mind say the new name at once, and so do Voice and Mind when gone back to.",
+      "covers": ["src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
+      "settings": ", \"StartHidden\": true",
+      "script": "settings@2,character:fumiriya@4,settings:voice@7,settings:mind@9",
+      "shots": [6.6, 9.5, 12],
+      "window": "Settings",
+      "expect": [
+        "^Settings: the list: Characters \\| SHINO \\| Mind .*; opened at mind$",
+        "^Settings: the companion's pages headed FUMIRIYA; mind made again now$"
+      ]
     },
     {
       "name": "chat",

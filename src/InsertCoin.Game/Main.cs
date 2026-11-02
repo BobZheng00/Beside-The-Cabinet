@@ -274,7 +274,7 @@ public partial class Main : Node2D
         {
             if (!IsInstanceValid(_settingsWindow))
                 return;
-            _settingsWindow!.Rename(_stool.HerName());     // someone else on the stool, say
+            _settingsWindow!.Rename(_stool.HerName(), choosingOn: "characters");     // someone else on the stool, say
             _settingsWindow.RefreshPage(page);
         };
         _tray.MemoryBook += _stool.OpenMemoryBook;
@@ -974,7 +974,9 @@ public partial class Main : Node2D
         }
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
-        _settingsWindow.Build([.. SettingsPages(page), .. _stool.SettingsPages()], page, _stool.HerName());
+        SettingsPage[] pages = [.. SettingsPages(page), .. _stool.SettingsPages()];
+        // Settings… opens at Getting started while it is listed, else at her mind: Characters, listed first, has its own entry
+        _settingsWindow.Build(pages, page ?? (pages[0].Id == "start" ? "start" : "mind"), _stool.HerName());
         _settingsWindow.Open();
     }
 
