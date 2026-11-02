@@ -131,6 +131,39 @@ public class AgendaToolTests
     }
 
     [Fact]
+    public async Task With_a_voice_in_another_language_the_call_s_reply_is_told_plainly_to_carry_its_say_and_the_prompt_holds_still_between_replies()
+    {
+        using var temp = new TempStore();
+        var (conversation, tools) = Set(temp);
+        conversation.VoiceLanguage = "ja";
+        var model = new FakeToolModel(["Hi."], ["Hi again."], ["And again."], ["Once more."]);
+        static string AgendaDescription(ChatOptions? options) => options!.Tools!.Single(t => t.Name == BuiltIn.AgendaName).Description;
+
+        await conversation.Answer(model, "hi", "", _ => { }, (_, _) => { }, tools: tools);
+        await conversation.Answer(model, "hi again", "", _ => { }, (_, _) => { }, tools: tools);
+
+        // the line her base text and the tool both carry (#206: the voiced test character's replies with a call went unheard)
+        const string said = "When you write in another language than Japanese, the call's reply has a [say: ...] in front of each sentence, " +
+                            "with the whole sentence in Japanese, as your replies do: your voice speaks Japanese, and only what is in [say: ...] is heard.";
+        Assert.Contains(said, model.Requests[0][0].Text);
+        Assert.EndsWith(said, AgendaDescription(model.Options[0]));
+        // the same voice, the same start of the prompt and the same tools: the provider's cache holds
+        Assert.Equal(model.Requests[0][0].Text, model.Requests[1][0].Text);
+        Assert.Same(model.Options[0]!.Tools!.Single(t => t.Name == BuiltIn.AgendaName), model.Options[1]!.Tools!.Single(t => t.Name == BuiltIn.AgendaName));
+
+        // no voice: nothing of it, in either
+        conversation.VoiceLanguage = null;
+        await conversation.Answer(model, "and again", "", _ => { }, (_, _) => { }, tools: tools);
+        Assert.DoesNotContain("call's reply has a [say", model.Requests[2][0].Text);
+        Assert.DoesNotContain("[say", AgendaDescription(model.Options[2]));
+
+        // a voice in the language she writes in needs none either
+        var japanese = new Conversation(temp.Store, "shino", Shino, new FakeClock(Wednesday)) { VoiceLanguage = "ja", Language = () => "ja" };
+        await japanese.Answer(model, "こんにちは", "", _ => { }, (_, _) => { }, tools: new Toolbox([]));
+        Assert.DoesNotContain("[say", AgendaDescription(model.Options[3]));
+    }
+
+    [Fact]
     public async Task Her_words_in_the_call_are_in_her_history_once_and_an_unseen_say_not_at_all()
     {
         using var temp = new TempStore();

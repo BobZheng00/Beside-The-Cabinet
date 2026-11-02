@@ -252,7 +252,8 @@ script's header.
   `--variant` into the same `--out`. One card on two texts was about 56 requests and 183k input tokens with 21
   moments (#127's run); the three added in #187 make it about a seventh more, and both cards about twice that.
   `--mock http://127.0.0.1:<port>/v1` runs on a stand-in instead (`tools/bench/agenda_mock.py`), free;
-  `--card-files name=path` adds draft cards. Run it when the companion's instructions or tools change.
+  `--card-files name=path` adds draft cards; `--voice ja` gives the companion a voice in that language, and the side
+  by side shows what it would say. Run it when the companion's instructions or tools change.
 
 ## Checks and the smoke suite
 

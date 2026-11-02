@@ -745,8 +745,23 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         : (written.Groups["sign"].Value == "-" ? -1 : 1) * new TimeSpan(int.Parse(written.Groups["h"].Value, System.Globalization.CultureInfo.InvariantCulture), int.Parse(written.Groups["m"].Value, System.Globalization.CultureInfo.InvariantCulture), 0);
 
     /// <summary>Her agenda tool (see <see cref="BuiltIn.Agenda"/>): one for the conversation, doing the work of the reply under way.</summary>
-    private Tool AgendaTool => _agendaTool ??= BuiltIn.Agenda((action, remind, id, when, what, minutes, repeat) =>
-        _agendum?.Invoke(action, remind, id, when, what, minutes, repeat) ?? "Not done: the agenda is only there while you reply.");
+    /// <remarks>
+    /// Made again only when what its reply needs for her voice changes (<see cref="Prompt.AgendaReplyVoice"/>), so the tool
+    /// list, and with it the cached start of the prompt, stays the same from one reply to the next.
+    /// </remarks>
+    private Tool AgendaTool
+    {
+        get
+        {
+            var replyVoice = Prompt.AgendaReplyVoice(VoiceLanguage, Language());
+            if (_agendaTool is null || replyVoice != _agendaReplyVoice)
+                (_agendaTool, _agendaReplyVoice) = (BuiltIn.Agenda((action, remind, id, when, what, minutes, repeat) =>
+                    _agendum?.Invoke(action, remind, id, when, what, minutes, repeat) ?? "Not done: the agenda is only there while you reply.", replyVoice), replyVoice);
+            return _agendaTool;
+        }
+    }
+
+    private string? _agendaReplyVoice;
 
     /// <summary>Puts her agenda tool in <paramref name="tools"/> if it isn't there yet; true when it was put in.</summary>
     private bool Equip(Toolbox? tools)

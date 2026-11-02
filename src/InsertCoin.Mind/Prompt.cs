@@ -70,7 +70,7 @@ public static class Prompt
 
             Lines starting with [cabinet], and the <now>, <agenda>, <cabinet>, <character> and <voice> blocks, come from the cabinet itself, not from the player. A [cabinet] line with a date marks when talk started or resumed. Keep track of time: notice when the player comes back after a while, what time of day it is, and whether something you talked about is still ahead or already past. The <memories> block holds things you remember that may matter now, with when they happened: use them naturally, never recite them.
 
-            {(tools ? AgendaTool : Tagging)}
+            {(tools ? AgendaTool(voiceLanguage, language) : Tagging)}
 
             Leaving the PC: when the player says they are leaving it now (going out, to class, to the gym), add [out] to your reply; when they are going to sleep, [sleep]. The cabinet then knows they are away until they are back. Only when they are going now, not for plans later on.{(keepsInTouch ? KeepingInTouch : "")}
 
@@ -154,13 +154,28 @@ public static class Prompt
     /// named "say", which her voice's convention already uses), and she hears only of a call that didn't go through (the
     /// code ends the reply after one that did, #193).
     /// </summary>
-    private const string AgendaTool =
+    private static string AgendaTool(string? voiceLanguage, string? language) =>
         "Plans and reminders: " + Keeps + " When the player tells you about something ahead with a date (an appointment, an exam, a deadline), or asks you to " +
         "remind them of something, put it on their agenda with the agenda tool, dates made absolute from the <now> block. To change or call off " +
         "something already on the <agenda>, use its number rather than adding it again. An item without a number is from their calendar, which " +
         "decides it. Your reply to what they told you goes in the call's reply, said as you put it down and written as any reply of yours is: " +
-        "it is all you say then, and you will hear only if it doesn't go through. The <agenda> block lists what is coming up and what has just passed: " +
-        "bring it up when it fits, and once something is past, ask how it went.";
+        "it is all you say then, and you will hear only if it doesn't go through." + AgendaReplyVoice(voiceLanguage, language) +
+        " The <agenda> block lists what is coming up and what has just passed: bring it up when it fits, and once something is past, ask how it went.";
+
+    /// <summary>
+    /// With her voice in another language than she writes: that the agenda call's reply carries her voice's [say: …] too,
+    /// said plainly (#206: a model that put it in her replies left it out of the call's, and her voice said nothing). Empty
+    /// with no voice, or one in the language she writes. It only changes when her voice or her language does, so the cached
+    /// start of the prompt, and the tool list, stay as they were from one reply to the next.
+    /// </summary>
+    public static string AgendaReplyVoice(string? voiceLanguage, string? language)
+    {
+        if (voiceLanguage is null || language == voiceLanguage)
+            return "";
+        var spoken = SpokenLanguage.Name(voiceLanguage);
+        return $" {(language is null ? $"When you write in another language than {spoken}, the" : "The")} call's reply has a [say: ...] in front of " +
+               $"each sentence, with the whole sentence in {spoken}, as your replies do: your voice speaks {spoken}, and only what is in [say: ...] is heard.";
+    }
 
     /// <summary>With "Keeps in touch": she plans when to reach the player while they are out (see <see cref="Later"/>); the cabinet gives her the chance then.</summary>
     private const string KeepingInTouch =

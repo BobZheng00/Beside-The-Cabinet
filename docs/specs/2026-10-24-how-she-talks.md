@@ -186,7 +186,13 @@ Each step is usable on its own.
    the wording's to ask for. The "jot it down" line made way for "Your reply to what they told you goes in the call's
    reply, said as you put it down and written as any reply of yours is: it is all you say then, and you will hear only
    if it doesn't go through", and `reply` is described as "Your reply to what the player just told you, said as you put
-   it down, written as any reply of yours is" (the last clause added with the rename).
+   it down, written as any reply of yours is" (the last clause added with the rename). With her voice in another
+   language than she writes, both the line and the tool's description add that the call's reply has a `[say: ...]`
+   in front of each sentence in the voice's language, as her replies do (`Prompt.AgendaReplyVoice`; the user's try,
+   2026-11-01: Hana's replies with the call had none, so her voice said nothing; the user chose to tune the wording,
+   not to add a fallback in code). It changes only with her voice or her language, so the cached start of the prompt
+   holds between replies. Measured with a Japanese voice (`<tools>\manner-bench\run-206d`, the 12 agenda moments, 13
+   requests, 55,151 input tokens): a `[say: ...]` in 10 of 12 (on #193).
    Measured on #128's 12 agenda moments, billed (`<tools>\manner-bench\run-206b` and `run-206c`):
    - "A few words of your own … the cabinet's screen shows them what and when" (round 4, with a trim since dropped):
      12 of 12 were labels of the item ("Job interview, Thursday at 2pm.", "Your vitamins.").

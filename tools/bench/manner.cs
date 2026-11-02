@@ -17,6 +17,8 @@
 // the limits. Results go to <out>/manner.jsonl (what is there already is not asked again unless --again); the base text
 // to <out>/prompt-<variant>.txt; the replies side by side and the counts to <out>/manner.md, from everything in the file.
 // --card-files puts draft cards beside the shipped ones (name=path; "<name>-zh" is used for <name>'s Chinese moments).
+// --voice ja gives her a voice in that language (writing in the player's): what her voice would say ([say: ...]) is kept
+// with each reply, and the side by side shows it.
 #:property PublishAot=false
 #:property NoWarn=CA1416
 #:project ../../src/InsertCoin.Mind/InsertCoin.Mind.csproj
@@ -36,6 +38,7 @@ var results = Path.Combine(output, "manner.jsonl");
 var json = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 var variant = options.GetValueOrDefault("variant", "this");
 var cards = options.GetValueOrDefault("cards", "shino,plain").Split(',');
+var voice = options.GetValueOrDefault("voice") is { Length: > 0 } voiced ? voiced : null;
 var maxRequests = int.Parse(options.GetValueOrDefault("max-requests", "140"));
 var maxInput = long.Parse(options.GetValueOrDefault("max-input", "500000"));
 
@@ -226,13 +229,19 @@ async Task<Result> Run(string card, Moment m)
     var conversation = new Conversation(store, card, CardFor(card, m.Language), new Clock(now, zone))
     {
         Agended = done => flashed.Add(Agenda.Flash(done) is var (big, caption) ? $"{big} / {caption.Replace("\n", " / ")}" : ""),
+        VoiceLanguage = voice,
     };
+    var spoken = new List<string>();                    // what her voice would say: each [say: ...] of the reply
     var counting = new Counting(model);
     var focus = new List<string>();
     string? answer = null, error = null;
     try
     {
-        answer = await conversation.Answer(counting, m.Said, "", _ => { }, (_, _) => { }, tools: Tools(focus),
+        answer = await conversation.Answer(counting, m.Said, "", _ => { }, (name, payload) =>
+                                           {
+                                               if (name == "say" && payload is not null)
+                                                   spoken.Add(payload.Trim());
+                                           }, tools: Tools(focus),
                                            cancel: new CancellationTokenSource(TimeSpan.FromMinutes(3)).Token);
     }
     catch (Exception e)
@@ -240,7 +249,7 @@ async Task<Result> Run(string card, Moment m)
         error = $"{e.GetType().Name}: {e.Message}";
     }
     return new Result(card, variant, m.Id, m.Language, m.Said, answer, error, Listed(),
-                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before, flashed);
+                      counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before, flashed, voice is null ? null : spoken);
 }
 
 // the card a moment runs on: "<card>-zh" for the Chinese ones when there is one
@@ -343,6 +352,7 @@ void Summary()
                 habits.Add($"answers in {other}");
             md.AppendLine($"- {r.Card}, {r.Variant}: {(Habits.Spoken(r.Answer!).Length == 0 ? "*(no words)*" : r.Answer!.Replace("\n", " "))}{calls}" +
                           (r.Flashed is { Count: > 0 } shown ? $" Flashed: {string.Join("; ", shown)}." : "") +
+                          (r.Spoken is { } heard ? (heard.Count == 0 ? " Spoken: *(nothing: no [say: ...])*." : $" Spoken: \"{string.Join(" ", heard)}\".") : "") +
                           (Says(r).ToList() is { Count: > 0 } says ? $" Wrote in the call's reply: \"{string.Join(" ", says)}\" (shown: the reply as given)." : "") +
                           (habits.Count == 0 ? "" : $" *({string.Join(", ", habits)})*") +
                           (r.Agenda.Count == 0 ? "" : $" Agenda: {string.Join("; ", r.Agenda)}.") +
@@ -537,7 +547,8 @@ record Moment(string Id, string Language, string Said, string[]? Before = null, 
 record Request(string Text, List<string> Calls, long Input, long Cached, long Output, long Ms);
 
 record Result(string Card, string Variant, string Moment, string Language, string Said, string? Answer, string? Error,
-              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null, List<string>? AgendaBefore = null, List<string>? Flashed = null);
+              List<string> Agenda, List<Request> Requests, long Input, long Cached, long Output, List<string>? Focus = null, List<string>? AgendaBefore = null, List<string>? Flashed = null,
+              List<string>? Spoken = null);
 
 /// <summary>Each request to the model: its words, the calls it made, its tokens and how long it took.</summary>
 sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
