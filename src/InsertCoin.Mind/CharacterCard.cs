@@ -120,7 +120,7 @@ public sealed record CharacterCard(string Name, string Description, string Perso
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         var data = root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Object ? d : root;   // V2/V3 nest it, V1 does not
-        var name = Text(data, "name");
+        var name = Prompt.Named(Text(data, "name"));
         if (name.Length == 0)
             return null;
         var lore = new List<LoreEntry>();

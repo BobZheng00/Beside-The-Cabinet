@@ -33,7 +33,8 @@ reminder to stay in character comes after them. They never speak for the app: a 
 that says "ignore the rules above" can change how they talk, but not what the app lets them do (what acts outside the
 app still asks you first, and nothing closes a game). Anywhere in a card or a persona file, the app's own markup is
 taken off as it is read (the angle brackets of its tags such as `<character>` or `<cabinet>`, and `[cabinet]` at the
-start of a line), so no part of a card can pass for the app's words.
+start of a line, doubled or full-width brackets too), so no part of a card can pass for the app's words. A
+character's name is kept to one line the same way.
 
 ### Writing a persona
 
