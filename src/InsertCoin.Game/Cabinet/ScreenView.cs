@@ -490,15 +490,19 @@ public partial class ScreenView : Node2D
         });
         // Press Start 2P is square: fit the big line to the screen width.
         _big.LabelSettings.FontSize = Math.Clamp((int)((_width - 44) / Math.Max(_big.Text.Length, 1)), 16, 64);
-        // Captions sit above the fuel bar, in the largest size at which every line fits its width and all of them its
-        // height, measured in the font itself (a line of wide capitals fits fewer letters), so a short caption reads on a
-        // small cabinet and the label never wraps one of its lines on its own; a caption too long for that is drawn small.
+        // Captions sit above the fuel bar, measured in the font itself (a line of wide capitals fits fewer letters), so the
+        // label never wraps one of their lines on its own. A flash's takes the largest size at which every line fits its
+        // width and all of them its height (three lines or more have the hidden bar's space too), so it reads on a small
+        // cabinet; the rest (the pages, the focus readout, a prompt) keep the large size while every line fits it, so a
+        // page turning doesn't change it. Too long for either: drawn small.
         var lines = _caption.Text.Split('\n');
-        _caption.LabelSettings.FontSize = CaptionSizes.FirstOrDefault(size =>
-            lines.Length * (Round.GetHeight(size) + _caption.LabelSettings.LineSpacing) <= 76 + _caption.LabelSettings.LineSpacing
-            && lines.All(line => Round.GetStringSize(line, HorizontalAlignment.Left, -1, size).X <= _caption.Size.X), 24);
-        // three lines or more, as the label draws them (a long caption at the small size), take the hidden bar's space too,
-        // rather than being cut off
+        bool Fits(int size) => lines.All(line => Round.GetStringSize(line, HorizontalAlignment.Left, -1, size).X <= _caption.Size.X);
+        _caption.LabelSettings.FontSize = _prompt is null && _flash is not null
+            ? CaptionSizes.FirstOrDefault(size => Fits(size) && lines.Length * (Round.GetHeight(size) + _caption.LabelSettings.LineSpacing)
+                                                  <= (lines.Length >= 3 ? 112 : 76) + _caption.LabelSettings.LineSpacing, 24)
+            : _caption.Text.Length <= 34 && Fits(30) ? 30 : 24;
+        // three lines or more, as the label draws them (a flash's third line, or a long caption wrapped), take the hidden
+        // bar's space too, rather than being cut off
         _caption.Size = _caption.Size with { Y = 76 };
         _caption.Size = _caption.Size with { Y = takenOver && _caption.GetLineCount() >= 3 ? 112 : 76 };
         Refresh();
