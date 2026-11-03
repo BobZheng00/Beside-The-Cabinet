@@ -172,10 +172,68 @@ public class SpendingTests
         var ended = Assert.Single(m.Tick([], Check, TimeSpan.Zero).OfType<SessionEnded>());
 
         Assert.Null(m.State.Session);
-        Assert.Equal(Min(20) + 10_000, ended.Receipt.PlayedMs);      // and the two missed checks: the screen counted on
+        Assert.Equal(Min(20) + 5_000, ended.Receipt.PlayedMs);       // and the first missed check: the screen counted on
         Assert.Equal(Min(15), ended.Receipt.DrawnMs);
-        Assert.Equal(Min(7.5) + 15_000, ended.Receipt.DebtAddedMs);
+        Assert.Equal(Min(7.5) + 7_500, ended.Receipt.DebtAddedMs);
         Assert.Equal(new[] { "Graveyard Keeper 2" }, ended.Receipt.GameNames);
+    }
+
+    [Theory]
+    [InlineData(4_000)]                                 // out of time in the check it closes in
+    [InlineData(64_000)]                                // the one-minute warning's
+    [InlineData(304_000)]                               // the five-minute warning's
+    public void The_check_a_game_closes_in_is_spent_quietly_so_nothing_warns_or_prints_once_it_is_gone(long leftAtClose)
+    {
+        var m = new Machine();
+        m.GiveTokens(1);
+        var game = new[] { new RunningGame("1", "G") };
+        m.Play(TimeSpan.Zero, "G");
+        while (m.State.TimeLeftMs(m.Rules) > leftAtClose + 5_000)
+            m.Tick(game, Check, TimeSpan.Zero);
+        m.Tick(game, TimeSpan.FromMilliseconds(m.State.TimeLeftMs(m.Rules) - leftAtClose), TimeSpan.Zero);
+        m.Events.Clear();
+
+        m.Quit();
+
+        Assert.DoesNotContain(m.Events, e => e is LowTime or CreditsOut or IouPrinted);
+        Assert.Single(m.Events.OfType<SessionEnded>());
+        Assert.Equal(Math.Max(0, leftAtClose - 5_000), m.State.TimeLeftMs(m.Rules));
+        Assert.Equal((long)(Math.Max(0, 5_000 - leftAtClose) * m.Rules.DebtMultiplier), m.State.DebtMs);
+    }
+
+    [Fact]
+    public void Out_of_time_in_the_check_a_game_pauses_in_is_said_when_it_goes_on()
+    {
+        var m = new Machine();
+        m.GiveTokens(1);
+        m.Play(TimeSpan.FromMilliseconds(Min(15)) - Check);     // 5 s left
+        m.Events.Clear();
+
+        m.Tick([new RunningGame("1", "Graveyard Keeper 2")], Check, TimeSpan.FromMinutes(10));
+        Assert.True(m.State.Paused);
+        Assert.Equal(0, m.State.TimeLeftMs(m.Rules));
+        Assert.Empty(m.Events.OfType<CreditsOut>());
+
+        m.Tick([new RunningGame("1", "Graveyard Keeper 2")], Check, TimeSpan.Zero);
+        Assert.Single(m.Events.OfType<CreditsOut>());
+    }
+
+    [Fact]
+    public void A_session_saved_open_spends_nothing_at_the_first_check_after_the_app_starts_which_sends_no_time()
+    {
+        var m = new Machine();
+        m.GiveTokens(1);
+        m.Play(TimeSpan.FromMilliseconds(Min(15)) - Check);     // 5 s left as the PC shut down
+        var left = m.State.TimeLeftMs(m.Rules);
+        m.Events.Clear();
+        m.Now = m.Now.AddHours(10);
+
+        m.Tick([], TimeSpan.Zero, TimeSpan.Zero);       // the app's first check this run, no game running
+        m.Tick([], Check, TimeSpan.Zero);
+
+        Assert.Single(m.Events.OfType<SessionEnded>());
+        Assert.DoesNotContain(m.Events, e => e is LowTime or CreditsOut or IouPrinted);
+        Assert.Equal(left, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]

@@ -86,12 +86,12 @@ public class PlayProgramTests
             ([Picked], TimeSpan.Zero, Check),               // back in front: the screen stood still while it was held
             ([Steam], away, Check),                         // a game left alone pauses for AFK: spent
             ([Steam], TimeSpan.Zero, Check),                // and goes on: the screen stood still while it was paused
-            ([], TimeSpan.Zero, Check),                     // missed once: spent
-            ([Behind], TimeSpan.Zero, Check),               // then held: spent, as the screen counted on through the miss
+            ([], TimeSpan.Zero, Check),                     // missed once: spent, and the screen stops
+            ([Behind], TimeSpan.Zero, Check),               // then held: nothing more
             ([Picked], TimeSpan.Zero, Check),
             ([Picked], TimeSpan.Zero, TimeSpan.FromMinutes(2)),   // a stall: capped on the screen as in the check
-            ([], TimeSpan.Zero, Check),                     // closed: both checks it goes unseen in are spent
-            ([], TimeSpan.Zero, Check),
+            ([], TimeSpan.Zero, Check),                     // closed: the check it closes in is spent
+            ([], TimeSpan.Zero, Check),                     // and the one that ends the session isn't
         };
 
         foreach (var (games, idle, elapsed) in checks)
@@ -102,7 +102,7 @@ public class PlayProgramTests
         }
 
         var ended = Assert.Single(m.Events.OfType<SessionEnded>());
-        Assert.Equal(6 * 5_000 + 30_000, ended.Receipt.PlayedMs);   // six checks spent, and the stall's 30 s
+        Assert.Equal(4 * 5_000 + 30_000, ended.Receipt.PlayedMs);   // four checks spent, and the stall's 30 s
         Assert.Equal(Min(15) - ended.Receipt.PlayedMs, m.State.TimeLeftMs(m.Rules));
     }
 
@@ -121,7 +121,7 @@ public class PlayProgramTests
         Assert.Null(m.State.Session);
         Assert.False(m.State.Held);
         Assert.Equal(new[] { "VLC media player" }, ended.Receipt.GameNames);
-        Assert.Equal(15_000, ended.Receipt.PlayedMs);       // the check it went behind in, and the two it went unseen in
+        Assert.Equal(10_000, ended.Receipt.PlayedMs);       // the check it went behind in, and the one it closed in
     }
 
     [Fact]

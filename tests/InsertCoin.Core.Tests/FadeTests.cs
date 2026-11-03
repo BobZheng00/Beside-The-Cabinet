@@ -32,7 +32,7 @@ public class FadeTests
         m.Quit();
 
         Assert.Empty(m.CheckAt(Morning).OfType<Faded>());
-        Assert.Equal(Min(15) + 15_000, m.State.DebtMs);   // and the two checks it went unseen in as it closed
+        Assert.Equal(Min(15) + 7_500, m.State.DebtMs);    // and the check it closed in
     }
 
     [Fact]
@@ -46,9 +46,9 @@ public class FadeTests
         Assert.Empty(m.Events.OfType<Faded>());
         Assert.Equal(Min(50), m.State.TimeLeftMs(m.Rules));
 
-        m.Quit();                                        // the two checks it goes unseen in are spent: 10 s
-        Assert.Equal(Min(25) - 5_000, Assert.Single(m.Events.OfType<Faded>()).FadedMs);
-        Assert.Equal(Min(25) - 5_000, m.State.TimeLeftMs(m.Rules));
+        m.Quit();                                        // the check it closes in is spent: 5 s
+        Assert.Equal(Min(25) - 2_500, Assert.Single(m.Events.OfType<Faded>()).FadedMs);
+        Assert.Equal(Min(25) - 2_500, m.State.TimeLeftMs(m.Rules));
     }
 
     [Fact]

@@ -59,7 +59,7 @@ public partial class Main : Node2D
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
-    private TimeSpan _lastTick;
+    private TimeSpan? _lastTick;                            // none before this run's first check: a session saved open spends nothing for the start-up
     private DateTimeOffset _lastSave, _lastCheck = DateTimeOffset.MinValue, _nextPoll = DateTimeOffset.MinValue;
     private DateTimeOffset _lastJoypad = DateTimeOffset.MinValue;
     private int _backoffSeconds = 60;
@@ -344,7 +344,7 @@ public partial class Main : Node2D
     private void Tick()
     {
         var now = _clock.Elapsed;
-        var elapsed = (now - _lastTick) * (_devWarp ? 60 : 1);
+        var elapsed = _lastTick is { } last ? (now - last) * (_devWarp ? 60 : 1) : TimeSpan.Zero;
         _lastTick = now;
 
         var detected = _games.RunningGames();
@@ -515,17 +515,16 @@ public partial class Main : Node2D
         var s = _state;
         var balance = _rules.Earns.Any;                     // no play time: nothing of a balance shows, and the screen shows the clock
         // Between 5 s ticks, run the clock locally so the countdown moves every second, as the next tick will spend it.
-        var since = _ledger.SpentSince(s, (_clock.Elapsed - _lastTick) * (_devWarp ? 60 : 1), DateTimeOffset.Now);
+        var since = _lastTick is { } tick ? _ledger.SpentSince(s, (_clock.Elapsed - tick) * (_devWarp ? 60 : 1), DateTimeOffset.Now) : 0;
         var left = s.TimeLeftMs(_rules);
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
-        // the time left never goes up in a game (played, paused, held or unseen) unless something was earned meanwhile:
-        // logged, for the smoke suite to catch
+        // the time left never goes up in a game (played, paused, held or unseen), nor at the check that ends it, unless
+        // something was earned meanwhile: logged, for the smoke suite to catch
         var earned = s.Today?.EarnedMs ?? 0;
-        var inGame = s.Session is not null;
-        if (inGame && _shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
+        if (_shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
             GD.Print($"Main: the time left shown went up in a game, from {last.Left} to {shownLeft} ms");
-        _shownInGame = inGame ? (shownLeft, earned) : null;
+        _shownInGame = s.Session is not null ? (shownLeft, earned) : null;
 
         _cabinet.Screen.Show(new ScreenState
         {
@@ -562,7 +561,7 @@ public partial class Main : Node2D
         _stool.Her?.SetScreenLight(power);
         SetPace();
         _cabinet.Printer.SetPartial(shownLeft == 0 && shownDebt > 0 ? shownDebt % _rules.TokenMs / (float)_rules.TokenMs : 0, animate: true);
-        var alarm = balance && Gaming && shownLeft == 0;    // out of time in a game being played: nothing is charged while held
+        var alarm = balance && s.InPlay() && shownLeft == 0;    // out of time in a game being played, not one paused, held or gone
         if (alarm != _alarm)
             GD.Print($"Main: the alarm lights {((_alarm = alarm) ? "go on, out of time in a game" : "go off")}");
         if (alarm)
