@@ -215,6 +215,7 @@ public sealed record DayRecord
 public sealed record LedgerState
 {
     public int Credits { get; init; }
+    /// <summary>What is left on the token in the slot: below 0 when a quiet check took it ahead from the next token.</summary>
     public long FuelMs { get; init; }
     public long DebtMs { get; init; }
 
