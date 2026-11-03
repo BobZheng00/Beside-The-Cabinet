@@ -373,6 +373,40 @@ public class MemoryTests
     }
 
     [Fact]
+    public async Task Upkeep_reads_her_facts_and_agenda_as_often_however_many_she_knows()
+    {
+        // looking for what was forgotten meanwhile reads the store once, not once a fact: she may know thousands
+        Assert.Equal(await Round(3), await Round(40));
+
+        static async Task<int> Round(int count)
+        {
+            using var temp = new TempStore();
+            var store = temp.Store;
+            var first = store.AddFact(MindStore.Shared, "The player is learning Rust.", 5, Friday.AddDays(-5));
+            for (var i = 1; i < count; i++)
+                store.AddFact(MindStore.Shared, $"The player has visited city number {i}.", 3, Friday.AddDays(-5));
+            store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 6, 15, 0, 0, Friday.Offset), false, null, Friday.AddDays(-1), "shino");
+            store.Add("shino", Speaker.User, "Rust is going well, and I got a bike", Friday);
+            var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11)));
+            var model = new FakeModel
+            {
+                Thinking = n =>
+                {
+                    if (n == 1)
+                        store.DeleteFact(first);
+                    return Task.CompletedTask;
+                },
+            };
+            model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Learning Rust; got a bike."}]}""");
+            model.Answers.Enqueue("""{"facts": [{"op": "add", "text": "The player is learning Rust."}, {"op": "add", "text": "The player got a bike."}]}""");
+            var before = store.Reads;
+            Assert.True(await conversation.Digest(model));
+            Assert.Equal(count, store.Facts("shino").Count);           // Rust left out, the bike in
+            return store.Reads - before;
+        }
+    }
+
+    [Fact]
     public async Task Forget_all_about_me_while_upkeep_is_thinking_leaves_nothing_of_what_it_forgot()
     {
         using var temp = new TempStore();

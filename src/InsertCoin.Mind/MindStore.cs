@@ -320,6 +320,9 @@ public sealed class MindStore : IDisposable
     /// <summary>Counts clears and forgets, so what is cached from the store (see <see cref="History"/>) knows to read it again.</summary>
     public int Changes { get; private set; }
 
+    /// <summary>Counts reads of her facts and the agenda, so tests can tell a round of upkeep reads them a few times, not once an item.</summary>
+    public int Reads { get; private set; }
+
     public void SetVector(string kind, long id, string model, float[] vector)
     {
         var bytes = new byte[vector.Length * sizeof(float)];
@@ -399,6 +402,7 @@ public sealed class MindStore : IDisposable
 
     private List<Fact> ReadFacts(string character, bool retired)
     {
+        Reads++;
         using var command = Command($"SELECT id, scope, text, importance, learned, recalled, pinned, recalls, retired, retired_why FROM facts " +
                                     $"WHERE scope IN ($s, $c, $h) AND retired IS {(retired ? "NOT " : "")}NULL ORDER BY id", ("$s", Shared), ("$c", character),
                                     ("$h", Herself(character)));
@@ -462,6 +466,7 @@ public sealed class MindStore : IDisposable
     /// <summary>What is on the agenda, by time: items not yet closed (see <see cref="ClosePast"/>).</summary>
     public IReadOnlyList<Plan> Agenda()
     {
+        Reads++;
         using var command = Command("SELECT id, text, at, all_day, before_minutes, reminded, added, by, repeat, source, asked FROM agenda WHERE closed IS NULL ORDER BY at, id");
         using var reader = command.ExecuteReader();
         var plans = new List<Plan>();
