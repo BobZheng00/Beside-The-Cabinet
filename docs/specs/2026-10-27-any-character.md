@@ -2,7 +2,8 @@
 
 *Decided with the user, 2026-10-27 (#166), from two billed spikes (their code is kept on the PM's PC, off GitHub,
 since it named a game card's places). Built
-with #180 (2026-11-02), but for the opening's final version, which waits for the billed run; the order is at the end. It builds on the lean base text (`2026-10-24-how-she-talks.md`, #127).*
+with #180 (2026-11-02), the opening keeping "as yourself, not a service they call on" (the user's pick from its billed
+run); the order is at the end. It builds on the lean base text (`2026-10-24-how-she-talks.md`, #127).*
 
 ## Why
 
@@ -35,9 +36,9 @@ person in the room with them". The cabinet's lines name its own things as if she
     not the base text.
   - **"As yourself, not a service they call on"** is the lean text's line against sounding like an assistant (#127).
     The blurred opening as tested dropped it with the rest of the sentence. Whether it stays, without the place ("You
-    keep the player company while they work and play, as yourself, not a service they call on."), is measured before it
-    ships: #180's billed run puts both openings to #127's moments as well as the world moments, and the user decides from
-    the counts (the user, 2026-10-27: "we want to sure on this").
+    keep the player company while they work and play, as yourself, not a service they call on."), was measured before it
+    shipped: #180's billed run put both openings to #127's moments as well as the world moments, and the user kept it
+    from the counts (see Decided and Measured).
   - **With no play time** (`2026-10-27-what-earns-play-time.md`, #174), the opening leaves out the balance: "INSERT
     COIN, their little arcade cabinet, is with them and tells you what happens." *Built with #174 (2026-10-29)*, in
     place of the balance paragraph of the opening as it is now (`Prompt.Cabinet`).
@@ -83,8 +84,9 @@ person in the room with them". The cabinet's lines name its own things as if she
   own place, and nothing contradicted itself.
 - **No line inviting her world** ("your world and past are yours to bring up"): it changed nothing measurable, since
   the card brings her world in anyway.
-- **"As yourself, not a service they call on": measured before deciding** (the user, 2026-10-27, asked whether to keep
-  it in the blurred opening: "we want to sure on this"). #180's billed run compares both openings.
+- **"As yourself, not a service they call on" stays** (the user, 2026-11-02: "A, keep the line"). They had asked for
+  it to be measured first (2026-10-27: "we want to sure on this"); #180's billed run compared both openings (see
+  Measured).
 - **One model** (the user, choosing "Skip it" over re-measuring on a second provider). Measured on the demo's model
   only. The manner check can be run on any provider a player brings.
 
@@ -102,7 +104,15 @@ person in the room with them". The cabinet's lines name its own things as if she
   | With "bring it up" | 6 | 1 | 0 | 5 | 0 |
   | Blurred | 5 | 0 | 2 | 4 | 0 |
 
-  Six replies on one model show a direction, not a measurement. Not measured: long conversations, a card whose
+  Six replies on one model show a direction, not a measurement.
+- **#180's billed run** (both openings, with and without "as yourself, not a service they call on"; the world moments on
+  Shino and the game character's card, and #127's moments on Shino; one reply each): 119 requests, 739,696 input
+  tokens. The world moments came out level: neither opening broke character, used an app word it wasn't given or
+  contradicted itself, and the game character's world showed in 2 replies with the line and 3 without. In #127's
+  troubles moments, Shino had 3 counsellor habits with the line against 8 without, and took the player's side 2 times
+  against 1; the other habits were about level. One reply a moment on one model: a direction, not a measurement.
+
+  Not measured: long conversations, a card whose
   greeting sets a scene, an English card from another world, other models, and her figure on the stool beside the
   cabinet while a card talks from its own place (#180 leaves that to the user's eyes).
 
@@ -118,8 +128,8 @@ person in the room with them". The cabinet's lines name its own things as if she
 1. **The blurred opening, the cabinet's plain words, LeetCode said in its tool, and the moments in the manner check**
    (#180). After #169. It also ties in with #173, which names only the sources that are on.
 
-   *Built 2026-11-02 (#180).* `Prompt.Opening` is the blurred text, shipped for now with "as yourself, not a service
-   they call on" until the billed run's counts decide; with no play time it is the opening alone that says the cabinet
+   *Built 2026-11-02 (#180).* `Prompt.Opening` is the blurred text, with "as yourself, not a service they call on",
+   kept by the user from the billed run's counts; with no play time it is the opening alone that says the cabinet
    is there (the paragraph after the card no longer says it again). `Situation`'s lines, `<cabinet>` block and "How
    play is earned" say what play time, an IOU, credit, the cap and a solve are; a solve names LeetCode only while it
    earns, and so does her base text's "Helping them learn" (#231). The `leetcode_problem` tool's result starts "From LeetCode, a site of programming practice problems". The
