@@ -347,52 +347,12 @@ public static partial class Agenda
     }
 
     /// <summary>
-    /// What the cabinet's screen flashes for it: AGENDA, CHANGED or CANCELLED, then the day and time, and the item on up
-    /// to two lines of its own, broken at words; one longer still ends "..." (the whole of it is in AGENDA). Its lines are
-    /// planned for the caption's smaller size (<see cref="CrtCaption.SmallLine"/>); the screen measures and makes room.
+    /// What the cabinet's screen flashes for it: AGENDA, CHANGED or CANCELLED, and the day and time, large enough to read
+    /// on a small cabinet. The item's words are in her reply, in AGENDA and in a text's line, not on the flash (#217).
     /// </summary>
-    public static (string Big, string Caption) Flash(AgendaDone done)
-    {
-        var p = done.Item;
-        var big = done.Change switch { AgendaChange.Changed => "CHANGED", AgendaChange.Cancelled => "CANCELLED", _ => "AGENDA" };
-        return (big, p.At.ToString(p.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", English).ToUpperInvariant() + "\n" +
-                     Wrapped(p.Text.Trim().ToUpperInvariant(), CrtCaption.SmallLine, 2));
-    }
-
-    /// <summary>
-    /// <paramref name="text"/> on at most <paramref name="lines"/> lines of <paramref name="width"/> (see
-    /// <see cref="CrtCaption.Width"/>), broken at a space where there is one in the line's second half, never inside a
-    /// character (an emoji is two halves); what doesn't fit ends "...".
-    /// </summary>
-    private static string Wrapped(string text, int width, int lines)
-    {
-        var left = CrtCaption.Elements(text);
-        var shown = new List<string>();
-        while (left.Count > 0)
-        {
-            if (left.Sum(CrtCaption.Wide) <= width)
-            {
-                shown.Add(string.Concat(left));
-                break;
-            }
-            var last = shown.Count == lines - 1;
-            var room = last ? width - 3 : width;            // the last line keeps room for its "..."
-            var (end, used) = (0, 0);
-            while ((used += CrtCaption.Wide(left[end])) <= room)    // left[..end] fits
-                end++;
-            var space = left.LastIndexOf(" ", end);
-            var cut = space > end / 2 ? space : end;
-            var line = string.Concat(left.Take(cut));
-            if (last)
-            {
-                shown.Add(line.TrimEnd(' ', ',', '-') + "...");
-                break;
-            }
-            shown.Add(line.TrimEnd());
-            left = [.. left.Skip(cut).SkipWhile(e => e == " ")];
-        }
-        return string.Join("\n", shown);
-    }
+    public static (string Big, string Caption) Flash(AgendaDone done) =>
+        (done.Change switch { AgendaChange.Changed => "CHANGED", AgendaChange.Cancelled => "CANCELLED", _ => "AGENDA" },
+         done.Item.At.ToString(done.Item.AllDay ? "ddd d MMM" : "ddd d MMM HH:mm", English).ToUpperInvariant());
 
     /// <summary>
     /// What she may ask about now (how did it go?), first over first: one-off things the player told her about (not a
