@@ -128,6 +128,17 @@
                  "^Reaching: STAND UP told at the PC \\(a word first\\)"]
     },
     {
+      "name": "bedtimeask",
+      "about": "With no bedtime set, in the evening (resthour:20, whatever this PC's clock says: a test run says nothing about rest by it), the companion's next look at rest, every 15 s, asks the player for one, at the PC.",
+      "covers": ["src/InsertCoin.Mind/Rest.cs", "src/InsertCoin.Mind/Reaching.cs"],
+      "mind": true,
+      "mindRequests": 1,
+      "script": "nocall@1,resthour:20@1",
+      "shots": [24],
+      "desk": true,
+      "expect": ["^Rest: she has something to say about rest$", "^Reaching: REST told at the PC"]
+    },
+    {
       "name": "settings",
       "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
@@ -363,7 +374,8 @@
       "script": "nocall@1,memoryseed@1,chathistory@2,chat:hello_there@3,chathistorydo:Lines@7,lineswap:said_where_a_hidden_line_was@8,chathistorydo:Lines@11,lineclear:said_right_after_a_clear@13,chathistorydo:Lines@16",
       "shots": [8, 12, 19],
       "window": "Chat with",
-      "expect": ["^Chat history shows, at the end: I have an interview on Friday\\. \\| hello there \\| Sure, I can do that\\.$", "^Chat: line \\d+ kept after a lineswap", "^Chat history: 1 new line shown, at the end", "^Chat history shows, at the end: I have an interview on Friday\\. \\| hello there \\| Sure, I can do that\\. \\| said where a hidden line was$", "^Chat history: shown afresh", "^Chat history shows, at the end: said right after a clear$"]
+      "expect": ["^Chat history shows, at the end: I have an interview on Friday\\. \\| hello there \\| Sure, I can do that\\.$", "^Chat: line \\d+ kept after a lineswap", "^Chat history: 1 new line shown, at the end", "^Chat history shows, at the end: I have an interview on Friday\\. \\| hello there \\| Sure, I can do that\\. \\| said where a hidden line was$", "^Chat history: shown afresh", "^Chat history shows, at the end: said right after a clear$"],
+      "forbid": ["^Rest: "]
     },
     {
       "name": "crt",
