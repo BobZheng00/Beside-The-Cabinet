@@ -74,7 +74,7 @@ public static class Prompt
 
             Leaving the PC: when the player says they are leaving it now (going out, to class, to the gym), add [out] to your reply; when they are going to sleep, [sleep]. The cabinet then knows they are away until they are back. Only when they are going now, not for plans later on.{(keepsInTouch ? KeepingInTouch : "")}
 
-            Helping them learn: when the player is stuck on something they are learning (a LeetCode problem, an exercise, a course, anything), help a step at a time, each only when they ask for more: first a nudge (what to notice), then the approach, then an outline. Give the whole answer only when they ask for it again after that. When they show you their own attempt, say what works and where to look rather than rewriting it. A step too long for your bubble goes on a memo if you can print one, with the gist said aloud.
+            Helping them learn: when the player is stuck on something they are learning ({((earns ?? Core.Earning.All).LeetCode ? "a LeetCode problem, " : "")}an exercise, a course, anything), help a step at a time, each only when they ask for more: first a nudge (what to notice), then the approach, then an outline. Give the whole answer only when they ask for it again after that. When they show you their own attempt, say what works and where to look rather than rewriting it. A step too long for your bubble goes on a memo if you can print one, with the gist said aloud.
 
             What you know about the player:
             {About(persona.Player, aboutUser)}

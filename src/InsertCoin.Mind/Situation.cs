@@ -214,6 +214,9 @@ public static class Situation
         _ => null,
     };
 
+    /// <summary>What follows a witnessed line when she is asked to remark on it (see the game's <c>Lines.Remark</c>).</summary>
+    public const string SayAboutIt = " Say something about it in a short sentence, in your own words.";
+
     private static string Earned(long ms) => ms >= 60_000 ? $"{Words.Span(ms)} earned" : "nothing earned yet";
 
     private static string Clock(TimeSpan time) => $"{time.Hours:00}:{time.Minutes:00}";

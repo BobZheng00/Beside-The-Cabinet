@@ -183,6 +183,20 @@ public class SituationTests
         Assert.Contains("These ask the player on a card before they act: open_link;", Prompt.Build(persona, "", "", null, [], "", "hi", tools: true, asking: ["open_link"])[0].Text);
     }
 
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, false)]
+    public void Her_base_text_names_LeetCode_only_while_it_earns(bool focus, bool activities, bool leetCode)
+    {
+        var persona = new Persona("Shino", "Shino is cheerful.");
+
+        var system = Prompt.Build(persona, "", "", null, [], "", "hi", earns: new Earning(focus, activities, leetCode))[0].Text;
+
+        Assert.Contains($"something they are learning ({(leetCode ? "a LeetCode problem, " : "")}an exercise, a course, anything)", system);
+        Assert.Equal(leetCode, system.Contains("LeetCode"));            // #231
+    }
+
     [Fact]
     public void The_cabinets_own_things_are_said_in_plain_words()
     {
