@@ -250,8 +250,9 @@ public sealed class Ledger(Rules rules)
     /// <summary>
     /// A check spends the time since the last one as the session stood then, as the screen counted it down meanwhile, so
     /// the check in which a game pauses, goes behind another window or goes unseen is spent too (#219, #221). Its
-    /// warnings, credits out and tickets come only if the game is still being played after it: else it is spent quietly,
-    /// and they come at the next check it is played in.
+    /// warnings, credits out, tickets and a token going in come only if the game is still being played after it: else it
+    /// is spent quietly, the warnings, credits out and token coming at the next check it is played in (the tickets are
+    /// counted, not printed).
     /// </summary>
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
@@ -259,7 +260,7 @@ public sealed class Ledger(Rules rules)
         state = Follow(state, tick, now, events);
         if (spentMs is { } ms && state.Session is not null)  // open still: the check after one it was played in isn't its last
             state = Charge(state, ms, now, events, quiet: !state.InPlay());
-        return state.InPlay() ? Warn(state, events) : state;
+        return state.InPlay() ? Warn(InsertIfEmpty(state, events), events) : state;   // a token a quiet check held back goes in
     }
 
     /// <summary>What a check says of the session: started, played on, paused, held, unseen or over.</summary>
@@ -343,15 +344,16 @@ public sealed class Ledger(Rules rules)
         if (!Rules.Earns.Any || state.FuelMs > 0 || state.Credits == 0)
             return state;
         events.Add(new TokenInserted(state.Credits - 1));
-        return state with { Credits = state.Credits - 1, FuelMs = Rules.TokenMs };
+        return state with { Credits = state.Credits - 1, FuelMs = state.FuelMs + Rules.TokenMs };   // less what a quiet check took ahead
     }
 
     /// <summary>
     /// Charges play: fuel first, a new token going in as each runs out, then debt at <see cref="Rules.DebtMultiplier"/>.
     /// Past bedtime every minute costs <see cref="Rules.LateNightMultiplier"/> times as much, debt included. With no play
     /// time the game is only noticed: its time is kept, and nothing is spent, owed or priced. Quiet (a game that has
-    /// just paused, gone behind or gone unseen), it raises no late night, credits out or ticket: they wait for a check
-    /// it is played in, the tickets counted all the same.
+    /// just paused, gone behind or gone unseen), it raises no late night or credits out, which wait for a check it is
+    /// played in, prints no ticket (counted on the receipt and the week all the same) and inserts no token: what the
+    /// tank lacks is taken ahead from the next one, which goes in at the next check played or the next session.
     /// </summary>
     private LedgerState Charge(LedgerState state, long elapsedMs, DateTimeOffset now, List<LedgerEvent> events, bool quiet = false)
     {
@@ -369,14 +371,17 @@ public sealed class Ledger(Rules rules)
 
         while (remaining > 0)
         {
-            state = InsertIfEmpty(state, events);           // a tank emptied by a payout or the fade, with credits left
-            if (state.FuelMs > 0)
+            if (!quiet)
+                state = InsertIfEmpty(state, events);       // a tank emptied by a payout or the fade, with credits left
+            var ahead = quiet && state.Credits > 0;         // a check is far shorter than a token: one left covers it
+            if (state.FuelMs > 0 || ahead)
             {
-                var burn = Math.Min(state.FuelMs, remaining);
+                var burn = ahead ? remaining : Math.Min(state.FuelMs, remaining);
                 state = state with { FuelMs = state.FuelMs - burn };
                 session = session with { DrawnMs = session.DrawnMs + burn };
                 remaining -= burn;
-                state = InsertIfEmpty(state, events);
+                if (!quiet)
+                    state = InsertIfEmpty(state, events);
                 continue;
             }
 
@@ -390,8 +395,8 @@ public sealed class Ledger(Rules rules)
             var added = (long)Math.Round(remaining * Rules.DebtMultiplier);
             state = state with { DebtMs = state.DebtMs + added };
             var ticketsAfter = state.IouTickets(Rules);
-            // shortcut: a ticket due in a quiet check (at most 7.5 s of debt) is counted but never printed; print it at
-            // the next played check if a player notices one missing
+            // shortcut: a ticket due in a quiet check (up to 45 s of debt, or 67.5 s past bedtime) is counted but never
+            // printed; print it at the next played check if a player notices one missing
             for (var n = ticketsBefore + 1; n <= ticketsAfter && !quiet; n++)
                 events.Add(new IouPrinted(n, state.DebtMs));
             session = session with

@@ -218,6 +218,34 @@ public class SpendingTests
         Assert.Single(m.Events.OfType<CreditsOut>());
     }
 
+    [Theory]
+    [InlineData(false)]                                 // the game closes
+    [InlineData(true)]                                  // the game pauses, then goes on
+    public void No_token_goes_in_in_the_check_a_game_closes_or_pauses_in_and_one_it_needed_goes_in_as_it_goes_on(bool paused)
+    {
+        var m = new Machine();
+        m.GiveTokens(2);
+        var game = new[] { new RunningGame("1", "G") };
+        m.Play(TimeSpan.Zero, "G");
+        while (m.State.FuelMs > 7_000)
+            m.Tick(game, Check, TimeSpan.Zero);
+        m.Tick(game, TimeSpan.FromMilliseconds(m.State.FuelMs - 2_000), TimeSpan.Zero);
+        Assert.Equal((1, 2_000L), (m.State.Credits, m.State.FuelMs));    // 2 s on the token in the slot, one to come
+        m.Events.Clear();
+
+        if (paused)
+            m.Tick(game, Check, TimeSpan.FromMinutes(10));
+        else
+            m.Quit();
+
+        Assert.Empty(m.Events.OfType<TokenInserted>());
+        Assert.Equal(Min(15) - 3_000, m.State.TimeLeftMs(m.Rules));    // the 3 s the tank lacked, taken ahead
+
+        m.Tick(game, Check, TimeSpan.Zero);                 // it goes on, or the next session starts
+        Assert.Single(m.Events.OfType<TokenInserted>());
+        Assert.Equal((0, Min(15) - 3_000), (m.State.Credits, m.State.FuelMs));
+    }
+
     [Fact]
     public void A_session_saved_open_spends_nothing_at_the_first_check_after_the_app_starts_which_sends_no_time()
     {
