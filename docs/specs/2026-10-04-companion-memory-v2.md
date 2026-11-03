@@ -308,6 +308,9 @@ list's × stays one click); only Close is left.
   said before theirs (retired, "changed to: " theirs), unless theirs already says it or they forgot the fact (their
   Forget holds), and the log names each change left unmade, an agenda item's included (`Chat: upkeep left …`; an
   agenda item changed meanwhile may also be her own reply's doing). A merge with such a fact is left whole. Upkeep doesn't write the two notes.
+  Nor does an add bring back what was forgotten meanwhile (*built 2026-11-02*, #229): an add finds nothing like it once
+  it is gone, so one like a fact or agenda item that left her memory during the call (Forget? in the book, "Forget all
+  about me", done with) is left out, and the log says so; an add of something new still goes in.
 
 ### 13. The chat history leaves out what the app tells her (decided 2026-10-14, built)
 

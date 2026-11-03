@@ -340,6 +340,73 @@ public class MemoryTests
     }
 
     [Fact]
+    public async Task A_fact_the_player_forgot_while_upkeep_was_thinking_is_not_added_back_and_a_new_one_still_is()
+    {
+        // an add reads the store as it writes: with the fact forgotten, nothing like it is there (#229)
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var rust = store.AddFact(MindStore.Shared, "The player is learning Rust.", 5, Friday.AddDays(-5));
+        store.Add("shino", Speaker.User, "Rust is going well, and I got a bike", Friday);
+        var clashes = new List<string>();
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11))) { Clashed = clashes.Add };
+        var model = new FakeModel
+        {
+            Thinking = n =>
+            {
+                if (n == 1)
+                    MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == rust), "");
+                return Task.CompletedTask;
+            },
+        };
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Learning Rust; got a bike."}]}""");
+        model.Answers.Enqueue("""
+            {"facts": [
+              {"op": "add", "text": "The player is learning Rust."},
+              {"op": "add", "text": "The player got a bike."}]}
+            """);
+
+        Assert.True(await conversation.Digest(model));
+
+        Assert.Equal(["The player got a bike."], store.Facts("shino").Select(f => f.Text));
+        Assert.Empty(store.Retired("shino"));
+        Assert.Equal("upkeep left \"The player is learning Rust.\" as the player has it (forgotten) instead of adding \"The player is learning Rust.\"", Assert.Single(clashes));
+    }
+
+    [Fact]
+    public async Task Forget_all_about_me_while_upkeep_is_thinking_leaves_nothing_of_what_it_forgot()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var tea = store.AddFact(MindStore.Shared, "The player likes green tea.", 4, Friday.AddDays(-5));
+        store.AddFact(MindStore.Shared, "The player works at a bakery.", 5, Friday.AddDays(-5));
+        store.AddPlan("Dentist", new DateTimeOffset(2026, 10, 6, 15, 0, 0, Friday.Offset), false, null, Friday.AddDays(-1), "shino");
+        store.Add("shino", Speaker.User, "green tea, the bakery, the dentist on Tuesday", Friday);
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11)));
+        var model = new FakeModel
+        {
+            Thinking = n =>
+            {
+                if (n == 1)
+                    store.ForgetPlayer();
+                return Task.CompletedTask;
+            },
+        };
+        model.Answers.Enqueue("""{"observations": [{"date": "2026-10-02", "priority": "medium", "text": "Green tea; the bakery; the dentist on Tuesday."}]}""");
+        model.Answers.Enqueue($$"""
+            {"facts": [
+              {"op": "add", "text": "The player works at a bakery."},
+              {"op": "update", "id": {{tea}}, "text": "The player likes green tea a lot."}],
+             "plans": [{"op": "add", "when": "2026-10-06 15:00", "text": "Dentist appointment"}]}
+            """);
+
+        Assert.True(await conversation.Digest(model));
+
+        Assert.Empty(store.Facts("shino"));
+        Assert.Empty(store.Retired("shino"));
+        Assert.Empty(store.Agenda());
+    }
+
+    [Fact]
     public async Task Upkeep_that_cannot_be_read_is_retried_then_skipped()
     {
         using var temp = new TempStore();
