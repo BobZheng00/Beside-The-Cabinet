@@ -167,7 +167,7 @@ Each step is usable on its own.
    capitals or emoji that wraps once more than planned is still shown whole. *Since 2026-11-02 (#217)* the flash
    says only AGENDA, CHANGED or CANCELLED with the day and time, at every cabinet size: the item's words were too small
    to read even on a Large cabinet (the user: "even on large the detailed caption is very hard to see"), and they are
-   in her reply, in AGENDA and in a text's line; every caption takes the largest size at which its lines fit. Four seconds each, one after another in
+   in her reply, in AGENDA and in a text's line; every flash's caption takes the largest size at which its lines fit (the readout's pages keep theirs). Four seconds each, one after another in
    a single queue the screen keeps; with an app open on the screen they wait for the readout to unfold. Her
    note animation plays as before, and an empty reply leaves no bubble. The "jot it down" line stays: this spec doesn't
    drop it for the fallback, and on the demo's provider it changes nothing (the call comes first). The billed check
