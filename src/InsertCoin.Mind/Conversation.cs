@@ -1107,8 +1107,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var now = _clock.GetLocalNow();
         var byId = known.ToDictionary(f => f.Id);
         // what the player forgot while she was thinking: an add of it would find nothing like it and write it back
-        var forgotten = all.Where(f => MemoryEdits.Current(store, character, f) is null).ToList();
-        var dropped = agenda.Where(p => MemoryEdits.Current(store, p) is null).ToList();
+        // (one read of each, matched as MemoryEdits.Current matches: she may know thousands of facts)
+        var still = store.Facts(character).Select(f => (f.Id, f.Learned)).ToHashSet();
+        var forgotten = all.Where(f => !still.Contains((f.Id, f.Learned))).ToList();
+        var stillOn = store.Agenda().Select(p => (p.Id, p.Added)).ToHashSet();
+        var dropped = agenda.Where(p => !stillOn.Contains((p.Id, p.Added))).ToList();
         foreach (var change in digestion.Changes)
         {
             switch (change.Op)
