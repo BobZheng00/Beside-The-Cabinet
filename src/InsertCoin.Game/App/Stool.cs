@@ -434,6 +434,7 @@ public partial class Stool : Node2D
 
     private readonly HashSet<Nudge> _givenTonight = [];
     private DateOnly _night;
+    private int? _restHour;                                 // dev: the hour her remark about rest goes by, not the clock's
     private DateTimeOffset? _sessionStarted;
     private long? _breakAtMs;
 
@@ -449,6 +450,7 @@ public partial class Stool : Node2D
             return;
         var now = DateTimeOffset.Now;
         var here = Idle() < Reaching.Pause;
+        var hour = _restHour ?? now.Hour;
         var night = GameCalendar.DayOf(now, rules);
         if (night != _night)
         {
@@ -456,7 +458,8 @@ public partial class Stool : Node2D
             _givenTonight.Clear();
         }
         // today's bedtime: one set today counts from tomorrow
-        if (state.Today?.Bedtime is { } bedtime && here && Rest.AtBedtime(bedtime, now, _givenTonight, rules.DayStartsAt) is { } nudge)
+        // a test run says nothing about rest by this PC's clock (the evening fails its checks): rest:<word> says those, resthour:<h> the rest
+        if (!Paper.OffScreen && state.Today?.Bedtime is { } bedtime && here && Rest.AtBedtime(bedtime, now, _givenTonight, rules.DayStartsAt) is { } nudge)
         {
             _givenTonight.Add(nudge);
             GD.Print($"Rest: {nudge} ({Rest.Clock(bedtime)})");
@@ -478,12 +481,12 @@ public partial class Stool : Node2D
                                  TimeSpan.FromMinutes(20)));
             }
         }
-        if (!_chat.Ready || !here || Quiet(now.Hour))
+        if (!_chat.Ready || !here || Paper.OffScreen && _restHour is null || Quiet(hour))
             return;
         var today = night.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
         if (_chat.Store.Mark("rest.said") == today)
             return;
-        var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && now.Hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
+        var note = string.IsNullOrEmpty(_settings.Now.Bedtime) && hour is >= 19 and < 23 ? AskBedtime(state, rules, now) : null;
         var asking = note is not null;
         if (_settings.Now.Privacy.Days)                    // what the record of days shows, unless the player keeps it from her
             note ??= Rest.Notice(state.Days, state.Today?.Bedtime, Banked(state, rules), rules.DayStartsAt);
@@ -2429,7 +2432,8 @@ public partial class Stool : Node2D
                 break;
             case "musicprobe": _music.DevProbe(); break;    // checks Windows' media controls answer (how many sessions, whose; no titles)
             case "standup": MaybeStandUp(force: true); break;   // she suggests standing up, as after a long sitting
-            case "nocall": Presence.IgnoreCalls = true; break;     // another app's microphone doesn't count (a test run while the PC is in a call)
+            case "resthour": _restHour = int.Parse(rest); break;    // resthour:20: her remark about rest goes by that hour (a test run's makes none by the clock)
+            case "nocall": Presence.IgnoreCalls = true; break;    // another app's microphone doesn't count (a test run while the PC is in a call)
             case "dnd":                                     // dnd:on (full screen), dnd:locked, whatever Windows says; dnd:off, back to Windows' (none in a hidden run); dnd:owner, as if this PC's owner played full screen
                 if (rest == "owner")
                     Presence.OwnerStandIn = 2;

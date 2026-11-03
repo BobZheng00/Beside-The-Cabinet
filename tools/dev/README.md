@@ -145,7 +145,9 @@ clipboard is left alone), `clip` (the slip's paper clip, its ways showing), `scr
 (a pretend phone opens the page, sends that photo and tries a wrong key).
 
 Rest: `rest:winddown`, `rest:bedtime`, `rest:stillup`, `rest:break` (that word now), `rest:notice` (what the record of days
-shows) and `rest:ask` (asking for a bedtime).
+shows) and `rest:ask` (asking for a bedtime). A hidden test run says nothing about rest by this PC's clock (the
+bedtime words, asking for a bedtime in the evening, what the record of days shows) until `resthour:20`: from then on,
+asking for a bedtime and the record of days go by that hour (the bedtime words come only through `rest:`).
 
 Activities: `done:the_gym` (as if DID IT were tapped on the DONE app), `proofroll:0` (proof always wanted; `proofroll:1`
 never) and `crt:done`; `allow` and `deny` answer their card as Yes, count it and Not yet.
