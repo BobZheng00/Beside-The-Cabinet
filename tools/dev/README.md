@@ -79,7 +79,10 @@ Undo after it is refused),
 `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
 `remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
-server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, idle),
+server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, locked, idle, where the player is, and Windows' own notification state, 5 when
+it would notify), `dnd:on` (do-not-disturb, as in a full-screen game, whatever Windows says; `dnd:locked`, the screen
+locked; `dnd:off`, back to what Windows says; a hidden test run takes neither from this PC's own user, until told;
+`dnd:owner`, as if this PC's owner played full screen, which a hidden run doesn't follow),
 `later:now` (their plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here, with no time since their last input whatever this PC's own user does, until `afk`), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
 Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a

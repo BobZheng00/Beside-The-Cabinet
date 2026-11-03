@@ -179,7 +179,10 @@ with text placed *after* the history: the card's `post_history_instructions`, an
 (`extensions.depth_prompt`), which they insert a few messages from the end. Here both go into the turn itself, with a
 short reminder of our own when the card has neither: the turn is new every time anyway, so it never breaks the
 cached prefix (a note a few messages back would, for those messages, every turn). It is read on every reply and
-never stored; a few hundred characters at most.
+never stored; a few hundred characters at most. *Built (#132, 2026-11-02):* the card's text goes in a
+`<card_author_note>` block, which her instructions call the card author's notes on how to play the character, never
+instructions about the cabinet; the cabinet's own reminder follows it in the `<character>` block, so the app's text
+comes last.
 
 ### 7. Moments: a clear length, and busy days
 
@@ -297,6 +300,14 @@ list's × stays one click); only Close is left.
 - **It follows her memory in place** every two seconds: agenda, threads, facts (new ones on top while it is open),
   retired facts, diary, memos and the two notes, except a field the player has changed and not left.
 - The line beside Close says what was saved last, and when, after how many changes wait for the player to choose.
+- **Upkeep never writes over the player's save either** (*built 2026-11-02*, #34; `Conversation.AsRead`, tests). Upkeep
+  and the review read facts and the agenda before a model call that can take a minute or more, and write after it.
+  Each change is written only if the item is still as it was read (as the book matches it: id and learned or added
+  date, then its words and pin, or an agenda item's words, time, reminder and repeat). Otherwise the player changed it
+  meanwhile, in the book or with Chat history's Edit, and theirs stays: her new words for a fact are kept as what it
+  said before theirs (retired, "changed to: " theirs), unless theirs already says it or they forgot the fact (their
+  Forget holds), and the log names each change left unmade, an agenda item's included (`Chat: upkeep left …`; an
+  agenda item changed meanwhile may also be her own reply's doing). A merge with such a fact is left whole. Upkeep doesn't write the two notes.
 
 ### 13. The chat history leaves out what the app tells her (decided 2026-10-14, built)
 

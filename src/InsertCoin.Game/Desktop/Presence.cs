@@ -20,19 +20,30 @@ public static class Presence
     private static extern int SHQueryUserNotificationState(out int state);
 
     /// <summary>Windows would hold notifications back now: away (locked, screen saver), full screen, presenting, quiet time.</summary>
-    public static bool DoNotDisturb
-    {
-        get
-        {
-            // 1 not present, 2 busy (full screen), 3 Direct3D full screen, 4 presentation, 5 accepts notifications, 6 quiet time, 7 a full-screen store app
-            if (SHQueryUserNotificationState(out var state) != 0)
-                return false;
-            return state is 1 or 2 or 3 or 4 or 6 or 7;
-        }
-    }
+    public static bool DoNotDisturb => State is 1 or 2 or 3 or 4 or 6 or 7;
 
     /// <summary>The screen is locked, or its saver runs: nobody is at the PC (Windows' "not present").</summary>
-    public static bool Locked => SHQueryUserNotificationState(out var state) == 0 && state == 1;
+    public static bool Locked => State == 1;
+
+    /// <summary>
+    /// Windows' "should apps notify now?" as she goes by it: 1 not present, 2 busy (full screen), 3 Direct3D full screen,
+    /// 4 presentation, 5 accepts notifications, 6 quiet time, 7 a full-screen store app. A hidden test run never goes by
+    /// the session of whoever uses this PC (a game they play full screen, their locked screen): it accepts notifications
+    /// unless <see cref="StandIn"/> says otherwise.
+    /// </summary>
+    private static int State => StandIn ?? (Companion.Paper.OffScreen ? 5 : WindowsState);
+
+    /// <summary>What Windows says for this PC's session, 5 when it couldn't be asked; <see cref="OwnerStandIn"/> in its place.</summary>
+    public static int WindowsState => OwnerStandIn ?? (SHQueryUserNotificationState(out var state) == 0 ? state : 5);
+
+    /// <summary>Dev: the state she goes by, whatever Windows says (<c>dnd:on</c> 2, <c>dnd:locked</c> 1); null (<c>dnd:off</c>) as above.</summary>
+    public static int? StandIn { get; set; }
+
+    /// <summary>
+    /// Dev: what Windows is taken to say for this PC's session (<c>dnd:owner</c>: 2, as if its owner played full screen),
+    /// for a test to show that a hidden run doesn't follow it.
+    /// </summary>
+    public static int? OwnerStandIn { get; set; }
 
     /// <summary>
     /// Windows has turned the display off (its power setting, after the minutes it was told): nobody is watching. A test

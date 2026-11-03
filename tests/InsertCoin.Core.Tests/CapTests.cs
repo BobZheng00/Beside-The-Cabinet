@@ -67,9 +67,9 @@ public class CapTests
         var m = new Machine(new DateTimeOffset(year, month, day, hour, 0, 0, T0.Offset));
 
         m.Play(TimeSpan.FromMinutes(20));
-        m.Quit();
+        m.Quit();                                        // the check it closes in: 5 s more, 7.5 s owed
 
-        Assert.Equal(Min(30), m.State.DebtMs);           // the cap bounds what is earned, never what is owed
+        Assert.Equal(Min(30) + 7_500, m.State.DebtMs);   // the cap bounds what is earned, never what is owed
     }
 
     [Fact]
@@ -87,14 +87,14 @@ public class CapTests
     {
         var m = new Machine();
         m.Play(TimeSpan.FromMinutes(20));                // 30 min of debt
-        m.Quit();
+        m.Quit();                                        // and 7.5 s for the check it closes in
 
         m.Focus(TimeSpan.FromHours(10));                 // 150 min earned: 30 to the debt, 90 new, 30 over
 
         Assert.Equal(0, m.State.DebtMs);
         Assert.Equal(Min(90), m.State.TimeLeftMs(m.Rules));
-        Assert.Equal(Min(30), m.State.Today!.DebtPaidMs);
-        Assert.Equal(Min(30), m.State.Today.OverCapMs);
+        Assert.Equal(Min(30) + 7_500, m.State.Today!.DebtPaidMs);
+        Assert.Equal(Min(30) - 7_500, m.State.Today.OverCapMs);
     }
 
     [Fact]

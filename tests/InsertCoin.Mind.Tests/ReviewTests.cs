@@ -51,6 +51,40 @@ public class ReviewTests
     }
 
     [Fact]
+    public async Task A_review_leaves_what_the_player_changed_while_it_was_thinking()
+    {
+        using var temp = new TempStore();
+        var store = temp.Store;
+        var exam = store.AddFact(MindStore.Shared, "The player has an exam on Monday 12 October 2026.", 8, Friday.AddDays(-10));
+        var again = store.AddFact(MindStore.Shared, "The player's exam is on 12 October.", 7, Friday.AddDays(-4));
+        var film = store.AddFact(MindStore.Shared, "The player wants to see a film on Saturday 5 September 2026.", 4, Friday.AddDays(-40));
+        var hades = store.AddFact(MindStore.Shared, "The player likes Hades.", 5, Friday.AddDays(-20));
+        var clashes = new List<string>();
+        var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday)) { Clashed = clashes.Add };
+        var model = new FakeModel
+        {
+            // the player, in the memory book, while she thinks
+            Thinking = _ =>
+            {
+                MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == again), "The player's exam is on 12 October, in the main hall.");
+                MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == film), "The player wants to see that film on a Saturday soon.");
+                return Task.CompletedTask;
+            },
+        };
+        model.Answers.Enqueue($$"""
+            {"merge": [{"ids": [{{exam}}, {{again}}], "text": "The player's exam is on Monday 12 October 2026.", "importance": 8}],
+             "retire": [{"id": {{film}}, "why": "the film date has passed"}, {"id": {{hades}}, "why": "long unmentioned"}]}
+            """);
+
+        Assert.True(await conversation.Review(model));
+
+        Assert.Equal(["The player has an exam on Monday 12 October 2026.", "The player's exam is on 12 October, in the main hall.", "The player wants to see that film on a Saturday soon."],
+                     store.Facts("shino").Select(f => f.Text));
+        Assert.Equal([(hades, "long unmentioned")], store.Retired("shino").Select(f => (f.Id, f.Why)));
+        Assert.Equal(2, clashes.Count);
+    }
+
+    [Fact]
     public async Task Reviews_come_weekly_or_after_many_new_facts_a_batch_at_a_time()
     {
         using var temp = new TempStore();

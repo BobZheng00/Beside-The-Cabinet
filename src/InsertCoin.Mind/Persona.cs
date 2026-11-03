@@ -10,7 +10,8 @@ public sealed record Persona(string Name, string Description)
     public string? Greeting { get; init; }
     /// <summary>
     /// What keeps the character steady late in a long conversation: the card's post-history instructions and
-    /// character's note, read at the end of every turn (see <see cref="Prompt.Build"/>); null for the plain reminder.
+    /// character's note, read at the end of every turn as the card author's note, before the cabinet's own reminder
+    /// (see <see cref="Prompt.Build"/>); null when the card has neither.
     /// </summary>
     public string? Steady { get; init; }
     /// <summary>The name the player asked to be called by (Getting started), or null when they haven't given one.</summary>
@@ -22,9 +23,13 @@ public sealed record Persona(string Name, string Description)
     /// </summary>
     public IReadOnlyDictionary<string, Persona> Languages { get; init; } = new Dictionary<string, Persona>();
 
+    private readonly string _name = Prompt.Named(Name);
+    /// <summary>Their name, on one line and with nothing in it that passes for the cabinet's (see <see cref="Prompt.Named"/>).</summary>
+    public string Name { get => _name; init => _name = Prompt.Named(value); }
+
     /// <summary>For a character nobody has described: friendly, and nothing assumed about who they are.</summary>
     public static Persona Plain(string name) => new(name,
-        $"{name} is a friendly companion who keeps the player company: warm, a little playful, honest, and glad when " +
+        $"{Prompt.Named(name)} is a friendly companion who keeps the player company: warm, a little playful, honest, and glad when " +
         "the player does well. They enjoy games as much as the player does, and want the player to get their practice done.");
 
     /// <summary>
@@ -34,7 +39,7 @@ public sealed record Persona(string Name, string Description)
     /// </summary>
     /// <param name="language">The language the file is written in (<c>persona.zh.md</c>), or null for <c>persona.md</c>.</param>
     public static Persona Written(string name, string text, string? playerName, string? language = null) =>
-        new(name, CharacterCard.Fill(text, name, playerName, language == "zh" ? "玩家" : "the player")) { Player = playerName };
+        new(name, CharacterCard.Fill(text, Prompt.Named(name), playerName, language == "zh" ? "玩家" : "the player")) { Player = playerName };
 
     /// <summary>
     /// The first sentence of who they are, for the first run's choice of who keeps the player company: up to a full
