@@ -2430,6 +2430,12 @@ public partial class Stool : Node2D
             case "musicprobe": _music.DevProbe(); break;    // checks Windows' media controls answer (how many sessions, whose; no titles)
             case "standup": MaybeStandUp(force: true); break;   // she suggests standing up, as after a long sitting
             case "nocall": Presence.IgnoreCalls = true; break;     // another app's microphone doesn't count (a test run while the PC is in a call)
+            case "dnd":                                     // dnd:on (full screen), dnd:locked, whatever Windows says; dnd:off, back to Windows' (none in a hidden run); dnd:owner, as if this PC's owner played full screen
+                if (rest == "owner")
+                    Presence.OwnerStandIn = 2;
+                else
+                    Presence.StandIn = rest switch { "on" => 2, "locked" => 1, _ => null };
+                break;
             case "musicfake": _music.DevPlaying(rest is "" or "off" ? null : text.Split(':')[0], text.Split(':').ElementAtOrDefault(1) ?? ""); break;   // musicfake:Title:Artist pretends it plays; musicfake:off none
             case "musictool":                               // musictool:pause, musictool:start_playlist:Deep_Focus as her tool would
                 var said = text.Split(':', 2);
@@ -2515,7 +2521,7 @@ public partial class Stool : Node2D
             case "presence":                                // logs what she would make of this moment
                 var clock = System.Diagnostics.Stopwatch.StartNew();
                 GD.Print($"Presence: do not disturb {Presence.DoNotDisturb}, in a call {Presence.InCall}, locked {Presence.Locked}, idle {Idle().TotalSeconds:0} s, " +
-                         $"{Where(DateTimeOffset.Now).ToString().ToLowerInvariant()} ({clock.ElapsedMilliseconds} ms)");
+                         $"{Where(DateTimeOffset.Now).ToString().ToLowerInvariant()}, Windows' notification state {Presence.WindowsState} ({clock.ElapsedMilliseconds} ms)");
                 break;
             case "upkeep": _ = _chat.Upkeep(gameRunning: false, now: true); break;     // her upkeep now, without waiting for quiet
             case "say": Say(text); break;                   // say:text puts a line in her bubble (and says it, if her voice can)

@@ -105,14 +105,27 @@
     },
     {
       "name": "playprogram-held",
-      "about": "A picked program's session held behind another window isn't a game being played: the alarm lights of a game played on credit go off, a focus part shows its countdown on the screen (the shot at 20 s) and pays for its time, and the player going away with no input (afk) counts as away, which ends the held session, with no word of it going on.",
+      "about": "A picked program's session held behind another window isn't a game being played: the alarm lights of a game played on credit go off, a focus part shows its countdown on the screen (the shot at 20 s) and pays for its time, and the player going away with no input (afk) counts as away, which ends the held session, with no word of it going on. No quiet hours, so going away is away (not asleep) whatever the hour.",
       "covers": ["src/InsertCoin.Game/App/Focus.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs"],
-      "settings": ", \"PlayPrograms\": [{\"Path\": \"C:\\\\Windows\\\\notepad.exe\", \"Name\": \"Notepad\"}]",
+      "settings": ", \"PlayPrograms\": [{\"Path\": \"C:\\\\Windows\\\\notepad.exe\", \"Name\": \"Notepad\"}], \"QuietFrom\": 0, \"QuietUntil\": 0",
       "script": "nocall@1,frontprogram:C:\\Windows\\notepad.exe@2,frontprogram:behind@8,focus@14,focus:skip@26,whereabouts:off@28,afk@29,trayitems@40",
       "shots": [20, 45],
       "expect": ["^Main: a session starts: Notepad$", "^Main: the session is held, its program behind another window$", "^Main: focus pays for [1-9]\\d* s focused$",
                  "^Main: the alarm lights go on, out of time in a game$", "^Main: the alarm lights go off$", "^Reaching: the player is away", "^Main: the session ends: Notepad, \\d+ s played$"],
       "forbid": ["^Main: the session goes on"]
+    },
+    {
+      "name": "presence",
+      "about": "A hidden run never goes by this PC's own user being in do-not-disturb (a full-screen game) or locked (the first presence line logs what Windows really says): told the owner plays full screen (dnd:owner), the companion still stands the player up at the PC, in their bubble (the shot at 12 s; with no voice in a test run, straight on, with no word first). Told do-not-disturb (dnd:on), the stand-up goes to a ticket only (the shot at 6 s); dnd:locked is a locked screen.",
+      "covers": ["src/InsertCoin.Game/Desktop/Presence.cs", "src/InsertCoin.Mind/Reaching.cs"],
+      "mind": true,
+      "mindRequests": 1,
+      "script": "nocall@1,presence@1.5,dnd:on@2,presence@2.5,standup@3,dnd:locked@5,presence@5.5,dnd:off@7,dnd:owner@7.5,presence@8,standup@9",
+      "shots": [6, 12],
+      "desk": true,
+      "expect": ["^Presence: do not disturb True, in a call False, locked False, ", "^Reaching: STAND UP only on a ticket: they can't be spoken to now$",
+                 "^Presence: do not disturb True, in a call False, locked True, ", "^Presence: do not disturb False, in a call False, locked False, idle 0 s, here, Windows' notification state 2 ",
+                 "^Reaching: STAND UP told at the PC \\(a word first\\)"]
     },
     {
       "name": "settings",
