@@ -841,10 +841,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var wanted = new Plan(0, spec.Text, spec.At, spec.AllDay, spec.Before, null, now, character, spec.Repeat);
         if (wanted.RemindAt() is { } at && at <= now && wanted.End <= now && spec.Repeat == Repeat.Once)
             return null;
-        var words = Recall.Terms(spec.Text).ToHashSet();
-        if (store.Agenda().FirstOrDefault(p => p.At.Date == spec.At.Date
-                                               && (Recall.Same(p.Text, spec.Text) && (p.At == spec.At || p.AllDay || spec.AllDay)
-                                                   || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains))) is { } same)
+        if (Like(store.Agenda(), spec) is { } same)
         {
             if (exactly && (same.At, same.AllDay) != (spec.At, spec.AllDay))
                 return same.Id;
@@ -855,6 +852,15 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             return same.Id;
         }
         return store.AddPlan(spec.Text, spec.At, spec.AllDay, spec.Before, now, character, spec.Repeat);
+    }
+
+    /// <summary>The item among these that adding this one would be: the same words that day at its time (or all day), or a word of it at the very time.</summary>
+    private static Plan? Like(IEnumerable<Plan> agenda, PlanSpec spec)
+    {
+        var words = Recall.Terms(spec.Text).ToHashSet();
+        return agenda.FirstOrDefault(p => p.At.Date == spec.At.Date
+                                          && (Recall.Same(p.Text, spec.Text) && (p.At == spec.At || p.AllDay || spec.AllDay)
+                                              || p.At == spec.At && Recall.Terms(p.Text).Any(words.Contains)));
     }
 
     /// <summary>
@@ -1100,10 +1106,16 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
         var now = _clock.GetLocalNow();
         var byId = known.ToDictionary(f => f.Id);
+        // what the player forgot while she was thinking: an add of it would find nothing like it and write it back
+        var forgotten = all.Where(f => MemoryEdits.Current(store, character, f) is null).ToList();
+        var dropped = agenda.Where(p => MemoryEdits.Current(store, p) is null).ToList();
         foreach (var change in digestion.Changes)
         {
             switch (change.Op)
             {
+                case "add" when change.Text is { Length: > 2 } text2 && forgotten.FirstOrDefault(f => Recall.Same(f.Text, text2)) is { } lost:
+                    Clashed?.Invoke($"upkeep left \"{lost.Text}\" as the player has it (forgotten) instead of adding \"{text2}\"");
+                    break;
                 // something she had retired has come up again: back to the foreground, not a second copy
                 case "add" when change.Text is { Length: > 2 } text2 && store.Retired(character).FirstOrDefault(f => Recall.Same(f.Text, text2)) is { } back:
                     store.Restore(back.Id, now);
@@ -1139,7 +1151,11 @@ public sealed class Conversation(MindStore store, string character, Persona pers
             {
                 case "add" when when is { } at && change.Text is { Length: > 1 } text2:
                     var (before, repeat) = Agenda.ParseOptions(change.Options);
-                    AddPlan(new PlanSpec(at.At, at.AllDay, text2, before ?? (change.Remind ? TimeSpan.Zero : null), repeat), now);
+                    var spec = new PlanSpec(at.At, at.AllDay, text2, before ?? (change.Remind ? TimeSpan.Zero : null), repeat);
+                    if (Like(dropped, spec) is { } off)
+                        Clashed?.Invoke($"upkeep left \"{off.Text}\" off the agenda (taken off meanwhile) instead of: {change.Op} {change.When} {change.Text} {change.Options}".TrimEnd());
+                    else
+                        AddPlan(spec, now);
                     break;
                 case "update" when change.Id is { } id && plans.Remove(id, out var plan) && AsRead(plan, change):
                     ChangePlan(plan, when, change.Text, change.Options, change.Remind);
