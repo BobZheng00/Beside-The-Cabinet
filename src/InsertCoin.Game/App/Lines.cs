@@ -26,7 +26,7 @@ public static class Lines
             return null;
         var (e, _, line) = said.MaxBy(x => x.Weight);
         var what = InsertCoin.Mind.Situation.Witness(e, rules) ?? line!;
-        return new InsertCoin.Mind.Telling(Title(e), $"{what} Say something about it in a short sentence, in your own words.", line!,
+        return new InsertCoin.Mind.Telling(Title(e), what + InsertCoin.Mind.Situation.SayAboutIt, line!,
                                            InsertCoin.Mind.Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3),
                                            // no play time: the cabinet shows nothing of a game, so nothing here goes on a ticket either
                                            Ticketed: !rules.Earns.Any || e is LowTime or CreditsOut or LateNight or SessionStarted);

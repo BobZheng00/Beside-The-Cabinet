@@ -122,7 +122,7 @@ person in the room with them". The cabinet's lines name its own things as if she
    they call on" until the billed run's counts decide; with no play time it is the opening alone that says the cabinet
    is there (the paragraph after the card no longer says it again). `Situation`'s lines, `<cabinet>` block and "How
    play is earned" say what play time, an IOU, credit, the cap and a solve are; a solve names LeetCode only while it
-   earns. The `leetcode_problem` tool's result starts "From LeetCode, a site of programming practice problems". The
+   earns, and so does her base text's "Helping them learn" (#231). The `leetcode_problem` tool's result starts "From LeetCode, a site of programming practice problems". The
    voice's Test line asks how the player's day is going rather than about solving one more problem. The manner check
    has the world moments (`w-*`: the first spike's six in English and Chinese, the second's three in Chinese), with
    `--card-names`, `--player` and `--world-words`, and counts them in a table of its own.

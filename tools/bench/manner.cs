@@ -168,7 +168,14 @@ if (Worlds.Place("I'm right here beside you.", made) != "beside the player" || W
               .SequenceEqual(["tokens"])
     // an idea given in either language is given: "owed" for 欠
     || Worlds.Unprompted("[cheer] 欠的时间还清了。", "That paid off all the play time they owed.").Any()
-    || !Worlds.BreaksCharacter("As an AI, I don't have days.") || Worlds.BreaksCharacter("[wave] Said hi to Ai at the shop."))
+    || !Worlds.BreaksCharacter("As an AI, I don't have days.") || Worlds.BreaksCharacter("[wave] Said hi to Ai at the shop.")
+    // Latin words inside Chinese text, where \b doesn't fire
+    || !Worlds.BreaksCharacter("我是AI，没有自己的一天。") || !Worlds.BreaksCharacter("我只是个AI助手") || Worlds.BreaksCharacter("今天去了MAIL局")
+    || !Worlds.Unprompted("又拿到一个token了！", "").SequenceEqual(["tokens"]) || !Worlds.Unprompted("还有coin吗", "").SequenceEqual(["tokens"])
+    || !Worlds.Unprompted("这局是credit打的", "").SequenceEqual(["credit"]) || !Worlds.Unprompted("打了张IOU", "").SequenceEqual(["credit"])
+    || !Worlds.Unprompted("你owe我十分钟", "").SequenceEqual(["credit"]) || !Worlds.Unprompted("还有debt", "").SequenceEqual(["credit"])
+    || !Worlds.Unprompted("又earn了半小时", "").SequenceEqual(["earning"]) || !Worlds.Unprompted("写code写累了吧", "").SequenceEqual(["programming"])
+    || Worlds.Unprompted("Those tokenisers are a pain, and the coinage is odd.", "").Any() || Worlds.Unprompted("I own a debtor's ledger? No: a decoder.", "").Any())
     throw new InvalidOperationException("The world moments aren't counted as they should be.");
 
 // what is said, what came just before (the player's lines and hers, a minute apart), and the agenda before it
@@ -215,12 +222,11 @@ Moment[] moments =
 ];
 
 // An event is told as the app tells it: the cabinet's line logged (Situation.Witness), then its request for her remark
-// (Lines.Remark's words, or the focus session's own note), after her call was answered (WordFirst.Called).
+// (Situation.SayAboutIt, as Lines.Remark asks, or the focus session's own note), after her call was answered (WordFirst.Called).
 Moment[] WorldMoments(string language, string back, string welcome, string cabinet, string twoSum, string play)
 {
     var z = language == "zh" ? "-zh" : "";
     string Witness(LedgerEvent e) => Situation.Witness(e, rules)!;
-    const string remark = " Say something about it in a short sentence, in your own words.";        // as Lines.Remark asks
     var solved = Witness(new CoinsEarned(new SolvedTask("1", "Two Sum", Difficulty.Easy, now), 1, false, 1, new Payout(15 * 60_000, 0, 15 * 60_000, 0, 1)));
     var focus = new FocusSession(new FocusPlan(), now.AddMinutes(-25));
     var turn = focus.Tick(now)!;
@@ -229,10 +235,10 @@ Moment[] WorldMoments(string language, string back, string welcome, string cabin
     string[] before = [back, welcome];
     return
     [
-        new($"w-solve{z}", language, "", before, World: new([solved], solved + remark, Banked(80))),
+        new($"w-solve{z}", language, "", before, World: new([solved], solved + Situation.SayAboutIt, Banked(80))),
         new($"w-focus{z}", language, "", before, World: new([Witness(new FocusPaid(25 * 60_000, new Payout(6 * 60_000, 0, 6 * 60_000, 0, 0)))], focus.NoteOn(turn),
                                                              Banked(50), focus.Describe(now))),
-        new($"w-credit{z}", language, "", before, World: new([Witness(new CreditsOut()), ended], ended + remark, owing)),
+        new($"w-credit{z}", language, "", before, World: new([Witness(new CreditsOut()), ended], ended + Situation.SayAboutIt, owing)),
         new($"w-cabinet{z}", language, cabinet, World: new([], null, Banked(80))),
         new($"w-twosum{z}", language, twoSum, Asked: ["leetcode_problem", "window_titles"], World: new([], null, Banked(80))),
         new($"w-play{z}", language, play, World: new([], null, Banked(80))),
@@ -322,7 +328,9 @@ async Task<Result> Run(string card, Moment m)
     }
     return new Result(card, variant, m.Id, m.Language, note ?? m.Said, answer, error, Listed(),
                       counting.Requests, counting.Requests.Sum(r => r.Input), counting.Requests.Sum(r => r.Cached), counting.Requests.Sum(r => r.Output), focus, before, flashed, voice is null ? null : spoken,
-                      m.World is null ? null : string.Join("\n", [m.Said, .. said, .. logged, note ?? "", situation, .. counting.Returned]));
+                      // her base text is given too (it names only what earns), her card's own words aren't
+                      m.World is null ? null : string.Join("\n", [m.Said, .. said, .. logged, note ?? "", situation, .. counting.Returned,
+                                                                  counting.Instructions.Replace(CardFor(card, m.Language).Description, "")]));
 }
 
 // the card a moment runs on: "<card>-zh" for the Chinese ones when there is one
@@ -432,8 +440,8 @@ void Summary()
                           string.Join(" / ", Worlds.Places.Select(p => g.Count(r => Worlds.Place(r.Answer!, world) == p))) + " |");
         }
         md.AppendLine("\nApp words unprompted: the app's words (LeetCode, tokens, credit, focus, play time, earning, streak, the cabinet, " +
-                      "programming) in her reply that nothing in the moment gave her (what was said, the cabinet's lines and block, her tools' results; " +
-                      "not her base text). Breaks character: talk of being an AI or an assistant. Her world shows: a word of --world-words. " +
+                      "programming) in her reply that nothing in the moment gave her (what was said, the cabinet's lines and block, her tools' results, " +
+                      "and her base text, which names only what earns; not her card's own words). Breaks character: talk of being an AI or an assistant. Her world shows: a word of --world-words. " +
                       "Where she places herself: by those words and by being at a desk, beside the player or on a stool. Whether two places " +
                       "contradict each other is for the reader: the side by side lists each reply's.");
     }
@@ -680,21 +688,23 @@ record Result(string Card, string Variant, string Moment, string Language, strin
 /// </summary>
 static class Worlds
 {
-    // each of the app's ideas by the words that say it in either language: unprompted when none of its words was given
+    // each of the app's ideas by the words that say it in either language: unprompted when none of its words was given.
+    // A Latin word's edges are letters, not \b, which doesn't fire between a Chinese character and a Latin letter (我是AI)
+    private const string From = "(?<![a-z])", To = "(?![a-z])";
     private static readonly (string Name, Regex Words)[] Ideas =
     [
         ("LeetCode", new(@"leetcode|力扣", RegexOptions.IgnoreCase)),
-        ("tokens", new(@"\btokens?\b|(?<!insert )\bcoins?\b|代币|硬币|游戏币", RegexOptions.IgnoreCase)),
-        ("credit", new(@"\bcredit\b|\biou\b|\bowe|\bdebt|赊|欠|信用|借来", RegexOptions.IgnoreCase)),
+        ("tokens", new($@"{From}tokens?{To}|(?<!insert ){From}coins?{To}|代币|硬币|游戏币", RegexOptions.IgnoreCase)),
+        ("credit", new($@"{From}credit{To}|{From}ious?{To}|{From}ow(e|ed|es|ing){To}|{From}debts?{To}|赊|欠|信用|借来", RegexOptions.IgnoreCase)),
         ("focus", new(@"focus|pomodoro|专注|番茄", RegexOptions.IgnoreCase)),
         ("play time", new(@"play ?time|time to play|游戏时间|游玩时间|时长", RegexOptions.IgnoreCase)),
-        ("earning", new(@"\bearn|赚|挣|攒|存下", RegexOptions.IgnoreCase)),
+        ("earning", new($@"{From}earn|赚|挣|攒|存下", RegexOptions.IgnoreCase)),
         ("streak", new(@"streak|连续|连胜", RegexOptions.IgnoreCase)),
         ("cabinet", new(@"cabinet|arcade|insert coin|街机|机台|游戏机", RegexOptions.IgnoreCase)),
-        ("programming", new(@"programm|\bcod(e|ing)\b|algorithm|编程|代码|算法|刷题|程序", RegexOptions.IgnoreCase)),
+        ("programming", new($@"programm|{From}cod(e|ing){To}|algorithm|编程|代码|算法|刷题|程序", RegexOptions.IgnoreCase)),
     ];
 
-    public static readonly Regex Breaks = new(@"(?-i:\bAI\b)|\bassistant\b|language model|chatbot|人工智能|语言模型|助手|作为AI", RegexOptions.IgnoreCase);
+    public static readonly Regex Breaks = new($@"(?-i:(?<![A-Za-z])AI(?![A-Za-z]))|{From}assistant{To}|language model|chatbot|人工智能|语言模型|助手", RegexOptions.IgnoreCase);
 
     // beside the player: at a desk, by them, on a stool
     private static readonly Regex Beside = new(@"desk|beside you|next to you|stool|桌|身边|旁边|凳|椅子|陪在你|在你这", RegexOptions.IgnoreCase);
@@ -732,6 +742,8 @@ sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
 {
     public List<Request> Requests { get; } = [];
     public List<string> Returned { get; } = [];
+    /// <summary>Her instructions as the first request sent them.</summary>
+    public string Instructions { get; private set; } = "";
 
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
                                                                                          [EnumeratorCancellation] CancellationToken cancel = default)
@@ -740,6 +752,8 @@ sealed class Counting(IChatClient inner) : DelegatingChatClient(inner)
         var text = new StringBuilder();
         var calls = new List<string>();
         UsageDetails usage = new();
+        if (Instructions.Length == 0)
+            Instructions = messages.FirstOrDefault(m => m.Role == ChatRole.System)?.Text ?? "";
         foreach (var result in messages.SelectMany(m => m.Contents).OfType<FunctionResultContent>())
             if (result.Result?.ToString() is { Length: > 0 } said && !Returned.Contains(said))
                 Returned.Add(said);

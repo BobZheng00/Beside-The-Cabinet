@@ -271,7 +271,8 @@ script's header.
   their remark after their call was answered, the `<cabinet>` block (`Situation.Describe`) and their tools' results
   (`Situation.Ledger`, the LeetCode tool's wording). A table of their own counts, per variant and card: *app words
   unprompted* (LeetCode, tokens, credit, focus, play time, earning, streak, the cabinet, programming, in English or
-  Chinese, when nothing in the moment gave them: not counting the base text), *breaks character* (talk of being an AI or
+  Chinese, when nothing in the moment gave them; her base text counts as given, since it names only what earns, and her
+  card's own words don't; a Latin word is found inside Chinese text too, 「我是AI」), *breaks character* (talk of being an AI or
   an assistant), *her world shows* (a word of `--world-words <file>`: the card's own places and people, one a line, kept
   beside the card; none are written in the bench) and *where she places herself* (her world, beside the player, both,
   or unsaid). Whether two places contradict each other is read in the side by side, which lists each reply's counts.
