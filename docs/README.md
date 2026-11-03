@@ -174,7 +174,8 @@ They remember:
   your bedtime. The rest (today's and the week's numbers, the streak, how play is earned, a day's record with what it
   earned) they look up with their cabinet tool when you ask. The cabinet's bookkeeping (a token going in, the
   overnight fade, the cap, an IOU) shows on its own screen, not in the bubble: a new day's fade counts the time down
-  on the CRT;
+  on the CRT. A flash on the screen says what happened in a word (STAMPED, JACKPOT, IOU…) and what matters under it in
+  a line or two, each as large as fits the screen;
 - what they have told you about themselves (their past, what they like), kept as theirs and always in mind, so their
   stories stay the same; the memory book marks those facts "me";
 - what is going on in your life with no date (a worry, a decision, something you're waiting for): a couple of days
@@ -190,8 +191,8 @@ They remember:
   weekdays, weekly or monthly). Ask them to cancel something, move it, rename it, change or remove its reminder or
   stop it repeating, and they do it in that reply, to that same item, however far ahead it is; an item from a calendar you linked stays as the
   calendar has it. They write it down with a quick note on a pad, and the cabinet's screen flashes what was set:
-  AGENDA (or CHANGED, or CANCELLED), the day and time, and the item, on two lines at most (a longer one ends "...";
-  all of it is in AGENDA); with an app open on the screen, the flashes wait until it closes, then show in turn. Their reply ends there:
+  AGENDA (or CHANGED, or CANCELLED) with the day and time, large enough to read on a Small cabinet; the item's words
+  are in their reply, in the screen's AGENDA app and in a text; with an app open on the screen, the flashes wait until it closes, then show in turn. Their reply ends there:
   whatever they said before writing it down stays, and nothing is said after it, so they don't read the date back to
   you after the fact. What they reply as they write it down comes with it, as they said it ("Next Thursday at two.
   Got it. Good luck with it."); if they say nothing, the flash says it alone; by text, the app's own line under their message says what was set ("Agenda: Thu 29 Oct, 14:00, Job interview

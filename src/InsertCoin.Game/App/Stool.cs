@@ -349,7 +349,7 @@ public partial class Stool : Node2D
         Hand(new Telling("REMINDER", Agenda.Announcement(due, now, _settings.Now.ReminderLead), Lines.Reminder(due, now), Matters.Must, Anywhere: true, now,
                          TimeSpan.FromMinutes(10), Ticketed: true, Plain: !_settings.Now.ReminderSpoken, Greet: true));
 
-    /// <summary>How long the cabinet's screen shows what she put on the agenda: three lines to read.</summary>
+    /// <summary>How long the cabinet's screen shows what she put on the agenda.</summary>
     private const double AgendaFlashSeconds = 4.0;
 
     /// <summary>

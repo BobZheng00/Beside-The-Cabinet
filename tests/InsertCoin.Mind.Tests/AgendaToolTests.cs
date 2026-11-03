@@ -266,22 +266,15 @@ public class AgendaToolTests
         Assert.Equal("", Mind.Agenda.Receipted(" ", []));
     }
 
-    [Theory]
-    [InlineData("Job interview", "JOB INTERVIEW")]
-    [InlineData("Job interview at Northwind Bank", "JOB INTERVIEW AT\nNORTHWIND BANK")]     // the spike's flash lost "BANK"
-    [InlineData("Supercalifragilisticexpialidocious lessons", "SUPERCALIFRAGILISTICEXP\nIALIDOCIOUS LESSONS")]
-    [InlineData("Dinner with Grandma and Grandpa at the new Italian place downtown", "DINNER WITH GRANDMA AND\nGRANDPA AT THE NEW...")]
-    [InlineData("下周三下午三点去看牙医然后去买菜再回家", "下周三下午三点去看牙医\n然后去买菜再回家")]
-    [InlineData("🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂", "🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂🎂\n🎂🎂🎂")]       // never between an emoji's two halves (QA on #206)
-    public void The_cabinet_s_flash_wraps_the_item_at_words_onto_two_lines_at_most(string what, string shown)
+    [Fact]
+    public void The_cabinet_s_flash_says_what_changed_and_when_without_the_item_s_words()
     {
         var at = new DateTimeOffset(2026, 10, 29, 14, 0, 0, TimeSpan.FromHours(-4));
-        var plan = new Plan(7, what, at, false, null, null, Wednesday, "shino");
+        var plan = new Plan(7, "Dinner with Grandma and Grandpa at the new Italian place downtown", at, false, null, null, Wednesday, "shino");
 
-        Assert.Equal(("AGENDA", $"THU 29 OCT 14:00\n{shown}"), Mind.Agenda.Flash(new(AgendaChange.Added, plan)));
-        Assert.Equal("CHANGED", Mind.Agenda.Flash(new(AgendaChange.Changed, plan)).Big);
-        Assert.Equal(("CANCELLED", "THU 29 OCT\n" + shown), Mind.Agenda.Flash(new(AgendaChange.Cancelled, plan with { AllDay = true })));
-        Assert.All(shown.Split('\n'), line => Assert.True(CrtCaption.Width(line) <= CrtCaption.SmallLine));
+        Assert.Equal(("AGENDA", "THU 29 OCT 14:00"), Mind.Agenda.Flash(new(AgendaChange.Added, plan)));
+        Assert.Equal(("CHANGED", "THU 29 OCT 14:00"), Mind.Agenda.Flash(new(AgendaChange.Changed, plan)));
+        Assert.Equal(("CANCELLED", "THU 29 OCT"), Mind.Agenda.Flash(new(AgendaChange.Cancelled, plan with { AllDay = true })));
     }
 
     [Fact]
