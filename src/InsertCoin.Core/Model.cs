@@ -256,6 +256,9 @@ public sealed record LedgerState
     public bool LateNightGiven { get; init; }
 
     public long TimeLeftMs(Rules rules) => Credits * rules.TokenMs + FuelMs;
+
+    /// <summary>A game is being played: seen at the last check, and neither paused nor held behind another window.</summary>
+    public bool InPlay() => Session is { Misses: 0 } && !Paused && !Held;
     public int IouTickets(Rules rules) => (int)(DebtMs / rules.TokenMs);
 
     public static LedgerState New(DateTimeOffset installedAt, Rules rules)

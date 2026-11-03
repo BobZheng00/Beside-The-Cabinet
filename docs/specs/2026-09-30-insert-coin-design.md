@@ -48,8 +48,11 @@ Seams:
 
 Runtime loop: game detector every 5 s; LeetCode every 60 s plus a CHECK button (rate-limited to once / 10 s);
 play time measured with a monotonic clock, capped at 30 s per tick (sleep / clock changes never charge); a tick
-spends the time since the last one as the session stood at the last (played: not paused or held), and the screen
-counts it down the same way between ticks (`Ledger.SpentSince`, #221), so the time left shown never goes back up;
+spends the time since the last one as the session stood at the last (played: the game seen, not paused or held,
+`LedgerState.InPlay`), and the screen counts it down the same way between ticks (`Ledger.SpentSince`, #221), so the
+time left shown never goes back up; a tick after which the game is no longer played (paused, held, unseen) is spent
+quietly, its warnings, `CreditsOut` and tickets waiting for a tick it is played in; the app's first tick in a run
+spends nothing (a session saved open isn't charged for the start-up);
 state saved atomically (temp file + replace, with `.bak`) to `%APPDATA%\InsertCoin\` on every event and
 every 60 s during play; single instance via named mutex (second launch focuses the first and exits).
 
@@ -78,8 +81,8 @@ Spending (while ≥ 1 non-ignored game runs; simultaneous games are charged once
 - `IouPrinted(n)` each time `floor(debt / 900)` increases — every 10 min of overtime. This is the nag.
 - AFK pause: no keyboard/mouse/controller input for 10 min → meter stops (`Paused`), resumes on input.
   No retroactive refund.
-- Session ends after the game has been absent for 2 consecutive checks (10 s, spent as the screen counted them
-  down) → `SessionEnded` receipt:
+- Session ends after the game has been absent for 2 consecutive checks (10 s; the first, in which it closed, is
+  spent quietly, as the screen counted it down) → `SessionEnded` receipt:
   game names, duration, time drawn from credits/fuel, debt added.
 
 Days and weeks:

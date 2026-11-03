@@ -234,28 +234,37 @@ public sealed class Ledger(Rules rules)
 
     /// <summary>
     /// The play time spent since the last check, as the next check will spend it and the cabinet's screen counts it
-    /// down meanwhile: none unless the session was being played then (not paused or held), at most
+    /// down meanwhile: none unless the session was being played then (<see cref="LedgerState.InPlay"/>), at most
     /// <see cref="Rules.MaxTick"/> (a stall or the PC's sleep), and more past bedtime.
     /// </summary>
     public long SpentSince(LedgerState state, TimeSpan sinceCheck, DateTimeOffset now)
     {
-        if (!Played(state))
+        if (!state.InPlay())
             return 0;
         var ms = Capped(sinceCheck);
         return Rules.Earns.Any && GameCalendar.IsLateNight(state, now, Rules) ? (long)Math.Round(ms * Rules.LateNightMultiplier) : ms;
     }
 
-    private static bool Played(LedgerState state) => state.Session is not null && !state.Paused && !state.Held;
-
     private long Capped(TimeSpan elapsed) => (long)Math.Clamp(elapsed.TotalMilliseconds, 0, Rules.MaxTick.TotalMilliseconds);
 
+    /// <summary>
+    /// A check spends the time since the last one as the session stood then, as the screen counted it down meanwhile, so
+    /// the check in which a game pauses, goes behind another window or goes unseen is spent too (#219, #221). Its
+    /// warnings, credits out and tickets come only if the game is still being played after it: else it is spent quietly,
+    /// and they come at the next check it is played in.
+    /// </summary>
     private LedgerState OnTick(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
     {
-        // the time since the last check is spent as the session stood then, as the screen counted it down meanwhile, so
-        // a check in which a game pauses, closes, goes unseen or goes behind another window is spent too (#219, #221)
-        if (Played(state))
-            state = Warn(Charge(state, Capped(tick.Elapsed), now, events), events);
+        var spentMs = state.InPlay() ? Capped(tick.Elapsed) : (long?)null;
+        state = Follow(state, tick, now, events);
+        if (spentMs is { } ms && state.Session is not null)  // open still: the check after one it was played in isn't its last
+            state = Charge(state, ms, now, events, quiet: !state.InPlay());
+        return state.InPlay() ? Warn(state, events) : state;
+    }
 
+    /// <summary>What a check says of the session: started, played on, paused, held, unseen or over.</summary>
+    private LedgerState Follow(LedgerState state, Tick tick, DateTimeOffset now, List<LedgerEvent> events)
+    {
         state = Seen(state, tick, now);
         var games = tick.Games.Where(g => !g.Held).ToList();
         if (games.Count == 0)
@@ -340,12 +349,14 @@ public sealed class Ledger(Rules rules)
     /// <summary>
     /// Charges play: fuel first, a new token going in as each runs out, then debt at <see cref="Rules.DebtMultiplier"/>.
     /// Past bedtime every minute costs <see cref="Rules.LateNightMultiplier"/> times as much, debt included. With no play
-    /// time the game is only noticed: its time is kept, and nothing is spent, owed or priced.
+    /// time the game is only noticed: its time is kept, and nothing is spent, owed or priced. Quiet (a game that has
+    /// just paused, gone behind or gone unseen), it raises no late night, credits out or ticket: they wait for a check
+    /// it is played in, the tickets counted all the same.
     /// </summary>
-    private LedgerState Charge(LedgerState state, long elapsedMs, DateTimeOffset now, List<LedgerEvent> events)
+    private LedgerState Charge(LedgerState state, long elapsedMs, DateTimeOffset now, List<LedgerEvent> events, bool quiet = false)
     {
         var late = Rules.Earns.Any && GameCalendar.IsLateNight(state, now, Rules);
-        if (late && !state.LateNightGiven)
+        if (late && !state.LateNightGiven && !quiet)
         {
             events.Add(new LateNight(state.Today!.Bedtime!.Value, Rules.LateNightMultiplier));
             state = state with { LateNightGiven = true };
@@ -370,7 +381,7 @@ public sealed class Ledger(Rules rules)
             }
 
             // Out of time: every overtime millisecond costs DebtMultiplier.
-            if (!state.CreditsOutGiven)
+            if (!state.CreditsOutGiven && !quiet)
             {
                 events.Add(new CreditsOut());
                 state = state with { CreditsOutGiven = true, FirstWarningGiven = true, FinalWarningGiven = true };
@@ -379,7 +390,9 @@ public sealed class Ledger(Rules rules)
             var added = (long)Math.Round(remaining * Rules.DebtMultiplier);
             state = state with { DebtMs = state.DebtMs + added };
             var ticketsAfter = state.IouTickets(Rules);
-            for (var n = ticketsBefore + 1; n <= ticketsAfter; n++)
+            // shortcut: a ticket due in a quiet check (at most 7.5 s of debt) is counted but never printed; print it at
+            // the next played check if a player notices one missing
+            for (var n = ticketsBefore + 1; n <= ticketsAfter && !quiet; n++)
                 events.Add(new IouPrinted(n, state.DebtMs));
             session = session with
             {

@@ -47,7 +47,7 @@ public class FocusPayTests
     public void Focus_pays_back_debt_first()
     {
         var m = new Machine();
-        m.Play(TimeSpan.FromMinutes(5) - 2 * Check);     // 7.5 min of debt, with the two checks it goes unseen in
+        m.Play(TimeSpan.FromMinutes(5) - Check);         // 7.5 min of debt, with the check it closes in
         m.Quit();
 
         var events = m.Focus(TimeSpan.FromMinutes(40));  // 10 min: 7.5 of it to the debt
