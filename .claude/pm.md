@@ -5,8 +5,9 @@ phase: iterate
 check: powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/check.ps1
 # test runs take turns on this PC (one lock), so more implementers mostly wait
 parallel: 2
-# the user merges every pull request (their choice, 2026-10-13)
-merge: user
+# the PM merges only the pull requests the user names in chat ("merge #n", "we can merge these"), never on its own;
+# "all" lets such a merge through the gate without a prompt, once its head passed the checks and QA (the user, 2026-11-04)
+merge: all
 # Windows-only APIs, a GPU for her voice, local models, Godot on this PC
 runs-on: local
 specs: docs/specs
