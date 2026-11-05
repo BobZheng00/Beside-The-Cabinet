@@ -19,6 +19,15 @@ roadmap: docs/roadmap.md
 A Godot 4.7 .NET desktop app for Windows: a companion on a stool beside a little arcade cabinet. CLAUDE.md is how to
 work here (its rules, how the code reads, where things are); `private/notes.md`, which it imports, is this PC's own.
 
+## Merging
+
+`merge: all` above only spares the user a confirmation for each merge they asked for; it is no leave to merge. It
+overrides the run skill's step 5 ("Merging yourself"), its digest line "Merged by the PM", phases.md's "Who merges"
+and the `/goal` wording "(or merged, where the project allows)": the PM marks a pull request that passed QA and review
+ready, lists it under "Ready for you to merge", and merges only the pull requests the user names in chat ("merge #n",
+"we can merge these"), once `gh pr checks` is green, with `gh pr merge <n> --rebase`. An unattended `/pm:run` or
+`/goal` merges nothing (the user, 2026-11-04).
+
 ## How QA sees the product
 
 - `check` (tools/dev/check.ps1) builds the solution and the game with no warnings, runs the unit tests and the smoke
