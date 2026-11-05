@@ -93,8 +93,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
 - **Acting outside the app:** whatever she does there asks the player first. Downloads need the user's permission.
 - **Git:**
   - Work on a branch, then fast-forward `main`. Once the repository is public, `main` takes changes only through
-    pull requests (the user, 2026-10-12; the ruleset in `docs/publishing.md`): push the branch, and the user
-    merges its pull request on GitHub (Rebase and merge); then `main` here is brought up to GitHub's.
+    pull requests (the user, 2026-10-12; the ruleset in `docs/publishing.md`): push the branch, and its pull request
+    is merged (Rebase and merge) on the user's word, by them on GitHub or by the PM; then `main` here is brought up
+    to GitHub's.
   - Commit message: a plain sentence saying what changed for the player, then details.
   - End commits with the `Co-Authored-By` line from the system reminder, without a `Claude-Session` link (the user, 2026-10-12: those links would show in the public history).
 - **Web research** results end with a "Sources:" list.
@@ -110,15 +111,16 @@ The README is the front page for strangers; the manual is in READMEs beside what
   `gh issue list` or `/pm:run status`. A session can be compacted or ended at any point without losing anything.
 - **`/pm:run` runs it** (the pm plugin; this project's settings and notes are in `.claude/pm.md`, in the iterate
   phase since 2026-10-13): ready issues go to implementer agents, each in a worktree of its own; each result goes
-  to QA and a reviewer in fresh contexts; a pull request is marked ready only when both pass. The user merges
-  every pull request (their choice, 2026-10-13).
+  to QA and a reviewer in fresh contexts; a pull request is marked ready only when both pass. The user decides every
+  merge (their choice, 2026-10-13): the PM merges only the pull requests they name in chat (2026-11-04).
 - **Something new mid-task**, found by you or raised by the user, is parked as an issue (`/pm:park`) and the task goes
   on, unless the user says to switch now.
 - **Done** means committed, `tools/dev/check.ps1` passed on that commit in a clean checkout, and QA's verdict PASS.
-  The plugin's gate holds `gh pr ready` to that, and refuses pushes to `main`. A merge run from a session
-  (`gh pr merge`) isn't checked against it: the gate only asks the user to confirm it (`merge: user` in
-  `.claude/pm.md`), so the PM runs one only for a pull request already marked ready, when the user asks. The user
-  lifted the outright deny in `.claude/settings.json` on 2026-10-15. The gate needs `gh` on PATH.
+  The plugin's gate holds `gh pr ready` to that, and refuses pushes to `main`. It holds a merge run from a session
+  (`gh pr merge`) to the same, and lets it through without a prompt (`merge: all` in `.claude/pm.md`, since
+  2026-11-04: the user found confirming merges one by one slow). That is no leave to merge: the PM runs one only for a
+  pull request already marked ready that the user named in chat. The user lifted the outright deny in
+  `.claude/settings.json` on 2026-10-15. The gate needs `gh` on PATH.
 - **The user is brought in** for: a choice the player would notice that the specs don't settle, or one that touches
   a rule above; what only they can unblock (their keys, real profile, microphone, money, downloads, GitHub
   settings); something serious (CI red on main, a crash or lost data, three failed rounds); a design to talk
