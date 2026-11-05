@@ -42,7 +42,8 @@ by the player's language or forced by a setting (built 2026-10-30, #141); then F
 LeetCode) or none at all, and programs the player picks counting as play (#173, built 2026-10-28; #174, built 2026-10-29; #175, built 2026-10-30).
 Any character fits beside the cabinet as their card comes (spec
 `docs/specs/2026-10-27-any-character.md`, #166): her instructions set no place, and the cabinet says what its things
-are in plain words (#180).
+are in plain words (#180, built 2026-11-04). Then Preview 2 (`0.1.0-preview.2`, #157), made with
+`tools/export/release.py` from a version tag.
 
 **Next: her mind on the player's ChatGPT plan** (the user, 2026-10-18: "allow user to use chatgpt subscription to
 power the LLM chat"). Spec `docs/specs/2026-10-18-chatgpt-plan.md`: Sign in with ChatGPT, everything she does on
