@@ -93,14 +93,19 @@ change which is not very sustainable?").
 |---|---|
 | CONNECT AN AI | An AI answers |
 | SAY HELLO | A first message, typed or spoken |
-| EARN A CREDIT | Five minutes of focus, or an activity logged (only with CREDITS) |
+| EARN A CREDIT | The first earning from whichever ways to earn are on: five minutes of focus, an activity logged, a solve (only with CREDITS) |
 | ASK FOR A REMINDER | A reminder is set, by them or on the agenda |
 | OPEN MEMORY | The Memory category is opened |
-| HEAR THEIR VOICE | They speak aloud (only on a PC with an NVIDIA card) |
+| HEAR THEIR VOICE | They speak aloud (on a PC without an NVIDIA card it's an extra: it pays if done, and the list is done without it) |
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
-  reward", 2026-11-07), or 75 on a PC without the voice mission, paid as each one clears, once, outside the daily cap.
+  reward", 2026-11-07), or 75 if a PC without an NVIDIA card leaves the voice one undone, paid as each one clears, once, outside the daily cap.
   There's none with FREE PLAY.
+- **Switching the mode** (the user, 2026-11-08: "if user choose to switch to the other mode, we want to bring the mission
+  backup. and be careful about user switch the credit mode off"). FREE PLAY has no EARN A CREDIT, and switching to CREDITS
+  brings it back if it isn't done. Missions cleared under FREE PLAY are paid then, once. Switching to FREE PLAY takes nothing
+  away: what was paid stays in the balance, out of sight as the rest of it is, and it's there again with CREDITS. However
+  often the mode is switched, a mission pays once. Unticking every way to earn counts as FREE PLAY, as it does today.
 - **They can be hidden** from their list, and General brings them back. Hidden or done, they leave the screen's pages, and
   the companion stops mentioning them.
 - **Where they show:** as one of the screen's rotating pages, starting with it, like the time left ("It would be just
@@ -148,9 +153,13 @@ of servers, tokens and file formats.
 
 ### The voice
 
-- **In every case:** the NVIDIA card check comes first, and without a card the page says so instead of offering the install;
-  one download size everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the status says ready only when it is;
+- **In every case:** the NVIDIA card check comes first; one download size everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the status says ready only when it is;
   Talking to them has a "Try it" that listens for five seconds and shows the words heard.
+- **Without an NVIDIA card** the page says so, says what to expect and still offers the install ("i guess we want to bring it
+  up to user to let them see if they like the performance instead of hiding it", 2026-11-08). As measured on a fast laptop
+  processor, that's about 3 seconds before each sentence starts, and slower than speech once it has
+  (`docs/research/2026-11-08-voice-without-nvidia.md`), so sentences are made whole before they play. Once it's installed, the step
+  that lets them hear the companion shows this PC's own speed. Training needs a card, and says so.
 - **Their voice is three steps:** get the engine, hear them, change their voice.
 - **Changing it is guided.** The app shows about ten sentences to read and records each one (3 to 10 seconds). Its ears
   check the words, length and loudness as it goes. The player fixes a word, hears the clone, and trains later if they like.
@@ -167,7 +176,7 @@ stand out model providers like open ai DeepSeek Claude or any other we choose to
 |---|---|
 | Anthropic | As now |
 | OpenAI with a key | The web_search tool of its Responses API (the app talks to OpenAI through that API) |
-| The ChatGPT plan | The same tool, if the plan allows it (checked first) |
+| The ChatGPT plan | The same tool |
 | DeepSeek | Its Search API |
 | OpenRouter | Its web search tool |
 | Qwen | Its enable_search switch |
@@ -221,6 +230,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 - **Motion is judged in the real app first** (the user, 2026-11-08): "if the animation is not properly built, it will give a
   very strange feeling of Uncanny Valley Effect. i will avoid this in any sense".
 - **Web search is in Preview 3** (the user, 2026-11-07): "I will say in preview 3, as part of UX improvement".
+- **The ChatGPT plan searches with OpenAI's own web search** (the user, 2026-11-08): "yes ChatGPT plan should allow OpenAI's
+  web search".
 - **The finish line** (the user, 2026-11-07, "A, agent dry run then a friend"): an agent with no knowledge of the app walks
   the tasks on hidden runs and says where it got lost; then a friend who has never seen the app, on a call, thinking aloud,
   while the user watches without helping (about 30 minutes). A second friend stays ready for a retest, as someone can only
@@ -231,6 +242,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 
 ## Not built, and why
 
+- **A smaller voice engine for PCs without a card, and for a Mac later** (#278): Preview 3 keeps the one engine, and the
+  research note says what's worth trying.
 - **GPT-SoVITS v5:** it changes how they sound, not how the voice is set up, so it stays out of this milestone.
 - **Room art, walking on the floor, a motion-capture clip:** the arrival passes without them, and a walk would need foot
   contact faked.
@@ -238,7 +251,10 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 
 ## Open
 
-- Whether the ChatGPT plan allows the web_search tool: checked first, when it's built.
+- **To settle with the builds in hand** (the user, 2026-11-08: "for the last two points i would need to see the final
+  builds. so note them down so we remember to resolve later"): whether missions can be hidden, and what SELECT PLAYER 2 says
+  about each character (the first sentence of their card, or short lines as in the mockup). Both are built as this spec
+  says until then (#277).
 - Sign in with ChatGPT needs OpenAI's approval before a Steam build (`2026-10-18-chatgpt-plan.md`): a Steam build hides it,
   and the card leads with an API key or a model on this PC.
 
@@ -255,4 +271,5 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 7. **Missions** (#272), then **showing them** (#273).
 8. **The finish line:** the agent dry run (#274), then a friend (#275).
 
-Also in the milestone: the LeetCode tool's words (#208) and the screen's flash read from a seat (#243).
+Also in the milestone: the LeetCode tool's words (#208), the screen's flash read from a seat (#243), and what to settle with
+the builds in hand (#277).
