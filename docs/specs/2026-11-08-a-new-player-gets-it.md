@@ -59,7 +59,8 @@ unchanged.
   switch the choice fast"). The name changes at once, and a peek waits for about 0.3 s of rest. One character is out at a
   time, the last one ducking back first. Models are loaded ahead, with a silhouette until then. It's judged on clips by
   mashing ◄ ►. Each character's card comes from a portrait rendered from their own model, so an added character has one too.
-  Under the name is the first sentence of their card, as the Welcome showed it, in at most four of the screen's lines.
+  Under the name is the first sentence of their card, as the Welcome showed it, in at most four of the screen's lines, cut
+  at a word if it's longer.
 - **SELECT MODE asks one thing and names no way of earning**, so a new source of credits doesn't change the first run. The
   ways to earn are a list in Settings → Play time. The words stay brief and natural:
   - CREDITS: "GET THINGS DONE, EARN CREDITS." and "SPEND THEM ON FUN.";
@@ -100,7 +101,8 @@ change which is not very sustainable?").
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
   reward", 2026-11-07), or 75 on a PC without the voice mission, paid as each one clears, once, outside the daily cap.
   There's none with FREE PLAY.
-- **They can be hidden** from their list, and General brings them back.
+- **They can be hidden** from their list, and General brings them back. Hidden or done, they leave the screen's pages, and
+  the companion stops mentioning them.
 - **Where they show:** as one of the screen's rotating pages, starting with it, like the time left ("It would be just
   something like the remaining play time that rotate regularly on the CRT screen"); as the full list at the top of Settings
   until they're done, where it takes Getting started's place; and from the companion, who mentions the next one once,
