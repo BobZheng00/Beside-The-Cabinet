@@ -37,7 +37,8 @@ dust in it, dust on the cabinet that the first light washes off, a flickering ma
 3. The screen strikes on from a bright line, the dust lifts, the marquee sputters into life.
 4. The view leans in until the screen faces the player, and the setup runs on it, close up.
 5. The view steps back, the companion arrives (below), and at the landing every light comes on. The dark gives way to
-   the desktop as the cabinet settles at its normal size and place, and the companion says hello.
+   the desktop as the cabinet settles at its normal size and place, and the companion says hello: in their own words
+   with an AI connected, else with a line on how to connect one.
 
 Skip keeps the answers given so far and takes the defaults for the rest: Shino, focus and activities, the AI later.
 General in Settings can replay the intro. A profile set up before Preview 3 skips it and the missions, with its play time
@@ -47,7 +48,7 @@ unchanged.
 
 | Screen | Asks |
 |---|---|
-| PLAYER 1, ENTER YOUR NAME | Their name, typed in full (what the companion calls them; the first letters are the cabinet's initials) |
+| PLAYER 1 / ENTER YOUR NAME | Their name, typed in full (what the companion calls them; the first letters are the cabinet's initials) |
 | SELECT PLAYER 2 | Who keeps them company, with ◄ ► |
 | SELECT MODE | CREDITS or FREE PLAY |
 | ONE LAST THING: CONNECT AN AI | The AI, on a card in front of the screen, or LATER |
@@ -58,17 +59,19 @@ unchanged.
   switch the choice fast"). The name changes at once, and a peek waits for about 0.3 s of rest. One character is out at a
   time, the last one ducking back first. Models are loaded ahead, with a silhouette until then. It's judged on clips by
   mashing ◄ ►. Each character's card comes from a portrait rendered from their own model, so an added character has one too.
+  Under the name is the first sentence of their card, as the Welcome showed it, in at most four of the screen's lines.
 - **SELECT MODE asks one thing and names no way of earning**, so a new source of credits doesn't change the first run. The
   ways to earn are a list in Settings → Play time. The words stay brief and natural:
   - CREDITS: "GET THINGS DONE, EARN CREDITS." and "SPEND THEM ON FUN.";
   - FREE PLAY: "NO CREDITS. PLAY AS YOU LIKE."
 
   That nothing ever closes is said only in Settings → Play time.
-- **Connect an AI** is a card in front of the screen: "Sign in with ChatGPT" first (#92), then an API key or a model on
+- **Connect an AI** is a card in front of the screen: "Sign in with ChatGPT" first ("For a Plus or Pro plan: no key, nothing extra to pay.", #92), then an API key or a model on
   this PC with #256's default models and #257's message and "Save and finish" once the fields are filled, and LATER
   always there.
-- **Text on the screen:** at most 6 lines of about 30 characters, shown large. The smallest letter height is checked at
-  1366×768 and at 4K with 150% scaling. Anything longer goes on a card or in Settings.
+- **Text on the screen:** at most 6 lines of about 30 characters, shown large, with the smallest letters at least 18 pixels
+  high at 1366×768, measured on a recorded frame. 4K with 150% scaling is a manual check on a real screen. Anything
+  longer goes on a card or in Settings.
 - **Sounds** are made by the app's own sound tools, and silent with Mute.
 
 ### Their arrival
@@ -76,7 +79,8 @@ unchanged.
 In the user's words: "the character are first behind the cabinet, having their head out looking for the user. And wave
 their hand and jump out and take the stool" (2026-11-07). They peek out from the cabinet's left edge, look for the player,
 find them, wave, crouch, leap, and land seated with both feet on the ring. It plays after the setup, and when the player
-switches character. The feet stay behind the cabinet until the jump, so no walk has to be faked.
+switches character. The feet stay behind the cabinet until the jump, so no walk has to be faked. A character the arrival
+can't pose (an added model with bones missing or very odd proportions) appears on the stool under the light-up's flash.
 
 ### Missions
 
@@ -88,13 +92,15 @@ change which is not very sustainable?").
 |---|---|
 | CONNECT AN AI | An AI answers |
 | SAY HELLO | A first message, typed or spoken |
-| EARN A CREDIT | Five minutes of focus, or an activity logged |
+| EARN A CREDIT | Five minutes of focus, or an activity logged (only with CREDITS) |
 | ASK FOR A REMINDER | A reminder is set, by them or on the agenda |
 | OPEN MEMORY | The Memory category is opened |
 | HEAR THEIR VOICE | They speak aloud (only on a PC with an NVIDIA card) |
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
-  reward", 2026-11-07), paid as each one clears, once, outside the daily cap. There's none with FREE PLAY.
+  reward", 2026-11-07), or 75 on a PC without the voice mission, paid as each one clears, once, outside the daily cap.
+  There's none with FREE PLAY.
+- **They can be hidden** from their list, and General brings them back.
 - **Where they show:** as one of the screen's rotating pages, starting with it, like the time left ("It would be just
   something like the remaining play time that rotate regularly on the CRT screen"); as the full list at the top of Settings
   until they're done, where it takes Getting started's place; and from the companion, who mentions the next one once,
@@ -231,7 +237,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 ## Open
 
 - Whether the ChatGPT plan allows the web_search tool: checked first, when it's built.
-- Sign in with ChatGPT being open to players (`2026-10-18-chatgpt-plan.md`): until it is, the card leads with what works.
+- Sign in with ChatGPT needs OpenAI's approval before a Steam build (`2026-10-18-chatgpt-plan.md`): a Steam build hides it,
+  and the card leads with an API key or a model on this PC.
 
 ## Order
 
