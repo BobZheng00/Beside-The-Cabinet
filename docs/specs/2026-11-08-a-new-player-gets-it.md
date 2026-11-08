@@ -236,12 +236,14 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 ## Order
 
 1. **The two bugs** (#256, #257).
-2. **Ticks and contrast**, on every window.
-3. **Settings in nine categories**, then **Memory inside it** (#70), then **cards and portraits**, then **one line per
-   control, connections as cards and the audit's smaller fixes**.
-4. **The voice:** the steps and checks, then the guided recorder.
-5. **Web search:** OpenAI's Responses API and the ChatGPT plan, then the other providers.
-6. **The arrival**, then **the intro**, then **the setup on the screen** with Connect an AI (#92), then **SELECT PLAYER 2's
-   peeks**.
-7. **Missions.**
-8. **The finish line:** the agent dry run, then a friend.
+2. **Ticks and contrast**, on every window (#259).
+3. **Settings in nine categories** (#260), then **Memory inside it** (#70), **cards and portraits** (#261), **one line per
+   control** (#262), and **connections as cards with the audit's smaller fixes** (#263).
+4. **The voice:** the steps and checks (#264), then the guided recorder (#265).
+5. **Web search:** OpenAI's Responses API and the ChatGPT plan (#266), then the other providers (#267).
+6. **The arrival** (#268), then **the intro** (#269), then **the setup on the screen** (#270) with **Connect an AI** (#92),
+   then **SELECT PLAYER 2's peeks** (#271).
+7. **Missions** (#272), then **showing them** (#273).
+8. **The finish line:** the agent dry run (#274), then a friend (#275).
+
+Also in the milestone: the LeetCode tool's words (#208) and the screen's flash read from a seat (#243).
