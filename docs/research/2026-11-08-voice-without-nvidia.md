@@ -4,8 +4,9 @@
 tts model work fine on modern apple sillicon or x86 cpu or iGPU? i guess we want to bring it up to user to let them see if
 they like the performance instead of hiding it".*
 
-**In short.** GPT-SoVITS, the engine the app uses, runs without a card but can't keep up with speech on a processor: about
-3 seconds before a sentence starts, then slower than speaking. A small model without voice cloning (Kokoro) keeps up on 4
+**In short.** GPT-SoVITS, the engine the app uses, runs without a card only with its lighter model, v2ProPlus, and even that
+can't keep up with speech on a processor: a sentence of about 3 seconds takes 6 to 8 seconds to make. Its default for a
+voice with no trained model, v4, is far too slow there, at 24 to 31 seconds for even a short line. A small model without voice cloning (Kokoro) keeps up on 4
 cores or more. Apple Silicon looks better than an x86 processor for all of them. Nothing usable was found for integrated
 graphics.
 
@@ -19,6 +20,8 @@ Work per second of speech: under 1 keeps up with speech, over 1 falls behind it.
 
 | Engine | Fast cores | Work per second of speech | First sound |
 |---|---|---|---|
+| GPT-SoVITS v4, 16 steps (the app's default for a voice with no trained model) | 8 | 18.4 s | 24 s for a short line, 51 s for 3 s of speech |
+| GPT-SoVITS v4, 16 steps | 4 | 23.3 s | 31 s for a short line, 69 s for 3 s of speech |
 | GPT-SoVITS v2ProPlus | 8 | 1.59 s | 2.6 s |
 | GPT-SoVITS v2ProPlus | 4 | 1.76 s | 2.9 s |
 | GPT-SoVITS v2ProPlus | 2 | 2.28 s | 3.6 s |
@@ -47,8 +50,8 @@ seconds.
 
 ## What follows
 
-- **Preview 3 keeps the one engine.** Without a card the page says what to expect and still offers it, and the player sees
-  this PC's own speed once it's installed.
+- **Preview 3 keeps the one engine, with v2ProPlus by default on a PC without a card.** The page says what to expect and
+  still offers it, and the player sees this PC's own speed once it's installed.
 - **A smaller engine is worth a trial later**, for PCs without a card and for a Mac build: Pocket TTS first, as it clones
   from a sample. It would need a download, and voices in Chinese and Japanese checked.
 

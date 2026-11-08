@@ -100,7 +100,7 @@ change which is not very sustainable?").
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
   reward", 2026-11-07), or 75 if a PC without an NVIDIA card leaves the voice one undone, paid as each one clears, once, outside the daily cap.
-  There's none with FREE PLAY.
+  There's none with FREE PLAY. It's paid as any earning is, so a debt comes off first.
 - **Switching the mode** (the user, 2026-11-08: "if user choose to switch to the other mode, we want to bring the mission
   backup. and be careful about user switch the credit mode off"). FREE PLAY has no EARN A CREDIT, and switching to CREDITS
   brings it back if it isn't done. Missions cleared under FREE PLAY are paid then, once. Switching to FREE PLAY takes nothing
@@ -156,10 +156,11 @@ of servers, tokens and file formats.
 - **In every case:** the NVIDIA card check comes first; one download size everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the status says ready only when it is;
   Talking to them has a "Try it" that listens for five seconds and shows the words heard.
 - **Without an NVIDIA card** the page says so, says what to expect and still offers the install ("i guess we want to bring it
-  up to user to let them see if they like the performance instead of hiding it", 2026-11-08). As measured on a fast laptop
-  processor, that's about 3 seconds before each sentence starts, and slower than speech once it has
-  (`docs/research/2026-11-08-voice-without-nvidia.md`), so sentences are made whole before they play. Once it's installed, the step
-  that lets them hear the companion shows this PC's own speed. Training needs a card, and says so.
+  up to user to let them see if they like the performance instead of hiding it", 2026-11-08). They speak with v2ProPlus by
+  default there, as v4 takes 24 to 31 seconds for even a short line on a fast laptop processor. Even v2ProPlus falls behind
+  speech (`docs/research/2026-11-08-voice-without-nvidia.md`), so sentences are made whole before they play: what to expect is
+  6 to 8 seconds for a sentence of about 3 seconds. Once it's installed, the step that lets them hear the companion shows
+  this PC's own speed. Training needs a card, and says so.
 - **Their voice is three steps:** get the engine, hear them, change their voice.
 - **Changing it is guided.** The app shows about ten sentences to read and records each one (3 to 10 seconds). Its ears
   check the words, length and loudness as it goes. The player fixes a word, hears the clone, and trains later if they like.
