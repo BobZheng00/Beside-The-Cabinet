@@ -4,6 +4,8 @@
 offers is from its developer docs as read that day (Sources): the builder reads them again before building, since the
 feature is a preview.*
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: "first in Getting started" becomes first on the Connect an AI card (#92).*
+
 ## Why
 
 The user, 2026-10-18: "allow user to use chatgpt subscription to power the LLM chat". Today her mind needs an API key

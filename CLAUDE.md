@@ -43,6 +43,9 @@ The README is the front page for strangers; the manual is in READMEs beside what
     activities, LeetCode) or none; with none, the companion without a balance; programs the player picks count as play.
   - `2026-10-27-any-character.md`: any character fits beside the cabinet as their card comes: her instructions set
     no place, and the cabinet says what its own things are in plain words.
+  - `2026-11-08-a-new-player-gets-it.md`: Preview 3: the first run on the cabinet (from a dark room, the companion as Player 2), missions,
+    Settings in nine plain categories with Memory inside, the voice in steps with a recorder, each provider's own web
+    search.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database); `2026-10-27-natural-reactions.md` is what makes her replies read like a friend's rather than a counsellor's (the research, and the habits the manner check could count).
