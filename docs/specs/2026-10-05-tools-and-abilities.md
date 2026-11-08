@@ -2,6 +2,8 @@
 
 What she can do beyond talking, and how it is put together. Brainstormed with the user on 2026-10-05; background in `docs/research/2026-10-05-companion-agent.md` §6. **Draft:** the sections marked *proposed* wait for the user's word.
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: web search is each provider's own wherever the provider has one ("3. Web search" below), Add-ons goes, and the memory book's tabs move into Settings.*
+
 ## How tools are organised (decided)
 
 Modular, framed like Claude Code's tools, connectors and plugins:

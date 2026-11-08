@@ -9,6 +9,8 @@ manner check's copying, language and agenda counts. **Built** (#141): her Chines
 and the manner check's Chinese moments on her Chinese card, its copying count narrowed to A1's and A3's short lines.
 The order is at the end.*
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: the Welcome goes, and the first sentence of a card shows on SELECT PLAYER 2 instead.*
+
 ## Why
 
 The user, 2026-10-24: "We can consider to have a plan to enhance the character card. The default ones. I see there
