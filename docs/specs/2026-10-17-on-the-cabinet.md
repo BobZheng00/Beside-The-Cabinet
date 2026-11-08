@@ -3,6 +3,9 @@
 *Decided with the user, 2026-10-17 (`/pm:brainstorm #64`). Step 1, the right-click menu, is built (#68); step 2, the
 CRT, is built (2026-10-18, #69); the order is at the end.*
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: the memory book moves into Settings as one page (#70), and SETTINGS on
+the screen becomes a cog on its home bar.*
+
 ## Why
 
 The user, 2026-10-17, using the app daily: "it is now become a bit annoying to open settings and membook from the

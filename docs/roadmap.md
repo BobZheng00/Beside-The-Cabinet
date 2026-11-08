@@ -30,6 +30,14 @@ says where things stand today); this page keeps the story. Update it at each mil
 - ~~the agent spike's recording~~ done 2026-10-06 (agent note "The spike's recording"): on their earphones no echo, interrupting by voice feasible; Smart Turn's threshold raised to 0.95. Open: whether they ever use speakers; Chinese and Japanese unrecorded;
 - real-use checks: reminders, check-ins, phones, calls, calendars, cache, her body, follow-up listening, conversations.
 
+**Next: a new player gets it** (Preview 3; the user, 2026-11-04: "i wish to focus on specific topics instead of generally
+going anywhere and do not know when to stop and when we can finish the sprint"). One milestone and one finish line a
+preview: this one is the first run, Settings and setup, and Preview 4 is the memory review. Spec
+`docs/specs/2026-11-08-a-new-player-gets-it.md`, from the audit and the design session on #255: the first run on the
+cabinet from a dark room, the companion as Player 2, missions, Settings in nine plain categories with Memory inside, the
+voice in steps with a recorder, and each provider's own web search. The finish line is someone who has never seen the
+app getting it on their own. The issues are in the milestone "Preview 3: a new player gets it".
+
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
 to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that

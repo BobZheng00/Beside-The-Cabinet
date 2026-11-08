@@ -2,6 +2,9 @@
 
 *Decided with the user, 2026-10-10. Steps 1 to 3 built the same day, step 4 (Getting started) on 2026-10-12.*
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: the page list becomes nine categories with tabs, and the Welcome and
+Getting started become the first run on the cabinet and missions.*
+
 ## Why
 
 The user, looking at the reminder window: "i start to feel that our config is too long and hard to navigate and there

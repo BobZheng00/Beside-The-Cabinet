@@ -3,6 +3,9 @@
 *Decided with the user, 2026-10-27 (#165). Step 1 built 2026-10-28 (#173), step 2 2026-10-29 (#174), step 3 2026-10-30 (#175); the order is at the end. Before Preview 2
 (#157), at the user's word.*
 
+*Preview 3 (`2026-11-08-a-new-player-gets-it.md`) changes this: the first run asks only CREDITS or FREE PLAY and names no way of earning; the ways
+to earn are chosen in Settings → Play time.*
+
 ## Why
 
 The user, 2026-10-26: "currently the character will by default react to the leetcode completion. we would like to have
