@@ -96,10 +96,10 @@ change which is not very sustainable?").
 | EARN A CREDIT | The first earning from whichever ways to earn are on: five minutes of focus, an activity logged, a solve (only with CREDITS) |
 | ASK FOR A REMINDER | A reminder is set, by them or on the agenda |
 | OPEN MEMORY | The Memory category is opened |
-| HEAR THEIR VOICE | They answer the player aloud (where that needs Qwen TTS's download it's an extra: it pays if done, and the list is done without it) |
+| HEAR THEIR VOICE | They answer the player aloud (in Chinese and Japanese, where it takes a download, it's an extra: it pays if done, and the list is done without it) |
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
-  reward", 2026-11-07), or 75 if the voice one is left undone because it needs that download, paid as each one clears, once,
+  reward", 2026-11-07), or 75 if the voice one is left undone in Chinese or Japanese, paid as each one clears, once,
   outside the daily cap.
   There's none with FREE PLAY. It's paid as any earning is, so a debt comes off first.
 - **Switching the mode** (the user, 2026-11-08: "if user choose to switch to the other mode, we want to bring the mission
@@ -161,15 +161,16 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
 | Language | Engine | Shino | Fumiriya | How it gets there |
 |---|---|---|---|---|
 | English | Pocket TTS | Eve | George | It comes with the app (about 200 MB) |
-| Chinese | Qwen TTS | Serena | Aiden | A download of 1.26 GB the first time it's needed, once the player agrees |
+| Chinese | Qwen TTS | Serena | Aiden | A download of 1.26 GB, asked for on Their voice |
 | Japanese | Qwen TTS | Ono Anna | Aiden | The same download |
 
 - **One engine for each language,** so a player only fetches what they'll hear. Eve and George are real speakers (VCTK, CC
   BY 4.0), and the app credits them.
 - **A voice speaks one language,** as now, and that language picks the engine and the voice. It's set once, from the Language
   setting, or on Auto from the PC's display language (Chinese, Japanese, otherwise English), and stays until the player
-  changes it on Their voice. Writing in another language doesn't change it: they speak their voice's language over the
-  subtitle, as they do now.
+  changes it on Their voice. A character who already has a voice starts on that voice's language, so an old English voice
+  gives way to Eve or George wherever the PC is. Writing in another language doesn't change it: they speak their voice's
+  language over the subtitle, as they do now.
 - **The download is asked for on Their voice,** never in the middle of a conversation, and the mission points there. Until it's
   done, a player in Chinese or Japanese has them in text.
 - **While a game runs the voice rests,** as it does now, and Qwen TTS's server stops, so the game gets its memory and
