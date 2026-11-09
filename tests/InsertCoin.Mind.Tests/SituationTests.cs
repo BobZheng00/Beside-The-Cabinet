@@ -291,6 +291,7 @@ public class SituationTests
     [InlineData("OpenAI", "gpt-6-luna")]
     [InlineData("OpenRouter", "openai/gpt-6-luna")]
     [InlineData("Anthropic", "claude-haiku-5-5")]
+    [InlineData("DeepSeek", "deepseek-flash")]
     public void A_new_player_finds_the_model_filled_in(string preset, string model) =>
         Assert.Equal(model, Provider.Presets.Single(p => p.Name == preset).ModelHint);
 

@@ -27,6 +27,20 @@ public class ProviderRequestTests
         Assert.Equal(effort, request.TryGetProperty("reasoning_effort", out var sent) ? sent.GetString() : null);
     }
 
+    [Theory]
+    [InlineData("deepseek-flash", true, true)]
+    [InlineData("deepseek-flash", false, true)]
+    [InlineData("deepseek-chat", true, false)]
+    [InlineData("qwen-plus", true, false)]
+    [InlineData("gpt-6-luna", true, false)]
+    public async Task Only_DeepSeeks_small_model_is_told_not_to_think(string model, bool tools, bool told)
+    {
+        var request = await Sent(model, tools);
+
+        Assert.Equal(tools, request.TryGetProperty("tools", out _));
+        Assert.Equal(told ? "disabled" : null, request.TryGetProperty("thinking", out var thinking) ? thinking.GetProperty("type").GetString() : null);
+    }
+
     /// <summary>The body of the one request a provider at a stand-in sends for one reply.</summary>
     private static async Task<JsonElement> Sent(string model, bool tools)
     {
