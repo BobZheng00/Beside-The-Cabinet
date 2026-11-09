@@ -804,7 +804,7 @@ public sealed class Chat : IDisposable
             {
                 view.Play(Moment.Worry);
                 if (e is not PlanStopped stopped || !(stopped.Told || PlanTold))   // her card is saying it, once
-                    view.Continue(Trouble.Explain(e));
+                    view.Continue(Trouble.Explain(e, OnBackup ? _backup : _provider));
             }
         }
         finally
