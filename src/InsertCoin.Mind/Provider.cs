@@ -22,10 +22,10 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     /// <summary>Starting points for the settings form. "Other" takes any OpenAI-compatible server.</summary>
     public static readonly Preset[] Presets =
     [
-        new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "", NeedsKey: true, "https://platform.openai.com/api-keys"),
+        new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "gpt-6-luna", NeedsKey: true, "https://platform.openai.com/api-keys"),
         new("ChatGPT plan", Protocol.ChatGpt, ChatGptPlan.Api, "", NeedsKey: false),
-        new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-4-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
-        new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "", NeedsKey: true, "https://openrouter.ai/settings/keys"),
+        new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-5-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
+        new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "openai/gpt-6-luna", NeedsKey: true, "https://openrouter.ai/settings/keys"),
         new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-chat", NeedsKey: true, "https://platform.deepseek.com/api_keys"),
         new("Qwen (DashScope)", Protocol.OpenAi, "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", NeedsKey: true, "https://bailian.console.aliyun.com/"),
         new("Ollama (this PC)", Protocol.OpenAi, "http://localhost:11434/v1", "", NeedsKey: false, "https://ollama.com/download"),
@@ -41,13 +41,35 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
             ? null
             : new Provider(Enum.TryParse<Protocol>(protocol, ignoreCase: true, out var p) ? p : Protocol.OpenAi, baseUrl.Trim(), model.Trim());
 
+    /// <summary>What to tell the player when <see cref="From"/> gave nothing: the field that's missing.</summary>
+    public static string Missing(string? baseUrl, string? model) =>
+        (Uri.TryCreate(baseUrl?.Trim(), UriKind.Absolute, out _), string.IsNullOrWhiteSpace(model)) switch
+        {
+            (true, true) => "Fill in the model first.",
+            (false, false) => "Fill in the server first.",
+            _ => "Fill in the server and the model first.",
+        };
+
     // One retry: someone is looking at thinking dots, so a broken setup should say so in seconds, not after a minute of backoff.
     public IChatClient Connect(string? key, ChatGptPlan? plan = null) => Protocol switch
     {
         Protocol.ChatGpt => (plan ?? throw new InvalidOperationException("The ChatGPT plan needs its sign-in.")).Client(Model),
         Protocol.Anthropic => new AnthropicClient { ApiKey = key, BaseUrl = BaseUrl.TrimEnd('/'), Timeout = Timeout, MaxRetries = 1 }.AsIChatClient(Model),
-        _ => OpenAi(key).GetChatClient(Model).AsIChatClient(),
+        _ => ToolsWithoutReasoning(OpenAi(key).GetChatClient(Model).AsIChatClient()),
     };
+
+    /// <summary>
+    /// On the chat API, OpenAI's newest small model calls tools only with reasoning off (OpenAI's page for it), so a
+    /// request offering tools says so, through any server. Every other model's requests stay as they were. For OpenAI
+    /// itself this goes when her replies move to the Responses API (#266).
+    /// </summary>
+    private IChatClient ToolsWithoutReasoning(IChatClient client) =>
+        Model.Split('/')[^1] != "gpt-6-luna" ? client
+        : client.AsBuilder().ConfigureOptions(options =>
+        {
+            if (options.Tools is { Count: > 0 })
+                options.Reasoning = new ReasoningOptions { Effort = ReasoningEffort.None };
+        }).Build();
 
     // local servers want no key, but the client insists on one
     private OpenAIClient OpenAi(string? key) =>
@@ -134,4 +156,11 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
 }
 
 /// <param name="Site">Where to get what it needs: the provider's page of API keys, or a server's download page; empty for none.</param>
-public sealed record Preset(string Name, Protocol Protocol, string BaseUrl, string ModelHint, bool NeedsKey, string Site = "");
+public sealed record Preset(string Name, Protocol Protocol, string BaseUrl, string ModelHint, bool NeedsKey, string Site = "")
+{
+    /// <summary>What the Model box says while it is empty: a server on this PC only has the models downloaded into it.</summary>
+    public string ModelPlaceholder =>
+        ModelHint.Length > 0 ? ModelHint
+        : new Provider(Protocol, BaseUrl, ModelHint).IsLocal ? $"the name of a model already downloaded into {Name.Split(" (")[0]}"
+        : "the model's name at this provider";
+}
