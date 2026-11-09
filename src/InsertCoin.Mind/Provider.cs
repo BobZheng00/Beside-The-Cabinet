@@ -26,7 +26,7 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
         new("ChatGPT plan", Protocol.ChatGpt, ChatGptPlan.Api, "", NeedsKey: false),
         new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-5-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
         new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "openai/gpt-6-luna", NeedsKey: true, "https://openrouter.ai/settings/keys"),
-        new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-chat", NeedsKey: true, "https://platform.deepseek.com/api_keys"),
+        new("DeepSeek", Protocol.OpenAi, "https://api.deepseek.com/v1", "deepseek-flash", NeedsKey: true, "https://platform.deepseek.com/api_keys"),
         new("Qwen (DashScope)", Protocol.OpenAi, "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen-plus", NeedsKey: true, "https://bailian.console.aliyun.com/"),
         new("Ollama (this PC)", Protocol.OpenAi, "http://localhost:11434/v1", "", NeedsKey: false, "https://ollama.com/download"),
         new("LM Studio (this PC)", Protocol.OpenAi, "http://localhost:1234/v1", "", NeedsKey: false, "https://lmstudio.ai/"),
@@ -55,8 +55,23 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     {
         Protocol.ChatGpt => (plan ?? throw new InvalidOperationException("The ChatGPT plan needs its sign-in.")).Client(Model),
         Protocol.Anthropic => new AnthropicClient { ApiKey = key, BaseUrl = BaseUrl.TrimEnd('/'), Timeout = Timeout, MaxRetries = 1 }.AsIChatClient(Model),
-        _ => ToolsWithoutReasoning(OpenAi(key).GetChatClient(Model).AsIChatClient()),
+        _ => WithoutThinking(ToolsWithoutReasoning(OpenAi(key).GetChatClient(Model).AsIChatClient())),
     };
+
+    /// <summary>
+    /// DeepSeek's small model thinks unless told not to, and then wants its thinking sent back with every later request
+    /// offering tools (a 400 otherwise, its docs say), which this client can't do. Every other model's requests stay as they were.
+    /// </summary>
+    private IChatClient WithoutThinking(IChatClient client) =>
+        Model != "deepseek-flash" ? client
+        : client.AsBuilder().ConfigureOptions(options => options.RawRepresentationFactory = _ =>
+        {
+            var request = new OpenAI.Chat.ChatCompletionOptions();
+#pragma warning disable SCME0001                            // the patch for a field the client doesn't know is marked experimental
+            request.Patch.Set("$.thinking"u8, BinaryData.FromString("""{"type":"disabled"}"""));
+#pragma warning restore SCME0001
+            return request;
+        }).Build();
 
     /// <summary>
     /// On the chat API, OpenAI's newest small model calls tools only with reasoning off (OpenAI's page for it), so a
