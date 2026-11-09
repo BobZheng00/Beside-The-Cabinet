@@ -188,7 +188,7 @@ public partial class MindSettings : VBoxContainer
             _url.Text = preset.BaseUrl;
             _model.Text = preset.ModelHint;
         }
-        _model.PlaceholderText = preset.ModelHint.Length > 0 ? preset.ModelHint : "the model's name at this provider";
+        _model.PlaceholderText = preset.ModelPlaceholder;
         _key.PlaceholderText = _chat.Keys.Has ? "saved (leave empty to keep it)" : preset.NeedsKey ? "paste your key" : "not needed";
         var named = preset.Name.Split(" (")[0];
         _site.Text = preset.NeedsKey ? $"Get a key from {named}…" : $"Get {named}…";
@@ -206,16 +206,16 @@ public partial class MindSettings : VBoxContainer
 
     private Provider? Chosen() => Provider.From(_protocol.ToString(), _url.Text, _model.Text);
 
-    private Task Test() => Test(Chosen(), Typed(_key) ?? _chat.Keys.Load(), _result, _unsaved ? " Save to use it." : "", search: true);
+    private Task Test() => Test(Chosen(), Provider.Missing(_url.Text, _model.Text), Typed(_key) ?? _chat.Keys.Load(), _result, _unsaved ? " Save to use it." : "", search: true);
 
     private static string? Typed(LineEdit field) => field.Text.Trim() is { Length: > 0 } typed ? typed : null;
 
     /// <summary>Asks <paramref name="provider"/> for a hello, and with <paramref name="search"/> whether it searches the web itself.</summary>
-    private async Task Test(Provider? provider, string? key, Label result, string unsaved, bool search)
+    private async Task Test(Provider? provider, string missing, string? key, Label result, string unsaved, bool search)
     {
         if (provider is null)
         {
-            Form.Say(result, "Fill in the server and the model first.", Paper.Bad);
+            Form.Say(result, missing, Paper.Bad);
             return;
         }
         Form.Say(result, "Asking…", Paper.Faint);
@@ -292,7 +292,7 @@ public partial class MindSettings : VBoxContainer
         _backupKey = Form.Field(grid, "API key", null, "", secret: true);
         _backupModel = Form.Field(grid, "Model", null, "");
         var buttons = Form.Buttons(_backup);
-        Form.Button(buttons, "Test", () => _ = Test(BackupChosen(), Typed(_backupKey) ?? _chat.BackupKeys.Load(), _backupSaid, "", search: false));
+        Form.Button(buttons, "Test", () => _ = Test(BackupChosen(), Provider.Missing(_backupUrl.Text, _backupModel.Text), Typed(_backupKey) ?? _chat.BackupKeys.Load(), _backupSaid, "", search: false));
         Form.Button(buttons, "Save backup", SaveBackup);
         _backupSaid = Form.Result(buttons);
         var found = backup is null ? -1 : Array.FindIndex(Backups, b => b.Protocol == backup.Protocol && b.BaseUrl == backup.BaseUrl);
@@ -314,7 +314,7 @@ public partial class MindSettings : VBoxContainer
             _backupUrl.Text = preset.BaseUrl;
             _backupModel.Text = preset.ModelHint;
         }
-        _backupModel.PlaceholderText = preset?.ModelHint is { Length: > 0 } hint ? hint : "the model's name at this provider";
+        _backupModel.PlaceholderText = preset?.ModelPlaceholder ?? "";
         _backupKey.PlaceholderText = _chat.BackupKeys.Has ? "saved (leave empty to keep it)" : preset?.NeedsKey == true ? "paste your key" : "not needed";
         foreach (var field in new Control[] { _backupUrl, _backupKey, _backupModel })
             field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = preset is not null;
@@ -328,7 +328,7 @@ public partial class MindSettings : VBoxContainer
         var backup = BackupChosen();
         if (backup is null && _backupPreset.Selected > 0)
         {
-            Form.Say(_backupSaid, "Fill in the server and the model first.", Paper.Bad);
+            Form.Say(_backupSaid, Provider.Missing(_backupUrl.Text, _backupModel.Text), Paper.Bad);
             return;
         }
         _chat.BackupKeys.Save(backup is null ? null : Typed(_backupKey) ?? _chat.BackupKeys.Load());    // no backup: its key forgotten

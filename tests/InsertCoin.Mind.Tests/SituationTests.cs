@@ -279,6 +279,29 @@ public class SituationTests
                      Provider.From("anthropic", " https://api.anthropic.com ", "claude-haiku-4-5"));
     }
 
+    [Theory]
+    [InlineData("https://api.openai.com/v1", " ", "Fill in the model first.")]
+    [InlineData("", "gpt", "Fill in the server first.")]
+    [InlineData("not a url", "gpt", "Fill in the server first.")]
+    [InlineData(" ", "", "Fill in the server and the model first.")]
+    public void Test_names_only_the_field_that_is_missing(string server, string model, string said) =>
+        Assert.Equal(said, Provider.Missing(server, model));
+
+    [Theory]
+    [InlineData("OpenAI", "gpt-6-luna")]
+    [InlineData("OpenRouter", "openai/gpt-6-luna")]
+    [InlineData("Anthropic", "claude-haiku-5-5")]
+    public void A_new_player_finds_the_model_filled_in(string preset, string model) =>
+        Assert.Equal(model, Provider.Presets.Single(p => p.Name == preset).ModelHint);
+
+    [Theory]
+    [InlineData("Ollama (this PC)", "the name of a model already downloaded into Ollama")]
+    [InlineData("LM Studio (this PC)", "the name of a model already downloaded into LM Studio")]
+    [InlineData("Other (OpenAI-compatible)", "the model's name at this provider")]
+    [InlineData("OpenAI", "gpt-6-luna")]
+    public void An_empty_model_box_says_what_goes_there(string preset, string said) =>
+        Assert.Equal(said, Provider.Presets.Single(p => p.Name == preset).ModelPlaceholder);
+
     [Fact]
     public void A_hover_tip_is_broken_into_short_lines_between_words()
     {
