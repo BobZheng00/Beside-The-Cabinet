@@ -5,7 +5,7 @@ namespace InsertCoin.Game.Companion;
 /// <summary>The look of everything she writes on and you write to her on: cream paper, the cabinet's ink, Fredoka.</summary>
 public static class Paper
 {
-    public static readonly Color Sheet = new("FFF7EC"), Ink = new("1E1630"), Letters = new("3B2E5E"), Faint = new("9C90BC"),
+    public static readonly Color Sheet = new("FFF7EC"), Ink = new("1E1630"), Letters = new("3B2E5E"), Faint = new("6F6390"), Pale = new("9C90BC"),
         Accent = new("6B59A7"), AccentLight = new("8674C4"), AccentDark = new("4F3F8C"), Pink = new("FFB3D1"), Wash = new("EDE7FA"),
         Good = new("2E8B57"), Bad = new("C23F5A");
 
@@ -72,7 +72,7 @@ public static class Paper
                 theme.SetFontSize("font_size", type, 13);
             foreach (var state in new[] { "font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color" })
                 theme.SetColor(state, type, text);
-            theme.SetColor("font_disabled_color", type, Faint);
+            theme.SetColor("font_disabled_color", type, Pale);
         }
         foreach (var state in new[] { "normal", "hover", "pressed", "hover_pressed", "focus", "disabled" })
             theme.SetStylebox(state, "CheckBox", new StyleBoxEmpty());          // a plain box and label, not a purple button
@@ -80,7 +80,20 @@ public static class Paper
         theme.SetColor("font_hover_color", "CheckBox", Ink);
         theme.SetColor("font_pressed_color", "CheckBox", Accent);
         theme.SetColor("font_hover_pressed_color", "CheckBox", Accent);
+        theme.SetColor("font_focus_color", "CheckBox", Letters);            // else Godot's near-white, on the cream
+        theme.SetColor("font_disabled_color", "CheckBox", Pale);
         theme.SetStylebox("focus", "CheckBox", new StyleBoxEmpty());
+
+        // Godot's own are a solid grey square and disc, ticked or not; a choice's drop-down marks its pick with these too
+        foreach (var type in new[] { "CheckBox", "PopupMenu" })
+        foreach (var round in new[] { false, true })
+        {
+            var kind = round ? "radio_" : "";
+            theme.SetIcon(kind + "checked", type, Tick(round, true, Accent));
+            theme.SetIcon(kind + "unchecked", type, Tick(round, false, Faint));
+            theme.SetIcon(kind + "checked_disabled", type, Tick(round, true, Pale));
+            theme.SetIcon(kind + "unchecked_disabled", type, Tick(round, false, line));
+        }
 
         theme.SetStylebox("panel", "PopupMenu", Box(Colors.White, line, 1, 8, 6, 6));
         theme.SetStylebox("hover", "PopupMenu", Box(Wash, Wash, 0, 6, 8, 4));
@@ -155,6 +168,28 @@ public static class Paper
             if (d is > 8.5f and < 9.5f)
                 colour = new Color(Colors.White, 9.5f - d);     // a soft edge
             image.SetPixel(x, y, colour);
+        }
+        return ImageTexture.CreateFromImage(image);
+    }
+
+    /// <summary>A tick box or a radio, drawn in code: an empty outline, or filled with a white tick or dot.</summary>
+    private static Texture2D Tick(bool round, bool on, Color colour)
+    {
+        const int size = 16;
+        const float reach = 7.25f, corner = 3.5f;
+        var image = Image.CreateEmpty(size, size, false, Image.Format.Rgba8);
+        var centre = new Vector2((size - 1) / 2f, (size - 1) / 2f);
+        Vector2 start = new(-3.6f, 0.2f), turn = new(-1f, 2.8f), end = new(3.8f, -2.8f);
+        static float Inside(float distance) => Mathf.Clamp(0.5f - distance, 0f, 1f);     // how much of a pixel is inside an edge
+        for (var y = 0; y < size; y++)
+        for (var x = 0; x < size; x++)
+        {
+            var p = new Vector2(x, y) - centre;
+            var q = p.Abs() - new Vector2(reach - corner, reach - corner);
+            var edge = round ? p.Length() - reach : new Vector2(Math.Max(q.X, 0), Math.Max(q.Y, 0)).Length() + Math.Min(Math.Max(q.X, q.Y), 0) - corner;
+            var mark = round ? Inside(p.Length() - 3f)
+                : Inside(Math.Min(p.DistanceTo(Geometry2D.GetClosestPointToSegment(p, start, turn)), p.DistanceTo(Geometry2D.GetClosestPointToSegment(p, turn, end))) - 1.1f);
+            image.SetPixel(x, y, on ? new Color(colour.Lerp(Colors.White, mark), Inside(edge)) : new Color(colour, Inside(edge) - Inside(edge + 1.6f)));
         }
         return ImageTexture.CreateFromImage(image);
     }

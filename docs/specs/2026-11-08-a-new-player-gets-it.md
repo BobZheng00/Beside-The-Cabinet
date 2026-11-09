@@ -140,8 +140,8 @@ after the character. The memory book moves in as one page ("Moves into setting w
 The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the screen's home bar.
 
 **The look** ("We will do A", 2026-11-07):
-- unticked boxes and unchosen radios drawn empty, on every window;
-- hints darkened from 2.77:1 to about 5:1;
+- unticked boxes and unchosen radios drawn empty, on every window (built, #259);
+- hints darkened from 2.77:1 to about 5:1 (built, #259);
 - a pixel icon for each category, in the style of the screen's apps;
 - character cards with a portrait rendered from their own model;
 - one short line per control, the longer explanation behind a small "?";
