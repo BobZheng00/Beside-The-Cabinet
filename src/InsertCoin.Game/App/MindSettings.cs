@@ -40,7 +40,7 @@ public partial class MindSettings : VBoxContainer
     private Button _site = null!;
     private Label _siteRow = null!;                         // hidden with the button: a grid closes up over what is hidden
     private string _name = "";
-    private Label _hint = null!, _now = null!, _result = null!;
+    private Label _hint = null!, _billed = null!, _now = null!, _result = null!;
     private HBoxContainer _buttons = null!;
     private VBoxContainer _plan = null!;                    // the ChatGPT plan's part, shown in place of server, key and model
     private Label? _planSaid;
@@ -67,6 +67,7 @@ public partial class MindSettings : VBoxContainer
         Form.Page(this, $"{name}'s mind");
         _hint = Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                                 "Your key stays on this PC, encrypted for your Windows account.");
+        _billed = Form.Hint(this, "OpenAI bills API use apart from ChatGPT Plus. With Plus or Pro, pick ChatGPT plan instead.");
         _now = Form.Result(this);
         ShowNow();
         chat.Plan.Changed += PlanChanged;
@@ -198,6 +199,7 @@ public partial class MindSettings : VBoxContainer
         foreach (var field in new Control[] { _url, _key, _model })
             field.Visible = ((Control)field.GetParent().GetChild(field.GetIndex() - 1)).Visible = !plan;
         _hint.Visible = _buttons.Visible = !plan;
+        _billed.Visible = preset.Name == "OpenAI";
         _plan.Visible = _backup.Visible = plan;
         ShowNow();
         if (plan)
@@ -248,7 +250,7 @@ public partial class MindSettings : VBoxContainer
         catch (Exception e)
         {
             if (IsInstanceValid(this))
-                Form.Say(result, Trouble.Explain(e), Paper.Bad);
+                Form.Say(result, Trouble.Explain(e, provider), Paper.Bad);
         }
     }
 

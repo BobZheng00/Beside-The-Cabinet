@@ -124,7 +124,8 @@ for them in every language.
 Your companion can also talk. In Settings → Mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
 local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
 provider's page for one), name a model, Test and Save. Then clicking them opens a slip at the foot of the stool:
-type, press Enter, and their answer streams into the bubble while they act it out.
+type, press Enter, and their answer streams into the bubble while they act it out. OpenAI bills API use apart from
+ChatGPT Plus. An account out of API credit is told so, and where to add it, instead of being told to slow down.
 
 With ChatGPT Plus or Pro, pick **ChatGPT plan** instead and press **Continue with ChatGPT**: your browser opens on
 OpenAI's sign-in, you sign in and allow plan usage, and the page shows "Connected as" your account, the model (from
