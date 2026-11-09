@@ -250,7 +250,7 @@ public partial class MindSettings : VBoxContainer
         catch (Exception e)
         {
             if (IsInstanceValid(this))
-                Form.Say(result, Trouble.Explain(e, provider), Paper.Bad);
+                Form.Say(result, Trouble.Explain(e, provider, onPlan: _protocol == Protocol.ChatGpt), Paper.Bad);
         }
     }
 

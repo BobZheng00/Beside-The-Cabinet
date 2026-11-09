@@ -29,7 +29,7 @@ public class TroubleTests
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
     }
 
-    private static async Task<string> Told(string body, Provider? provider, bool streamed = false)
+    private static async Task<string> Told(string body, Provider? provider, bool streamed = false, bool onPlan = false)
     {
         var client = new OpenAIClient(new ApiKeyCredential("not-a-key"), new OpenAIClientOptions
         {
@@ -45,7 +45,7 @@ public class TroubleTests
             else
                 await foreach (var _ in client.GetStreamingResponseAsync("Hello")) { }
         });
-        return Trouble.Explain(failed, provider);
+        return Trouble.Explain(failed, provider, onPlan);
     }
 
     [Theory]
@@ -60,6 +60,14 @@ public class TroubleTests
         Assert.StartsWith("This account has no API credit left. Add some on OpenAI's billing page.", told);
         Assert.Contains("ChatGPT Plus doesn't include API use", told);
         Assert.Contains("pick ChatGPT plan", told);
+    }
+
+    [Fact]
+    public async Task An_OpenAI_backup_out_of_credit_doesnt_tell_someone_on_the_plan_to_pick_the_plan()
+    {
+        var told = await Told(CreditBalanceExhausted, OpenAi, onPlan: true);
+
+        Assert.Equal("This account has no API credit left. Add some on OpenAI's billing page. ChatGPT Plus doesn't include API use.", told);
     }
 
     [Fact]
@@ -81,13 +89,18 @@ public class TroubleTests
     [InlineData("")]
     public async Task A_rate_limit_keeps_slow_down(string body) => Assert.Equal(SlowDown, await Told(body, OpenAi));
 
-    [Fact]
-    public async Task DashScopes_per_minute_limit_is_a_rate_limit_though_it_says_insufficient_quota() =>
-        Assert.Equal(SlowDown, await Told(InsufficientQuota, DashScope));
+    [Theory]
+    [InlineData("https://dashscope.aliyuncs.com/compatible-mode/v1")]
+    [InlineData("https://dashscope-intl.aliyuncs.com/compatible-mode/v1")]
+    [InlineData("https://coding.dashscope.aliyuncs.com/v1")]
+    [InlineData("https://coding-intl.dashscope.aliyuncs.com/v1")]
+    public async Task DashScopes_per_minute_limit_is_a_rate_limit_though_it_says_insufficient_quota(string server) =>
+        Assert.Equal(SlowDown, await Told(InsufficientQuota, new Provider(Protocol.OpenAi, server, "qwen-plus")));
 
     [Fact]
-    public async Task DashScopes_free_quota_used_up_is_told_as_no_credit() =>
-        Assert.Equal(NoCredit, await Told("""{"error":{"message":"Free allocated quota exceeded.","type":"insufficient_quota","code":"insufficient_quota"}}""", DashScope));
+    public async Task DashScopes_free_quota_used_up_says_to_pick_another_model() =>
+        Assert.Equal("This model's free quota is used up. Pick another model in Settings → Mind.",
+                     await Told("""{"error":{"message":"Free allocated quota exceeded.","type":"insufficient_quota","code":"insufficient_quota"}}""", DashScope));
 
     [Fact]
     public async Task The_ChatGPT_plan_is_never_told_to_buy_API_credit() =>
