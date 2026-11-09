@@ -126,7 +126,7 @@ local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API 
 provider's page for one), check the model (most providers come with their small one filled in; a local server needs
 the name of a model already downloaded into it), Test and Save. Then clicking them opens a slip at the foot of the
 stool: type, press Enter, and their answer streams into the bubble while they act it out. OpenAI bills API use apart
-from ChatGPT Plus. An account out of API credit is told so, and where to add it, instead of being told to slow down.
+from ChatGPT Plus. When an account runs out of API credit, your companion says so, and where to add it.
 
 With ChatGPT Plus or Pro, pick **ChatGPT plan** instead and press **Continue with ChatGPT**: your browser opens on
 OpenAI's sign-in, you sign in and allow plan usage, and the page shows "Connected as" your account, the model (from
