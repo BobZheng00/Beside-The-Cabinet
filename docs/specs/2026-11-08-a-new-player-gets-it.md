@@ -96,10 +96,11 @@ change which is not very sustainable?").
 | EARN A CREDIT | The first earning from whichever ways to earn are on: five minutes of focus, an activity logged, a solve (only with CREDITS) |
 | ASK FOR A REMINDER | A reminder is set, by them or on the agenda |
 | OPEN MEMORY | The Memory category is opened |
-| HEAR THEIR VOICE | They speak aloud |
+| HEAR THEIR VOICE | They answer the player aloud (where that needs Qwen TTS's download it's an extra: it pays if done, and the list is done without it) |
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
-  reward", 2026-11-07), paid as each one clears, once, outside the daily cap.
+  reward", 2026-11-07), or 75 if the voice one is left undone because it needs that download, paid as each one clears, once,
+  outside the daily cap.
   There's none with FREE PLAY. It's paid as any earning is, so a debt comes off first.
 - **Switching the mode** (the user, 2026-11-08: "if user choose to switch to the other mode, we want to bring the mission
   backup. and be careful about user switch the credit mode off"). FREE PLAY has no EARN A CREDIT, and switching to CREDITS
@@ -164,23 +165,36 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
 | Japanese | Qwen TTS | Ono Anna | Aiden | The same download |
 
 - **One engine for each language,** so a player only fetches what they'll hear. Eve and George are real speakers (VCTK, CC
-  BY 4.0), and the app credits them. Shino's and Fumiriya's old voices, made with Kokoro-82M, stop shipping, and a profile
-  that already has a voice keeps it.
+  BY 4.0), and the app credits them.
+- **A voice speaks one language,** as now, and that language picks the engine and the voice. It's set once, from the Language
+  setting, or on Auto from the PC's display language (Chinese, Japanese, otherwise English), and stays until the player
+  changes it on Their voice. Writing in another language doesn't change it: they speak their voice's language over the
+  subtitle, as they do now.
+- **The download is asked for on Their voice,** never in the middle of a conversation, and the mission points there. Until it's
+  done, a player in Chinese or Japanese has them in text.
+- **While a game runs the voice rests,** as it does now, and Qwen TTS's server stops, so the game gets its memory and
+  processor back.
+- **Profiles from before Preview 3.** Shino's and Fumiriya's old voices, made with Kokoro-82M, stop shipping, and one that hasn't
+  been trained gives way to the suggested voice. A voice the player made or added stays chosen: with no engine for it on
+  this PC the page says so and offers the suggested one. A character whose given voice the player removed stays without
+  one until they pick a voice.
 - **What ships is a suggestion** ("we can open up the choice for user? and what we provide will just be a suggested default
   option?", 2026-11-09). Each character has a suggested voice for each language, and Their voice lists the others that
-  language's engine has, each with a "Try it". All nine of Qwen TTS's come with the one download. Eve and George are the
-  English list for now, and each further one is a short recording that comes with the app.
+  language's engine has, each with a "Try it". All nine of Qwen TTS's come with the one download, with Dylan's and Eric's
+  accents named (Beijing, Sichuan). Eve and George are the English list for now, and each further one is a short recording
+  that comes with the app. A voice the player made is listed under the language it was recorded in.
 - **In every case:** each download's size is one number everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the
   status says ready only when it is; Talking to them has a "Try it" that listens for five seconds and shows the words heard.
 - **What to expect.** On a fast laptop's processor Pocket TTS needs about a third of a second of work per second of speech.
   Qwen TTS needs 0.93 s across the whole processor, 1.05 s on 8 fast cores, 1.4 s on 4 and 1.86 s on 8 slow ones, with its
-  first sound after about 0.2 s, and 3.5 GB of memory. Where it falls behind, speech is held back just long enough to play
+  first sound after 0.2 to 0.3 s, and 3.5 GB of memory. Where it falls behind, speech is held back just long enough to play
   without a gap, so a 5-second line waits about 2 seconds on 4 fast cores. The page shows this PC's own speed once they've
   spoken.
 - **Their voice is three steps:** hear them, pick another voice, make a new one.
 - **A different voice, quickly:** Pocket TTS copies one from about 30 seconds of recording with no training, in English and
   Japanese (its Japanese files are fetched the first time). In Chinese a recording goes to GPT-SoVITS, as Pocket TTS's Chinese
-  isn't good enough ("pocket performs quite poor on chinese", 2026-11-09). Copying a voice first asks that it's the
+  isn't good enough ("pocket performs quite poor on chinese", 2026-11-09), so that step says first that it needs that
+  engine, with its size, and asks before any sentence is read; saying no changes nothing. Copying a voice first asks that it's the
   player's own or that they have permission, as Pocket TTS's terms require.
 - **Making one is guided.** The app shows about ten sentences to read and records each one (3 to 10 seconds). Its ears
   check the words, length and loudness as it goes. The player fixes a word, hears the clone, and trains later if they like.
@@ -273,7 +287,7 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 
 ## Not built, and why
 
-- **Kokoro** (the user, 2026-11-09): "we prob want to get rid of kokoro since it is larger and preform worse compared to
+- **Kokoro** (the user, 2026-11-08): "we prob want to get rid of kokoro since it is larger and preform worse compared to
   Pocket".
 - **Qwen TTS on a graphics card, and a Mac build:** Preview 3 ships the processor build. The same source builds for CUDA,
   Vulkan and Metal, and Pocket TTS reports good speeds on Apple Silicon, so neither engine closes that door.
@@ -284,8 +298,9 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 
 ## Open
 
-- **If Pocket TTS's newest models won't run in the app's runtime** (#280), English falls back to the public January files,
-  which sound less like the voice. That's a choice for the user, with those numbers, when the spike reports.
+- **If Pocket TTS's newest models won't run in the app's runtime, or their terms bar shipping them** (#280), English falls back
+  to the public January files, which sound less like the voice, and copying a voice in Japanese goes to GPT-SoVITS as it
+  does in Chinese. That's a choice for the user, with those numbers, when the spike reports.
 - **Which other Pocket TTS voices to list for English:** by ear, with the build in hand.
 - **To settle with the builds in hand** (the user, 2026-11-08: "for the last two points i would need to see the final
   builds. so note them down so we remember to resolve later"): whether missions can be hidden, and what SELECT PLAYER 2 says
@@ -300,8 +315,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 2. **Ticks and contrast**, on every window (#259).
 3. **Settings in nine categories** (#260), then **Memory inside it** (#70), **cards and portraits** (#261), **one line per
    control** (#262), and **connections as cards with the audit's smaller fixes** (#263).
-4. **The voice:** whether Pocket TTS's newest models run in the app (#280), then English with nothing to set up (#282) and Qwen
-   TTS for Chinese and Japanese (#281); then the page's steps and checks (#264), the choice of voices (#283) and the guided
+4. **The voice:** whether Pocket TTS's newest models run in the app (#280) and Qwen TTS for Chinese and Japanese (#281), then
+   English with nothing to set up (#282); then the page's steps and checks (#264), the choice of voices (#283) and the guided
    recorder (#265).
 5. **Web search:** OpenAI's Responses API and the ChatGPT plan (#266), then the other providers (#267).
 6. **The arrival** (#268), then **the intro** (#269), then **the setup on the screen** (#270) with **Connect an AI** (#92),
