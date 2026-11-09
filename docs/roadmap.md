@@ -35,7 +35,7 @@ going anywhere and do not know when to stop and when we can finish the sprint").
 preview: this one is the first run, Settings and setup, and Preview 4 is the memory review. Spec
 `docs/specs/2026-11-08-a-new-player-gets-it.md`, from the audit and the design session on #255: the first run on the
 cabinet from a dark room, the companion as Player 2, missions, Settings in nine plain categories with Memory inside, the
-voice in steps with a recorder, and each provider's own web search. The finish line is someone who has never seen the
+voices that work on every PC, in steps with a recorder, and each provider's own web search. The finish line is someone who has never seen the
 app getting it on their own. The issues are in the milestone "Preview 3: a new player gets it".
 
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI

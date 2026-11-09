@@ -1,7 +1,7 @@
 # A new player gets it: the first run, missions, Settings, the voice and web search
 
-*Decided with the user in one design session, 2026-11-04 to 2026-11-08 (#255), after the audit on the same issue. This is
-Preview 3's milestone, "Preview 3: a new player gets it". Nothing is built yet, beyond a spike of the first run's look and
+*Decided with the user in one design session, 2026-11-04 to 2026-11-08 (#255), after the audit on the same issue, with the
+voices chosen by ear on 2026-11-09 (#278). This is Preview 3's milestone, "Preview 3: a new player gets it". Nothing is built yet, beyond a spike of the first run's look and
 motion in the real app ("What was tried"). The order is at the end.*
 
 ## Why
@@ -96,10 +96,10 @@ change which is not very sustainable?").
 | EARN A CREDIT | The first earning from whichever ways to earn are on: five minutes of focus, an activity logged, a solve (only with CREDITS) |
 | ASK FOR A REMINDER | A reminder is set, by them or on the agenda |
 | OPEN MEMORY | The Memory category is opened |
-| HEAR THEIR VOICE | They speak aloud (on a PC without an NVIDIA card it's an extra: it pays if done, and the list is done without it) |
+| HEAR THEIR VOICE | They speak aloud |
 
 - **The reward** is 15 minutes of play time for each, so 90 minutes for all six ("we can give them 1-2 hr of play time as
-  reward", 2026-11-07), or 75 if a PC without an NVIDIA card leaves the voice one undone, paid as each one clears, once, outside the daily cap.
+  reward", 2026-11-07), paid as each one clears, once, outside the daily cap.
   There's none with FREE PLAY. It's paid as any earning is, so a debt comes off first.
 - **Switching the mode** (the user, 2026-11-08: "if user choose to switch to the other mode, we want to bring the mission
   backup. and be careful about user switch the credit mode off"). FREE PLAY has no EARN A CREDIT, and switching to CREDITS
@@ -153,18 +153,45 @@ of servers, tokens and file formats.
 
 ### The voice
 
-- **In every case:** the NVIDIA card check comes first; one download size everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the status says ready only when it is;
-  Talking to them has a "Try it" that listens for five seconds and shows the words heard.
-- **Without an NVIDIA card** the page says so, says what to expect and still offers the install ("i guess we want to bring it
-  up to user to let them see if they like the performance instead of hiding it", 2026-11-08). They speak with v2ProPlus by
-  default there, as v4 takes 24 to 31 seconds for even a short line on a fast laptop processor. Even v2ProPlus falls behind
-  speech (`docs/research/2026-11-08-voice-without-nvidia.md`), so sentences are made whole before they play: what to expect is
-  6 to 8 seconds for a sentence of about 3 seconds. Once it's installed, the step that lets them hear the companion shows
-  this PC's own speed. Training needs a card, and says so.
-- **Their voice is three steps:** get the engine, hear them, change their voice.
-- **Changing it is guided.** The app shows about ten sentences to read and records each one (3 to 10 seconds). Its ears
+Every PC can speak now: in English with nothing to set up, and in Chinese or Japanese after one download. The user chose
+the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers are in
+`docs/research/2026-11-08-voice-without-nvidia.md`.
+
+| Language | Engine | Shino | Fumiriya | How it gets there |
+|---|---|---|---|---|
+| English | Pocket TTS | Eve | George | It comes with the app (about 200 MB) |
+| Chinese | Qwen TTS | Serena | Aiden | A download of 1.26 GB the first time it's needed, once the player agrees |
+| Japanese | Qwen TTS | Ono Anna | Aiden | The same download |
+
+- **One engine for each language,** so a player only fetches what they'll hear. Eve and George are real speakers (VCTK, CC
+  BY 4.0), and the app credits them. Shino's and Fumiriya's old voices, made with Kokoro-82M, stop shipping, and a profile
+  that already has a voice keeps it.
+- **What ships is a suggestion** ("we can open up the choice for user? and what we provide will just be a suggested default
+  option?", 2026-11-09). Each character has a suggested voice for each language, and Their voice lists the others that
+  language's engine has, each with a "Try it". All nine of Qwen TTS's come with the one download. Eve and George are the
+  English list for now, and each further one is a short recording that comes with the app.
+- **In every case:** each download's size is one number everywhere; the menu's "Voice" switch becomes "Speaks aloud"; the
+  status says ready only when it is; Talking to them has a "Try it" that listens for five seconds and shows the words heard.
+- **What to expect.** On a fast laptop's processor Pocket TTS needs about a third of a second of work per second of speech.
+  Qwen TTS needs 0.93 s across the whole processor, 1.05 s on 8 fast cores, 1.4 s on 4 and 1.86 s on 8 slow ones, with its
+  first sound after about 0.2 s, and 3.5 GB of memory. Where it falls behind, speech is held back just long enough to play
+  without a gap, so a 5-second line waits about 2 seconds on 4 fast cores. The page shows this PC's own speed once they've
+  spoken.
+- **Their voice is three steps:** hear them, pick another voice, make a new one.
+- **A different voice, quickly:** Pocket TTS copies one from about 30 seconds of recording with no training, in English and
+  Japanese (its Japanese files are fetched the first time). In Chinese a recording goes to GPT-SoVITS, as Pocket TTS's Chinese
+  isn't good enough ("pocket performs quite poor on chinese", 2026-11-09). Copying a voice first asks that it's the
+  player's own or that they have permission, as Pocket TTS's terms require.
+- **Making one is guided.** The app shows about ten sentences to read and records each one (3 to 10 seconds). Its ears
   check the words, length and loudness as it goes. The player fixes a word, hears the clone, and trains later if they like.
-  Adding files still works.
+  Adding files still works. Pocket TTS takes about 30 seconds of the takes, ending on a short pause: in English 27 to 31
+  seconds kept every line whole, and 38 to 44 seconds lost more than half of them.
+- **The closest copy** is GPT-SoVITS, trained on the voice's own clips, and the NVIDIA card check comes first there. Without a
+  card the page says so, says what to expect and still offers the install ("i guess we want to bring it up to user to let
+  them see if they like the performance instead of hiding it", 2026-11-08). It speaks with v2ProPlus by default there, as v4
+  takes 24 to 31 seconds for even a short line on a fast laptop processor. Even v2ProPlus falls behind speech, so sentences
+  are made whole before they play: what to expect is 6 to 8 seconds for a sentence of about 3 seconds. Training needs a
+  card, and says so.
 - Tests drive the recorder with recorded clips, never the real microphone. Recording with a real microphone is a manual
   check for the user.
 
@@ -237,14 +264,19 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
   the tasks on hidden runs and says where it got lost; then a friend who has never seen the app, on a call, thinking aloud,
   while the user watches without helping (about 30 minutes). A second friend stays ready for a retest, as someone can only
   be new once.
+- **The voices** (the user, by ear on #278, 2026-11-09): "for english i like Pocket TTS: Eve and George. for chinese Serena is
+  good", "for japanese Qwen TTS: Ono Anna sounds great", "i think Aiden is fine for both japanese and chinese", and on the
+  compressed weights the app would use, "the default 6 listen good".
 - **The defaults** the user took without changing them (2026-11-08): six missions at 15 minutes each; the name typed in full;
   sounds made by the app; Skip keeping the answers; the rotation starting on MISSIONS; Help and About in General; a cog for
   SETTINGS; the audit's fixes; #70, #92, #208 and #243 in the milestone.
 
 ## Not built, and why
 
-- **A smaller voice engine for PCs without a card, and for a Mac later** (#278): Preview 3 keeps the one engine, and the
-  research note says what's worth trying.
+- **Kokoro** (the user, 2026-11-09): "we prob want to get rid of kokoro since it is larger and preform worse compared to
+  Pocket".
+- **Qwen TTS on a graphics card, and a Mac build:** Preview 3 ships the processor build. The same source builds for CUDA,
+  Vulkan and Metal, and Pocket TTS reports good speeds on Apple Silicon, so neither engine closes that door.
 - **GPT-SoVITS v5:** it changes how they sound, not how the voice is set up, so it stays out of this milestone.
 - **Room art, walking on the floor, a motion-capture clip:** the arrival passes without them, and a walk would need foot
   contact faked.
@@ -252,6 +284,9 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 
 ## Open
 
+- **If Pocket TTS's newest models won't run in the app's runtime** (#280), English falls back to the public January files,
+  which sound less like the voice. That's a choice for the user, with those numbers, when the spike reports.
+- **Which other Pocket TTS voices to list for English:** by ear, with the build in hand.
 - **To settle with the builds in hand** (the user, 2026-11-08: "for the last two points i would need to see the final
   builds. so note them down so we remember to resolve later"): whether missions can be hidden, and what SELECT PLAYER 2 says
   about each character (the first sentence of their card, or short lines as in the mockup). Both are built as this spec
@@ -265,7 +300,9 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 2. **Ticks and contrast**, on every window (#259).
 3. **Settings in nine categories** (#260), then **Memory inside it** (#70), **cards and portraits** (#261), **one line per
    control** (#262), and **connections as cards with the audit's smaller fixes** (#263).
-4. **The voice:** the steps and checks (#264), then the guided recorder (#265).
+4. **The voice:** whether Pocket TTS's newest models run in the app (#280), then English with nothing to set up (#282) and Qwen
+   TTS for Chinese and Japanese (#281); then the page's steps and checks (#264), the choice of voices (#283) and the guided
+   recorder (#265).
 5. **Web search:** OpenAI's Responses API and the ChatGPT plan (#266), then the other providers (#267).
 6. **The arrival** (#268), then **the intro** (#269), then **the setup on the screen** (#270) with **Connect an AI** (#92),
    then **SELECT PLAYER 2's peeks** (#271).
