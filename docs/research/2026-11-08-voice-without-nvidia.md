@@ -1,6 +1,6 @@
 # The voice without an NVIDIA card
 
-*Measured and read 2026-11-08, with the trials of Pocket TTS and Qwen TTS on 2026-11-09 (#278), for Preview 3
+*Measured and read 2026-11-08, with the trials of Pocket TTS and Qwen TTS on 2026-11-08 and 2026-11-09 (#278), for Preview 3
 (`docs/specs/2026-11-08-a-new-player-gets-it.md`). The user: "will the small
 tts model work fine on modern apple sillicon or x86 cpu or iGPU? i guess we want to bring it up to user to let them see if
 they like the performance instead of hiding it".*
@@ -39,7 +39,7 @@ Work per second of speech: under 1 keeps up with speech, over 1 falls behind it.
 | Qwen TTS 0.6B, the native build | 4 | 1.40 s | 0.28 to 0.32 s |
 | Qwen TTS 0.6B, the native build | 8 slow cores | 1.86 s | 0.32 to 0.34 s |
 
-Qwen TTS's native build is a program of about 2 MB, with 1.26 GB of weights, and used 3.5 GB of memory at its peak. It was
+Qwen TTS's native build is a program of a few MB, with 1.26 GB of weights, and used 3.5 GB of memory at its peak. It was
 built from source for the processor only, and timed through its own local server after one warm-up request.
 
 With a graphics card, a laptop's starts each sentence in about a second (`docs/README.md`). A sentence of 3.4 seconds took
@@ -48,7 +48,7 @@ seconds.
 
 ## How long a sample Pocket TTS wants
 
-On the newest models, with five voices and up to three lines a length. A line counts as whole when the app's ears hear it
+On the newest models, with up to five voices and up to three lines a length. A line counts as whole when the app's ears hear it
 nearly word for word.
 
 | Language | Sample | Whole lines |
