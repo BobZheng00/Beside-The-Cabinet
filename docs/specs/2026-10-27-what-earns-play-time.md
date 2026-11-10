@@ -50,6 +50,7 @@ Today:
   - Her base text's earning line, and the cabinet's "how play is earned", name only the sources that are on, in the
     plain words #166 settles. With LeetCode off, so does everything else that names it: the attract screen's "FOCUS OR
     SOLVE", an IOU ticket's "solve to pay", the ledger's "The player's LeetCode account" and the streak's "a solve".
+    Her `leetcode_problem` tool stays, to help the player study, and says nothing of earning (the user, 2026-11-02, "keep").
 - **No play time.** The cabinet keeps her company role and drops the balance:
   - **Stays:** chat, her memory, the agenda and reminders, texting, focus sessions (paying nothing), the bedtime
     words, and a break after a long game.
