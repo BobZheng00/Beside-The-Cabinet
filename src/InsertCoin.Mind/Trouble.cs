@@ -19,9 +19,9 @@ public static class Trouble
         HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → AI model.",
         HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → AI model.",
         HttpStatusCode.PaymentRequired => "The provider says the account needs credit.",
-        HttpStatusCode.TooManyRequests when FreeQuotaGone(e, provider) => "This model's free quota is used up. Pick another model in Settings → Mind.",
+        HttpStatusCode.TooManyRequests when FreeQuotaGone(e, provider) => "This model's free quota is used up. Pick another model in Settings → AI model.",
         HttpStatusCode.TooManyRequests when OutOfCredit(e, provider) => provider?.Through == "api.openai.com"
-            ? "This account has no API credit left. Add some on OpenAI's billing page. ChatGPT Plus doesn't include API use." + (onPlan ? "" : " To use your plan here, pick ChatGPT plan in Settings → Mind.")
+            ? "This account has no API credit left. Add some on OpenAI's billing page. ChatGPT Plus doesn't include API use." + (onPlan ? "" : " To use your plan here, pick ChatGPT plan in Settings → AI model.")
             : "This account has no API credit left. Add some on the provider's billing page.",
         HttpStatusCode.TooManyRequests => "The provider says to slow down. Try again in a minute.",
         >= HttpStatusCode.InternalServerError => "The provider is having trouble. Try again later.",
