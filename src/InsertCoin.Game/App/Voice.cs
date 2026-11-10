@@ -16,7 +16,7 @@ namespace InsertCoin.Game.App;
 [SupportedOSPlatform("windows")]
 public partial class Voice : Node
 {
-    public enum Phase { NotSetUp, Off, Resting, Training, NoVoice, Starting, Loading, Ready, Failed }
+    public enum Phase { NotSetUp, Off, Resting, Training, NoVoice, Asleep, Starting, Loading, Ready, Failed }
 
     private const float BufferSeconds = 0.3f;
     private const int LevelFrames = 800;                // loudness measured every ~20 ms of audio, for her mouth
@@ -41,9 +41,12 @@ public partial class Voice : Node
 
     private Func<CompanionView?> _view = () => null;
     private string _log = "";
-    private VoiceServer? _server;
+    private VoiceServer? _server, _qwenServer;
     private HttpClient? _http;
     private GptSoVits? _engine;
+    private QwenTts? _qwen;
+    private string? _qwenProgram, _qwenWeights;         // where the engine's program is, and its downloaded weights
+    private bool _needed;                               // Qwen TTS starts the first time it is needed, and again after it rests
     private VoiceProfile? _profile, _warm;
     private string _folder = "";
     private bool _enabled = true, _gameRunning, _training;
@@ -97,12 +100,13 @@ public partial class Voice : Node
 
     public string Status => Now switch
     {
-        Phase.NotSetUp => "Not set up: choose where GPT-SoVITS is.",
+        Phase.NotSetUp => IsQwen ? QwenMissing ?? "" : "Not set up: choose where GPT-SoVITS is.",
         Phase.Off => "Switched off: tick the box above, or the tray's Voice.",
-        Phase.Resting => "Resting while your game runs, to leave it the graphics card.",
+        Phase.Resting => IsQwen ? "Resting while your game runs." : "Resting while your game runs, to leave it the graphics card.",
         Phase.Training => "Resting while a voice is trained (it takes the whole graphics card).",
         Phase.NoVoice => _profile is null ? "No voice yet." : $"The voice still needs {_profile.Missing}.",
-        Phase.Starting => "Starting GPT-SoVITS… (a first start can take a minute)",
+        Phase.Starting => IsQwen ? "Getting ready…" : "Starting GPT-SoVITS… (a first start can take a minute)",
+        Phase.Asleep => "It starts up the first time there's something to say.",
         Phase.Loading => $"Loading {_profile?.Name}…",
         Phase.Ready => "Ready.",
         Phase.Failed => $"Not working: {_problem}",
@@ -115,6 +119,8 @@ public partial class Voice : Node
         _view = view;
         _player = new AudioStreamPlayer();
         AddChild(_player);
+        Download.Finished += Refresh;
+        AddChild(Download);
     }
 
     /// <summary>The tray's Voice switch.</summary>
@@ -166,6 +172,48 @@ public partial class Voice : Node
         Refresh();
     }
 
+    /// <summary>Where Qwen TTS's program is and where its weights go (see <see cref="VoiceProfile.Qwen"/>).</summary>
+    public void UseQwen(string program, string weights)
+    {
+        _qwenServer?.Dispose();
+        _qwenServer = null;
+        (_qwenProgram, _qwenWeights) = (program, weights);
+        Download.Folder = weights;
+        Refresh();
+        Changed?.Invoke();                              // the phase may be the same with another reason for it
+    }
+
+    /// <summary>The weights' download, shown on Their voice.</summary>
+    public QwenInstaller Download { get; } = new();
+
+    private bool IsQwen => _profile?.Engine == VoiceProfile.Qwen;
+
+    /// <summary>What Qwen TTS is still missing here, in a line for the player, or null when it can run.</summary>
+    public string? QwenMissing =>
+        !File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) ? "The program that speaks Chinese and Japanese is missing from the app's folder."
+        : !QwenWeights.Present(_qwenWeights ?? "") ? "Needs its download first, on this page."
+        : null;
+
+    /// <summary>The program is here and only its weights are missing: the download is worth offering.</summary>
+    public bool QwenWantsDownload => File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) && !QwenWeights.Present(_qwenWeights ?? "");
+
+    /// <summary>The server of whichever engine the voice on the stool speaks with: null when it can't run.</summary>
+    private VoiceServer? Server
+    {
+        get
+        {
+            if (!IsQwen)
+                return _server;
+            if (QwenMissing is not null)
+                return null;
+            return _qwenServer ??= new VoiceServer(Path.Combine(Path.GetDirectoryName(_log)!, "qwen-server.log"), "health", port => new ProcessStartInfo(Path.Combine(_qwenProgram!, "tts-server.exe"))
+            {
+                WorkingDirectory = _qwenWeights!,               // the weights by their short names: one less long path to go wrong
+                ArgumentList = { "--model", QwenWeights.Talker, "--codec", QwenWeights.Codec, "--device", "CPU", "--host", "127.0.0.1", "--port", port.ToString() },
+            }, System.Diagnostics.ProcessPriorityClass.BelowNormal, "Qwen TTS");
+        }
+    }
+
     /// <summary>Someone else is on the stool, or their voice changed: reads the voice in <paramref name="voiceFolder"/>.</summary>
     public void Seat(string voiceFolder)
     {
@@ -175,13 +223,13 @@ public partial class Voice : Node
         Refresh();
     }
 
-    private bool Wanted => _enabled && !_gameRunning && !_training && _server is not null && _profile is { Missing: null };
+    private bool Wanted => _enabled && !_gameRunning && !_training && Server is not null && _profile is { Missing: null };
 
     /// <summary>
     /// The language her voice speaks while she has a working voice switched on, whether or not it can speak this
     /// moment (it rests during games): what her mind is told, kept steady so the start of its prompt stays cached.
     /// </summary>
-    public string? Language => _enabled && _server is not null && _profile is { Missing: null } profile ? profile.Language : null;
+    public string? Language => _enabled && Server is not null && _profile is { Missing: null } profile ? profile.Language : null;
 
     /// <summary>She has something still to say or still playing.</summary>
     public bool Speaking => _toSay.Count > 0 || _working || _audio.Count > 0 || _sentenceEnds.Count > 0;
@@ -209,7 +257,7 @@ public partial class Voice : Node
     }
 
     /// <summary>She can say something right now.</summary>
-    public bool CanSpeak => Now == Phase.Ready && Wanted;
+    public bool CanSpeak => Wanted && (Now == Phase.Ready || IsQwen && Now is Phase.Asleep or Phase.Starting or Phase.Loading);
 
     /// <summary>Brings the server and the loaded voice in line with what is wanted.</summary>
     private async void Refresh()
@@ -220,35 +268,51 @@ public partial class Voice : Node
         {
             Stop();
             _server?.Stop();
+            _qwenServer?.Stop();
+            _needed = false;
             _engine?.Forget();
-            Set(_server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
+            Set(Server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
             return;
         }
-        if (Now == Phase.Ready && _server!.Ready && ReferenceEquals(_warm, _profile))
+        var server = Server!;
+        (IsQwen ? _server : _qwenServer)?.Stop();       // the other engine's memory back
+        if (Now == Phase.Ready && server.Ready && ReferenceEquals(_warm, _profile))
             return;                                 // already loaded and warmed up
+        if (IsQwen && !_needed && !server.Ready)
+        {
+            Set(Phase.Asleep);                      // nothing to say yet: its 3.5 GB stay free until there is
+            return;
+        }
         var cancel = (_refreshing = new CancellationTokenSource()).Token;
         var profile = _profile!;
         try
         {
-            if (!_server!.Ready)
+            if (!server.Ready)
             {
                 Set(Phase.Starting);
-                if (!await _server.Start(cancel))
+                if (!await server.Start(cancel))
                 {
                     if (refresh == _refreshes)
-                        Fail("GPT-SoVITS didn't start (voice-server.log in the companion folder says why).");
+                    {
+                        if (IsQwen)
+                            QwenFailed("It didn't start (qwen-server.log in the companion folder says why).");
+                        else
+                            Fail("GPT-SoVITS didn't start (voice-server.log in the companion folder says why).");
+                    }
                     return;
                 }
                 _http?.Dispose();
-                _http = new HttpClient { BaseAddress = _server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = new GptSoVits(_http);
+                _http = new HttpClient { BaseAddress = server.Url, Timeout = TimeSpan.FromMinutes(5) };
+                _engine = IsQwen ? null : new GptSoVits(_http);
+                _qwen = IsQwen ? new QwenTts(_http) : null;
             }
             if (refresh != _refreshes)
                 return;
             Set(Phase.Loading);
             var clock = Stopwatch.StartNew();
-            await _engine!.Load(profile, _folder, cancel);
-            await foreach (var _ in _engine.Speak(WarmUp(profile.Language), profile, _folder, profile.ClipFor(null)!, cancel))
+            if (_engine is { } sovits)
+                await sovits.Load(profile, _folder, cancel);
+            await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel))
             {
             }
             GD.Print($"Voice: {profile.Name} loaded and warmed up in {clock.ElapsedMilliseconds} ms");
@@ -265,9 +329,37 @@ public partial class Voice : Node
         catch (Exception e)
         {
             if (refresh == _refreshes)
-                Fail(e.Message);
+            {
+                if (IsQwen)
+                    QwenFailed("It stopped answering.");
+                else
+                    Fail(e.Message);
+            }
         }
     }
+
+    /// <summary>The start the voice waits for: from the first line on, as nothing is loaded before there is one to say.</summary>
+    private void Wake()
+    {
+        if (Now != Phase.Asleep)
+            return;
+        _needed = true;
+        Refresh();
+    }
+
+    /// <summary>Qwen TTS has gone: the character stays in text, it says why, and the next line starts it again.</summary>
+    private void QwenFailed(string why)
+    {
+        Stop();
+        _qwenServer?.Stop();
+        _needed = false;
+        Fail(why);
+        GetTree().CreateTimer(30).Timeout += Refresh;
+    }
+
+    /// <summary>A line in the voice on the stool, from whichever engine it speaks with.</summary>
+    private IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string? mood, CancellationToken cancel, TimeSpan? leadIn = null) =>
+        _qwen is { } qwen ? qwen.Speak(text, profile, cancel) : _engine!.Speak(text, profile, _folder, profile.ClipFor(mood)!, cancel, leadIn);
 
     /// <summary>A reply is starting: whatever she was saying stops, and the reply goes to her voice as it streams in (null when she can't speak now).</summary>
     /// <param name="thinkAloud">The player is waiting for it: while her words are slow to come, she may make a thinking sound.</param>
@@ -276,6 +368,7 @@ public partial class Voice : Node
         Stop();
         if (!CanSpeak)
             return null;
+        Wake();
         _thinkAloud = thinkAloud;
         Speech? speech = null;
         var clock = _asked = Stopwatch.StartNew();
@@ -303,6 +396,7 @@ public partial class Voice : Node
     /// <summary>Says a sample line (the settings' Test button), waiting while the voice starts; the reason if she can't.</summary>
     public async Task<string?> Test()
     {
+        Wake();
         var clock = Stopwatch.StartNew();
         while (Now is Phase.Starting or Phase.Loading && clock.Elapsed < ReadyWait)
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
@@ -344,15 +438,19 @@ public partial class Voice : Node
         Stop();
         _server?.Dispose();
         _server = null;
+        _qwenServer?.Dispose();
+        _qwenServer = null;
         _http?.Dispose();
         _http = null;
         _engine = null;
+        _qwen = null;
     }
 
     public override void _ExitTree() => Shutdown();
 
     private void Say(string text, string? mood)
     {
+        Wake();
         _givenChars += text.Length;
         _toSay.Enqueue((text, mood));
         if (_working && _workingFor == _speaking.Token)
@@ -367,9 +465,12 @@ public partial class Voice : Node
     {
         try
         {
-            while (!stop.IsCancellationRequested && _engine is { } engine && _profile is { } profile && _toSay.TryDequeue(out var line))
+            while (Now is Phase.Starting or Phase.Loading or Phase.Asleep && !stop.IsCancellationRequested)
+                await ToSignal(GetTree().CreateTimer(0.1), SceneTreeTimer.SignalName.Timeout);     // Qwen TTS getting up
+            if (Now != Phase.Ready && !stop.IsCancellationRequested)
+                Stop();                                 // it didn't: what was queued stays unsaid, and the words are on the bubble
+            while (!stop.IsCancellationRequested && (_engine is not null || _qwen is not null) && _profile is { } profile && _toSay.TryDequeue(out var line))
             {
-                var clip = profile.ClipFor(line.Mood)!;
                 var clock = Stopwatch.StartNew();
                 var first = true;
                 // a line after one still playing keeps a breath before it; the first is said at once
@@ -377,7 +478,7 @@ public partial class Voice : Node
                 await _engineFree.WaitAsync(stop);
                 try
                 {
-                    await foreach (var audio in engine.Speak(line.Text, profile, _folder, clip, stop, leadIn))
+                    await foreach (var audio in Speak(line.Text, profile, line.Mood, stop, leadIn))
                     {
                         if (first)
                             GD.Print($"Voice: first audio of \"{Short(line.Text)}\" after {clock.ElapsedMilliseconds} ms");
@@ -389,8 +490,8 @@ public partial class Voice : Node
                 {
                     _engineFree.Release();
                 }
-                if (engine.LastTrimmed > TimeSpan.FromMilliseconds(300))
-                    GD.Print($"Voice: {engine.LastTrimmed.TotalSeconds:0.00} s of quiet cut from the start of \"{Short(line.Text)}\"");
+                if (_engine is { LastTrimmed: var trimmed } && trimmed > TimeSpan.FromMilliseconds(300))
+                    GD.Print($"Voice: {trimmed.TotalSeconds:0.00} s of quiet cut from the start of \"{Short(line.Text)}\"");
                 if (stop.IsCancellationRequested)
                     break;
                 if (first)
@@ -408,7 +509,9 @@ public partial class Voice : Node
         catch (Exception e)
         {
             GD.PrintErr($"Voice: {e.Message}");
-            if (_engine is { } engine && !await engine.Alive())
+            if (_qwen is not null)
+                QwenFailed("It stopped answering.");
+            else if (_engine is { } engine && !await engine.Alive())
             {
                 _server?.Stop();
                 Fail("GPT-SoVITS stopped answering; trying again in 30 seconds.");
@@ -432,7 +535,7 @@ public partial class Voice : Node
     /// </summary>
     private async Task MakeSounds(VoiceProfile profile, CancellationToken cancel)
     {
-        if (ReferenceEquals(_soundsFor, profile) || _engine is not { } engine)
+        if (ReferenceEquals(_soundsFor, profile) || _engine is null && _qwen is null)
             return;
         var clock = Stopwatch.StartNew();
         var made = new List<(string, VoiceAudio)>();
@@ -449,7 +552,7 @@ public partial class Voice : Node
                 await _engineFree.WaitAsync(cancel);
                 try
                 {
-                    await foreach (var audio in engine.Speak(words, profile, _folder, profile.ClipFor(null)!, cancel))
+                    await foreach (var audio in Speak(words, profile, null, cancel))
                     {
                         rate = audio.SampleRate;
                         samples.AddRange(audio.Samples);
@@ -480,6 +583,33 @@ public partial class Voice : Node
         _sounds = made;
         _soundsFor = profile;
         GD.Print($"Voice: {made.Count} of {wanted.Count} thinking sounds made in {clock.ElapsedMilliseconds} ms");
+    }
+
+    /// <summary>Dev: the whole of a line in her voice, made the way any line is but not played; empty when she can't speak.</summary>
+    public async Task<VoiceAudio> DevSay(string words)
+    {
+        await Test();                                       // up and warmed, and the sample line out of the way
+        var samples = new List<float>();
+        var rate = 0;
+        if (Now == Phase.Ready && _profile is { } profile)
+        {
+            var clock = Stopwatch.StartNew();
+            await _engineFree.WaitAsync();
+            try
+            {
+                await foreach (var audio in Speak(words, profile, null, CancellationToken.None))
+                {
+                    rate = audio.SampleRate;
+                    samples.AddRange(audio.Samples);
+                }
+            }
+            finally
+            {
+                _engineFree.Release();
+            }
+            GD.Print($"Voice: made in {clock.ElapsedMilliseconds} ms; this PC's pace is {_qwen?.Held.Pace:0.00} s of work a second of speech");
+        }
+        return new VoiceAudio(rate, [.. samples]);
     }
 
     /// <summary>Dev: saves her thinking sounds as WAV files in <paramref name="folder"/>, to listen to; how many.</summary>

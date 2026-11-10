@@ -94,7 +94,11 @@ rather than a quarter of an hour on),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (the voice's
 sample line), `voice:some_text` (a bubble they also say aloud, if it is in their voice's language), `thinkingsounds:C:\path\folder` (their
-thinking sounds saved as WAV files) and
+thinking sounds saved as WAV files), `qwenat:program_folder|weights_folder` (Qwen TTS from those folders rather than
+the app's own and the profile's, with no spaces in either path; for a voice in Chinese or Japanese start a new profile
+with `"Language": "zh"` or `"ja"` in `-Settings`, as a character given a voice already keeps it),
+`voicecheck:some_words` (makes those words in their voice without playing them and logs what their ears hear in the
+audio, `Voice: asked to say … her ears heard …`, with this PC's pace) and
 `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as choosing it
 in Settings does), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording they hear as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: they

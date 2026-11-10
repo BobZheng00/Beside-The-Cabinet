@@ -36,9 +36,11 @@ another project, and never commercially.
 | VRM add-on, MToon shader (`addons/`, licences inside) | V-Sekai contributors; Masataka SUMI | MIT |
 | .NET libraries: Anthropic, Microsoft.Extensions.AI, Microsoft.Data.Sqlite, ONNX Runtime, Microsoft.ML.Tokenizers, SharpCompress | their authors | MIT |
 | sherpa-onnx | Xiaomi Corporation and its contributors | Apache-2.0 |
+| qwentts.cpp (`tts-server`, in a release's `qwen-tts/`), with ggml, cpp-httplib and yyjson, built by `tools/export/build_qwen_tts.py` | ServeurpersoCom; the ggml authors; Yuji Hirose; YaoYuan | MIT |
 
 Models fetched into `src/InsertCoin.Game/models/` (not in this repository; each folder carries its own `LICENSE.txt`):
 SenseVoice-Small (Tongyi Lab, Alibaba Group; FunASR Model Open Source License 1.1, which asks for its name and
 attribution to be kept), multilingual-e5-small (intfloat) and bge-small-zh-v1.5 (BAAI), both MIT, in Xenova's ONNX exports, Silero VAD (MIT), Smart Turn v3.2 (BSD
 2-Clause, Daily). GPT-SoVITS (MIT) isn't part of the app: it is installed on the player's PC from its makers' own
-download, when the player asks.
+download, when the player asks. The same goes for Qwen3-TTS's weights (Alibaba Cloud, Apache-2.0), fetched from
+`ldov/Qwen3-TTS-GGUF` on Hugging Face, or HF-Mirror, when the player asks on Their voice.

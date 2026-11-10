@@ -261,6 +261,10 @@ public partial class Stool : Node2D
         _voice = new Voice();
         AddChild(_voice);
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => Her);
+        // a release carries the engine beside the app; run from source it is what tools/export/build_qwen_tts.py built
+        var besideApp = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "qwen-tts");
+        _voice.UseQwen(File.Exists(Path.Combine(besideApp, "tts-server.exe")) ? besideApp : ProjectSettings.GlobalizePath("res://../../builds/qwen-tts"),
+                       Path.Combine(dataDir, "qwen-tts"));
         _voice.Muted = settings.Now.Muted;
         _voice.Answering = () => _chat.Answering && !_permission.IsOpen;     // waiting on her card, she isn't thinking: no thinking sounds
         _voice.Testing += line =>                           // only the bubble: she is already saying it in her own language
@@ -1331,13 +1335,23 @@ public partial class Stool : Node2D
     private void GiveOwnVoice(string id, string name)
     {
         var resource = $"res://characters/{id}/voice.zip";
-        if (_settings.Now.VoicesGiven.Contains(id) || !ModelFiles.Present(resource))
+        var folder = VoiceFolder(id);
+        var existing = VoiceProfile.Load(folder);
+        // in Chinese or Japanese they speak with Qwen TTS, once it's fetched: a character kept in text until then
+        var suggested = existing is null ? QwenTts.Suggested(id, SpokenLanguage.ForVoice(null, _settings.Now.Language, OS.GetLocaleLanguage())) : null;
+        if (_settings.Now.VoicesGiven.Contains(id) || suggested is null && !ModelFiles.Present(resource))
             return;
         _settings.Save(_settings.Now with { VoicesGiven = [.. _settings.Now.VoicesGiven, id] });
-        if (VoiceProfile.Load(VoiceFolder(id)) is not null)
+        if (existing is not null)
             return;                                         // they have one already
         try
         {
+            if (suggested is not null)
+            {
+                suggested.Save(folder);
+                GD.Print($"Voice: {name} speaks {suggested.Language} as {suggested.Name}");
+                return;
+            }
             (VoiceProfile.Import(ModelFiles.OnDisk(resource, "voice-" + id), VoiceFolder(id)) with { Name = name }).Save(VoiceFolder(id));
             GD.Print($"Voice: {name} given their own voice");
         }
@@ -2348,6 +2362,14 @@ public partial class Stool : Node2D
 
     // ---- Dev actions -----------------------------------------------------------------------------------------------------
 
+    /// <summary>Dev: what her ears make of a line in her voice, to check the engine says the words it was given.</summary>
+    private async Task VoiceCheck(string words)
+    {
+        var audio = await _voice.DevSay(words);
+        var heard = audio.Samples.Length > 0 && await _listening.SharedEars() is { } ears ? ears.Hear(Hearing.To16k(audio.Samples, audio.SampleRate)) : null;
+        GD.Print($"Voice: asked to say \"{words}\" ({(double)audio.Samples.Length / Math.Max(1, audio.SampleRate):0.00} s of speech), her ears heard \"{heard}\"");
+    }
+
     /// <summary>Her dev actions (see tools/dev/README.md); false when <paramref name="action"/> isn't one of hers.</summary>
     public bool Dev(string action)
     {
@@ -2541,6 +2563,11 @@ public partial class Stool : Node2D
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice
             case "thinkingsounds": GD.Print($"Voice: {_voice.DevSaveSounds(rest)} thinking sounds saved in {rest}"); break;    // thinkingsounds:folder: her thinking sounds as WAV files
             case "voicetest": _ = _voice.Test(); break;      // her voice says its sample line (waiting for it to be ready)
+            case "qwenat":                                  // qwenat:program_folder|weights_folder: Qwen TTS from there, rather than copies in the test profile
+                var (program, weights) = (rest[..rest.IndexOf('|')], rest[(rest.IndexOf('|') + 1)..]);
+                _voice.UseQwen(program, weights);
+                break;
+            case "voicecheck": _ = VoiceCheck(text); break; // voicecheck:words: says them in her voice (off the speakers) and logs the words her ears find in it
             case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
                 if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(rest) || rest == "trained" && voice.Trained))
                 {

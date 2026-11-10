@@ -42,7 +42,12 @@ public sealed partial record VoiceProfile
     /// </summary>
     public const double IdealClipSeconds = 6;
 
+    /// <summary>The value of <see cref="Engine"/> for one of Qwen TTS's own speakers (see <see cref="QwenTts"/>).</summary>
+    public const string Qwen = "qwen-tts";
+
     public string Engine { get; init; } = "gpt-sovits";
+    /// <summary>The engine's name for a built-in speaker (Qwen TTS's "serena"); null for a voice made from clips.</summary>
+    public string? Speaker { get; init; }
     public string Name { get; init; } = "";
     /// <summary>The language the voice speaks (see <see cref="SpokenLanguage"/>); empty until known.</summary>
     public string Language { get; init; } = "";
@@ -65,7 +70,8 @@ public sealed partial record VoiceProfile
     /// <summary>What still stops the voice from speaking, or null when nothing does.</summary>
     [JsonIgnore]
     public string? Missing =>
-        Clips.Count == 0 ? "a 3 to 10 second clip of the voice"
+        Engine == Qwen ? null                   // a speaker the engine has: no clips to give it
+        : Clips.Count == 0 ? "a 3 to 10 second clip of the voice"
         : !Clips.Any(c => c.Text.Trim().Length > 0) ? "the words spoken in its clip"
         : Language.Length == 0 ? "the language it speaks"
         : null;
@@ -255,7 +261,7 @@ public sealed partial record VoiceProfile
 
     private static VoiceProfile FromClip(string clip, string folder)
     {
-        var existing = Load(folder);
+        var existing = Load(folder) is { Engine: not Qwen } voice ? voice : null;   // a clip can't join one of Qwen TTS's speakers: it starts a voice
         if (existing is null)
             Clear(folder);                                  // whatever is there without a voice.json is no voice
         var said = FromName(clip);

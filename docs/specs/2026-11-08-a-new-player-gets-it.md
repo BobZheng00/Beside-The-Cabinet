@@ -176,7 +176,9 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
 - **The download is asked for on Their voice,** never in the middle of a conversation, and the mission points there. Until it's
   done, a player in Chinese or Japanese has them in text.
 - **While a game runs the voice rests,** as it does now, and Qwen TTS's server stops, so the game gets its memory and
-  processor back.
+  processor back. *Built (#281): Qwen TTS for Chinese and Japanese, its download on Their voice, and which language a
+  voice starts in (`SpokenLanguage.ForVoice`). The server starts at the first thing there is to say. A Qwen voice's page
+  offers Chinese and Japanese until English has its engine (#282) and the list of voices arrives (#283).*
 - **Profiles from before Preview 3.** Shino's and Fumiriya's old voices, made with Kokoro-82M, stop shipping, and one that hasn't
   been trained gives way to the suggested voice. A voice the player made or added stays chosen: with no engine for it on
   this PC the page says so and offers the suggested one. A character whose given voice the player removed stays without

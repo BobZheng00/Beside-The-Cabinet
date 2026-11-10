@@ -20,6 +20,23 @@ public static class SpokenLanguage
     };
 
     /// <summary>
+    /// The language a character's voice speaks: the one a voice they already have speaks; else the Language setting;
+    /// on Auto (null) the PC's display language (Chinese, Japanese, otherwise English). It is worked out once, when the
+    /// voice is given, and kept until the player changes it. What the player writes never changes it.
+    /// </summary>
+    /// <param name="display">The PC's display language, as Windows names it ("zh", "zh-CN", "ja").</param>
+    public static string ForVoice(string? existing, string? setting, string display)
+    {
+        if (existing is { Length: > 0 })
+            return existing;
+        if (setting is { Length: > 0 })
+            return setting;
+        return display.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh"
+            : display.StartsWith("ja", StringComparison.OrdinalIgnoreCase) ? "ja"
+            : "en";
+    }
+
+    /// <summary>
     /// "ja" when the text has kana, "ko" for Hangul, "zh" for Chinese characters, "en" for Latin letters, null when
     /// it has none of them (numbers, punctuation). A few Latin letters inside Chinese or Japanese ("我在玩Hades") do
     /// not make it English; a Chinese name inside an English sentence does not make it Chinese.
