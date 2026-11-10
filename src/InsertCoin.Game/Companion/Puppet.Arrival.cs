@@ -93,6 +93,7 @@ internal sealed partial class Puppet
         Interrupt(0);
         _springs.Clear();                   // nothing to swing in from
         Appeared?.Invoke();
+        Update(0);                          // posed on the stool now: what asked for them goes by where they are
     }
 
     /// <summary>Starts the arrival from the top: they vanish behind the cabinet at once.</summary>
