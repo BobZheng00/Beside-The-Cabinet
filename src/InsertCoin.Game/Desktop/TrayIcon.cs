@@ -12,7 +12,7 @@ public enum TrayMood { Fine, Low, Debt }
 /// </summary>
 public partial class TrayIcon : Node
 {
-    public event Action? ShowCabinet, Settings, GettingStarted, Characters, MemoryBook, ChatHistory, WriteMemo, CheckNow, Quit;
+    public event Action? ShowCabinet, Settings, GettingStarted, Characters, Memory, ChatHistory, WriteMemo, CheckNow, Quit;
     public event Action<bool>? MutedChanged, VoiceChanged, ConversationChanged;
 
     private const int ShowId = 0, SettingsId = 1, MemoryId = 2, HistoryId = 3, MemoId = 4, CheckId = 5, MuteId = 6, VoiceId = 7, ConversationId = 8, QuitId = 9, StartId = 10, CharactersId = 11;
@@ -149,7 +149,7 @@ public partial class TrayIcon : Node
             case SettingsId: Settings?.Invoke(); break;
             case StartId: GettingStarted?.Invoke(); break;
             case CharactersId: Characters?.Invoke(); break;
-            case MemoryId: MemoryBook?.Invoke(); break;
+            case MemoryId: Memory?.Invoke(); break;
             case HistoryId: ChatHistory?.Invoke(); break;
             case MemoId: WriteMemo?.Invoke(); break;
             case CheckId: CheckNow?.Invoke(); break;
@@ -170,7 +170,7 @@ public partial class TrayIcon : Node
         menu.AddItem("Settings…", SettingsId);           // "Getting started…" goes under it while anything is left of it (see ShowStart)
         menu.AddItem("Who keeps you company…", CharactersId);
         menu.AddSeparator();
-        menu.AddItem("Memory book…", MemoryId);
+        menu.AddItem("Memory…", MemoryId);
         menu.AddItem("Chat history…", HistoryId);
         menu.AddItem("Write a memo…", MemoId);         // "Check LeetCode now" goes under it while LeetCode earns (see ShowCheck)
         menu.AddSeparator();

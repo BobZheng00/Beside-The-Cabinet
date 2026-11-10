@@ -54,7 +54,7 @@ public sealed record AgendaDone(AgendaChange Change, Plan Item);
 /// The player's agenda as she sees it: what is coming up in the next week and what has just passed (so she can ask
 /// how it went) go into every turn; reminders go off at their time; a repeating item moves on to its next time;
 /// two days after, a one-off item leaves the agenda (the conversation about it is what her moments keep). Items
-/// come from her replies (<c>[plan: …]</c>, <c>[remind: …]</c>), from upkeep, and from the memory book. In a reply she can
+/// come from her replies (<c>[plan: …]</c>, <c>[remind: …]</c>), from upkeep, and from Settings' Memory. In a reply she can
 /// also call off or change an item she was shown, by its number (<c>[cancel: #12]</c>, <c>[change: #12 | …]</c>), but never a
 /// calendar's: the calendar decides those.
 /// </summary>

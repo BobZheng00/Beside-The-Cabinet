@@ -11,7 +11,7 @@ namespace InsertCoin.Game.App;
 /// used once saved, so picking a provider to see its server never switches her over), or their ChatGPT plan (signed in
 /// to in their browser; used once signed in) with an optional backup behind it (used only after the player's yes, each
 /// time the plan stops), how she finds what to remember, and how much of the conversation she
-/// keeps word for word. What she remembers is in the memory book (see <see cref="MemoryBook"/>).
+/// keeps word for word. What she remembers is on Memory (see <see cref="MemorySettings"/>).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public partial class MindSettings : VBoxContainer

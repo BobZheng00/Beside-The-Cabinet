@@ -111,7 +111,7 @@ public partial class ChatHistory : Window
         };
 
         var buttons = new HBoxContainer();
-        buttons.AddChild(Text("Everything said is kept on this PC. Clear it in the memory book.", Paper.Faint, hint: true));
+        buttons.AddChild(Text("Everything said is kept on this PC. Clear it in Settings, Memory.", Paper.Faint, hint: true));
         var close = new Button { Text = "Close" };
         close.Pressed += QueueFree;
         buttons.AddChild(close);

@@ -6,8 +6,8 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// AGENDA on the CRT: what is coming up, four to a page, each with when (today, tomorrow, or the day) and what. A click
-/// opens the memory book's Agenda tab, to change it. While it shows, it follows the agenda as it changes (her plans and
-/// cancellations, upkeep, a reminder, the memory book), looking again every two seconds.
+/// opens Settings' Agenda tab under Memory, to change it. While it shows, it follows the agenda as it changes (her plans and
+/// cancellations, upkeep, a reminder, Settings), looking again every two seconds.
 /// </summary>
 public partial class AgendaApp(MindStore store, Action openAgenda) : CrtApp
 {

@@ -32,7 +32,7 @@ public partial class Stool : Node2D
     private VoiceTrainer _trainer = null!;
     private EngineInstaller _installer = null!;
     private string? _hearingVoice;                          // the voice whose clips her ears are writing down
-    private MemoryBook? _memoryBook;
+    private MemorySettings? _memory;
     private ChatHistory? _history;
     private bool _gameRunning;
     private Listening _listening = null!;
@@ -1162,11 +1162,11 @@ public partial class Stool : Node2D
             _chatBox.Close();                               // clicked away without typing
     }
 
-    /// <summary>The cabinet is closing: the memory book saves what the player was in the middle of, her mind lets go of its files and her voice's server ends.</summary>
+    /// <summary>The cabinet is closing: Memory saves what the player was in the middle of, her mind lets go of its files and her voice's server ends.</summary>
     public void Shutdown()
     {
-        if (IsInstanceValid(_memoryBook))
-            _memoryBook!.SaveAll();
+        if (IsInstanceValid(_memory))
+            _memory!.SaveAll();
         _chat?.Dispose();
         _voice?.Shutdown();
     }
@@ -1187,19 +1187,11 @@ public partial class Stool : Node2D
     /// <summary>A memo of the player's own to write (the screen's menu, or tray → Write a memo…).</summary>
     public void WriteMemo() => _memos.Write();
 
-    /// <summary>All the memos: the memory book, at its Memos tab.</summary>
-    public void OpenMemos()
-    {
-        OpenMemoryBook();
-        _memoryBook?.ShowTab("memos");
-    }
+    /// <summary>All the memos: Settings, Memory, at its Memos tab.</summary>
+    public void OpenMemos() => OpenMemory("memos");
 
-    /// <summary>The agenda: the memory book, at its Agenda tab.</summary>
-    public void OpenAgenda()
-    {
-        OpenMemoryBook();
-        _memoryBook?.ShowTab("agenda");
-    }
+    /// <summary>The agenda: Settings, Memory, at its Agenda tab.</summary>
+    public void OpenAgenda() => OpenMemory("agenda");
 
     /// <summary>
     /// A memo the player wrote, once she is free: she thinks it over unseen, and acts on it (a reminder, a date on
@@ -2274,15 +2266,19 @@ public partial class Stool : Node2D
         return page;
     }
 
-    /// <summary>What they remember, and the conversation itself, each in a window of its own.</summary>
+    /// <summary>What whoever is on the stool remembers: notes, agenda, facts, diary, memos and forgetting, a tab each.</summary>
     private Control MemoryPage()
     {
-        var page = Form.Page(new VBoxContainer());
-        Form.Hint(page, "Notes, your agenda, facts, their diary and your memos, yours to read and change.");
-        var buttons = Form.Buttons(page);
-        foreach (var button in new[] { Form.Button(buttons, "What they remember…", OpenMemoryBook), Form.Button(buttons, "Chat history…", OpenChatHistory) })
-            button.Disabled = OnStool() is null;            // nobody on the stool, nothing of theirs to open
-        return page;
+        if (OnStool() is not { } character)
+        {
+            var nobody = Form.Page(new VBoxContainer());    // nobody on the stool, nothing of theirs to show
+            Form.Hint(nobody, "Nobody's keeping you company yet. Choose someone under Companion.");
+            return nobody;
+        }
+        _memory = new MemorySettings();
+        _memory.Build(_chat.Store, character.Id, character.Name, _memos);
+        _memory.History += OpenChatHistory;
+        return _memory;
     }
 
     /// <summary>What her requests used, and the prices the player entered for the model she runs on.</summary>
@@ -2320,21 +2316,13 @@ public partial class Stool : Node2D
         _history.Open();
     }
 
-    /// <summary>What whoever is on the stool remembers: notes, facts, moments.</summary>
-    public void OpenMemoryBook()
+    /// <summary>Settings, Memory, at this tab (notes, agenda, facts, diary, memos, forget; retired), or as it was left.</summary>
+    public void OpenMemory(string? tab = null)
     {
-        if (IsInstanceValid(_memoryBook))
-        {
-            _memoryBook!.GrabFocus();
-            return;
-        }
-        if (OnStool() is not { } character)
-            return;
-        _memoryBook = new MemoryBook();
-        AddChild(_memoryBook);
-        _memoryBook.Build(_chat.Store, character.Id, character.Name, _memos);
-        _memoryBook.History += OpenChatHistory;
-        _memoryBook.Open();
+        OpenSettings?.Invoke("memory");
+        if (tab is not null && IsInstanceValid(_memory))
+            _memory!.ShowTab(tab);
+        GD.Print($"Settings: opened at Memory{(tab is null ? "" : $", {tab}")}");
     }
 
     // ---- Her voice ------------------------------------------------------------------------------------------------------
@@ -2506,11 +2494,8 @@ public partial class Stool : Node2D
             case "deny": _permission.Press(Answer.No); break;           // its last
             case "seechange" when rest == "end": _permission.SeeChangeEnd(); break;     // seechange:end opens it and scrolls to the end of the lines
             case "seechange": _permission.SeeChange(); break;  // presses See the change on her suggested change to a skill
-            case "memorybook":                              // memorybook:agenda opens it at that tab (notes, agenda, facts, diary, memos, forget; retired)
-                OpenMemoryBook();
-                if (rest.Length > 0)
-                    _memoryBook?.ShowTab(rest);
-                break;
+            case "memory": OpenMemory(rest.Length > 0 ? rest : null); break;    // memory:agenda opens Settings' Memory at that tab (notes, agenda, facts, diary, memos, forget; retired)
+            case "memoryfilter": if (IsInstanceValid(_memory)) _memory!.DevFilter(text); break;     // memoryfilter:words types in the filter showing, on Facts or Diary
             case "chathistory": OpenChatHistory(); break;
             case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Lines, Close
             case "lineswap":                                // lineswap:words: the newest line taken back and the player's words kept under its number, at once
@@ -2523,17 +2508,17 @@ public partial class Stool : Node2D
                     _chat.Store.RemoveLine(newest.Id);
                 GD.Print($"Chat: line {_chat.Store.Add(seated.Id, Speaker.User, text, DateTimeOffset.Now)} kept after a {name}");
                 break;
-            case "forget": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevForget(rest); break;   // forget:chat|all|me, as the memory book's buttons
-            case "memorybookdo": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevPress(text); break;     // memorybookdo:Close presses that button in the memory book
-            case "memorybooktype" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var typed]:   // memorybooktype:words:new_words types in that field, not leaving it
-                _memoryBook!.DevType(words, typed);
+            case "forget": if (IsInstanceValid(_memory)) _memory!.DevForget(rest); break;   // forget:chat|all|me, as Memory's Forget buttons
+            case "memorydo": if (IsInstanceValid(_memory)) _memory!.DevPress(text); break;     // memorydo:Keep_yours presses that button on Memory
+            case "memorytype" when IsInstanceValid(_memory) && text.Split(':', 2) is [var words, var typed]:   // memorytype:words:new_words types in that field, not leaving it
+                _memory!.DevType(words, typed);
                 break;
-            case "memorybookleave": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevLeave(); break;    // leaves the field typed in last, as a click elsewhere
-            case "memorychange" when IsInstanceValid(_memoryBook) && text.Split(':', 2) is [var words, var reworded]:   // memorychange:words:new_words: her fact (or agenda item) reworded under the book
-                _memoryBook!.DevChange(words, reworded);
+            case "memoryleave": if (IsInstanceValid(_memory)) _memory!.DevLeave(); break;    // leaves the field typed in last, as a click elsewhere
+            case "memorychange" when IsInstanceValid(_memory) && text.Split(':', 2) is [var words, var reworded]:   // memorychange:words:new_words: her fact (or agenda item) reworded under the page
+                _memory!.DevChange(words, reworded);
                 break;
-            case "memorycancel": if (IsInstanceValid(_memoryBook)) _memoryBook!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the book
-            case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try the memory book on
+            case "memorycancel": if (IsInstanceValid(_memory)) _memory!.DevCancel(text); break;     // memorycancel:words: her agenda item cancelled under the page
+            case "memoryseed": SeedMemory(); break;         // a few notes, facts, a moment and a line, to try Memory on
             case "skillseed": SeedSkills(); break;          // skills in the app's folder and a vault's, to try the Skills page and her skill tool on
             case "skillmake":                               // skillmake:a-name makes a skill of that name in the app's own skills folder (a long one, to try the pages' widths)
                 Directory.CreateDirectory(Path.Combine(_chat.Skills.Own, rest));
@@ -2639,7 +2624,7 @@ public partial class Stool : Node2D
     /// <summary>Dev: a stand-in notes folder beside the profile (a folder inside it can't be granted), named "notes" as her paths start.</summary>
     private string SeededNotes() => Path.Combine(Path.GetDirectoryName(_chat.Skills.Own)! + "-files", "notes");
 
-    /// <summary>Dev: something for the memory book to show, about whoever is on the stool.</summary>
+    /// <summary>Dev: something for Memory to show, about whoever is on the stool.</summary>
     private void SeedMemory()
     {
         if (OnStool() is not { } character)

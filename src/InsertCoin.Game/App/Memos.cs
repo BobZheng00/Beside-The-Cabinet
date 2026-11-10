@@ -8,7 +8,7 @@ namespace InsertCoin.Game.App;
 /// <summary>
 /// The player's memos (see <see cref="Memo"/>): printed out of the cabinet's slot, by her or as notes to self, read
 /// and written on the paper itself, out on the desktop, several at once (see <see cref="MemoSheet"/>), or glanced at by
-/// pointing at one, carried by hand and stuck anywhere on the cabinet's side, or kept in the archive (the memory book's
+/// pointing at one, carried by hand and stuck anywhere on the cabinet's side, or kept in the archive (Memory's
 /// Memos tab). The cabinet shows what the store holds; everything that changes a memo goes through here.
 /// </summary>
 public partial class Memos : Node
@@ -22,7 +22,7 @@ public partial class Memos : Node
     private MemoSheet.Draft? _draft;                        // a new memo left unprinted, to carry on with
     private long? _carrying;
 
-    /// <summary>A memo was printed, moved, changed or thrown away (the memory book's tab follows).</summary>
+    /// <summary>A memo was printed, moved, changed or thrown away (Memory's tab follows).</summary>
     public event Action? Changed;
 
     /// <summary>The player printed a memo of their own for her to read (title, text): she sees it come out, and thinks it over.</summary>
@@ -219,7 +219,7 @@ public partial class Memos : Node
         NewSheet().Read(memo, From(memo), at, memo.Place == MemoPlace.Pinned ? (float)memo.Tilt : 0);
     }
 
-    /// <summary>Whose it is, as the reader and the memory book say it: "From Shino", or "Your memo".</summary>
+    /// <summary>Whose it is, as the reader and Memory say it: "From Shino", or "Your memo".</summary>
     public string From(Memo memo) => memo.By is null ? "Your memo" : $"From {_nameOf(memo.By)}";
 
     /// <summary>A memo of their own, to write (it prints out of the slot once saved); one being written comes to the front.</summary>

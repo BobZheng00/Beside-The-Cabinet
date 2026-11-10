@@ -1,6 +1,6 @@
 namespace InsertCoin.Mind.Tests;
 
-/// <summary>The memory book saves each edit as the player leaves the field, writing only that, and never over a change of hers it hadn't shown.</summary>
+/// <summary>Memory saves each edit as the player leaves the field, writing only that, and never over a change of hers it hadn't shown.</summary>
 public class MemoryEditsTests
 {
     private static readonly DateTimeOffset Friday = new(2026, 10, 2, 19, 30, 0, TimeSpan.FromHours(8));
@@ -21,6 +21,18 @@ public class MemoryEditsTests
         Assert.True(await new Conversation(store, "shino", Shino, clock).Digest(model));
     }
 
+    [Theory]
+    [InlineData("The player likes Hades.", "", true)]                       // nothing typed: the whole list
+    [InlineData("The player likes Hades.", "   ", true)]
+    [InlineData("The player likes Hades.", "hades", true)]                  // any case
+    [InlineData("The player likes Hades.", "Had", true)]                    // part of a word, as it is typed
+    [InlineData("The player likes Hades.", "hades likes", true)]            // every word, in any order
+    [InlineData("The player likes Hades.", "hades celeste", false)]
+    [InlineData("The player likes Hades.", "Celeste", false)]
+    [InlineData("玩家喜欢哈迪斯", "哈迪斯", true)]                                // Chinese has no case and no spaces
+    public void A_filter_finds_the_lines_with_every_word_typed(string line, string filter, bool shown) =>
+        Assert.Equal(shown, MemoryEdits.Matches(line, filter));
+
     [Fact]
     public async Task An_edit_saved_after_upkeep_changed_other_facts_writes_only_itself_and_brings_nothing_back()
     {
@@ -31,7 +43,7 @@ public class MemoryEditsTests
         var exam = store.AddFact(MindStore.Shared, "The player has an exam next week.", 6, Friday.AddDays(-5));
         var rust = store.AddFact(MindStore.Shared, "The player is learning Rust.", 5, Friday.AddDays(-5));
         store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob, studying for exams.");
-        var shown = store.Facts("shino");                                   // the book opens
+        var shown = store.Facts("shino");                                   // Memory shows them
 
         await Upkeep(store, clock, exam, rust);                             // while the player is typing in the Hades fact
         store.SetNote(MindStore.Shared, MindStore.AboutUser, "Bob, studying for exams in October.");

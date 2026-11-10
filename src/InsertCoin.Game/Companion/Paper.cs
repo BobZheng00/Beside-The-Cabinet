@@ -55,6 +55,8 @@ public static class Paper
         Button("OptionButton", Wash, new Color("E2DAF7"), new Color("D3C8F2"), Letters);
         theme.SetTypeVariation("Quiet", "Button");
         Button("Quiet", Wash, new Color("E2DAF7"), new Color("D3C8F2"), Letters);
+        theme.SetTypeVariation("Danger", "Button");         // what can't be undone
+        Button("Danger", new Color("B3362F"), new Color("C94A41"), new Color("8F2A24"), Colors.White);
         // small ones, as the answers on her bubble
         theme.SetTypeVariation("Small", "Button");
         Button("Small", Accent, AccentLight, AccentDark, Colors.White, small: true);

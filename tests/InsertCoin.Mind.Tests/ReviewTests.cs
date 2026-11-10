@@ -63,7 +63,7 @@ public class ReviewTests
         var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday)) { Clashed = clashes.Add };
         var model = new FakeModel
         {
-            // the player, in the memory book, while she thinks
+            // the player, on Memory, while she thinks
             Thinking = _ =>
             {
                 MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == again), "The player's exam is on 12 October, in the main hall.");

@@ -65,7 +65,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>
     /// Told of each change upkeep left unmade because the player changed that fact or agenda item while it was thinking
-    /// (in the memory book, or Chat history's Edit): theirs stays, and the log says so.
+    /// (on Memory, or Chat history's Edit): theirs stays, and the log says so.
     /// </summary>
     public Action<string>? Clashed { get; init; }
 
@@ -1193,7 +1193,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     /// <summary>
     /// The fact is still as upkeep read it before asking the model. Else the player changed it meanwhile (a call can take
     /// a minute or more): theirs stays, her new words for it (if any) are kept as what it said before theirs, retired as
-    /// changed to theirs as the memory book keeps hers, and the log says so. Nothing of hers is kept when theirs already
+    /// changed to theirs as Memory keeps hers, and the log says so. Nothing of hers is kept when theirs already
     /// says it, or when they forgot the fact: their Forget holds.
     /// </summary>
     /// <param name="unmade">What she would have done with no new words of hers, for the log.</param>

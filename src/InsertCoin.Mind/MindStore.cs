@@ -28,7 +28,7 @@ public sealed record Fact(long Id, string Scope, string Text, int Importance, Da
     public double Retention(DateTimeOffset now) =>
         Pinned || Importance >= 9 ? 1 : Math.Exp(-(now - (Recalled ?? Learned)).TotalDays / (10.0 * Importance * (1 + Recalls)));
 
-    /// <summary>Faded: left out of what she recalls (it stays in the memory book, and pinning brings it back).</summary>
+    /// <summary>Faded: left out of what she recalls (it stays on Memory, and pinning brings it back).</summary>
     public bool Faded(DateTimeOffset now) => Retention(now) < 0.1;
 }
 
@@ -183,7 +183,7 @@ public sealed class MindStore : IDisposable
                 """);
         // version 14: what she always has in mind is listed from her facts for every reply (see Prompt.Known), so the two
         // notes the model rewrote from them go into her log, out of view like condensed notes and still recalled, and the
-        // memory book's Notes are the player's own from now on
+        // Memory's Notes are the player's own from now on
         if (was < 14)
             Run("""
                 INSERT INTO observations (character, at, priority, text, first, last, span, condensed)

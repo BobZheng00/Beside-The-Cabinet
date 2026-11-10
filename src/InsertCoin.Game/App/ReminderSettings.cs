@@ -22,6 +22,9 @@ public partial class ReminderSettings : VBoxContainer
     /// <summary>"Try it": a reminder goes off now, everywhere one would; what came of it, to show, and whether all of it went.</summary>
     public Func<Task<(string Said, bool Fine)>> TryIt { get; set; } = () => Task.FromResult(("", true));
 
+    /// <summary>"Open the agenda": the player wants to see what the reminders are for.</summary>
+    public event Action? Agenda;
+
     private CheckBox _spoken = null!, _sound = null!, _evenMuted = null!, _windows = null!;
     private OptionButton _stays = null!, _snooze = null!, _lead = null!;
     private Label _result = null!;
@@ -29,6 +32,7 @@ public partial class ReminderSettings : VBoxContainer
     public void Build(ReminderChoices choices)
     {
         Form.Page(this);
+        Form.Button(Form.Buttons(this), "Open the agenda", () => Agenda?.Invoke());
         Form.Hint(this, "Ask for a reminder and it goes off at that time, always on a ticket at the corner of the screen, " +
                         "with Snooze and OK. While you're away from the PC, it reaches your phone instead (see Connections, Your phone).");
         var ticket = Form.Grid(this);
