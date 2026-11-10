@@ -401,6 +401,68 @@ public class EngineInstallTests : IDisposable
     }
 
     [Fact]
+    public async Task Code_on_a_connection_that_keeps_dropping_gives_up_rather_than_going_round_for_ever()
+    {
+        var file = Bytes(100_000);
+        var host = new FakeHost(file) { DropAfter = 40_000, AlwaysDrops = true };
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            EngineInstall.Fetch(new HttpClient(host), Package, Path.Combine(_dir, "code.zip.part"), null, new Listener<long>(), CancellationToken.None, tries: 3, backOff: TimeSpan.Zero));
+
+        Assert.Equal(3, host.Asked.Count);
+    }
+
+    [Fact]
+    public async Task A_reply_that_isnt_a_whole_zip_says_so_in_plain_words_and_the_next_try_carries_on()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var cut = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip[..(zip.Length / 2)])));
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => V5Fast.Install(new HttpClient(cut), engine, WeightFrom, weights, CodeZip, CodeHash(zip),
+                                                                                        new Listener<(EngineStep, long, long)>(), CancellationToken.None, TimeSpan.Zero));
+
+        Assert.Equal("v5 fast's code came through damaged. Try again.", error.Message);
+        Assert.False(V5Fast.Has(engine, weights));
+        await Install(engine, new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip))), weights, zip);
+        Assert.True(V5Fast.Has(engine, weights));
+    }
+
+    [Fact]
+    public async Task A_folder_with_an_ampersand_in_its_name_links_like_any_other()
+    {
+        var engine = Engine("GPT&SoVITS");
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+
+        await Install(engine, new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip))), weights, zip);
+
+        Assert.True(V5Fast.Has(engine, weights));
+    }
+
+    [Fact]
+    public async Task A_package_moved_elsewhere_speaks_without_v5_fast_until_its_links_are_made_again()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip)));
+        await Install(engine, hosts, weights, zip);
+
+        var moved = Path.Combine(_dir, "moved", "GPT-SoVITS-v2pro-20250604");
+        Directory.CreateDirectory(Path.GetDirectoryName(moved)!);
+        Directory.Move(engine, moved);
+
+        Assert.True(Directory.Exists(Path.Combine(V5Fast.Code(moved), "runtime")));         // a link leading nowhere still "exists": why Has looks where it leads
+        Assert.False(V5Fast.Has(moved, weights));
+
+        await Install(moved, hosts, weights, zip);
+        Assert.True(V5Fast.Has(moved, weights));
+        Assert.True(File.Exists(Path.Combine(V5Fast.Code(moved), "runtime", "python.exe")));
+    }
+
+    [Fact]
     public void Only_the_package_the_cabinet_installs_can_have_v5_fast_added()
     {
         Assert.True(V5Fast.CanAdd(Engine()));

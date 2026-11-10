@@ -137,9 +137,16 @@ public partial class EngineInstaller : Node
             Now = EngineStep.Unpacking;
             var folder = await Task.Run(() => EngineInstall.Unpack(archive, parent, package.Name, new Heard<double>(s => _share = s), cancel), cancel);
             File.Delete(archive);
-            var problem = package == EnginePackage.Standard ? await AddFiles(folder, source, cancel) : null;    // without them it still speaks, with v2ProPlus
+            Installed?.Invoke(folder);                      // it speaks from now, with v2ProPlus, and stays chosen if the cabinet closes during v5 fast's part
+            if (package != EnginePackage.Standard)
+            {
+                End(null);
+                return;
+            }
+            var problem = await AddFiles(folder, source, cancel);
             End(problem, stopped: cancel.IsCancellationRequested);
-            Installed?.Invoke(folder);
+            if (problem is null)
+                Installed?.Invoke(folder);                  // her voice starts again, from them
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {

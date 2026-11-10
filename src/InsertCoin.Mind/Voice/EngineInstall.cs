@@ -127,7 +127,8 @@ public static class EngineInstall
                         await file.WriteAsync(buffer.AsMemory(0, read), cancel);
                         have += read;
                         progress.Report(have);
-                        failed = 0;                         // getting somewhere
+                        if (size is not null)
+                            failed = 0;                     // getting somewhere: with no size to carry on from, each try starts over
                     }
                 }
                 if (size is null)
