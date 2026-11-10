@@ -328,7 +328,7 @@ public class VoiceTests
         var voice = VoiceProfile.Import(download.File("【开心】今天也要加油哦.wav", Silence(4)), folder);
         Assert.Equal(("今天也要加油哦", "happy", "zh"), (voice.Clips[0].Text, voice.Clips[0].Mood, voice.Language));
         Assert.Null(voice.Gpt);
-        Assert.True(voice.Slow);                                  // cloned with the base v4 model
+        Assert.False(voice.Slow);                                 // cloned with v5 fast
         Assert.Null(voice.Missing);
 
         var unnamed = VoiceProfile.Import(download.File("sample01.wav", Silence(5)), System.IO.Path.Combine(home.Path, "other.voice"));
@@ -372,7 +372,7 @@ public class VoiceTests
         Assert.Equal((null, null, null, "ja"), (voice.Gpt, voice.Sovits, voice.Version, voice.Language));
         Assert.Equal("この道は、どこまでも続いています。", voice.ClipFor(null)!.Text);
         Assert.Equal(3, voice.Clips.Count);
-        Assert.True(voice.Slow);
+        Assert.False(voice.Slow);
         Assert.Null(voice.Missing);
     }
 
@@ -457,17 +457,18 @@ public class VoiceTests
     }
 
     [Fact]
-    public void A_clone_runs_on_v4_unless_v2ProPlus_is_chosen_which_streams()
+    public void A_clone_runs_on_v5_fast_unless_v2ProPlus_is_chosen()
     {
+        Assert.Equal(["v5turbo", "v2ProPlus"], VoiceProfile.CloneVersions);
         var clone = new VoiceProfile { Language = "ja", Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
-        Assert.Equal("v4", clone.Runs);
-        Assert.True(clone.Slow);
-        Assert.EndsWith("s2Gv4.pth", GptSoVits.Base(clone.Runs).Sovits);
+        Assert.Equal("v5turbo", clone.Runs);
+        Assert.False(clone.Slow);
+        Assert.Equal(("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/gsv-v5-pretrained/s2Gv5turbo.pth"), GptSoVits.Base(clone.Runs));
 
-        var quick = clone with { CloneWith = "v2ProPlus" };
-        Assert.False(quick.Slow);
-        Assert.Equal(("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"), GptSoVits.Base(quick.Runs));
-        Assert.Equal("v4", (clone with { CloneWith = "1.7B" }).Runs);  // saved for Qwen3-TTS while it was offered
+        var steady = clone with { CloneWith = "v2ProPlus" };
+        Assert.False(steady.Slow);
+        Assert.Equal(("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"), GptSoVits.Base(steady.Runs));
+        Assert.Equal("v5turbo", (clone with { CloneWith = "1.7B" }).Runs);  // saved for Qwen3-TTS while it was offered
 
         var trained = clone with { Gpt = "a.ckpt", Sovits = "b.pth", Version = null };
         Assert.Null(trained.Runs);                                // a model of unknown version: not taken for v4
@@ -481,9 +482,115 @@ public class VoiceTests
                                        Clips = [new VoiceClip("clips/a.wav", "はい。", "ja")] };
         Assert.Equal((true, true, "v2ProPlus"), (voice.Trained, voice.SpeaksTrained, voice.Runs));
 
-        var clone = voice with { CloneWith = "v4" };
-        Assert.Equal((true, false, "v4", true), (clone.Trained, clone.SpeaksTrained, clone.Runs, clone.Slow));
+        var clone = voice with { CloneWith = "v5turbo" };
+        Assert.Equal((true, false, "v5turbo", false), (clone.Trained, clone.SpeaksTrained, clone.Runs, clone.Slow));
         Assert.Equal("v2ProPlus", (clone with { CloneWith = null }).Runs);     // and back
+    }
+
+    [Fact]
+    public void A_copy_saved_as_made_with_v4_speaks_with_v5_fast_the_next_time_it_loads()
+    {
+        using var copy = new TempFolder();
+        copy.File("voice.json", Encoding.UTF8.GetBytes("""{ "name": "hana-ja", "language": "ja", "cloneWith": "v4", "clips": [] }"""));
+        using var older = new TempFolder();
+        older.File("voice.json", Encoding.UTF8.GetBytes("""{ "name": "hana-ja", "language": "ja", "version": "v4", "clips": [] }"""));
+
+        Assert.Equal("v5turbo", VoiceProfile.Load(copy.Path)!.Runs);
+        Assert.Equal("v5turbo", VoiceProfile.Load(older.Path)!.Runs);
+    }
+
+    [Theory]
+    [InlineData("v3")]
+    [InlineData("v4")]
+    public async Task A_model_made_for_v3_or_v4_keeps_speaking_with_its_own_model_and_its_quality(string version)
+    {
+        using var home = new TempFolder();
+        home.File("clips/a.wav", Silence(5));
+        var clip = new VoiceClip("clips/a.wav", "はい。", "ja");
+        var voice = new VoiceProfile { Gpt = "kai-e15.ckpt", Sovits = "kai_e8.pth", Version = version, Language = "ja", Steps = 32, Clips = [clip] };
+        var server = Speaking([1, 2, 3], 48000);
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") }, hasV5: false);
+
+        await engine.Load(voice, home.Path);
+        await foreach (var _ in engine.Speak("やっほー！", voice, home.Path, clip)) { }
+
+        Assert.Equal(version, voice.Runs);
+        Assert.True(voice.Slow);
+        Assert.True(VoiceProfile.TakesSteps(voice.Runs));              // the page offers Quality for it
+        Assert.Contains(server.Asked, a => a.Contains("kai_e8.pth"));
+        Assert.Contains("\"sample_steps\":32", server.Bodies[^1]);
+        Assert.False(VoiceProfile.TakesSteps("v5turbo"));
+        Assert.False(VoiceProfile.TakesSteps("v2ProPlus"));
+    }
+
+    [Fact]
+    public async Task A_v5_fast_copy_streams_and_leaves_its_steps_to_the_engine()
+    {
+        using var home = new TempFolder();
+        home.File("clips/a.wav", Silence(5));
+        home.File("clips/b.wav", Silence(5));
+        var clips = new[] { new VoiceClip("clips/a.wav", "はい。", "ja"), new VoiceClip("clips/b.wav", "ええ。", "ja") };
+        var voice = new VoiceProfile { Language = "ja", Clips = clips };
+        var server = Speaking([1, 2, 3], 48000);
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+
+        await foreach (var _ in engine.Speak("やっほー！", voice, home.Path, clips[0])) { }
+
+        var body = JsonDocument.Parse(server.Bodies[^1]).RootElement;
+        Assert.True(body.GetProperty("gpt_streaming").GetBoolean());
+        Assert.Equal(2, body.GetProperty("streaming_mode").GetInt32());
+        Assert.Equal(1.0, body.GetProperty("streaming_chunk_seconds").GetDouble());
+        Assert.Equal(0.3, body.GetProperty("gpt_streaming_lookahead_seconds").GetDouble());
+        Assert.Equal(1, body.GetProperty("batch_size").GetInt32());
+        Assert.Equal("wav", body.GetProperty("media_type").GetString());
+        Assert.False(body.GetProperty("parallel_infer").GetBoolean());
+        Assert.Equal("はい。", body.GetProperty("prompt_text").GetString());
+        Assert.Empty(Blended(server.Bodies[^1]));                      // one reference clip
+        Assert.False(body.TryGetProperty("sample_steps", out var _));  // 16 would be four times the work
+    }
+
+    [Fact]
+    public async Task With_the_card_hidden_from_the_engine_a_v5_fast_copy_doesnt_ask_for_streaming()
+    {
+        using var home = new TempFolder();
+        home.File("clips/a.wav", Silence(5));
+        var clip = new VoiceClip("clips/a.wav", "はい。", "ja");
+        var server = Speaking([1, 2, 3], 48000);
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") }, card: false);
+
+        await foreach (var _ in engine.Speak("やっほー！", new VoiceProfile { Language = "ja", Clips = [clip] }, home.Path, clip)) { }
+
+        var body = JsonDocument.Parse(server.Bodies[^1]).RootElement;
+        foreach (var field in new[] { "gpt_streaming", "streaming_chunk_seconds", "gpt_streaming_lookahead_seconds", "sample_steps" })
+            Assert.False(body.TryGetProperty(field, out var _), field);
+    }
+
+    [Fact]
+    public async Task On_an_engine_without_v5_fast_a_copy_speaks_with_v2ProPlus_and_a_trained_voice_as_before()
+    {
+        using var home = new TempFolder();
+        foreach (var name in new[] { "a", "b" })
+            home.File($"clips/{name}.wav", Silence(5));
+        var clips = new[] { new VoiceClip("clips/a.wav", "はい。", "ja"), new VoiceClip("clips/b.wav", "ええ。", "ja") };
+        var copy = new VoiceProfile { Language = "ja", Clips = clips };
+        var server = Speaking([1, 2, 3], 32000);
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") }, hasV5: false);
+
+        await engine.Load(copy, home.Path);
+        await foreach (var _ in engine.Speak("やっほー！", copy, home.Path, clips[0])) { }
+
+        Assert.Contains(server.Asked, a => a.Contains("s2Gv2ProPlus.pth"));
+        Assert.DoesNotContain(server.Asked, a => a.Contains("s2Gv5turbo"));
+        Assert.Equal(2, Blended(server.Bodies[^1]).Length);
+        Assert.DoesNotContain("gpt_streaming", server.Bodies[^1]);
+        Assert.Equal("v5turbo", copy.Runs);                            // what it wants stays: it speaks with v5 fast once the files come
+    }
+
+    [Fact]
+    public void Training_still_makes_a_v2ProPlus_model()
+    {
+        Assert.Equal("v2ProPlus", VoiceTraining.Version);
+        Assert.Contains("VERSION = \"v2ProPlus\"", VoiceTraining.Script());
     }
 
     [Fact]
@@ -609,7 +716,7 @@ public class VoiceTests
         var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
 
         await foreach (var _ in engine.Speak("やっほー！", clone, home.Path, clips[^1])) { }
-        await foreach (var _ in engine.Speak("やっほー！", clone with { CloneWith = "v4" }, home.Path, clips[0])) { }
+        await foreach (var _ in engine.Speak("やっほー！", clone with { CloneWith = null, Gpt = "a.ckpt", Sovits = "b.pth", Version = "v4" }, home.Path, clips[0])) { }
 
         // the same first few whichever clip speaks (so the server prepares them once), and only clips that are there
         Assert.Equal(GptSoVits.BlendClips, Blended(server.Bodies[0]).Length);
@@ -646,12 +753,12 @@ public class VoiceTests
 
         await engine.Load(trained, @"C:\voices\kai.voice");
         await engine.Load(new VoiceProfile { CloneWith = "v2ProPlus" }, @"C:\voices\hana.voice");
-        await engine.Load(trained with { CloneWith = "v4" }, @"C:\voices\kai.voice");             // a trained voice speaking as a clone
+        await engine.Load(trained with { CloneWith = "v5turbo" }, @"C:\voices\kai.voice");        // a trained voice speaking as a clone
 
         Assert.Equal(["/set_gpt_weights?weights_path=C%3A%5Cvoices%5Ckai.voice%5Ckai-e15.ckpt", "/set_sovits_weights?weights_path=C%3A%5Cvoices%5Ckai.voice%5Ckai_e8.pth",
                       "/set_gpt_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fs1v3.ckpt",
                       "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fv2Pro%2Fs2Gv2ProPlus.pth",
                       "/set_gpt_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fs1v3.ckpt",
-                      "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fgsv-v4-pretrained%2Fs2Gv4.pth"], server.Asked);
+                      "/set_sovits_weights?weights_path=GPT_SoVITS%2Fpretrained_models%2Fgsv-v5-pretrained%2Fs2Gv5turbo.pth"], server.Asked);
     }
 }

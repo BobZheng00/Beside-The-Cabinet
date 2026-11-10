@@ -18,23 +18,35 @@ public sealed class VoiceServer : IDisposable
     /// <summary>A first start loads several models from disk; on the development laptop it took 14–30 s.</summary>
     private static readonly TimeSpan StartLimit = TimeSpan.FromMinutes(3);
 
+    /// <summary>
+    /// Starts api_v2.py as its own script would run, with its own folders first on the path: v5 fast's imports need them
+    /// before api_v2.py adds them, the package's python39._pth leaves them off, and the users.pth that training writes
+    /// names the package's folders, whose older modules would otherwise win.
+    /// </summary>
+    private const string Launcher =
+        "import os, sys, runpy; here = os.getcwd(); " +
+        "sys.path[:0] = [here] + [os.path.join(here, p) for p in ('GPT_SoVITS', 'GPT_SoVITS/BigVGAN', 'tools', 'tools/asr', 'tools/uvr5')]; " +
+        "runpy.run_path('api_v2.py', run_name='__main__')";
+
     private readonly string _log, _health, _name;
     private readonly Func<int, ProcessStartInfo> _start;
     private readonly ProcessPriorityClass _priority;
+    private readonly string? _folder;                   // GPT-SoVITS's, not Qwen TTS's
     private Process? _process;
     private StreamWriter? _logWriter;
 
     public VoiceServer(string folder, string logFile)
         : this(logFile, "docs", port =>
         {
-            var start = new ProcessStartInfo(Path.Combine(folder, "runtime", "python.exe")) { WorkingDirectory = folder };
-            foreach (var arg in new[] { "api_v2.py", "-a", "127.0.0.1", "-p", port.ToString() })
+            var start = new ProcessStartInfo(Path.Combine(folder, "runtime", "python.exe")) { WorkingDirectory = V5Fast.Has(folder) ? V5Fast.Code(folder) : folder };
+            foreach (var arg in new[] { "-c", Launcher, "-a", "127.0.0.1", "-p", port.ToString() })
                 start.ArgumentList.Add(arg);
             start.Environment["PYTHONIOENCODING"] = "utf-8";
             start.Environment["PYTHONUNBUFFERED"] = "1";    // its log keeps up: every line she was given to say, as it came
             return start;
         }, ProcessPriorityClass.Normal, "GPT-SoVITS")
     {
+        _folder = folder;
     }
 
     /// <param name="health">The path that answers once the server is up.</param>
@@ -57,6 +69,13 @@ public sealed class VoiceServer : IDisposable
 
     /// <summary>What is wrong with <paramref name="folder"/> as a GPT-SoVITS install, or null when it will do.</summary>
     public static string? Check(string? folder) => EngineInstall.Problem(folder);
+
+    /// <summary>This engine has v5 fast's files, and runs from them.</summary>
+    public bool HasV5 => _folder is not null && V5Fast.Has(_folder);
+
+    /// <summary>GPT-SoVITS can use an NVIDIA card: there is one, and it isn't hidden from it.</summary>
+    public static bool SeesCard() =>
+        System.Environment.GetEnvironmentVariable("CUDA_VISIBLE_DEVICES") is not ("-1" or "") && EngineInstaller.GraphicsCard() is not null;
 
     /// <summary>
     /// Starts the server, or keeps waiting for one already starting, until it answers; false (with the reason in the
