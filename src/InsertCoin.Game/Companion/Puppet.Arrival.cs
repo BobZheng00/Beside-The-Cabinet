@@ -259,13 +259,14 @@ internal sealed partial class Puppet
     }
 
     /// <summary>Places the hips and reaches the feet to where they go; returns where the hips are.</summary>
-    private Vector3 ArrivalBody()
+    /// <param name="breath">The seated hips' breathing, faded in as they settle, so the handover doesn't jump by it.</param>
+    private Vector3 ArrivalBody(Vector3 breath)
     {
         var plan = _arrival!;
         var now = ArrivalNow;
         _frame["Hips"] = Rig.Euler(plan.Body["Hips"].At(now));
         Spring("Hips").Snap(_frame["Hips"]);        // or the seated pose would take over from wherever the spring lagged to
-        var hips = plan.Pelvis.At(now);
+        var hips = plan.Pelvis.At(now) + breath * plan.Resting.At(now).X;
         foreach (var side in Sides)
         {
             var yaw = plan.Body["Hips"].At(now).Y;
