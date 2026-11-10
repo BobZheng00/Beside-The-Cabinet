@@ -117,6 +117,11 @@ public partial class VoiceSettings : VBoxContainer
         void Sync() => on.SetPressedNoSignal(settings.Now.Voice);          // the tray's Voice flipped meanwhile
         settings.Changed += Sync;
         TreeExiting += () => settings.Changed -= Sync;
+        if (_profile?.Engine == VoiceProfile.Qwen)
+        {
+            BuildQwen();
+            return;
+        }
         Form.Hint(this, $"{name} speaks with GPT-SoVITS, running on this PC: with a model trained on the voice, or cloning it from clips " +
                         "with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a game runs the voice rests, " +
                         "to leave the game the graphics card.");
@@ -539,6 +544,79 @@ public partial class VoiceSettings : VBoxContainer
                 Voice.Phase.Failed => Paper.Bad,
                 _ => Paper.Faint,
             });
+    }
+
+    /// <summary>
+    /// The page for one of Qwen TTS's speakers: who they speak as and in which language, the one download it takes, and how
+    /// it is doing. It goes on its own, so the steps the page is growing into (#260, #264) can move it whole.
+    /// </summary>
+    private void BuildQwen()
+    {
+        var download = _voice.Download;
+        var character = Path.GetFileNameWithoutExtension(_voice.Folder);
+        string[] languages = ["zh", "ja"];
+
+        var who = Form.Hint(this, "");
+        void ShowWho() => who.Text = $"In {SpokenLanguage.Name(_profile!.Language)}, {_name} speaks as {_profile.Name}, on this PC.";
+        ShowWho();
+
+        var grid = Form.Grid(this);
+        var speaks = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        foreach (var code in languages)
+            speaks.AddItem(SpokenLanguage.Name(code));
+        speaks.Select(Math.Max(0, Array.IndexOf(languages, _profile!.Language)));
+        speaks.ItemSelected += index =>
+        {
+            if (QwenTts.Suggested(character, languages[index]) is not { } voice)
+                return;
+            voice.Save(_voice.Folder);
+            _profile = voice;
+            ShowWho();
+            VoiceChanged?.Invoke();
+        };
+        Form.Row(grid, "Speaks", speaks);
+        var status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        Form.Row(grid, "", status);
+
+        var install = new VBoxContainer();
+        install.AddThemeConstantOverride("separation", 6);
+        AddChild(install);
+        Form.Hint(install, $"It takes one download of {QwenInstaller.Gb(QwenWeights.Size)} GB, and about 4 GB of free memory while they speak.");
+        var from = Form.Choice(Form.Grid(install), "From", ["Hugging Face", "HF-Mirror, for mainland China"], 0);
+        var buttons = Form.Buttons(install);
+        var fetch = Form.Button(buttons, "Download", () => download.Start((EngineSource)from.Selected), quiet: false);
+        var stop = Form.Button(buttons, "Stop", download.Stop);
+        var bar = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        install.AddChild(bar);
+        var says = Form.Result(install);
+
+        Form.Button(Form.Buttons(this), "Test", () => _ = Test());
+        _result = Form.Result(this);
+
+        void Show()
+        {
+            if (!IsInstanceValid(this))
+                return;
+            Form.Say(status, _voice.Status, _voice.Now switch
+            {
+                Voice.Phase.Ready or Voice.Phase.Asleep => Paper.Good,
+                Voice.Phase.Failed => Paper.Bad,
+                _ => Paper.Faint,
+            });
+            install.Visible = download.Running || _voice.QwenWantsDownload;
+            fetch.Visible = !download.Running;
+            stop.Visible = bar.Visible = download.Running;
+            bar.Value = download.Done;
+            Form.Say(says, download.Running ? download.Saying : download.Problem ?? "", download.Running ? Paper.Faint : Paper.Bad);
+        }
+        _voice.Changed += Show;
+        download.Changed += Show;
+        TreeExiting += () =>
+        {
+            _voice.Changed -= Show;
+            download.Changed -= Show;
+        };
+        Show();
     }
 
     /// <summary>The Train row: what training would take, or how far it has got, or why it can't.</summary>

@@ -33,7 +33,8 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   quiet, and `MemoryEdits` saves an edit made in the memory book without writing over a change of theirs. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/specs/2026-10-11-observational-memory.md](../../docs/specs/2026-10-11-observational-memory.md)
   (the research before it: [docs/research/2026-10-02-companion-memory.md](../../docs/research/2026-10-02-companion-memory.md)).
-- `App/Voice.cs` is the voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends
+- `App/Voice.cs` is the voice: `VoiceServer` runs the player's GPT-SoVITS, or Qwen TTS for a voice in Chinese or
+  Japanese (`QwenTts`, its weights fetched by `App/QwenInstaller.cs`), hidden (tied to the cabinet, so it ends
   with it), `Speech` (in `InsertCoin.Mind`) decides what of a reply is said, `GptSoVits` streams each sentence's
   audio, and the mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
   run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its page in Settings. Measurements:

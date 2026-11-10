@@ -278,7 +278,22 @@ tells them something.
 
 ## Their voice
 
-Your companion can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a
+A voice speaks one language. It's set once, the first time your companion sits down, from the Language setting, or on
+Auto from the PC's display language (Chinese, Japanese, otherwise English), and it stays until you change it on
+Settings → Voice. A character who already has a voice keeps that voice's language. Writing in another language doesn't
+change it: they say their voice's language over the subtitle.
+
+**In Chinese and Japanese** your companion speaks with Qwen TTS (Qwen3-TTS by Alibaba Cloud, Apache-2.0, in a build of
+qwentts.cpp, MIT), on this PC's processor with no graphics card needed: Shino as Serena in Chinese and Ono Anna in
+Japanese, Fumiriya as Aiden in both. It takes one download of 1.26 GB, asked for on Settings → Voice and never in the
+middle of a conversation, from Hugging Face or HF-Mirror, checked against its published SHA-256 and carrying on from
+where it got to if stopped. It needs about 4 GB of free memory while they speak. Until it's there, they stay in text.
+The server starts the first time there's something to say, rests while a game runs and stops with the app. Where the
+PC falls behind speech, each line is held back just long enough to play without a gap (a 5-second line waits about 2
+seconds at 1.4 seconds of work per second of speech). If the program or its files are missing, or the server stops,
+they stay in text and the page says why in a line.
+
+**In English,** your companion can speak with a voice from GPT-SoVITS running on this PC (its official Windows package; a
 laptop graphics card starts each sentence in about a second). Settings → Voice: point it at the GPT-SoVITS folder,
 or use the one it finds on the PC ("Found on this PC"), or press "Install it for me": it downloads the package the
 voices are tested with (v2pro of June 2025, 8.2 GB; the build for RTX 50 cards on those) from Hugging Face, or

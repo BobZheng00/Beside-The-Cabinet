@@ -67,7 +67,9 @@ To share a build, make a release instead: `python tools/export/release.py 0.1.0-
 `builds/release/<version>/`, puts in sherpa-onnx's own build without text-to-speech (the NuGet one carries espeak-ng,
 GPL-3.0, for speech the app never uses), writes `THIRD-PARTY-NOTICES.txt` from what shipped, adds the licence, the
 notice and a README, and zips it. It stops on any library its notices can't account for. Set the version in
-`export_presets.cfg` first (`application/file_version` and `product_version`: 0.1.0-preview.1 is 0.1.0.1).
+`export_presets.cfg` first (`application/file_version` and `product_version`: 0.1.0-preview.1 is 0.1.0.1). Run
+`python tools/export/build_qwen_tts.py` once before it (Git, CMake and Visual Studio's C++ tools): it builds Qwen TTS's
+program into `builds/qwen-tts/`, which goes in beside the app. Run from source, the app uses that folder too.
 
 A version tag does the same on GitHub (`.github/workflows/release.yml`): pushing `v0.1.0-preview.2` sets up Godot and
 its template (pinned by SHA-256) and the models (pinned too) on a Windows runner, with its actions pinned by commit,
