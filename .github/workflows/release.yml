@@ -81,6 +81,9 @@ jobs:
       - name: Models
         run: python tools/models/fetch.py
 
+      - name: Qwen TTS's engine, at its pinned commit
+        run: python tools/export/build_qwen_tts.py
+
       - name: Build the game and import its resources
         run: |
           $PSNativeCommandUseErrorActionPreference = $true   # every command that fails stops the step, not only the last

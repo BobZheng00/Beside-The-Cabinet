@@ -18,14 +18,34 @@ public sealed class VoiceServer : IDisposable
     /// <summary>A first start loads several models from disk; on the development laptop it took 14–30 s.</summary>
     private static readonly TimeSpan StartLimit = TimeSpan.FromMinutes(3);
 
-    private readonly string _folder, _log;
+    private readonly string _log, _health, _name;
+    private readonly Func<int, ProcessStartInfo> _start;
+    private readonly ProcessPriorityClass _priority;
     private Process? _process;
     private StreamWriter? _logWriter;
 
     public VoiceServer(string folder, string logFile)
+        : this(logFile, "docs", port =>
+        {
+            var start = new ProcessStartInfo(Path.Combine(folder, "runtime", "python.exe")) { WorkingDirectory = folder };
+            foreach (var arg in new[] { "api_v2.py", "-a", "127.0.0.1", "-p", port.ToString() })
+                start.ArgumentList.Add(arg);
+            start.Environment["PYTHONIOENCODING"] = "utf-8";
+            start.Environment["PYTHONUNBUFFERED"] = "1";    // its log keeps up: every line she was given to say, as it came
+            return start;
+        }, ProcessPriorityClass.Normal, "GPT-SoVITS")
     {
-        _folder = folder;
+    }
+
+    /// <param name="health">The path that answers once the server is up.</param>
+    /// <param name="start">What to run, on a free port of this PC.</param>
+    public VoiceServer(string logFile, string health, Func<int, ProcessStartInfo> start, ProcessPriorityClass priority, string name)
+    {
         _log = logFile;
+        _health = health;
+        _start = start;
+        _priority = priority;
+        _name = name;
     }
 
     private bool _answered;
@@ -54,7 +74,7 @@ public sealed class VoiceServer : IDisposable
         {
             try
             {
-                using var response = await http.GetAsync("docs", cancel);
+                using var response = await http.GetAsync(_health, cancel);
                 if (response.IsSuccessStatusCode)
                     return _answered = true;
             }
@@ -74,22 +94,17 @@ public sealed class VoiceServer : IDisposable
         Url = new Uri($"http://127.0.0.1:{port}/");
         Directory.CreateDirectory(Path.GetDirectoryName(_log)!);
         _logWriter = new StreamWriter(_log, append: false, new UTF8Encoding(false)) { AutoFlush = true };
-        var start = new ProcessStartInfo(Path.Combine(_folder, "runtime", "python.exe"))
-        {
-            WorkingDirectory = _folder,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        foreach (var arg in new[] { "api_v2.py", "-a", "127.0.0.1", "-p", port.ToString() })
-            start.ArgumentList.Add(arg);
-        start.Environment["PYTHONIOENCODING"] = "utf-8";
-        start.Environment["PYTHONUNBUFFERED"] = "1";          // its log keeps up: every line she was given to say, as it came
-        var process = _process = Process.Start(start) ?? throw new InvalidOperationException("GPT-SoVITS did not start");
-        CabinetJob.Tie(process, "GPT-SoVITS");
+        var start = _start(port);
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        start.RedirectStandardOutput = true;
+        start.RedirectStandardError = true;
+        start.StandardOutputEncoding = Encoding.UTF8;
+        start.StandardErrorEncoding = Encoding.UTF8;
+        var process = _process = Process.Start(start) ?? throw new InvalidOperationException($"{_name} did not start");
+        CabinetJob.Tie(process, _name);
+        if (_priority != ProcessPriorityClass.Normal)
+            process.PriorityClass = _priority;          // what it was measured at: the rest of the PC keeps going while it works
         var writer = _logWriter;
         void Log(string? line)
         {

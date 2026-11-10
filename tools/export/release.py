@@ -8,6 +8,7 @@ names (export templates for the same version needed), then swaps in sherpa-onnx'
 NuGet one links espeak-ng (GPL-3.0) for speech the app never asks it for; only its listening is used. It writes
 THIRD-PARTY-NOTICES.txt from what actually shipped, and stops on any library it can't account for or any trace of
 espeak-ng; adds LICENSE.md, NOTICE.md and a README.txt; and zips it all as BesideTheCabinet-<version>-windows-x64.zip.
+Qwen TTS's program and libraries go in beside the app, from what tools/export/build_qwen_tts.py built (run it first).
 """
 import hashlib
 import json
@@ -36,6 +37,7 @@ SHERPA_DLL = 'sherpa-onnx-v1.13.8-win-x64-shared-MT-Release-no-tts-lib/lib/sherp
 ESPEAK = [b'phontab', b'phondata', b'phonindex']          # espeak-ng's data files: where its code is, they are named
 
 BUILD_ONLY = {'GodotSharpEditor', 'Godot.SourceGenerators'}
+QWEN = ROOT / 'builds' / 'qwen-tts'                       # what build_qwen_tts.py made
 
 
 def run(*args, **kw):
@@ -119,6 +121,11 @@ def without_tts(data, downloads):
         f.unlink()
 
 
+def qwen_tts(app):
+    """The engine Chinese and Japanese speak with, beside the app; its weights are the player's download."""
+    shutil.copytree(QWEN, app / 'qwen-tts', ignore=shutil.ignore_patterns('licences'))
+
+
 def notices(app, data, version, shipped):
     out = [f'Beside the Cabinet {version}: third-party notices', '',
            'Beside the Cabinet is Copyright 2026 Shenyan Zheng, under the PolyForm Noncommercial License 1.0.0 (LICENSE.md),',
@@ -185,6 +192,12 @@ def notices(app, data, version, shipped):
     section('Godot add-ons (in the app, under addons/)')
     for f in sorted((GAME / 'addons').glob('*/LICENSE*')):
         out += [f'--- {f.parent.name}', f.read_text(encoding='utf-8', errors='replace').strip(), '']
+    section('Qwen TTS (qwen-tts/, how the companion speaks Chinese and Japanese)')
+    for f in sorted((QWEN / 'licences').glob('*.txt')):
+        out += [f'--- {f.stem}', f.read_text(encoding='utf-8', errors='replace').strip(), '']
+    out += ['The weights are fetched when the player asks, from https://huggingface.co/ldov/Qwen3-TTS-GGUF, a conversion of Qwen3-TTS '
+            '(Alibaba Cloud, Apache-2.0): https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', '',
+            licence_text('Apache-2.0'), '']
     section('Characters and their voices')
     for f in sorted((GAME / 'characters').glob('*/SOURCE.txt')):
         out += [f'--- {f.parent.name}', f.read_text(encoding='utf-8', errors='replace').strip(), '']
@@ -211,7 +224,9 @@ Running it
   OpenRouter, DeepSeek or Qwen, or a model running on your own PC (Ollama, LM Studio).
 - Talking aloud and memory search need Microsoft's Visual C++ runtime, which most PCs already have. If either fails,
   install it from Microsoft: https://aka.ms/vs/17/release/vc_redist.x64.exe
-- A voice needs an NVIDIA graphics card: Settings, then Voice, can install GPT-SoVITS for you (8 GB).
+- In Chinese or Japanese your companion speaks after one download of 1.26 GB: Settings, then Voice. It needs about 4 GB
+  of free memory while they speak.
+- In English a voice needs an NVIDIA graphics card: Settings, then Voice, can install GPT-SoVITS for you (8 GB).
 
 Where things are kept
 - Your profile: %APPDATA%\\InsertCoin (settings, memory; your keys encrypted for your Windows account).
@@ -238,9 +253,12 @@ def main():
     out = ROOT / 'builds' / 'release' / version
     app = out / 'BesideTheCabinet'
     run(sys.executable, ROOT / 'tools' / 'models' / 'fetch.py', 'check')   # never a release quietly without its models
+    if not (QWEN / 'tts-server.exe').exists():
+        sys.exit('no builds/qwen-tts: run tools/export/build_qwen_tts.py first')
     print('exporting…')
     data = export(app)
     without_tts(data, ROOT / 'builds' / 'release' / 'downloads')
+    qwen_tts(app)
     print('notices…')
     notices(app, data, version, shipped)
     for name in ('LICENSE.md', 'NOTICE.md'):
