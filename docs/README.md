@@ -54,8 +54,9 @@ an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it complete
 your companion logs when you tell them or the screen's DONE app logs, paid by their size once a day; and LeetCode
 problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), read from your public profile once its name is set
 (Change… on Balance asks for it on the cabinet's screen). A source that's off pays nothing and isn't brought up: with
-LeetCode off the cabinet never reads LeetCode and nothing names it (the attract screen, an IOU ticket, your
-companion's words); with activities off the DONE app leaves the screen and your companion has no tools for them; with
+LeetCode off the cabinet never checks your LeetCode profile and doesn't bring it up (the attract screen, an IOU
+ticket, your companion's words), though your companion can still look a problem up when you want help with one; with
+activities off the DONE app leaves the screen and your companion has no tools for them; with
 focus off focus sessions still run, paying nothing. Your companion's base instructions and their cabinet tool name only
 what earns. "No play time, just keep me company" clears the three (see below). A day (04:00 to 04:00) can earn at most 1:30
 from Monday to Thursday, 2:00 on Friday and 2:30 at the weekend; past that, work still counts in the day's record but
