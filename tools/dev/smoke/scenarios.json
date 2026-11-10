@@ -21,6 +21,15 @@
       "expect": ["^Main: a session starts: Dev Game$"]
     },
     {
+      "name": "arrival",
+      "about": "The player switches character: the new companion comes from behind the cabinet; a wave asked of them meanwhile puts them on the stool at once, another switch starts it again for the next one, and one the arrival can't pose appears under a flash. Nothing goes wrong in the log.",
+      "covers": ["src/InsertCoin.Game/Companion/Puppet.Arrival.cs", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Game/Companion/companion_layer.gdshader", "src/InsertCoin.Core/ArrivalFit.cs"],
+      "script": "nocall@1,character:fumiriya@3,moment:greet@5,character:shino@7,arrive:cant@15",
+      "shots": [6, 12, 17],
+      "settings": ", \"Companion\": \"shino\"",
+      "expect": ["^Arrival: from behind the cabinet$", "^Arrival: on the stool, under a flash$"]
+    },
+    {
       "name": "beside",
       "about": "A test run goes ahead beside the player's own app (a stand-in holding a one-copy lock of its own, leaving the player's free), while a second such copy still quits at once; the test copy shows no tray icon or Windows notice, never reads the talk key or the mouse, and hears silence instead of opening the microphone.",
       "covers": ["src/InsertCoin.Game/App/Listening.cs", "src/InsertCoin.Game/App/Ears.cs", "src/InsertCoin.Game/App/TalkKey.cs", "src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/Desktop/WindowsNotice.cs", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],

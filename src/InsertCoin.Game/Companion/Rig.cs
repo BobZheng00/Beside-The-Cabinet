@@ -136,7 +136,10 @@ internal sealed class Rig
     public bool Has(string bone) => _index.ContainsKey(bone);
 
     /// <summary>How big the figure is next to the one the poses were written for (by leg length).</summary>
-    public float Size => (RestOffset("LeftUpperLeg", "LeftLowerLeg").Length() + RestOffset("LeftLowerLeg", "LeftFoot").Length()) / ReferenceLeg;
+    public float Size => Leg / ReferenceLeg;
+
+    /// <summary>Hip joint to ankle, at rest.</summary>
+    public float Leg => RestOffset("LeftUpperLeg", "LeftLowerLeg").Length() + RestOffset("LeftLowerLeg", "LeftFoot").Length();
 
     /// <summary>Rotates a bone away from its rest direction, relative to its parent.</summary>
     public void Rotate(string bone, Quaternion rotation)
@@ -221,6 +224,14 @@ internal sealed class RotationSpring(float frequency, float damping)
     private Quaternion _now = Quaternion.Identity;
     private Vector3 _velocity;                  // rotation vector per second, in the parent's frame
     private bool _started;
+
+    /// <summary>Sets where it is, at rest there: something else moved the joint meanwhile.</summary>
+    public void Snap(Quaternion now)
+    {
+        _started = true;
+        _now = now.Normalized();
+        _velocity = Vector3.Zero;
+    }
 
     public Quaternion Follow(Quaternion target, float dt)
     {

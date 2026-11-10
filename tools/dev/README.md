@@ -21,7 +21,8 @@ Each runs at its time in `--script=action@seconds,...`; text in one has undersco
 and no commas.
 
 Companion dev actions: `moment:cheer` (or `pump`, `greet`, `glance`, `alarm`, `worry`, `doze`, `wake`),
-`point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool),
+`point:x:y` (a pretend mouse pointer at that canvas point), `character:id` (swap who sits on the stool, and they arrive),
+`arrive` (the arrival again, from the top; `arrive:cant` the flash a character it can't pose gets instead),
 `manner:relaxed` or `manner:neat` (how whoever is on the stool sits), `showmanner` ("Show me" on it),
 `say:some_text` (a speech bubble), `quiet` (toggle speech bubbles), `click` (as if the companion were clicked), `bubbleclick`
 (a click on the bubble's words while it waits on their call), `bubblechip:yes` or `bubblechip:notnow` (that answer on the

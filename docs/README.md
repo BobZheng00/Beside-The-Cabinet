@@ -114,6 +114,11 @@ apart, often a foot down off the ring, a hand on each thigh, one nearer the hip,
 to a tune instead of a sway); they move into it as it is chosen, and "Show me" plays a few seconds of it. Fumiriya
 starts relaxed, the others neat; the first run and "Meet …" ask it too.
 
+When you switch to someone else, they come from behind the cabinet: they peek out, look for you, wave and jump onto the
+stool, about six seconds in all. Anything that needs them before they land (a message, a reminder, another switch) puts
+them on the stool at once under a flash, and a model of your own the arrival can't pose (bones missing or very odd
+proportions) always appears that way.
+
 Shino has a card in Chinese as well as an English one, written in Chinese rather than translated. Settings →
 Characters → Language decides which one your companion uses. On Auto, the default, they follow you: two of your
 messages in a row in Chinese (typed, spoken or texted) take them to their Chinese card, and two in a row in another

@@ -1350,10 +1350,16 @@ public partial class Stool : Node2D
     /// <summary>Someone else takes the stool.</summary>
     public void Seat(string id)
     {
+        var someoneElse = id != Seated;                     // seated again (a new card), they stay where they are
         _settings.Save(_settings.Now with { Companion = id });
         Her?.QueueFree();
         Her = null;
         ShowHer(_settings.Now.ShowCompanion);
+        if (someoneElse && _settings.Now.ShowCompanion && Her is not null)
+        {
+            Her.Arrive();
+            _lively(Her.Arriving + 1);
+        }
         SettingsChanged?.Invoke("voice");                   // a voice of their own
     }
 
@@ -1588,9 +1594,11 @@ public partial class Stool : Node2D
         if (added.Count > 0)
             SettingsChanged?.Invoke("characters");          // one more to choose from, and seated: made after the seating, so ticked
         _lively(6);
-        Her?.Play(Moment.Greet);
+        var arriving = Her?.Arriving ?? 0;
+        if (arriving == 0)
+            Her?.Play(Moment.Greet);                        // arriving, they have waved already
         if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)
-            GetTree().CreateTimer(0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
+            GetTree().CreateTimer(arriving + 0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
         if (voice is not null)
             AddedVoice(voice);
         Meet(open: added.Count > 0);                        // what the new one has of their own, and lacks
@@ -2557,6 +2565,7 @@ public partial class Stool : Node2D
             case "legs": Her?.DevLegs(rest); break;         // legs:left|right|both|ring sets which feet hang off the stool's ring
             case "hum": Her?.DevHum(); break;               // hum: a tune in their head now (a sway, or a nod when relaxed)
             case "closeup": Her?.DevCloseUp(rest != "off"); break;     // closeup:hands narrows her camera onto her hands, closeup:off puts it back
+            case "arrive": Her?.Arrive(rest != "cant"); break;     // arrive: the new companion's arrival, from the top; arrive:cant as if it couldn't pose them (a flash)
             case "moment": Her?.Play(Enum.Parse<Moment>(rest, ignoreCase: true)); break;
             default: return _listening.Dev(name, rest);
         }
