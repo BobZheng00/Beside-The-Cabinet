@@ -40,9 +40,9 @@ public class PaperContrastTests
     [Theory]
     [InlineData("Hint", "Sheet")]
     [InlineData("Hint", "Wash")]
-    [InlineData("Group", "Sheet")]
-    [InlineData("Group", "Wash")]
-    public void Hints_and_the_lists_headings_are_at_least_four_and_a_half_to_one_on_their_paper(string label, string paper)
+    [InlineData("Side", "Sheet")]
+    [InlineData("Side", "Wash")]
+    public void Hints_and_the_lists_entries_are_at_least_four_and_a_half_to_one_on_their_paper(string label, string paper)
     {
         var used = Regex.Match(Paper, $@"""font_color"", ""{label}"", (\w+)\)").Groups[1].Value;
         Assert.InRange(Contrast(Named(used), Named(paper)), 4.5, 21);
