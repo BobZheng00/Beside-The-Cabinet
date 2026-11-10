@@ -95,8 +95,8 @@ rather than a quarter of an hour on),
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (the voice's
 sample line), `voice:some_text` (a bubble they also say aloud, if it is in their voice's language), `thinkingsounds:C:\path\folder` (their
 thinking sounds saved as WAV files) and
-`voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as choosing it
-in Settings does), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
+`voicemodel:v5turbo` or `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its
+own, as choosing it in Settings does; anything else, or `trained` on a voice with no model, does nothing), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording they hear as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: they
 listen and nod for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone (except in a test copy, where they hear silence), `mic` (click the

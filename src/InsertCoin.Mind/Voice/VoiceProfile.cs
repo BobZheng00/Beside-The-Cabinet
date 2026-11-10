@@ -31,12 +31,11 @@ public sealed partial record VoiceProfile
     public const int DefaultSteps = 16;
     public static readonly string[] AudioFormats = [".wav", ".mp3", ".ogg", ".flac"];
     /// <summary>
-    /// The base models a clip can be cloned with: v4 (the default) is clear but makes each sentence (or each part
-    /// between commas) whole before it speaks, 1.5–3.5 s; v2ProPlus streams, about 0.4 s, and blends in the tone of
-    /// the voice's first four clips. (Qwen3-TTS was tried too, 2026-10-03, and dropped: she sounded like a different
-    /// person from take to take, and it can't be trained on this kind of graphics card.)
+    /// The base models a clip can be cloned with: v5 fast (the default, see <see cref="V5Fast"/>) starts sooner and
+    /// sounds closer, but is newer and less stable; v2ProPlus is steadier and blends in the tone of the voice's first
+    /// four clips. A clone saved with one no longer offered (v4, Qwen3-TTS) speaks with the first of these.
     /// </summary>
-    public static readonly string[] CloneVersions = ["v4", "v2ProPlus"];
+    public static readonly string[] CloneVersions = [V5Fast.Version, "v2ProPlus"];
     /// <summary>
     /// The clip length a voice's clips are ranked by for speaking with (GPT-SoVITS takes 3 to 10 s): the nearest first.
     /// </summary>
@@ -53,7 +52,7 @@ public sealed partial record VoiceProfile
     public string? Version { get; init; }
     /// <summary>
     /// Speak as a clone made with this base model (one of <see cref="CloneVersions"/>) even when there is a trained
-    /// model; null: with the trained model if there is one, else as a clone made with v4.
+    /// model; null: with the trained model if there is one, else as a clone made with v5 fast.
     /// </summary>
     public string? CloneWith { get; init; }
     /// <summary>Clips of the voice, the best first: the first everyday one speaks, and v2 models blend in the first few.</summary>
@@ -80,14 +79,17 @@ public sealed partial record VoiceProfile
 
     /// <summary>
     /// The version it runs on: its trained model's when it speaks with that (null when unknown), else the base model it
-    /// is cloned with (v4 unless another of <see cref="CloneVersions"/> is chosen).
+    /// is cloned with (v5 fast unless another of <see cref="CloneVersions"/> is chosen).
     /// </summary>
     [JsonIgnore]
     public string? Runs => SpeaksTrained ? Version : CloneVersions.Contains(CloneWith) ? CloneWith : CloneVersions[0];
 
-    /// <summary>v3 and v4 (and clones made with v4): clearer, and slower to start each sentence, which they don't stream.</summary>
+    /// <summary>v3 and v4 models: clearer, and slower to start each sentence, which they don't stream.</summary>
     [JsonIgnore]
-    public bool Slow => Runs is "v3" or "v4";
+    public bool Slow => TakesSteps(Runs);
+
+    /// <summary>A model of this version is made in sampling steps, the Voice page's Quality.</summary>
+    public static bool TakesSteps(string? version) => version is "v3" or "v4";
 
     /// <summary>The clip to speak with for a mood: one labelled with it, else her everyday one.</summary>
     public VoiceClip? ClipFor(string? mood)

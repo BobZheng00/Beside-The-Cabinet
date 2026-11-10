@@ -283,9 +283,9 @@ tells them something.
 Your companion can speak aloud too, with a voice from GPT-SoVITS running on this PC (its official Windows package; a
 laptop graphics card starts each sentence in about a second). Settings → Voice: point it at the GPT-SoVITS folder,
 or use the one it finds on the PC ("Found on this PC"), or press "Install it for me": it downloads the package the
-voices are tested with (v2pro of June 2025, 8.2 GB; the build for RTX 50 cards on those) from Hugging Face, or
-HF-Mirror for mainland China, checks it against its published SHA-256, and unpacks it (about 13 GB) in a folder of
-its own inside the one chosen, then uses it. It carries on with Settings closed, and a download stopped, or cut short
+voices are tested with (v2pro of June 2025, and v5 fast's files on top of it: 9.0 GB; the build for RTX 50 cards on
+those, 8.8 GB without v5 fast) from Hugging Face, or HF-Mirror for mainland China (v5 fast's code always comes from
+GitHub), checks each file, and unpacks it (about 15 GB) in a folder of its own inside the one chosen, then uses it. It carries on with Settings closed, and a download stopped, or cut short
 by closing the cabinet, carries on from where it got to. Then give them a voice: drop on the cabinet (or add on that
 page) a voice's folder or `.zip`, which replaces their voice, or clips, which join it. A voice is clips of one person,
 3 to 10 seconds each, with the words said in them, and maybe a model someone trained on them (a `.ckpt` and a
@@ -311,10 +311,13 @@ hana/
 ```
 
 Without a model your companion speaks as a clone: GPT-SoVITS's base model copies the tone of their speaking clip (the
-one nearest 6 seconds, or the one chosen and listened to on the Voice page). The base model is v4 (the clearest; it
-makes each sentence whole before saying it, 1.5–3.5 s) or v2ProPlus (streams, so they start in about half a second; a
-little less sure of hard words), which also blends in the tone of their first four clips for about 0.1 s more per
-sentence. With a minute or more of clips (five sounds better), "Train a model on its clips" trains their own:
+one nearest 6 seconds, or the one chosen and listened to on the Voice page). The base model is v5 fast (it starts in
+under a second and sounds closest to the recording, but it's newer and less stable) or v2ProPlus (steadier), which also
+blends in the tone of their first four clips for about 0.1 s more per sentence. A GPT-SoVITS without v5 fast's files (one
+installed before them, the RTX 50 build, or any folder you pointed it at) speaks with v2ProPlus, and the Voice page says
+so; on the package this installs, "Get v5 fast" there fetches them (0.8 GB), only when pressed, carrying on if cut short
+and checking each file before it's used. Older copies made with v4 speak with v5 fast from then on; a trained or
+downloaded v3 or v4 model keeps its own model and its Quality setting. With a minute or more of clips (five sounds better), "Train a model on its clips" trains their own:
 v2ProPlus, the way GPT-SoVITS's web UI does it, about a second per second of speech plus a minute (Hana's five
 minutes took 5.4 on a laptop graphics card with 8 GB, which it all but fills; once it starts it tells the time left,
 and after one run the estimate is this PC's own); the voice rests meanwhile, and a game starting stops it. The model

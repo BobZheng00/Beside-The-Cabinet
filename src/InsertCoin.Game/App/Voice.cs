@@ -241,7 +241,7 @@ public partial class Voice : Node
                 }
                 _http?.Dispose();
                 _http = new HttpClient { BaseAddress = _server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = new GptSoVits(_http);
+                _engine = new GptSoVits(_http, _server.HasV5, await Task.Run(VoiceServer.SeesCard, cancel));
             }
             if (refresh != _refreshes)
                 return;

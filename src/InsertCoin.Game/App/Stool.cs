@@ -2138,6 +2138,7 @@ public partial class Stool : Node2D
             _installer.Start(into, source);
         };
         page.StopInstall += _installer.Stop;
+        page.GetFast += source => _installer.AddFast(_settings.Now.VoiceEngine!, source);
         page.EngineChosen += engine =>
         {
             if (engine == _settings.Now.VoiceEngine)
@@ -2541,7 +2542,7 @@ public partial class Stool : Node2D
             case "voice": Say(text); break;                 // voice:text: the same, named for testing her voice
             case "thinkingsounds": GD.Print($"Voice: {_voice.DevSaveSounds(rest)} thinking sounds saved in {rest}"); break;    // thinkingsounds:folder: her thinking sounds as WAV files
             case "voicetest": _ = _voice.Test(); break;      // her voice says its sample line (waiting for it to be ready)
-            case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
+            case "voicemodel":                              // voicemodel:v5turbo or v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
                 if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(rest) || rest == "trained" && voice.Trained))
                 {
                     (voice with { CloneWith = rest == "trained" ? null : rest }).Save(_voice.Folder);

@@ -189,7 +189,6 @@ from the place in brackets; file it (`/pm:park`, or the PM's triage) when its tu
 | She mentions something not set up yet, once (settings and setup spec, "Not built") | enhancement p3 |
 | The GitHub page gets a social preview image (`docs/publishing.md`; a wide picture, uploaded by the user) | chore p3 |
 | Finish or drop the old memory's LongMemEval sample, paused at 22 of 44 ("In flight"; billed to the user) | chore p3 decision |
-| Try GPT-SoVITS v5 for her voice (her voice, above; an 11 GB download) | chore p3 decision |
 | The app is signed, so Windows stops warning (Preview 1: SmartScreen; a certificate costs money) | enhancement p3 decision |
 | Her own web search through the provider, OpenAI's Responses API ("Waiting on the user's call") | enhancement decision |
 | "Sign in with ChatGPT" instead of an API key ("Waiting on the user's call") | enhancement decision |

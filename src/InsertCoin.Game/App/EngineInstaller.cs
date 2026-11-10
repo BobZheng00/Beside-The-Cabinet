@@ -21,14 +21,11 @@ public partial class EngineInstaller : Node
 
     private static readonly System.Net.Http.HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
     private CancellationTokenSource? _cancel;
-    private EnginePackage _package = EnginePackage.Standard;
-    private long _bytes;                                // downloaded, or checked
+    private long _bytes, _total;                        // downloaded, or checked, and of how much
     private double _share;                              // unpacked
     private readonly Queue<(double At, double Done)> _pace = new();      // how far the step was, the last few seconds
     private double _clock, _sinceShown;
-    private bool _looking;
-
-    public enum Step { Downloading, Checking, Unpacking }
+    private bool _looking, _files;                      // _files: fetching v5 fast's files, not the package
 
     /// <summary>Its progress changed, it ended, or what it looked for on the PC came in.</summary>
     public event Action? Changed;
@@ -36,7 +33,9 @@ public partial class EngineInstaller : Node
     public event Action<string>? Installed;
 
     public bool Running => _cancel is not null;
-    public Step Now { get; private set; }
+    public EngineStep Now { get; private set; }
+    /// <summary>Only v5 fast's files are being added, to an engine that already works.</summary>
+    public bool AddingFast { get; private set; }
     /// <summary>Why the last try ended without installing it (stopped by the player, too little room, …).</summary>
     public string? Problem { get; private set; }
     /// <summary>The last try was stopped by the player, not a failure.</summary>
@@ -47,7 +46,7 @@ public partial class EngineInstaller : Node
     public string? Card { get; private set; }
 
     /// <summary>How far the step under way is, 0 to 1.</summary>
-    public double Done => Now == Step.Unpacking ? _share : _package.Size == 0 ? 0 : (double)_bytes / _package.Size;
+    public double Done => Now == EngineStep.Unpacking ? _share : _total == 0 ? 0 : (double)_bytes / _total;
 
     /// <summary>The step under way for the player: how much, how fast, how long left (unpacking takes a while too).</summary>
     public string Saying
@@ -58,8 +57,8 @@ public partial class EngineInstaller : Node
             var left = rate > 0 ? $", about {Minutes((1 - Done) / rate)} left" : "";
             return Now switch
             {
-                Step.Downloading => $"Downloading: {Gb(_bytes)} of {Gb(_package.Size)} GB" + (rate > 0 ? $", {rate * _package.Size / 1e6:0.0} MB/s" : "") + left,
-                Step.Checking => "Checking the download against the published one",
+                EngineStep.Downloading => $"Downloading{(_files ? " v5 fast" : "")}: {Gb(_bytes)} of {Gb(_total)} GB" + (rate > 0 ? $", {rate * _total / 1e6:0.0} MB/s" : "") + left,
+                EngineStep.Checking => "Checking the download against the published one",
                 _ => "Unpacking" + left,
             };
         }
@@ -88,15 +87,19 @@ public partial class EngineInstaller : Node
         var package = EnginePackage.For(Card);
         var archive = Path.Combine(parent, package.Name + ".7z");
         var have = File.Exists(archive) ? Math.Min(new FileInfo(archive).Length, package.Size) : 0;
-        long? free = null;
+        return (package, package.Size - have + package.Unpacked + package.ExtraRoom, Free(parent));
+    }
+
+    private static long? Free(string folder)
+    {
         try
         {
-            free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(parent))!).AvailableFreeSpace;
+            return new DriveInfo(Path.GetPathRoot(Path.GetFullPath(folder))!).AvailableFreeSpace;
         }
         catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException)
         {
+            return null;
         }
-        return (package, package.Size - have + package.Unpacked, free);
     }
 
     /// <summary>Downloads, checks and unpacks GPT-SoVITS into a folder of its own inside <paramref name="parent"/>.</summary>
@@ -106,7 +109,7 @@ public partial class EngineInstaller : Node
             return;
         _cancel = new CancellationTokenSource();
         var cancel = _cancel.Token;
-        (Problem, Now, _bytes, _share) = (null, Step.Downloading, 0, 0);
+        (Problem, Now, _bytes, _share, _files) = (null, EngineStep.Downloading, 0, 0, false);
         _pace.Clear();
         Changed?.Invoke();
         if (Found is null)
@@ -119,32 +122,73 @@ public partial class EngineInstaller : Node
                 : $"There is a {package.Name} folder there already: use it (the GPT-SoVITS field above), or choose another folder.");
             return;
         }
-        _package = package;
+        _total = package.Size;
         var archive = Path.Combine(parent, package.Name + ".7z");
         try
         {
             Directory.CreateDirectory(parent);
             await Task.Run(() => EngineInstall.Fetch(Http, package.From(source), archive, package.Size, new Heard<long>(b => _bytes = b), cancel), cancel);
-            (Now, _bytes) = (Step.Checking, 0);
+            (Now, _bytes) = (EngineStep.Checking, 0);
             if (!await Task.Run(() => EngineInstall.Matches(archive, package.Sha256, new Heard<long>(b => _bytes = b), cancel), cancel))
             {
                 File.Delete(archive);
                 throw new InvalidDataException("The download didn't match the published package (damaged on the way?), so it was deleted. Install starts it again.");
             }
-            Now = Step.Unpacking;
+            Now = EngineStep.Unpacking;
             var folder = await Task.Run(() => EngineInstall.Unpack(archive, parent, package.Name, new Heard<double>(s => _share = s), cancel), cancel);
             File.Delete(archive);
-            End(null);
+            var problem = package == EnginePackage.Standard ? await AddFiles(folder, source, cancel) : null;    // without them it still speaks, with v2ProPlus
+            End(problem, stopped: cancel.IsCancellationRequested);
             Installed?.Invoke(folder);
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
-            End(Now == Step.Downloading ? "Stopped. Install carries on from where it got to." : "Stopped. Install takes it up again.", stopped: true);
+            End(Now == EngineStep.Downloading ? "Stopped. Install carries on from where it got to." : "Stopped. Install takes it up again.", stopped: true);
         }
         catch (Exception e)
         {
             GD.PrintErr($"Voice: installing GPT-SoVITS: {e}");
             End(e is InvalidDataException or IOException ? e.Message : $"It couldn't be installed: {e.Message}");
+        }
+    }
+
+    /// <summary>Adds v5 fast's files to an engine installed before they came with it; only on the player's word.</summary>
+    public async void AddFast(string engine, EngineSource source)
+    {
+        if (Running)
+            return;
+        _cancel = new CancellationTokenSource();
+        var cancel = _cancel.Token;
+        (Problem, AddingFast) = (null, true);
+        Changed?.Invoke();
+        var problem = Free(engine) is { } free && free < V5Fast.Room
+            ? $"Not enough room there: it needs about {Gb(V5Fast.Room)} GB and {Gb(free)} GB is free."
+            : await AddFiles(engine, source, cancel);
+        var stopped = cancel.IsCancellationRequested;
+        AddingFast = false;
+        End(problem, stopped);
+        if (problem is null)
+            Installed?.Invoke(engine);                      // her voice starts again, from them
+    }
+
+    /// <summary>Fetches v5 fast's files into the engine; why it couldn't, or null when they're in.</summary>
+    private async Task<string?> AddFiles(string engine, EngineSource source, CancellationToken cancel)
+    {
+        (Now, _bytes, _total, _share, _files) = (EngineStep.Downloading, 0, V5Fast.Download, 0, true);
+        try
+        {
+            var heard = new Heard<(EngineStep Step, long Done, long Of)>(p => (Now, _bytes, _total, _share) = (p.Step, p.Done, p.Of, p.Of > 0 ? (double)p.Done / p.Of : 0));
+            await Task.Run(() => V5Fast.Install(Http, engine, source, heard, cancel), cancel);
+            return null;
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested)
+        {
+            return "Stopped. Getting v5 fast carries on from where it got to.";
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Voice: fetching v5 fast: {e}");
+            return e is InvalidDataException or IOException ? e.Message : $"v5 fast couldn't be fetched: {e.Message}";
         }
     }
 
@@ -193,7 +237,7 @@ public partial class EngineInstaller : Node
     }
 
     /// <summary>The NVIDIA graphics card's name from its driver, or null without one (GPT-SoVITS needs one to run well).</summary>
-    private static string? GraphicsCard()
+    internal static string? GraphicsCard()
     {
         try
         {

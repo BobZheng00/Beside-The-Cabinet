@@ -22,9 +22,10 @@ public partial class VoiceSettings : VBoxContainer
     /// <summary>The base models a clip can be cloned with (<see cref="VoiceProfile.CloneVersions"/>).</summary>
     private static readonly Dictionary<string, string> Clones = new()
     {
-        ["v4"] = "Clone with v4: clear, starts once each sentence is made",
-        ["v2ProPlus"] = "Clone with v2ProPlus: quickest, blends in four of its clips",
+        [V5Fast.Version] = "Clone with v5 fast: sounds closer, but it's newer and less stable",
+        ["v2ProPlus"] = "Clone with v2ProPlus: steadier, blends in four of its clips",
     };
+    private static readonly string[] Sources = ["Hugging Face, its makers' page", "HF-Mirror, for mainland China"];
 
     /// <summary>What a voice folder holds, for the "What goes in a voice folder?" button.</summary>
     public const string FolderGuide =
@@ -71,6 +72,8 @@ public partial class VoiceSettings : VBoxContainer
     /// <summary>The user wants GPT-SoVITS installed inside this folder, from there; or the installing stopped.</summary>
     public event Action<string, EngineSource>? InstallEngine;
     public event Action? StopInstall;
+    /// <summary>The player said yes to fetching v5 fast's files for the GPT-SoVITS they have, from there.</summary>
+    public event Action<EngineSource>? GetFast;
 
     private Voice _voice = null!;
     private VoiceTrainer _trainer = null!;
@@ -82,6 +85,13 @@ public partial class VoiceSettings : VBoxContainer
     private OptionButton _source = null!;
     private Button _installButton = null!, _stopInstall = null!;
     private ProgressBar _installing = null!;
+    private VBoxContainer _fast = null!;
+    private GridContainer _fastFrom = null!;
+    private Label _fastSays = null!;
+    private OptionButton _fastSource = null!;
+    private Button _getFast = null!, _stopFast = null!;
+    private ProgressBar _fastBar = null!;
+    private bool _modelChosen;                          // the player picked a model on this page: until then what is saved stays saved
     private bool _hearing;
     private string _name = "";
     private VoiceProfile? _profile;
@@ -209,6 +219,7 @@ public partial class VoiceSettings : VBoxContainer
 
         // its trained model, or a clone: the player can swap between them
         var model = _model = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill, ClipText = true, FitToLongestItem = false };   // a long label never widens the page
+        model.AddThemeFontSizeOverride("font_size", 14);    // v5 fast's warning is cut off at the page's 15
         if (profile.Trained)
         {
             model.AddItem($"Its trained model ({profile.Version ?? "GPT-SoVITS"}): the closest to the voice");
@@ -219,7 +230,7 @@ public partial class VoiceSettings : VBoxContainer
             model.AddItem(Clones[version]);
             _models.Add(version);
         }
-        model.Select(Math.Max(0, _models.IndexOf(profile.SpeaksTrained ? null : profile.Runs)));
+        ShowModel();
         Form.Row(grid, "Model", model);
 
         var quality = _quality = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -229,9 +240,10 @@ public partial class VoiceSettings : VBoxContainer
         quality.Select(chosen >= 0 ? chosen : 0);
         quality.ItemSelected += _ => Apply();
         var qualityLabel = Form.Row(grid, "Quality", quality);
-        void ShowQuality() => qualityLabel.Visible = quality.Visible = Runs() is "v3" or "v4";     // steps only matter to v3 and v4
+        void ShowQuality() => qualityLabel.Visible = quality.Visible = VoiceProfile.TakesSteps(Runs());
         model.ItemSelected += _ =>
         {
+            _modelChosen = true;
             ShowQuality();
             Apply();
         };
@@ -364,7 +376,7 @@ public partial class VoiceSettings : VBoxContainer
             clips.Insert(0, speaking);
         }
         var steps = _quality is null ? profile.Steps : Qualities[_quality.Selected].Steps;
-        var cloneWith = _model is null ? profile.CloneWith : _models[_model.Selected];
+        var cloneWith = _model is null || !_modelChosen ? profile.CloneWith : _models[_model.Selected];
         (profile with { Language = language, Clips = clips, Steps = steps, CloneWith = cloneWith }).Save(_voice.Folder);
         _profile = VoiceProfile.Load(_voice.Folder) ?? profile;
         _edited.Clear();
@@ -476,7 +488,7 @@ public partial class VoiceSettings : VBoxContainer
         intoRow.AddChild(_into);
         Form.Button(intoRow, "Browse…", () => Browse(_into, "Install GPT-SoVITS inside which folder?"));
         Form.Row(grid, "Into", intoRow);
-        _source = Form.Choice(grid, "From", ["Hugging Face, its makers' page", "HF-Mirror, for mainland China"], 0);
+        _source = Form.Choice(grid, "From", Sources, 0);
         var buttons = Form.Buttons(_install);
         _installButton = Form.Button(buttons, "Install it for me", () => InstallEngine?.Invoke(_into.Text.Trim(), (EngineSource)_source.Selected), quiet: false);
         _stopInstall = Form.Button(buttons, "Stop installing", () => StopInstall?.Invoke());
@@ -484,6 +496,20 @@ public partial class VoiceSettings : VBoxContainer
         _installing = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _install.AddChild(_installing);
         _installSays = Form.Result(_install);
+
+        // an engine without v5 fast says so, and the one the cabinet installs can have it added
+        _fast = new VBoxContainer();
+        _fast.AddThemeConstantOverride("separation", 6);
+        AddChild(_fast);
+        Form.Hint(_fast, "This GPT-SoVITS doesn't have v5 fast, so clones use v2ProPlus instead.");
+        _fastFrom = Form.Grid(_fast);
+        _fastSource = Form.Choice(_fastFrom, "From", Sources, 0);
+        var fastButtons = Form.Buttons(_fast);
+        _getFast = Form.Button(fastButtons, $"Get v5 fast ({EngineInstaller.Gb(V5Fast.Download)} GB)", () => GetFast?.Invoke((EngineSource)_fastSource.Selected), quiet: false);
+        _stopFast = Form.Button(fastButtons, "Stop", () => StopInstall?.Invoke());
+        _fastBar = new ProgressBar { MinValue = 0, MaxValue = 1, Step = 0.001, ShowPercentage = true, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _fast.AddChild(_fastBar);
+        _fastSays = Form.Result(_fast);
 
         _into.TextChanged += _ => ShowInstall();
         _installer.Changed += ShowInstall;
@@ -504,15 +530,15 @@ public partial class VoiceSettings : VBoxContainer
         var running = _installer.Running;
         _found.Visible = !works && !running && Found() is not null;
         _foundAt.Text = $"Found on this PC: {Found()}";
-        _install.Visible = !works || running;
+        _install.Visible = !works || running && !_installer.AddingFast;
         _installButton.Visible = !running;
         _stopInstall.Visible = _installing.Visible = running;
         _into.Editable = !running;
         _source.Disabled = running;
         var (package, needs, free) = _installer.Plan(_into.Text.Trim());
         _plan.Text = "Or have it installed: GPT-SoVITS v2pro of June 2025, the version the voices are tested with" +
-                     (package == EnginePackage.Blackwell ? ", in its build for RTX 50 cards" : "") +
-                     $". It downloads {EngineInstaller.Gb(package.Size)} GB and unpacks to about {EngineInstaller.Gb(package.Unpacked)} GB " +
+                     (package == EnginePackage.Blackwell ? ", in its build for RTX 50 cards" : ", and v5 fast") +
+                     $". It downloads {EngineInstaller.Gb(package.Download)} GB and unpacks to about {EngineInstaller.Gb(package.Unpacked + package.ExtraRoom)} GB " +
                      "(about a quarter of an hour in all on a fast connection), in a folder of its own inside the one below: about " +
                      $"{EngineInstaller.Gb(needs)} GB needed" + (free is { } room ? $", {EngineInstaller.Gb(room)} GB free there." : ".") +
                      (_installer.Found is not null && _installer.Card is null
@@ -524,6 +550,30 @@ public partial class VoiceSettings : VBoxContainer
         }
         else
             Form.Say(_installSays, _installer.Problem ?? "", _installer.Stopped ? Paper.Faint : Paper.Bad);
+
+        var adding = running && _installer.AddingFast;
+        _fast.Visible = adding || works && !V5Fast.Has(_engine.Text.Trim());
+        _fastFrom.Visible = _getFast.Visible = !running && V5Fast.CanAdd(_engine.Text.Trim());
+        _stopFast.Visible = _fastBar.Visible = adding;
+        if (adding)
+        {
+            _fastBar.Value = _installer.Done;
+            Form.Say(_fastSays, _installer.Saying + ". It carries on with this window closed.", Paper.Faint);
+        }
+        else
+            Form.Say(_fastSays, running ? "" : _installer.Problem ?? "", _installer.Stopped ? Paper.Faint : Paper.Bad);
+        ShowModel();
+    }
+
+    /// <summary>The Model row: the model saved, with v5 fast greyed out and v2ProPlus shown when this engine hasn't got it.</summary>
+    private void ShowModel()
+    {
+        if (_model is null || _profile is not { } profile)
+            return;
+        var has = VoiceServer.Check(_engine.Text.Trim()) is not null || V5Fast.Has(_engine.Text.Trim());     // no engine yet: nothing to say about it
+        _model.SetItemDisabled(_models.IndexOf(V5Fast.Version), !has);
+        if (!_modelChosen)
+            _model.Select(Math.Max(0, _models.IndexOf(profile.SpeaksTrained ? null : profile.Runs == V5Fast.Version && !has ? "v2ProPlus" : profile.Runs)));
     }
 
     private void ShowStatus()

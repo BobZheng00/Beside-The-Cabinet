@@ -34,17 +34,23 @@ public sealed class VoiceException(string message) : Exception(message)
 /// at a time into audio that streams back while it is being made. Paths are the server's: absolute, or relative to
 /// its folder for its own base models.
 /// </summary>
-public sealed class GptSoVits(HttpClient http)
+/// <param name="hasV5">The engine has v5 fast's files (see <see cref="V5Fast"/>): without them a v5 fast copy speaks with v2ProPlus.</param>
+/// <param name="card">The engine can use the graphics card: without one, v5 fast is far too slow to stream.</param>
+public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = true)
 {
     /// <summary>
     /// The base model a clip is cloned with when a voice has no weights of its own (see
-    /// <see cref="VoiceProfile.CloneVersions"/>): v4, the clearest (measured 2026-10-02), unless v2ProPlus is asked for.
+    /// <see cref="VoiceProfile.CloneVersions"/>): v5 fast unless v2ProPlus is asked for.
     /// </summary>
     public static (string Gpt, string Sovits) Base(string? version) => version switch
     {
         "v2ProPlus" => ("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/v2Pro/s2Gv2ProPlus.pth"),
-        _ => ("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"),
+        _ => ("GPT_SoVITS/pretrained_models/s1v3.ckpt", "GPT_SoVITS/pretrained_models/gsv-v5-pretrained/s2Gv5turbo.pth"),
     };
+
+    /// <summary>The voice as this engine can speak it.</summary>
+    private VoiceProfile Fitted(VoiceProfile profile) =>
+        hasV5 || profile.Runs != V5Fast.Version ? profile : profile with { CloneWith = "v2ProPlus" };
 
     /// <summary>
     /// v1 and v2 models (v2Pro, v2ProPlus) blend the tone of a voice's other clips into the one speaking. v3 and v4
@@ -83,6 +89,7 @@ public sealed class GptSoVits(HttpClient http)
     /// <summary>Loads the voice's trained model (its files are in <paramref name="folder"/>), or the base model it is cloned with.</summary>
     public Task Load(VoiceProfile profile, string folder, CancellationToken cancel = default)
     {
+        profile = Fitted(profile);
         var (gpt, sovits) = profile.SpeaksTrained
             ? (Path.GetFullPath(Path.Combine(folder, profile.Gpt!)), Path.GetFullPath(Path.Combine(folder, profile.Sovits!)))
             : Base(profile.Runs);
@@ -113,6 +120,7 @@ public sealed class GptSoVits(HttpClient http)
     public async IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string folder, VoiceClip clip,
                                                     [EnumeratorCancellation] CancellationToken cancel = default, TimeSpan? leadIn = null)
     {
+        profile = Fitted(profile);
         var clipPath = Path.GetFullPath(Path.Combine(folder, clip.File));
         if (_stale)
         {
@@ -123,21 +131,28 @@ public sealed class GptSoVits(HttpClient http)
         var blended = Blends(profile.Runs)
             ? profile.Clips.Select(c => Path.GetFullPath(Path.Combine(folder, c.File))).Where(File.Exists).Take(BlendClips).ToArray()
             : [];
-        var body = new
+        var body = new Dictionary<string, object>
         {
-            text,
-            text_lang = profile.Language,
-            ref_audio_path = clipPath,
-            aux_ref_audio_paths = blended,
-            prompt_text = clip.Text,
-            prompt_lang = clip.Language.Length > 0 ? clip.Language : profile.Language,
-            text_split_method = "cut5",
-            batch_size = 1,
-            media_type = "wav",
-            streaming_mode = 2,                 // starts sooner than a whole sentence at once, at no cost heard (measured 2026-10-02)
-            parallel_infer = false,
-            sample_steps = profile.Steps,       // only v3 and v4 use it
+            ["text"] = text,
+            ["text_lang"] = profile.Language,
+            ["ref_audio_path"] = clipPath,
+            ["aux_ref_audio_paths"] = blended,
+            ["prompt_text"] = clip.Text,
+            ["prompt_lang"] = clip.Language.Length > 0 ? clip.Language : profile.Language,
+            ["text_split_method"] = "cut5",
+            ["batch_size"] = 1,
+            ["media_type"] = "wav",
+            ["streaming_mode"] = 2,             // starts sooner than a whole sentence at once, at no cost heard (measured 2026-10-02)
+            ["parallel_infer"] = false,
         };
+        if (profile.Runs != V5Fast.Version)
+            body["sample_steps"] = profile.Steps;       // only v3 and v4 use it; v5 fast's own default is 4, and 16 would be four times the work
+        else if (card)
+        {
+            body["gpt_streaming"] = true;
+            body["streaming_chunk_seconds"] = 1.0;
+            body["gpt_streaming_lookahead_seconds"] = 0.3;
+        }
         using var request = new HttpRequestMessage(HttpMethod.Post, "tts") { Content = JsonContent.Create(body) };
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
         if (!response.IsSuccessStatusCode)
