@@ -2093,9 +2093,12 @@ public partial class Stool : Node2D
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {provider.Through}, with {provider.Model}.");
         yield return new("voice", "Voice",
-            $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
-            (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
-            ". About 20 minutes; training a model of the voice takes longer.",
+            _voice.Profile is { Engine: VoiceProfile.Qwen } qwen
+                ? $"{her} speaks {SpokenLanguage.Name(qwen.Language)} on this PC, with no graphics card needed." +
+                  (_voice.QwenWantsDownload ? $" It takes one download of {QwenInstaller.Gb(QwenWeights.Size)} GB, on the Voice page." : "")
+                : $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
+                  (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
+                  ". About 20 minutes; training a model of the voice takes longer.",
             Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
         if (Listening.HasEars)
             yield return new("listening", "Talking to them",

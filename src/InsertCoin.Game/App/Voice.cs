@@ -20,6 +20,7 @@ public partial class Voice : Node
 
     private const float BufferSeconds = 0.3f;
     private const int LevelFrames = 800;                // loudness measured every ~20 ms of audio, for her mouth
+    private const int ShortFrames = 32;                 // Qwen TTS's limit on a short word or sound (12.5 frames a second): one that runs on stops, and no line waits behind it
     private static readonly TimeSpan ReadyWait = TimeSpan.FromMinutes(3);
 
     /// <summary>What Test says, and a few words said once after loading (the first sentence afterwards is slow).</summary>
@@ -47,6 +48,7 @@ public partial class Voice : Node
     private QwenTts? _qwen;
     private string? _qwenProgram, _qwenWeights;         // where the engine's program is, and its downloaded weights
     private bool _needed;                               // Qwen TTS starts the first time it is needed, and again after it rests
+    private string? _qwenProblem;                       // why it last failed: said until a start succeeds
     private VoiceProfile? _profile, _warm;
     private string _folder = "";
     private bool _enabled = true, _gameRunning, _training;
@@ -81,6 +83,7 @@ public partial class Voice : Node
     private List<(string Words, VoiceAudio Audio)> _sounds = [];
     private VoiceProfile? _soundsFor;
     private readonly SemaphoreSlim _engineFree = new(1, 1);     // one request at a time: a line she says, or a sound being made
+    private CancellationTokenSource? _soundCut;                 // the sound being made, for a line to cut it short
     private bool _thinkAloud;
     private int _thought, _pieces;
     private double _sinceWords, _sinceSound;
@@ -177,7 +180,7 @@ public partial class Voice : Node
     {
         _qwenServer?.Dispose();
         _qwenServer = null;
-        (_qwenProgram, _qwenWeights) = (program, weights);
+        (_qwenProgram, _qwenWeights, _qwenProblem) = (program, weights, null);
         Download.Folder = weights;
         Refresh();
         Changed?.Invoke();                              // the phase may be the same with another reason for it
@@ -191,7 +194,7 @@ public partial class Voice : Node
     /// <summary>What Qwen TTS is still missing here, in a line for the player, or null when it can run.</summary>
     public string? QwenMissing =>
         !File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) ? "The program that speaks Chinese and Japanese is missing from the app's folder."
-        : !QwenWeights.Present(_qwenWeights ?? "") ? "Needs its download first, on this page."
+        : !QwenWeights.Present(_qwenWeights ?? "") ? "Needs its download first."
         : null;
 
     /// <summary>The program is here and only its weights are missing: the download is worth offering.</summary>
@@ -257,7 +260,7 @@ public partial class Voice : Node
     }
 
     /// <summary>She can say something right now.</summary>
-    public bool CanSpeak => Wanted && (Now == Phase.Ready || IsQwen && Now is Phase.Asleep or Phase.Starting or Phase.Loading);
+    public bool CanSpeak => Wanted && (Now == Phase.Ready || IsQwen && Now is Phase.Asleep or Phase.Starting or Phase.Loading or Phase.Failed);      // failed: the next line tries again
 
     /// <summary>Brings the server and the loaded voice in line with what is wanted.</summary>
     private async void Refresh()
@@ -280,7 +283,10 @@ public partial class Voice : Node
             return;                                 // already loaded and warmed up
         if (IsQwen && !_needed && !server.Ready)
         {
-            Set(Phase.Asleep);                      // nothing to say yet: its 3.5 GB stay free until there is
+            if (_qwenProblem is { } why)
+                Fail(why);
+            else
+                Set(Phase.Asleep);                  // nothing to say yet: its 3.5 GB stay free until there is
             return;
         }
         var cancel = (_refreshing = new CancellationTokenSource()).Token;
@@ -312,13 +318,14 @@ public partial class Voice : Node
             var clock = Stopwatch.StartNew();
             if (_engine is { } sovits)
                 await sovits.Load(profile, _folder, cancel);
-            await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel))
+            await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel, limit: ShortFrames))
             {
             }
             GD.Print($"Voice: {profile.Name} loaded and warmed up in {clock.ElapsedMilliseconds} ms");
             if (refresh == _refreshes)
             {
                 _warm = profile;
+                _qwenProblem = null;
                 Set(Phase.Ready);
                 _ = MakeSounds(profile, cancel);
             }
@@ -341,7 +348,7 @@ public partial class Voice : Node
     /// <summary>The start the voice waits for: from the first line on, as nothing is loaded before there is one to say.</summary>
     private void Wake()
     {
-        if (Now != Phase.Asleep)
+        if (!IsQwen || Now is not (Phase.Asleep or Phase.Failed))
             return;
         _needed = true;
         Refresh();
@@ -353,13 +360,13 @@ public partial class Voice : Node
         Stop();
         _qwenServer?.Stop();
         _needed = false;
+        _qwenProblem = why;
         Fail(why);
-        GetTree().CreateTimer(30).Timeout += Refresh;
     }
 
     /// <summary>A line in the voice on the stool, from whichever engine it speaks with.</summary>
-    private IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string? mood, CancellationToken cancel, TimeSpan? leadIn = null) =>
-        _qwen is { } qwen ? qwen.Speak(text, profile, cancel) : _engine!.Speak(text, profile, _folder, profile.ClipFor(mood)!, cancel, leadIn);
+    private IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string? mood, CancellationToken cancel, TimeSpan? leadIn = null, int? limit = null) =>
+        _qwen is { } qwen ? qwen.Speak(text, profile, cancel, limit) : _engine!.Speak(text, profile, _folder, profile.ClipFor(mood)!, cancel, leadIn);
 
     /// <summary>A reply is starting: whatever she was saying stops, and the reply goes to her voice as it streams in (null when she can't speak now).</summary>
     /// <param name="thinkAloud">The player is waiting for it: while her words are slow to come, she may make a thinking sound.</param>
@@ -400,7 +407,7 @@ public partial class Voice : Node
         var clock = Stopwatch.StartNew();
         while (Now is Phase.Starting or Phase.Loading && clock.Elapsed < ReadyWait)
             await ToSignal(GetTree().CreateTimer(0.25), SceneTreeTimer.SignalName.Timeout);
-        if (!CanSpeak)
+        if (!CanSpeak || Now == Phase.Failed)
             return Status;
         Stop();
         Say(Sample(_profile!.Language), "happy");
@@ -451,6 +458,8 @@ public partial class Voice : Node
     private void Say(string text, string? mood)
     {
         Wake();
+        if (IsQwen)
+            _soundCut?.Cancel();                        // a thinking sound being made gives way: on a processor it would hold this line up for seconds
         _givenChars += text.Length;
         _toSay.Enqueue((text, mood));
         if (_working && _workingFor == _speaking.Token)
@@ -542,24 +551,33 @@ public partial class Voice : Node
         var wanted = Thinking.Sounds(profile.Language);
         try
         {
-            foreach (var words in wanted)
+            for (var i = 0; i < wanted.Count; i++)
             {
+                var words = wanted[i];
                 while (Speaking)
                     await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
                 cancel.ThrowIfCancellationRequested();
                 var samples = new List<float>();
                 var rate = 0;
                 await _engineFree.WaitAsync(cancel);
+                using var cut = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+                _soundCut = cut;
                 try
                 {
-                    await foreach (var audio in Speak(words, profile, null, cancel))
+                    await foreach (var audio in Speak(words, profile, null, cut.Token, limit: ShortFrames))
                     {
                         rate = audio.SampleRate;
                         samples.AddRange(audio.Samples);
                     }
                 }
+                catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+                {
+                    i--;                                    // a line came: it goes first, and this sound after it
+                    continue;
+                }
                 finally
                 {
+                    _soundCut = null;
                     _engineFree.Release();
                 }
                 var sound = rate == 0 ? [] : QuietStart.Trim([.. samples], rate);
