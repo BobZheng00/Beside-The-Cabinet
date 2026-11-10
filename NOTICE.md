@@ -36,7 +36,7 @@ another project, and never commercially.
 | VRM add-on, MToon shader (`addons/`, licences inside) | V-Sekai contributors; Masataka SUMI | MIT |
 | .NET libraries: Anthropic, Microsoft.Extensions.AI, Microsoft.Data.Sqlite, ONNX Runtime, Microsoft.ML.Tokenizers, SharpCompress | their authors | MIT |
 | sherpa-onnx | Xiaomi Corporation and its contributors | Apache-2.0 |
-| qwentts.cpp (`tts-server`, in a release's `qwen-tts/`), with ggml, cpp-httplib and yyjson, built by `tools/export/build_qwen_tts.py` | ServeurpersoCom; the ggml authors; Yuji Hirose; YaoYuan | MIT |
+| qwentts.cpp (`tts-server`, in a release's `qwen-tts/`), with ggml, cpp-httplib and yyjson, built by `tools/export/build_qwen_tts.py` | The omnivoice.cpp authors; The ggml authors; yhirose; YaoYuan | MIT |
 
 Models fetched into `src/InsertCoin.Game/models/` (not in this repository; each folder carries its own `LICENSE.txt`):
 SenseVoice-Small (Tongyi Lab, Alibaba Group; FunASR Model Open Source License 1.1, which asks for its name and

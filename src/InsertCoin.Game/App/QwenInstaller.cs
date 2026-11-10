@@ -55,7 +55,7 @@ public partial class QwenInstaller : Node
                 End($"Not enough room on that drive: it needs about {Gb(needed)} GB and {Gb(free)} GB is free.");
                 return;
             }
-            await Task.Run(() => QwenWeights.Fetch(Http, source, Folder, new Heard(b => _bytes = b), () => _checking = true, cancel), cancel);
+            await Task.Run(() => QwenWeights.Fetch(Http, source, Folder, new Heard(b => (_bytes, _checking) = (b, false)), () => _checking = true, cancel), cancel);
             End(null);
             Finished?.Invoke();
         }

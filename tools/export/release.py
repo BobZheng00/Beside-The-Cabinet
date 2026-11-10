@@ -38,6 +38,7 @@ ESPEAK = [b'phontab', b'phondata', b'phonindex']          # espeak-ng's data fil
 
 BUILD_ONLY = {'GodotSharpEditor', 'Godot.SourceGenerators'}
 QWEN = ROOT / 'builds' / 'qwen-tts'                       # what build_qwen_tts.py made
+QWEN_FILES = re.compile(r'tts-server\.exe|ggml(-base|-cpu-[a-z0-9]+)?\.dll')   # all its licences cover
 
 
 def run(*args, **kw):
@@ -204,9 +205,11 @@ def notices(app, data, version, shipped):
     out += ['Shino\'s and Fumiriya\'s voices were made with Kokoro-82M (hexgrad, Apache-2.0): https://huggingface.co/hexgrad/Kokoro-82M']
 
     unknown = sorted(f.name for f in data.iterdir() if f.suffix.lower() in ('.dll', '.exe') and f.name.lower() not in known)
+    qwen = [f for f in (app / 'qwen-tts').iterdir() if f.suffix.lower() in ('.dll', '.exe')]
+    unknown += sorted(f.name for f in qwen if not QWEN_FILES.fullmatch(f.name))
     if unknown:
         sys.exit(f'not accounted for in the notices: {", ".join(unknown)}')
-    for f in [app / 'BesideTheCabinet.exe', *data.glob('*.dll')]:
+    for f in [app / 'BesideTheCabinet.exe', *data.glob('*.dll'), *qwen]:
         if any(w in f.read_bytes() for w in ESPEAK):
             sys.exit(f'{f.name} still carries espeak-ng (GPL-3.0)')
     (app / 'THIRD-PARTY-NOTICES.txt').write_text('\n'.join(out).rstrip() + '\n', encoding='utf-8')

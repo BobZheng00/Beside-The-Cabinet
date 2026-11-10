@@ -45,6 +45,7 @@ public sealed class HoldBack
 public sealed class QwenTts(HttpClient http, TimeSpan? stall = null, Func<TimeSpan>? clock = null)
 {
     private const int Rate = 24000;
+    private static readonly System.Text.Json.JsonSerializerOptions Unset = new() { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };   // the server refuses a field sent as null
     private readonly TimeSpan _stall = stall ?? TimeSpan.FromSeconds(60);
     private readonly Func<TimeSpan> _now = clock ?? (() => TimeSpan.FromTicks(System.Diagnostics.Stopwatch.GetTimestamp() * TimeSpan.TicksPerSecond / System.Diagnostics.Stopwatch.Frequency));
 
@@ -71,12 +72,13 @@ public sealed class QwenTts(HttpClient http, TimeSpan? stall = null, Func<TimeSp
     /// Says <paramref name="text"/> as this voice, in its language: pieces of speech as they are made, once enough is
     /// made to play without a gap. Throws <see cref="VoiceException"/> when the server turns it down or goes quiet.
     /// </summary>
-    public async IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile voice, [EnumeratorCancellation] CancellationToken cancel = default)
+    /// <param name="limit">The most frames to make (12.5 a second), for something that must stay short; null: as long as the line takes.</param>
+    public async IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile voice, [EnumeratorCancellation] CancellationToken cancel = default, int? limit = null)
     {
         var started = _now();
         // seed 0: one of the takes the voices were chosen on; the same line comes out the same
-        var body = new { input = text, voice = voice.Speaker, language = SpokenLanguage.Name(voice.Language), response_format = "pcm", seed = 0 };
-        using var request = new HttpRequestMessage(HttpMethod.Post, "v1/audio/speech") { Content = JsonContent.Create(body) };
+        var body = new { input = text, voice = voice.Speaker, language = SpokenLanguage.Name(voice.Language), response_format = "pcm", seed = 0, max_new_tokens = limit };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "v1/audio/speech") { Content = JsonContent.Create(body, options: Unset) };
         using var response = await Quietly(() => http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel), cancel);
         if (!response.IsSuccessStatusCode)
             throw VoiceException.From(await response.Content.ReadAsStringAsync(cancel));

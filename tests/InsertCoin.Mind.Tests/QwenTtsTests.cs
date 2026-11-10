@@ -71,6 +71,17 @@ public class QwenTtsTests : IDisposable
         Assert.Equal("serena", asked.GetProperty("voice").GetString());
         Assert.Equal("Chinese", asked.GetProperty("language").GetString());
         Assert.Equal("pcm", asked.GetProperty("response_format").GetString());
+        Assert.False(asked.TryGetProperty("max_new_tokens", out _));        // the server refuses a null, so no limit means no field
+    }
+
+    [Fact]
+    public async Task A_short_sound_asks_the_engine_to_stop_at_its_limit()
+    {
+        var server = new Server(() => new ByteArrayContent(new byte[Rate]));
+
+        await Spoken(Engine(server).Speak("うーん…", Serena, limit: 32));
+
+        Assert.Equal(32, server.Asked!.RootElement.GetProperty("max_new_tokens").GetInt32());
     }
 
     [Fact]
