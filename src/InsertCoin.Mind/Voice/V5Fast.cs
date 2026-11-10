@@ -60,7 +60,19 @@ public static class V5Fast
 
     public static bool Has(string? engine, IReadOnlyList<Weight> weights) =>
         !string.IsNullOrWhiteSpace(engine) && File.Exists(Path.Combine(Code(engine), "api_v2.py"))
+        && Shared(engine, Code(engine)).All(s => Leads(s.Link))
         && weights.All(w => Whole(Path.Combine(WeightsIn(engine), w.Name), w.Size));
+
+    /// <summary>The package's Python, models and G2PW, which its code shares rather than copies: they are gigabytes.</summary>
+    private static (string Link, string Target)[] Shared(string engine, string code) =>
+    [
+        (Path.Combine(code, "GPT_SoVITS", "pretrained_models"), Path.Combine(engine, "GPT_SoVITS", "pretrained_models")),
+        (Path.Combine(code, "GPT_SoVITS", "text", "G2PWModel"), Path.Combine(engine, "GPT_SoVITS", "text", "G2PWModel")),
+        (Path.Combine(code, "runtime"), Path.Combine(engine, "runtime")),      // its tools.portable_runtime looks beside itself for ffmpeg and DLLs
+    ];
+
+    /// <summary>A link still leads somewhere: moving the package leaves them pointing at where it was, and Directory.Exists says yes to such a link itself.</summary>
+    private static bool Leads(string link) => new DirectoryInfo(link).LinkTarget is { } target && Directory.Exists(target);
 
     /// <summary>
     /// It can be added to this engine: the standard package the cabinet installs, the only one it was tried on (the RTX 50
@@ -110,6 +122,8 @@ public static class V5Fast
         }
 
         var target = Code(engine);
+        if (Directory.Exists(target) && !Shared(engine, target).All(s => Leads(s.Link)))
+            Remove(target);                                         // the package was moved: its links lead nowhere now
         if (File.Exists(Path.Combine(target, "api_v2.py")))
             return;
         var zip = target + ".zip.part";
@@ -129,19 +143,23 @@ public static class V5Fast
     {
         if (Directory.Exists(staging))
             Remove(staging);
-        ZipFile.ExtractToDirectory(zip, staging);
+        try
+        {
+            ZipFile.ExtractToDirectory(zip, staging);
+        }
+        catch (InvalidDataException)
+        {
+            throw new InvalidDataException("v5 fast's code came through damaged. Try again.");
+        }
         var top = Directory.GetDirectories(staging) is [var only] && Directory.GetFiles(staging).Length == 0 ? only : staging;
         if (!ContentHash(top).Equals(codeHash, StringComparison.OrdinalIgnoreCase))
         {
             Remove(staging);
             throw new InvalidDataException("v5 fast's code didn't match the published version (damaged on the way?). Try again.");
         }
-        // the package's Python, models and G2PW, shared rather than copied: they are gigabytes
-        var models = Path.Combine(top, "GPT_SoVITS", "pretrained_models");
-        Directory.Delete(models, recursive: true);                  // only a .gitignore here until it's a link
-        Link(models, Path.Combine(engine, "GPT_SoVITS", "pretrained_models"));
-        Link(Path.Combine(top, "GPT_SoVITS", "text", "G2PWModel"), Path.Combine(engine, "GPT_SoVITS", "text", "G2PWModel"));
-        Link(Path.Combine(top, "runtime"), Path.Combine(engine, "runtime"));    // its tools.portable_runtime looks beside itself for ffmpeg and DLLs
+        Directory.Delete(Path.Combine(top, "GPT_SoVITS", "pretrained_models"), recursive: true);   // only a .gitignore here until it's a link
+        foreach (var (link, shared) in Shared(engine, top))
+            Link(link, shared);
         Directory.Move(top, target);
         if (Directory.Exists(staging))
             Remove(staging);
@@ -164,9 +182,11 @@ public static class V5Fast
     /// <summary>A junction: unlike a symbolic link, Windows makes one without administrator rights.</summary>
     private static void Link(string link, string target)
     {
-        var start = new ProcessStartInfo("cmd") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var argument in new[] { "/c", "mklink", "/J", link, target })
-            start.ArgumentList.Add(argument);
+        // quoted by hand: .NET leaves a path with no space bare, and cmd would split it at an &
+        var start = new ProcessStartInfo("cmd", $"/c mklink /J \"{link}\" \"{target}\"")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
         using var mklink = Process.Start(start) ?? throw new IOException("couldn't start cmd");
         var said = mklink.StandardError.ReadToEnd();
         mklink.StandardOutput.ReadToEnd();

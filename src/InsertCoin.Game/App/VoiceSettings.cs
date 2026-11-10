@@ -557,7 +557,7 @@ public partial class VoiceSettings : VBoxContainer
             Form.Say(_installSays, _installer.Problem ?? "", _installer.Stopped ? Paper.Faint : Paper.Bad);
 
         var adding = running && _installer.AddingFast;
-        _fast.Visible = adding || works && !V5Fast.Has(_engine.Text.Trim());
+        _fast.Visible = adding || works && !running && !V5Fast.Has(_engine.Text.Trim());
         _fastFrom.Visible = _getFast.Visible = !running && V5Fast.CanAdd(_engine.Text.Trim());
         _stopFast.Visible = _fastBar.Visible = adding;
         if (adding)

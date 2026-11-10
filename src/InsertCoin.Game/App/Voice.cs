@@ -296,6 +296,8 @@ public partial class Voice : Node
             if (!server.Ready)
             {
                 Set(Phase.Starting);
+                // before the server is Ready, when another Refresh could find no engine yet; Qwen TTS never asks
+                var card = !IsQwen && await Task.Run(VoiceServer.SeesCard, cancel);
                 if (!await server.Start(cancel))
                 {
                     if (refresh == _refreshes)
@@ -309,7 +311,7 @@ public partial class Voice : Node
                 }
                 _http?.Dispose();
                 _http = new HttpClient { BaseAddress = server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = IsQwen ? null : new GptSoVits(_http, server.HasV5, await Task.Run(VoiceServer.SeesCard, cancel));
+                _engine = IsQwen ? null : new GptSoVits(_http, server.HasV5, card);
                 _qwen = IsQwen ? new QwenTts(_http) : null;
             }
             if (refresh != _refreshes)
