@@ -316,7 +316,9 @@ under a second and sounds closest to the recording, but it's newer and less stab
 blends in the tone of their first four clips for about 0.1 s more per sentence. A GPT-SoVITS without v5 fast's files (one
 installed before them, the RTX 50 build, or any folder you pointed it at) speaks with v2ProPlus, and the Voice page says
 so; on the package this installs, "Get v5 fast" there fetches them (0.8 GB), only when pressed, carrying on if cut short
-and checking each file before it's used. Older copies made with v4 speak with v5 fast from then on; a trained or
+and checking each file before it's used. During a first install the voice already works once the package is unpacked, and
+if v5 fast's part is cut short, "Get v5 fast" picks it up. A package moved to another folder speaks with v2ProPlus until
+"Get v5 fast" makes its links again. Older copies made with v4 speak with v5 fast from then on; a trained or
 downloaded v3 or v4 model keeps its own model and its Quality setting. With a minute or more of clips (five sounds better), "Train a model on its clips" trains their own:
 v2ProPlus, the way GPT-SoVITS's web UI does it, about a second per second of speech plus a minute (Hana's five
 minutes took 5.4 on a laptop graphics card with 8 GB, which it all but fills; once it starts it tells the time left,

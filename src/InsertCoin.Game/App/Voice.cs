@@ -233,6 +233,7 @@ public partial class Voice : Node
             if (!_server!.Ready)
             {
                 Set(Phase.Starting);
+                var card = await Task.Run(VoiceServer.SeesCard, cancel);    // before the server is Ready, when another Refresh could find no engine yet
                 if (!await _server.Start(cancel))
                 {
                     if (refresh == _refreshes)
@@ -241,7 +242,7 @@ public partial class Voice : Node
                 }
                 _http?.Dispose();
                 _http = new HttpClient { BaseAddress = _server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = new GptSoVits(_http, _server.HasV5, await Task.Run(VoiceServer.SeesCard, cancel));
+                _engine = new GptSoVits(_http, _server.HasV5, card);
             }
             if (refresh != _refreshes)
                 return;
