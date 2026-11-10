@@ -171,6 +171,11 @@ public static class V5Fast
     /// </summary>
     public static void Remove(string folder)
     {
+        if (new DirectoryInfo(folder).LinkTarget is not null)
+        {
+            Directory.Delete(folder);
+            return;
+        }
         foreach (var sub in Directory.GetDirectories(folder))
             if (new DirectoryInfo(sub).LinkTarget is not null)
                 Directory.Delete(sub);

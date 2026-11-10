@@ -31,6 +31,8 @@ public partial class EngineInstaller : Node
     public event Action? Changed;
     /// <summary>GPT-SoVITS is installed, in this folder.</summary>
     public event Action<string>? Installed;
+    /// <summary>v5 fast's files are in this engine.</summary>
+    public event Action<string>? FastAdded;
 
     public bool Running => _cancel is not null;
     public EngineStep Now { get; private set; }
@@ -146,7 +148,7 @@ public partial class EngineInstaller : Node
             var problem = await AddFiles(folder, source, cancel);
             End(problem, stopped: cancel.IsCancellationRequested);
             if (problem is null)
-                Installed?.Invoke(folder);                  // her voice starts again, from them
+                FastAdded?.Invoke(folder);
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
@@ -175,7 +177,7 @@ public partial class EngineInstaller : Node
         AddingFast = false;
         End(problem, stopped);
         if (problem is null)
-            Installed?.Invoke(engine);                      // her voice starts again, from them
+            FastAdded?.Invoke(engine);
     }
 
     /// <summary>Fetches v5 fast's files into the engine; why it couldn't, or null when they're in.</summary>

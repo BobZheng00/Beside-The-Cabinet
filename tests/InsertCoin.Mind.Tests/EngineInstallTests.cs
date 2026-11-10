@@ -370,20 +370,39 @@ public class EngineInstallTests : IDisposable
         var left = V5Fast.Code(engine) + ".unpacking";
         Directory.CreateDirectory(left);
         var link = Path.Combine(left, "runtime");
-        using (var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd")
-               {
-                   ArgumentList = { "/c", "mklink", "/J", link, Path.Combine(engine, "runtime") }, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
-               })!)
-        {
-            mklink.StandardOutput.ReadToEnd();
-            mklink.WaitForExit();
-        }
+        Junction(link, Path.Combine(engine, "runtime"));
         Assert.True(File.Exists(Path.Combine(link, "python.exe")));
 
         await Install(engine, hosts, weights, zip);
 
         Assert.True(V5Fast.Has(engine, weights));
         Assert.True(File.Exists(Path.Combine(engine, "runtime", "python.exe")));
+    }
+
+    private static void Junction(string link, string target)
+    {
+        using var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd")
+        {
+            ArgumentList = { "/c", "mklink", "/J", link, target }, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        })!;
+        mklink.StandardOutput.ReadToEnd();
+        mklink.WaitForExit();
+    }
+
+    [Fact]
+    public void Removing_a_folder_that_is_itself_a_link_takes_only_the_link_away()
+    {
+        var real = Path.Combine(_dir, "real");
+        Directory.CreateDirectory(Path.Combine(real, "inside"));
+        File.WriteAllText(Path.Combine(real, "inside", "keep.txt"), "kept");
+        var link = Path.Combine(_dir, "gsv-v5");
+        Junction(link, real);
+        Assert.True(File.Exists(Path.Combine(link, "inside", "keep.txt")));
+
+        V5Fast.Remove(link);
+
+        Assert.False(Directory.Exists(link));
+        Assert.True(File.Exists(Path.Combine(real, "inside", "keep.txt")));
     }
 
     [Fact]
