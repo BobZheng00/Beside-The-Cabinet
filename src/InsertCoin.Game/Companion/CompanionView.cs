@@ -132,9 +132,10 @@ public partial class CompanionView : Node2D
     private ShaderMaterial _layer = null!;
     private Sprite2D _picture = null!;
     private int _unposed;                             // frames until the viewport shows them as they should be: until then the picture is not drawn
-    private bool _behind;
+    private bool _behind, _flashing;
     private const int FramesToPose = 3;               // their first pose set, and drawn into the viewport
     private const float BehindFrom = 270;             // canvas x from which the cabinet hides them: the gap between stool and cabinet
+    private const float BehindPast = 360;             // canvas x, just inside the cabinet: from here on nothing of them is drawn while they arrive
     private const double FlashSeconds = 0.4;
 
     /// <summary>
@@ -151,6 +152,7 @@ public partial class CompanionView : Node2D
         }
         GD.Print("Arrival: from behind the cabinet");
         _layer.SetShaderParameter("behind_from", BehindFrom / _skin.Canvas.X);
+        _layer.SetShaderParameter("behind_past", BehindPast / _skin.Canvas.X);
         _behind = true;
         _puppet.Arrive();
         // the viewport still holds whatever it last drew (nothing of the arrival): not shown until it has drawn them hidden
@@ -167,10 +169,11 @@ public partial class CompanionView : Node2D
         // not shown until drawn seated: the viewport still holds where they were
         _picture.Visible = false;
         _unposed = FramesToPose;
-        void Set(float amount) => _layer.SetShaderParameter("flash", amount);
-        Set(1);
-        CreateTween().TweenMethod(Callable.From<float>(Set), 1f, 0f, FlashSeconds).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+        _flashing = true;
+        SetFlash(1);
     }
+
+    private void SetFlash(float amount) => _layer.SetShaderParameter("flash", amount);
 
     public void Play(Moment moment) => _puppet.Play(moment);
 
@@ -519,6 +522,8 @@ public partial class CompanionView : Node2D
         if (!active)
         {
             _puppet.Needed();
+            _flashing = false;                              // nobody to see it, and no flash waiting for when they are shown again
+            SetFlash(0);
             _bubble?.Clear();                               // in a window of its own, it doesn't hide with her
         }
         _viewport.RenderTargetUpdateMode = active ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
@@ -763,7 +768,14 @@ public partial class CompanionView : Node2D
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
         if (_unposed > 0 && --_unposed == 0)
+        {
             _picture.Visible = true;
+            if (_flashing)                                  // from when it can be seen: the frame that loaded them would have used it up
+            {
+                _flashing = false;
+                CreateTween().TweenMethod(Callable.From<float>(SetFlash), 1f, 0f, FlashSeconds).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+            }
+        }
         if (_behind && !_puppet.Arriving)
         {
             _behind = false;

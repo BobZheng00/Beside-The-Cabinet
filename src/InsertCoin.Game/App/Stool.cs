@@ -1598,7 +1598,8 @@ public partial class Stool : Node2D
         if (arriving == 0)
             Her?.Play(Moment.Greet);                        // arriving, they have waved already
         if (cards.Count > 0 && _chat.Conversation?.Persona.Greeting is { } greeting && FirstLine(greeting) is { } line)
-            GetTree().CreateTimer(arriving + 0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
+            GetTree().CreateTimer(0.01).Timeout +=          // a first tick takes the long frame of loading them, which their arrival doesn't count
+                () => GetTree().CreateTimer(arriving + 0.8).Timeout += () => Say(line);      // once she has sat down: the bubble goes over her seated head
         if (voice is not null)
             AddedVoice(voice);
         Meet(open: added.Count > 0);                        // what the new one has of their own, and lacks
