@@ -99,7 +99,7 @@ public class TroubleTests
 
     [Fact]
     public async Task DashScopes_free_quota_used_up_says_to_pick_another_model() =>
-        Assert.Equal("This model's free quota is used up. Pick another model in Settings → Mind.",
+        Assert.Equal("This model's free quota is used up. Pick another model in Settings → AI model.",
                      await Told("""{"error":{"message":"Free allocated quota exceeded.","type":"insufficient_quota","code":"insufficient_quota"}}""", DashScope));
 
     [Fact]
