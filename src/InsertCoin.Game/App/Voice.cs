@@ -309,7 +309,7 @@ public partial class Voice : Node
                 }
                 _http?.Dispose();
                 _http = new HttpClient { BaseAddress = server.Url, Timeout = TimeSpan.FromMinutes(5) };
-                _engine = IsQwen ? null : new GptSoVits(_http);
+                _engine = IsQwen ? null : new GptSoVits(_http, server.HasV5, await Task.Run(VoiceServer.SeesCard, cancel));
                 _qwen = IsQwen ? new QwenTts(_http) : null;
             }
             if (refresh != _refreshes)
