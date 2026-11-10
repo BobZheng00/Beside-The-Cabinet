@@ -28,7 +28,8 @@ public partial class GettingStarted : VBoxContainer
         string.IsNullOrWhiteSpace(name) || steps.Any(s => !s.Done && (s.Needed || !later.Contains(s.Page)));
 
     /// <param name="balance">What balance starts with, in a sentence (the day's limits and the bedtime).</param>
-    public void Build(string her, string? name, IReadOnlyList<StartStep> steps, IReadOnlyCollection<string> later, string balance)
+    /// <param name="earning">Play time is earned, so the sentence speaks of the limits too, which have a page of their own.</param>
+    public void Build(string her, string? name, IReadOnlyList<StartStep> steps, IReadOnlyCollection<string> later, string balance, bool earning)
     {
         Form.Page(this);
         Form.Hint(this, $"A few things to set up, each when you like. {her} only needs an AI model to talk with you; the rest can " +
@@ -56,7 +57,9 @@ public partial class GettingStarted : VBoxContainer
         }
 
         var limits = Heading("Play time", ("", Paper.Letters));
-        Form.Button(limits.GetParent<HBoxContainer>(), "Change…", () => Open?.Invoke("balance"));
+        if (earning)
+            Form.Button(limits.GetParent<HBoxContainer>(), "Change limits…", () => Open?.Invoke("balance"));
+        Form.Button(limits.GetParent<HBoxContainer>(), "Change bedtime…", () => Open?.Invoke("quiet"));
         Form.Hint(this, balance);
 
         AddChild(new HSeparator());

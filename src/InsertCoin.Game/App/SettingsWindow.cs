@@ -220,7 +220,12 @@ public partial class SettingsWindow : Window
             return;
         }
         if (_showing is not null && PageOf(_showing) is { } page)
-            DevDo(page, label, value, _showing);
+        {
+            var was = _showing;
+            DevDo(page, label, value, was);
+            if (_showing != was)
+                GD.Print($"Settings: {was} led to {_showing}");
+        }
     }
 
     /// <summary>Dev: the same within <paramref name="root"/> (another window of the cabinet's: Welcome, Meet), named <paramref name="where"/> in the log.</summary>
