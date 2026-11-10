@@ -170,10 +170,10 @@
     },
     {
       "name": "memorytabs",
-      "about": "Memory is a category of Settings with its six tabs: the menu opens it there, Agenda at the Agenda tab, Reminders' Open the agenda leads to it; the Facts and Diary filters narrow their lists as they're typed; Forget's buttons are red and still ask.",
+      "about": "Memory is a category of Settings with its six tabs: the menu opens it there, Reminders' Open the agenda leads to it, and a calendar's long name doesn't widen the Agenda tab; the Facts and Diary filters narrow their lists as they're typed; Forget's buttons are red and still ask.",
       "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/ReminderSettings.cs"],
-      "script": "memoryseed@2,menupress:Memory@4,settingswidths@5,memory:agenda@6,settingswidths@7,memory:facts@9,settingswidths@9,memoryfilter:hades@10,memoryfilter:zzz@12,memoryfilter:@13,memory:diary@14,settingswidths@14,memoryfilter:zzz@15,memoryfilter:@16,memory:memos@17,memory:forget@19,settingsdo:Forget_all_about_me@20,settings:reminders@23,settingsdo:Open_the_agenda@24,settingsclose@26,crt:agenda@27,crtclick:100:100@29",
-      "shots": [5, 8, 11, 14, 16, 19, 21, 33],
+      "script": "memoryseed@2,menupress:Memory@4,settingswidths@5,memory:agenda@6,settingswidths@7,memory:facts@9,settingswidths@9,memoryfilter:hades@10,memoryfilter:zzz@12,memoryfilter:@13,memory:diary@14,settingswidths@14,memoryfilter:zzz@15,memoryfilter:@16,memory:memos@17,memory:forget@19,settingsdo:Forget_all_about_me@20,settings:reminders@23,settingsdo:Open_the_agenda@24,settingsclose@26,memory@27",
+      "shots": [5, 8, 11, 14, 16, 19, 21, 27, 31],
       "window": "Settings",
       "expect": ["^Settings: opened at Memory$", "^Menu: pressed Memory", "^Settings: opened at Memory, agenda$", "^Memory: filtered by \"hades\": 1 showing$", "^Memory: filtered by \"zzz\": 0 showing$", "^Settings: \"Click again to forget\" pressed$", "^Settings: reminders led to memory$"],
       "forbid": ["^Settings: nothing called", "^Settings: memory needs \\d+ px"]
@@ -451,14 +451,14 @@
     },
     {
       "name": "agendaapp",
-      "about": "The CRT's AGENDA app follows the agenda while it is open: the job interview the seed put there leaves it when the companion takes it off, without reopening it.",
+      "about": "The CRT's AGENDA app follows the agenda while it is open: the job interview the seed put there leaves it when the companion takes it off, without reopening it; a click on it opens Settings, Memory, at Agenda.",
       "covers": ["src/InsertCoin.Game/App/Crt/AgendaApp.cs"],
       "mind": true,
       "mindReply": "[cancel: #1] Done, it's off your agenda.",
       "mindRequests": 1,
-      "script": "nocall@1,memoryseed@2,crt:agenda@4,chat:please_take_the_interview_off_my_agenda@12",
-      "shots": [12, 19],
-      "expect": ["^Agenda app: changed while open, now 1 ahead"]
+      "script": "nocall@1,memoryseed@2,crt:agenda@4,chat:please_take_the_interview_off_my_agenda@12,crtclick:100:100@18",
+      "shots": [12, 19, 23],
+      "expect": ["^Agenda app: changed while open, now 1 ahead", "^Settings: opened at Memory, agenda$"]
     },
     {
       "name": "agendaflash",

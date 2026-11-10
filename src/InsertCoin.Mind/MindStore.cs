@@ -182,7 +182,7 @@ public sealed class MindStore : IDisposable
                 PRAGMA user_version = 13;
                 """);
         // version 14: what she always has in mind is listed from her facts for every reply (see Prompt.Known), so the two
-        // notes the model rewrote from them go into her log, out of view like condensed notes and still recalled, and the
+        // notes the model rewrote from them go into her log, out of view like condensed notes and still recalled, and
         // Memory's Notes are the player's own from now on
         if (was < 14)
             Run("""
