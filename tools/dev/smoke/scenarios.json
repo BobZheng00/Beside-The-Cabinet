@@ -64,7 +64,7 @@
     },
     {
       "name": "earning",
-      "about": "Settings → Balance changes what earns play time, saved as changed: activities off takes the DONE app off the screen's home screen, \"No play time\" clears the ticks (nothing earns), and unticking it brings focus and activities back, with DONE in its place.",
+      "about": "Settings → Play time changes what earns play time, saved as changed: activities off takes the DONE app off the screen's home screen, \"No play time\" clears the ticks (nothing earns), and unticking it brings focus and activities back, with DONE in its place.",
       "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/DoneApp.cs"],
       "script": "settings:balance@2,settingsdo:Your_own_activities@4,settingsdo:No_play_time@6,settingsdo:No_play_time@8",
       "shots": [5, 7, 12],
@@ -73,7 +73,7 @@
     },
     {
       "name": "noplaytime",
-      "about": "A game played on credit leaves time owed; then \"No play time\" on Settings → Balance: the screen shows the time and the day (no credits, streak or attract pages), the IOU ticket leaves the slot, Balance shows only the ticks and the bedtime, a focus part and a game show nothing on the cabinet; unticked again, the debt is back as it was.",
+      "about": "A game played on credit leaves time owed; then \"No play time\" on Settings → Play time: the screen shows the time and the day (no credits, streak or attract pages), the IOU ticket leaves the slot, Play time shows only the ticks, a focus part and a game show nothing on the cabinet; unticked again, the debt is back as it was.",
       "covers": ["src/InsertCoin.Core/Ledger.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Director.cs"],
       "script": "nocall@1,game@2,warp@2.5,game@14,warp@14.5,settings:balance@18,settingsdo:No_play_time@20,focuspaid:30@24,game@28,game@36,settingsdo:No_play_time@40",
       "shots": [17, 23, 27, 33, 44],
@@ -93,7 +93,7 @@
     },
     {
       "name": "playprogram",
-      "about": "A program picked as play on Settings → Balance (a stand-in in front, picked from Running now; a very long name beside it is cut short, the page no wider than the window) starts a session; behind another window for longer than a game's two missed checks it is held quietly and goes on when back in front, one session; Windows turning the display off ends it; the time left shown never goes back up, as it goes behind or as it ends.",
+      "about": "A program picked as play on Settings → Play time (a stand-in in front, picked from Running now; a very long name beside it is cut short, the page no wider than the window) starts a session; behind another window for longer than a game's two missed checks it is held quietly and goes on when back in front, one session; Windows turning the display off ends it; the time left shown never goes back up, as it goes behind or as it ends.",
       "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/Desktop/OpenWindows.cs", "src/InsertCoin.Game/Desktop/Presence.cs"],
       "settings": ", \"PlayPrograms\": [{\"Path\": \"D:/Games/launcher.exe\", \"Name\": \"The Extraordinarily Long Named Game Launcher and Media Centre Deluxe Edition 2026 for Windows\"}]",
       "script": "nocall@1,hard@1.5,frontprogram:C:\\Windows\\notepad.exe@2,settings:balance@3,settingsdo:Running_now:1@4,settingswidths@6,frontprogram:behind@14,frontprogram:C:\\Windows\\notepad.exe@28,display:off@34,display:on@42",
@@ -140,21 +140,21 @@
     },
     {
       "name": "settings",
-      "about": "Every Settings page opens, and none is wider than the window (settingswidths logs any that is).",
-      "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
-      "script": "settings@2,settings:mind@3,settings:voice@4,settings:listening@5,settings:characters@6,settings:abilities@7,settings:privacy@8,settings:addons@9,settings:reminders@10,settings:checkins@11,settings:phone@12,settings:calendars@13,settings:balance@14,settings:cabinet@15,settings:usage@16,settings:skills@17,settingswidths@18",
-      "shots": [6, 11, 16, 21],
+      "about": "The list is the nine categories, with Getting started above them while it has anything left, and every page and tab opens, none wider than the window (settingswidths logs any that is). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there.",
+      "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/SettingsIcons.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
+      "script": "settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25",
+      "shots": [6, 11, 16, 21, 26, 29],
       "window": "Settings",
-      "expect": ["^Settings: (\\d+) of \\1 pages measured"],
+      "expect": ["^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at start$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
       "name": "language",
-      "about": "Settings → Characters has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
-      "covers": ["src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/characters/*/persona.*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
+      "about": "Settings → General has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
+      "covers": ["src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/characters/*/persona.*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
       "mind": true,
       "mindRequests": 1,
-      "script": "nocall@1,settings:characters@2,settingsdo:Language:中文@3,chat:hello_there@5",
+      "script": "nocall@1,settings:cabinet@2,settingsdo:Language:中文@3,chat:hello_there@5",
       "shots": [5, 10],
       "window": "Settings",
       "expect": ["^Settings: Language is \"中文\"$", "^Characters: language Chinese, whatever the player writes$", "^Chat: she replied with her card in Chinese \\(persona\\.zh\\.md\\)$"]
@@ -179,7 +179,7 @@
     },
     {
       "name": "character-menu",
-      "about": "Choosing who keeps you company is an entry of its own in the menu (the tray's and the right-click's): it opens Settings at Characters, listed above the groups, not under the companion's name, and again from Mind once Settings is open. Choosing Fumiriya there heads the companion's pages with FUMIRIYA at once, and Mind, made before, is made again with the new name.",
+      "about": "Choosing who keeps you company is an entry of its own in the menu (the tray's and the right-click's): it opens Settings at Companion, and again from AI model once Settings is open. Choosing Fumiriya there has the pages made so far, AI model among them, made again with the new name.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
       "script": "trayitems@2,menu@3,menupress:Who_keeps@4,settings:mind@6,menupress:Who_keeps@7,settingsdo:Fumiriya@8,settings:mind@10",
       "shots": [5.5, 11, 13.5],
@@ -188,23 +188,23 @@
         "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
         "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
         "^Menu: pressed Who keeps$",
-        "^Settings: the list: Getting started \\| Characters \\| SHINO \\| Mind \\| Voice \\| Talking aloud \\| Abilities .*; opened at characters$",
+        "^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at characters$",
         "^Settings: \"Fumiriya\" ticked$",
-        "^Settings: the companion's pages headed FUMIRIYA; characters made again when next shown$"
+        "^Settings: the pages now name Fumiriya; characters made again when next shown$"
       ],
       "forbid": ["^Menu: no entry", "^Settings: nothing called"]
     },
     {
       "name": "character-elsewhere",
-      "about": "With Getting started done, Settings… opens at Mind, not at Characters. Someone else taking the stool from outside Settings (as a model dropped on the cabinet does) while Mind is showing: the heading and Mind say the new name at once, and so do Voice and Mind when gone back to.",
+      "about": "With Getting started done, Settings… opens at AI model. Someone else taking the stool from outside Settings (as a model dropped on the cabinet does) while AI model is showing: it says the new name at once, and so do Voice and AI model when gone back to.",
       "covers": ["src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
       "settings": ", \"StartHidden\": true",
       "script": "settings@2,character:fumiriya@4,settings:voice@7,settings:mind@9",
       "shots": [6.6, 9.5, 12],
       "window": "Settings",
       "expect": [
-        "^Settings: the list: Characters \\| SHINO \\| Mind .*; opened at mind$",
-        "^Settings: the companion's pages headed FUMIRIYA; mind made again now$"
+        "^Settings: the list: General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at mind$",
+        "^Settings: the pages now name Fumiriya; mind made again now$"
       ]
     },
     {
@@ -221,7 +221,7 @@
     },
     {
       "name": "slip-size",
-      "about": "The chat box (the slip), with a line typed and four pictures handed over, is the size it is by a large cabinet by a medium one, and stays so with it open as the cabinet turns small, then large (Settings → Cabinet): by a small or medium cabinet its chips take two lines, inside the window; by a large one, one.",
+      "about": "The chat box (the slip), with a line typed and four pictures handed over, is the size it is by a large cabinet by a medium one, and stays so with it open as the cabinet turns small, then large (Settings → General): by a small or medium cabinet its chips take two lines, inside the window; by a large one, one.",
       "covers": ["src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
       "mind": true,
       "script": "nocall@1,chattype:I_was_thinking_we_could_try_the_new_ramen_place@3,pastepicture:res://icon.png@3.5,pastepicture:res://icon.png@3.8,pastepicture:res://icon.png@4.1,pastepicture:res://icon.png@4.4,settings:cabinet@5,settingsdo:Size:0@7,settingsdo:Size:2@10",
@@ -232,7 +232,7 @@
     },
     {
       "name": "chatgpt",
-      "about": "The player signs in with ChatGPT (a stand-in: no browser opens) on Settings → Mind and sees which account and model; the companion answers on the plan, within its rules; once the plan's limit is reached their card says so once, with Manage usage, the Mind page shows it, and a reminder still comes in plain words; Disconnect takes the card back and the page asks to continue with ChatGPT.",
+      "about": "The player signs in with ChatGPT (a stand-in: no browser opens) on Settings → AI model and sees which account and model; the companion answers on the plan, within its rules; once the plan's limit is reached their card says so once, with Manage usage, the AI model page shows it, and a reminder still comes in plain words; Disconnect takes the card back and the page asks to continue with ChatGPT.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindReply": "Hi! I'm on your ChatGPT plan now.",
@@ -253,7 +253,7 @@
     },
     {
       "name": "chatgpt-signedout",
-      "about": "Signed in with ChatGPT (a stand-in), the player disconnects the app in ChatGPT itself: the next request and its refresh are turned down, the companion's card says they're signed out, with Continue with ChatGPT, and the Mind page, open all along, shows them signed out; signing in again there takes the card back and the page says the companion answers through the plan again.",
+      "about": "Signed in with ChatGPT (a stand-in), the player disconnects the app in ChatGPT itself: the next request and its refresh are turned down, the companion's card says they're signed out, with Continue with ChatGPT, and the AI model page, open all along, shows them signed out; signing in again there takes the card back and the page says the companion answers through the plan again.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindRequests": 5,
@@ -269,7 +269,7 @@
     },
     {
       "name": "chatgpt-backup",
-      "about": "On Settings → Mind with the ChatGPT plan (a stand-in), the player sets a backup (a model on this PC, the stand-in's own) and signs in; the companion answers on the plan; once its limit is reached their card asks whether to carry on with the backup, with Yes, Manage usage and Not now, and their bubble doesn't say it again; after Yes the backup answers what they wrote while the card asked, then what they write next, keeping a model on this PC's smaller window; when the plan answers again (its next try brought forward) the companion is back on it and their card says so once; a memo written on the plan before it ran out again (the limit hit on the request bringing the memo's result) isn't asked again after the next Yes, so it is written once.",
+      "about": "On Settings → AI model with the ChatGPT plan (a stand-in), the player sets a backup (a model on this PC, the stand-in's own) and signs in; the companion answers on the plan; once its limit is reached their card asks whether to carry on with the backup, with Yes, Manage usage and Not now, and their bubble doesn't say it again; after Yes the backup answers what they wrote while the card asked, then what they write next, keeping a model on this PC's smaller window; when the plan answers again (its next try brought forward) the companion is back on it and their card says so once; a memo written on the plan before it ran out again (the limit hit on the request bringing the memo's result) isn't asked again after the next Yes, so it is written once.",
       "covers": ["src/InsertCoin.Mind/ChatGptPlan.cs", "src/InsertCoin.Mind/PlanBackup.cs", "src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/Companion/PermissionCard.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindReply": "Hi! I'm on your ChatGPT plan.",
@@ -294,7 +294,7 @@
     },
     {
       "name": "skills",
-      "about": "Settings → Skills lists the seeded skills (one in the app's folder, one broken); a vault's skills folder linked on the page says how many skills it has and lists them (two, one with a hint); a skill's Settings › opens its own page, headed by where it is (‹ Skills › tea-timer, top left) and its name, and ‹ Skills goes back to the list where it was scrolled to, keyboard focus on the way back each time (‹ Skills going down, the skill's Settings › coming up); a skill with a name too long for the window wraps it in its page's heading, and neither its page nor the list is wider than the window (settingswidths, there); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
+      "about": "Settings → Abilities and privacy → Skills lists the seeded skills (one in the app's folder, one broken); a vault's skills folder linked on the page says how many skills it has and lists them (two, one with a hint); a skill's Settings › opens its own page, headed by where it is (‹ Skills › tea-timer, top left) and its name, and ‹ Skills goes back to the list where it was scrolled to, keyboard focus on the way back each time (‹ Skills going down, the skill's Settings › coming up); a skill with a name too long for the window wraps it in its page's heading, and neither its page nor the list is wider than the window (settingswidths, there); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
       "covers": ["src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
       "mind": true,
       "mindReply": "Warm the pot first, then four minutes.",
@@ -308,7 +308,7 @@
     },
     {
       "name": "skill-folders",
-      "about": "A stand-in notes folder granted to a skill on its own page (Settings → Skills → its Settings ›); asked to add a line to a note there, the companion's mind (the mock) reads it and appends a line with their note tools, and the file shows it; Undo on the skill's page takes it out again. Asked again, then the player adds a line of their own, Undo is refused, says so beside the changes (in view), and leaves the player's line.",
+      "about": "A stand-in notes folder granted to a skill on its own page (Settings → Abilities and privacy → Skills → its Settings ›); asked to add a line to a note there, the companion's mind (the mock) reads it and appends a line with their note tools, and the file shows it; Undo on the skill's page takes it out again. Asked again, then the player adds a line of their own, Undo is refused, says so beside the changes (in view), and leaves the player's line.",
       "covers": ["src/InsertCoin.Mind/Notes.cs", "src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "src/InsertCoin.Game/App/Chat.cs"],
       "mind": true,
       "mindReply": "Done: it's in your note.",
@@ -498,7 +498,7 @@
     },
     {
       "name": "menu-size",
-      "about": "The right-click menu, shown, is the same size by a medium cabinet, then a small one and a large one (chosen on Settings → Cabinet): the size it had by a large cabinet with Windows at 125%, as large in inches on any screen.",
+      "about": "The right-click menu, shown, is the same size by a medium cabinet, then a small one and a large one (chosen on Settings → General): the size it had by a large cabinet with Windows at 125%, as large in inches on any screen.",
       "covers": ["src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
       "script": "menuopen@2,menupress:Show_cabinet@3,settings:cabinet@4,settingsdo:Size:0@6,menuopen@7,menupress:Show_cabinet@8,settingsdo:Size:2@9,menuopen@10,menupress:Show_cabinet@11",
       "shots": [14],

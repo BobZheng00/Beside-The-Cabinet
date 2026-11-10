@@ -275,7 +275,7 @@ public class ChatGptPlanTests : IDisposable
         Assert.Equal(PlanStop.Limit, stopped.Why);
         Assert.True(stopped.Told);                                      // the card says it: her bubble needn't
         Assert.False(waiting.Told);                                     // a request while she waits: her bubble says it, plainly
-        Assert.Equal("Usage limit reached: review your plan or this app's limit in ChatGPT settings (Manage usage, in Settings → Mind).", Trouble.Explain(stopped));
+        Assert.Equal("Usage limit reached: review your plan or this app's limit in ChatGPT settings (Manage usage, in Settings → AI model).", Trouble.Explain(stopped));
         Assert.Equal(asked, _openAi.Asked.Count);                       // waiting: nothing sent, not even retried
         Assert.Equal([PlanStop.Limit], told);
         Assert.True(plan.Connected);

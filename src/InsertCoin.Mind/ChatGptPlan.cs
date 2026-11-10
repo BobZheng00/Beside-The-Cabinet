@@ -40,7 +40,7 @@ public sealed class PlanStopped(PlanStop why, bool told = false) : Exception(Cha
 /// even with a fresh token: passing as far as can be told, so the sign-in is kept, and said in the plan's words.
 /// </summary>
 public sealed class PlanRefused(int status, Exception inner)
-    : HttpRequestException("ChatGPT turned this request down. Try again later; if it keeps happening, Disconnect and sign in again in Settings → Mind.",
+    : HttpRequestException("ChatGPT turned this request down. Try again later; if it keeps happening, Disconnect and sign in again in Settings → AI model.",
                            inner, (HttpStatusCode)status);
 
 /// <summary>Signing in with ChatGPT didn't finish; the message says why, plainly.</summary>
@@ -126,9 +126,9 @@ public sealed class ChatGptPlan
     /// <summary>What a request she couldn't make says, in the app's words: the plain line, with where to put it right.</summary>
     public static string Plainly(PlanStop why) => why switch
     {
-        PlanStop.Limit => "Usage limit reached: review your plan or this app's limit in ChatGPT settings (Manage usage, in Settings → Mind).",
-        PlanStop.NotEligible => "This ChatGPT account can't use its plan in apps. Sign in with another, or use an API key, in Settings → Mind.",
-        _ => "Signed out of ChatGPT: sign in again in Settings → Mind (Continue with ChatGPT).",
+        PlanStop.Limit => "Usage limit reached: review your plan or this app's limit in ChatGPT settings (Manage usage, in Settings → AI model).",
+        PlanStop.NotEligible => "This ChatGPT account can't use its plan in apps. Sign in with another, or use an API key, in Settings → AI model.",
+        _ => "Signed out of ChatGPT: sign in again in Settings → AI model (Continue with ChatGPT).",
     };
 
     /// <summary>The player wrote to her: once the limit was reached, their message tries the plan again rather than waiting.</summary>

@@ -24,7 +24,7 @@ public enum Whereabouts
     Asleep,
 }
 
-/// <summary>How much she reaches out to the player's phone (Settings → Your phone). At the PC she is the same whichever it is.</summary>
+/// <summary>How much she reaches out to the player's phone (Settings → Connections → Your phone). At the PC she is the same whichever it is.</summary>
 public enum Reach
 {
     /// <summary>Only what the player set going: reminders, a focus session's turns.</summary>

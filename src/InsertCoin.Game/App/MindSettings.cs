@@ -7,7 +7,7 @@ using Microsoft.Extensions.AI;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Her mind: the player's own AI provider, which she answers through (server, key and model, with a test;
+/// Settings → AI model: the player's own AI provider, which she answers through (server, key and model, with a test;
 /// used once saved, so picking a provider to see its server never switches her over), or their ChatGPT plan (signed in
 /// to in their browser; used once signed in) with an optional backup behind it (used only after the player's yes, each
 /// time the plan stops), how she finds what to remember, and how much of the conversation she
@@ -64,7 +64,10 @@ public partial class MindSettings : VBoxContainer
         _chat = chat;
         _saved = current;
         _name = name;
-        Form.Page(this, $"{name}'s mind");
+        if (brief)
+            Form.Page(this, "Connect an AI");
+        else
+            Form.Page(this);
         _hint = Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                                 "Your key stays on this PC, encrypted for your Windows account.");
         _billed = Form.Hint(this, "OpenAI bills API use apart from ChatGPT Plus. With Plus or Pro, pick ChatGPT plan instead.");
@@ -243,8 +246,8 @@ public partial class MindSettings : VBoxContainer
                 {
                     (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
                     (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
-                                 "Until it is, the SearXNG add-on (Add-ons) gives web search.",
-                    _ => "Web search: your provider has none for this model. The SearXNG add-on (Add-ons) gives web search.",
+                                 "Until it is, SearXNG (Connections, Web search) can give web search.",
+                    _ => "Web search: your provider has none for this model. SearXNG (Connections, Web search) can give web search.",
                 }, Paper.Good);
         }
         catch (Exception e)

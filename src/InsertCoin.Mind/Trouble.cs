@@ -16,8 +16,8 @@ public static class Trouble
     /// <param name="onPlan">The player is on the ChatGPT plan and <paramref name="provider"/> is its backup: nothing to tell them to switch to.</param>
     public static string Explain(Exception e, Provider? provider = null, bool onPlan = false) => e is PlanStopped or PlanRefused ? e.Message : Status(e) switch
     {
-        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → Mind.",
-        HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → Mind.",
+        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "The API key was refused. Check it in Settings → AI model.",
+        HttpStatusCode.NotFound => "The server doesn't know that model or address. Check them in Settings → AI model.",
         HttpStatusCode.PaymentRequired => "The provider says the account needs credit.",
         HttpStatusCode.TooManyRequests when FreeQuotaGone(e, provider) => "This model's free quota is used up. Pick another model in Settings → Mind.",
         HttpStatusCode.TooManyRequests when OutOfCredit(e, provider) => provider?.Through == "api.openai.com"

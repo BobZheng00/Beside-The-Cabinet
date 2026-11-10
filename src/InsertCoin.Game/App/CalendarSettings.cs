@@ -6,7 +6,7 @@ using InsertCoin.Game.Companion;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Calendars: link one with its private address (Google's "secret address in iCal format", Outlook's
+/// Settings → Connections → Calendars: link one with its private address (Google's "secret address in iCal format", Outlook's
 /// published ICS link), see when each was last read and what came of it, read them now, or unlink one. Read-only:
 /// she knows what is on them; she does not change them.
 /// </summary>
@@ -24,9 +24,9 @@ public partial class CalendarSettings : VBoxContainer
         calendars.Changed += Refresh;
         TreeExiting += () => calendars.Changed -= Refresh;
 
-        Form.Page(this, "Calendars");
+        Form.Page(this);
         Form.Hint(this, "Link your calendar and its next two weeks join your agenda, read again every 15 minutes: your companion knows what is coming up, " +
-                        "and your reminder before things on your agenda (see Reminders) covers them too. It is only read, never changed.");
+                        "and your reminder before things on your agenda (see Notifications, Reminders) covers them too. It is only read, never changed.");
 
         _list = new VBoxContainer();
         _list.AddThemeConstantOverride("separation", 6);

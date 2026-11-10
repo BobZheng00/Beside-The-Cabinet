@@ -104,6 +104,8 @@ public static class Paper
 
         // tabs like index cards: the chosen one is part of the page, the others washed out behind it
         theme.SetStylebox("panel", "TabContainer", Box(Sheet, line, 1, 8, 12, 12));
+        foreach (var tabs in new[] { "TabContainer", "TabBar" })
+        {
         StyleBoxFlat Tab(Color fill, Color border)
         {
             var tab = Box(fill, border, 1, 8, 14, 6);
@@ -111,32 +113,30 @@ public static class Paper
             tab.CornerRadiusBottomLeft = tab.CornerRadiusBottomRight = 0;
             return tab;
         }
-        theme.SetStylebox("tab_selected", "TabContainer", Tab(Sheet, line));
-        theme.SetStylebox("tab_unselected", "TabContainer", Tab(Wash, Wash));
-        theme.SetStylebox("tab_hovered", "TabContainer", Tab(new Color("E2DAF7"), new Color("E2DAF7")));
-        theme.SetStylebox("tab_focus", "TabContainer", new StyleBoxEmpty());
-        theme.SetColor("font_selected_color", "TabContainer", Ink);
-        theme.SetColor("font_unselected_color", "TabContainer", Letters);
-        theme.SetColor("font_hovered_color", "TabContainer", Ink);
+            theme.SetStylebox("tab_selected", tabs, Tab(Sheet, line));
+            theme.SetStylebox("tab_unselected", tabs, Tab(Wash, Wash));
+            theme.SetStylebox("tab_hovered", tabs, Tab(new Color("E2DAF7"), new Color("E2DAF7")));
+            theme.SetStylebox("tab_focus", tabs, new StyleBoxEmpty());
+            theme.SetColor("font_selected_color", tabs, Ink);
+            theme.SetColor("font_unselected_color", tabs, Letters);
+            theme.SetColor("font_hovered_color", tabs, Ink);
+        }
         theme.SetConstant("side_margin", "TabContainer", 0);
 
-        // the settings' list of pages: plain words, the one showing on a wash, under small group names
+        // the settings' list of categories: an icon and plain words, the one showing on a wash
         theme.SetTypeVariation("Side", "Button");
         var hover = new Color("F4EFFC");
-        theme.SetStylebox("normal", "Side", Box(Colors.Transparent, Colors.Transparent, 0, 8, 12, 6));
-        theme.SetStylebox("hover", "Side", Box(hover, hover, 0, 8, 12, 6));
-        theme.SetStylebox("pressed", "Side", Box(Wash, Wash, 0, 8, 12, 6));
-        theme.SetStylebox("hover_pressed", "Side", Box(Wash, Wash, 0, 8, 12, 6));
+        theme.SetStylebox("normal", "Side", Box(Colors.Transparent, Colors.Transparent, 0, 8, 8, 3));
+        theme.SetStylebox("hover", "Side", Box(hover, hover, 0, 8, 8, 3));
+        theme.SetStylebox("pressed", "Side", Box(Wash, Wash, 0, 8, 8, 3));
+        theme.SetStylebox("hover_pressed", "Side", Box(Wash, Wash, 0, 8, 8, 3));
+        theme.SetConstant("h_separation", "Side", 10);
         theme.SetStylebox("focus", "Side", new StyleBoxEmpty());
         theme.SetColor("font_color", "Side", Letters);
         theme.SetColor("font_focus_color", "Side", Letters);
         theme.SetColor("font_hover_color", "Side", Ink);
         theme.SetColor("font_pressed_color", "Side", AccentDark);
         theme.SetColor("font_hover_pressed_color", "Side", AccentDark);
-        theme.SetTypeVariation("Group", "Label");
-        theme.SetFont("font", "Group", Font(600));
-        theme.SetFontSize("font_size", "Group", 12);
-        theme.SetColor("font_color", "Group", Faint);
 
         // hover tips: a slip of the same paper, not Godot's dark strip (their text is wrapped where set: tips don't wrap)
         theme.SetStylebox("panel", "TooltipPanel", Box(Colors.White, line, 1, 6, 10, 6));

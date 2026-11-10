@@ -19,7 +19,7 @@ public enum Moment
 }
 
 /// <summary>
-/// How a character carries themselves on the stool, chosen per character by the player (Settings → Characters, the
+/// How a character carries themselves on the stool, chosen per character by the player (Settings → Companion, the
 /// first run, "Meet …"), whoever they are: neat, knees together and hands folded in the lap, the head tilting as they
 /// listen and react, a leg swung now and then, a tune in their head swaying them; or relaxed, as people sit at ease on a
 /// stool: knees a little apart, one foot often down off the ring, a hand on one thigh and the other by the hip, the back a

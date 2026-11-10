@@ -30,9 +30,9 @@ public partial class GettingStarted : VBoxContainer
     /// <param name="balance">What balance starts with, in a sentence (the day's limits and the bedtime).</param>
     public void Build(string her, string? name, IReadOnlyList<StartStep> steps, IReadOnlyCollection<string> later, string balance)
     {
-        Form.Page(this, "Getting started");
-        Form.Hint(this, $"A few things to set up, each when you like. {her} only needs a mind to talk with you; the rest can " +
-                        "wait, and each stays on its own page, listed on the left.");
+        Form.Page(this);
+        Form.Hint(this, $"A few things to set up, each when you like. {her} only needs an AI model to talk with you; the rest can " +
+                        "wait, and each stays in Settings, in the list on the left.");
 
         var named = Heading("Your name", name is { Length: > 0 } ? Done : Needed);
         var field = new LineEdit { Text = name ?? "", PlaceholderText = "your name, or what you like to be called", SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -55,7 +55,7 @@ public partial class GettingStarted : VBoxContainer
             Form.Say(Form.Result(this), step.Now, step.Done ? Paper.Good : step.Needed ? Paper.Bad : Paper.Letters);
         }
 
-        var limits = Heading("Balance", ("", Paper.Letters));
+        var limits = Heading("Play time", ("", Paper.Letters));
         Form.Button(limits.GetParent<HBoxContainer>(), "Change…", () => Open?.Invoke("balance"));
         Form.Hint(this, balance);
 
@@ -69,7 +69,7 @@ public partial class GettingStarted : VBoxContainer
         {
             hide.Disabled = true;
             HideAsked?.Invoke();
-            Form.Say(result, "Hidden: it leaves Settings and the tray. Each part stays on its own page.", Paper.Faint);
+            Form.Say(result, "Hidden: it leaves Settings and the tray. Each part stays in Settings.", Paper.Faint);
         };
     }
 

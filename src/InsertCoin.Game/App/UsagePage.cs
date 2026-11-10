@@ -5,7 +5,7 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Usage: what her requests used, as the provider reported it (this month, and day by day for two weeks):
+/// Settings → AI model → What it has cost: what her requests used, as the provider reported it (this month, and day by day for two weeks):
 /// input read, the share served from the provider's cache, what was written to the cache, and output. With the prices
 /// the player enters for a model (from their provider's price page: no table of prices is kept here, it would go out of
 /// date and cannot know a proxy's), the cost too, cache reads and writes at their own prices.

@@ -753,6 +753,13 @@ public partial class Main : Node2D
                 _settingsWindow!.DevUp();
             return;
         }
+        if (action.StartsWith("settingsat:"))               // settingsat:1366x768 lays the window out as on a screen that size, at 100%
+        {
+            var size = action["settingsat:".Length..].Split('x');
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.DevScreen(new Vector2I(int.Parse(size[0]), int.Parse(size[1])));
+            return;
+        }
         if (action == "settingswidths")                     // logs any page made so far that is wider than its room
         {
             if (IsInstanceValid(_settingsWindow))
@@ -866,7 +873,7 @@ public partial class Main : Node2D
             case "menuopen": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2, evenInTest: true); break;     // as menu, and shows it (no screenshots until it closes)
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
             case "bubbleclick": _stool.Her?.DevClickBubble(); break;       // a click on her bubble's words while it waits on her call
-            case "remindertry":                             // the "Try it" on Settings → Reminders
+            case "remindertry":                             // the "Try it" on Settings → Notifications → Reminders
                 if (IsInstanceValid(_settingsWindow) && _settingsWindow!.PageOf("reminders") is ReminderSettings reminders)
                     reminders.DevTry();
                 break;
@@ -930,7 +937,7 @@ public partial class Main : Node2D
             WindowsNotice.Show(notice.Title, notice.Text);
     }
 
-    /// <summary>A text to the player's phone, through each place on Settings → Your phone; a place that fails is logged.</summary>
+    /// <summary>A text to the player's phone, through each place on Settings → Connections → Your phone; a place that fails is logged.</summary>
     private async Task Text(Notice notice)
     {
         if (!_settings.ReminderElsewhere.Any)
@@ -972,24 +979,25 @@ public partial class Main : Node2D
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
         SettingsPage[] pages = [.. SettingsPages(page), .. _stool.SettingsPages()];
-        // Settings… opens at Getting started while it is listed, else at her mind: Characters, listed first, has its own entry
+        // Settings… opens at Getting started while it is listed, else at her AI model
         _settingsWindow.Build(pages, page ?? (pages[0].Id == "start" ? "start" : "mind"), _stool.HerName());
         _settingsWindow.Open();
     }
 
     /// <summary>
     /// The cabinet's pages of the settings: Getting started while anything is left of it (or when asked for), the
-    /// player's day (reminders, check-ins, their phone, calendars, balance) and the cabinet itself.
+    /// cabinet itself, play time, notifications, and their phone and calendars.
     /// </summary>
     private IEnumerable<SettingsPage> SettingsPages(string? open) =>
     [
-        .. StartLeft() || open == "start" ? [new SettingsPage("start", SettingsWindow.First, "Getting started", StartPage, Fresh: true)] : Array.Empty<SettingsPage>(),
-        new("reminders", SettingsWindow.Day, "Reminders", RemindersPage),
-        new("checkins", SettingsWindow.Day, "Check-ins", CheckInsPage),
-        new("phone", SettingsWindow.Day, "Your phone", YourPhonePage),
-        new("calendars", SettingsWindow.Day, "Calendars", CalendarsPage),
-        new("balance", SettingsWindow.Day, "Balance", BalancePage),
-        new("cabinet", SettingsWindow.Cabinet, "Cabinet", CabinetPage),
+        .. StartLeft() || open == "start" ? [new SettingsPage("start", SettingsWindow.Start, "", StartPage, Fresh: true)] : Array.Empty<SettingsPage>(),
+        new("cabinet", SettingsWindow.General, "", CabinetPage),
+        new("balance", SettingsWindow.PlayTime, "", BalancePage),
+        new("reminders", SettingsWindow.Notifications, "Reminders", RemindersPage),
+        new("checkins", SettingsWindow.Notifications, "Check-ins", CheckInsPage),
+        new("quiet", SettingsWindow.Notifications, "Bedtime and quiet hours", QuietPage),
+        new("phone", SettingsWindow.Connections, "Your phone", YourPhonePage),
+        new("calendars", SettingsWindow.Connections, "Calendars", CalendarsPage),
     ];
 
     /// <summary>
@@ -1052,7 +1060,7 @@ public partial class Main : Node2D
         page.Named += name =>
         {
             _stool.CallMe(name);
-            _settingsWindow?.RefreshPage("characters");    // the name shown there too
+            _settingsWindow?.RefreshPage("cabinet");       // the name shown there too
         };
         page.Open += id => _settingsWindow?.ShowPage(id);
         page.Later += id =>
@@ -1078,6 +1086,20 @@ public partial class Main : Node2D
         var page = new CheckInSettings();
         page.Build(CheckInChoices.Of(_settings));
         page.Chosen += choices => SaveSettings(choices.Into(_settings));
+        return page;
+    }
+
+    /// <summary>Bedtime and quiet hours: a bedtime counts from tomorrow (today keeps the one it began with), the hours at once.</summary>
+    private Control QuietPage()
+    {
+        var page = new QuietSettings();
+        page.Build(_settingsFile, _state.Today is { } t ? t.Bedtime is { } b ? $"Today: bedtime {b.Hours:00}:{b.Minutes:00}." : "Today: no bedtime." : "");
+        page.BedtimeChosen += bedtime =>
+        {
+            SaveSettings(_settings with { Bedtime = bedtime });
+            UseRules();
+        };
+        page.QuietChosen += (from, until) => SaveSettings(_settings with { QuietFrom = from, QuietUntil = until });
         return page;
     }
 
@@ -1148,9 +1170,7 @@ public partial class Main : Node2D
     private Control BalancePage()
     {
         var page = new BalanceSettings();
-        var today = _state.Today is { } t
-            ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned, " + (t.Bedtime is { } b ? $"bedtime {b.Hours:00}:{b.Minutes:00}." : "no bedtime.")
-            : "";
+        var today = _state.Today is { } t ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned." : "";
         page.Build(_settings, today, [.. OpenWindows.RunningPrograms().Select(file => new PlayProgram(file, OpenWindows.ProgramName(file)))]);
         page.Programs += programs =>
         {
@@ -1163,9 +1183,9 @@ public partial class Main : Node2D
             if (IsInstanceValid(page))
                 page.Add(new PlayProgram(file, OpenWindows.ProgramName(file)));
         });
-        page.Chosen += (weekday, friday, weekend, bedtime) =>
+        page.Chosen += (weekday, friday, weekend) =>
         {
-            SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend, Bedtime = bedtime });
+            SaveSettings(_settings with { WeekdayCapMinutes = weekday, FridayCapMinutes = friday, WeekendCapMinutes = weekend });
             UseRules();
         };
         page.Earning += (focus, activities, leetCode) => SaveSettings(_settings with { FocusEarns = focus, ActivitiesEarn = activities, LeetCodeEarns = leetCode });
@@ -1189,10 +1209,12 @@ public partial class Main : Node2D
         page.Muted += SetMuted;
         page.Tickets += on => SaveSettings(_settings with { InGameTickets = on });
         page.SaveEnergy += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
+        page.Named += _stool.CallMe;
+        page.LanguageChosen += _stool.SetLanguage;
         return page;
     }
 
-    /// <summary>Mute sounds (the tray's switch, or Settings → Cabinet): the cabinet's sounds and her voice.</summary>
+    /// <summary>Mute sounds (the tray's switch, or Settings → General): the cabinet's sounds and her voice.</summary>
     private void SetMuted(bool muted)
     {
         SaveSettings(_settings with { Muted = muted });
@@ -1219,7 +1241,7 @@ public partial class Main : Node2D
     }
 
     /// <summary>
-    /// What earns play time, as the cabinet starts or as it changes (the first run, Balance, a LeetCode name given or
+    /// What earns play time, as the cabinet starts or as it changes (the first run, Play time, a LeetCode name given or
     /// dropped): it counts at once, and what a source that's off would bring up goes (the DONE app, her tools for
     /// activities, the tray's LeetCode check).
     /// </summary>

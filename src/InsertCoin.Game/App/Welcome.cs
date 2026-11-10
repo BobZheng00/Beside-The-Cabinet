@@ -102,12 +102,12 @@ public partial class Welcome : Window
         second.AddChild(manner);
         HowTheySit(stool.Seated ?? "");
         Form.Hint(second, "They sit on the stool by the cabinet, and move into a manner as you choose it. You can change who it is, how " +
-                          "they sit, or add a character of your own at any time: Settings → Characters, or drop a 3D model on the cabinet.");
+                          "they sit, or add a character of your own at any time: Settings → Companion, or drop a 3D model on the cabinet.");
         _pages.Add(second);
 
         // what earns their play time: LeetCode with a name, checked as Balance's Change… checks it
         var third = Form.Page(new VBoxContainer(), "What earns your play time?");
-        Form.Hint(third, "Good work earns time to play. Tick what counts for you; you can change it at any time in Settings → Balance.");
+        Form.Hint(third, "Good work earns time to play. Tick what counts for you; you can change it at any time in Settings → Play time.");
         _leetCode = new VBoxContainer();
         _leetCodeName = Form.Field(Form.Grid(_leetCode), "LeetCode name", settings.Now.Username, "your name or profile link on LeetCode", typed: _ =>
         {

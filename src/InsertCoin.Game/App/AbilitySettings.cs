@@ -30,19 +30,19 @@ public partial class AbilitySettings : VBoxContainer
     {
         _chat = chat;
         var tools = chat.Tools;
-        Form.Page(this, "Abilities");
+        Form.Page(this);
         Form.Hint(this, $"What {name} can do beyond talking. Allowed: done when it helps. Ask me first: {name} asks, and a card by " +
                         "the stool lets you say yes or no. Off: not at all. Whatever acts outside this app asks first unless you allow it.");
         Form.Tick(this, $"Auto: {name} goes ahead without asking", tools.Auto, on => AutoChosen?.Invoke(on));
         Form.Hint(this, $"Like an auto mode: where {name} would ask first, it just happens, and what's switched off stays off. " +
-                        "Every use is in the chat history. Two exceptions: what's on the Privacy page, and the rest " +
+                        "Every use is in the chat history. Two exceptions: what's under What they may see, and the rest " +
                         "of a reply once a page or search results have been read, since a page could try to talk its reader into things.");
         Form.Subheading(this, "Built in");
         // her agenda is how she keeps the player's plans, as before it was a tool: not an ability to switch off
         AddChild(Choices(tools.All.Where(t => t.Source == Tool.BuiltIn && !t.Private && t.Name != BuiltIn.AgendaName)));
         Form.Hint(this, chat.WebSearch is { } searching
             ? $"{name} searches the web {searching}."
-            : $"{name} can't search the web: your provider has no search of its own that this app can use. The SearXNG add-on gives one.");
+            : $"{name} can't search the web: your provider has no search of its own that this app can use. Connections, Web search, can add one.");
 
         var always = tools.Chosen.Where(c => c.Key.Contains(':')).Select(c => c.Key).Order().ToList();
         if (always.Count > 0)
@@ -76,7 +76,7 @@ public partial class AbilitySettings : VBoxContainer
     {
         _chat = chat;
         var provider = current is not null && Uri.TryCreate(current.BaseUrl, UriKind.Absolute, out var server) ? server.Host : "your AI provider";
-        Form.Page(this, "Privacy");
+        Form.Page(this);
         Form.Hint(this, $"What {name} can see of what's yours. Whatever {name} looks at or is told goes to {provider} with your conversation, " +
                         "as everything you say does; nothing else leaves this PC.");
         Form.Subheading(this, "When you ask for help");
@@ -88,22 +88,22 @@ public partial class AbilitySettings : VBoxContainer
         music = Form.Tick(this, "What's playing in your music app (track and artist)", privacy.Music, _ => Chosen());
         days = Form.Tick(this, "", privacy.Days, _ => Chosen());
         var always = Form.Hint(this, "");
-        Form.Hint(this, $"Programs you add on Balance count as play while one is the window in front, and {name} is told which by its " +
+        Form.Hint(this, $"Programs you add on Play time count as play while one is the window in front, and {name} is told which by its " +
                         "name. Only the program is known: no window title or browser tab is read for it.");
-        void Known()                                       // as what earns play time changes on Balance
+        void Known()                                       // as what earns play time changes on Play time
         {
             var playTime = settings.Now.Earning.Any;
             days.Text = "What your record of days shows: nights running late" + (playTime ? ", days without play" : "");
             always.Text = (playTime ? $"Your play time, focus and what you've done today {name} always knows: the cabinet runs on them."
                                     : $"What you've played, focused on and done today {name} always knows: the cabinet keeps them.") +
-                          $" Web searches go to your provider, or to your own SearXNG (Add-ons); pages {name} reads are fetched by this PC from their site.";
+                          $" Web searches go to your provider, or to your own SearXNG (Connections, Web search); pages {name} reads are fetched by this PC from their site.";
         }
         Known();
         settings.Changed += Known;
         TreeExiting += () => settings.Changed -= Known;
     }
 
-    /// <summary>On a skill's page (Settings → Skills): how freely she uses her note tools in the folders skills work in.</summary>
+    /// <summary>On a skill's page (Settings → Abilities and privacy → Skills): how freely she uses her note tools in the folders skills work in.</summary>
     public void BuildNoteTools(Chat chat)
     {
         _chat = chat;

@@ -6,7 +6,7 @@ own, which stay ours ([NOTICE.md](../../../NOTICE.md)).
 
 ## Adding a character
 
-- **As a user, no tools needed:** Settings → Characters → "Add a character…" and pick a `.vrm`, `.glb`, `.gltf` or a `.zip`
+- **As a user, no tools needed:** Settings → Companion → "Add a character…" and pick a `.vrm`, `.glb`, `.gltf` or a `.zip`
   holding one (Sketchfab's glTF downloads come zipped), or drop the file on the cabinet. It is copied into
   `characters` in the profile folder (`%APPDATA%\InsertCoin\characters`; a `.gltf` gets a folder of its own with
   the `.bin` and textures it refers to) and takes the stool at once. A file of the same name is replaced.
@@ -63,7 +63,7 @@ taken for things the player really said.
 `persona.<language>.md` beside `persona.md` (or `<file name>.<language>.md` beside a loose model) is their own card in
 that language, with the codes `en`, `ja`, `ko` and `zh`. Write it in that language from the start rather than
 translating: Shino's `persona.zh.md` has the same person and facts as `persona.md`, in Chinese wording of its own,
-with `玩家：` in its examples. Settings → Characters → Language decides when it's used: on Auto, once two of the
+with `玩家：` in its examples. Settings → General → Language decides when it's used: on Auto, once two of the
 player's messages in a row are in that language, until two in a row are in another; chosen, whatever the player
 writes. In a card in Chinese, `{{user}}` with no name given becomes "玩家". A character card stands for them in every
 language, so with one these files aren't read.

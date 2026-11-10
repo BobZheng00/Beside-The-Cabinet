@@ -13,7 +13,7 @@ public sealed record AppSettings
     public string Initials { get; init; } = "AAA";
     public string Skin { get; init; } = "cozy";
     public string[] IgnoredSteamAppIds { get; init; } = ["431960"];   // Wallpaper Engine
-    public InsertCoin.Core.PlayProgram[] PlayPrograms { get; init; } = [];   // programs that count as play while in front (Settings → Balance)
+    public InsertCoin.Core.PlayProgram[] PlayPrograms { get; init; } = [];   // programs that count as play while in front (Settings → Play time)
     public bool AlwaysOnTop { get; init; }
     public string Size { get; init; } = "M";          // S, M or L
     public bool Muted { get; init; }
@@ -53,9 +53,9 @@ public sealed record AppSettings
     public InsertCoin.Mind.HandsFree HandsFree { get; init; } = new();    // when she listens without the talk key: off until chosen
     public Dictionary<string, InsertCoin.Mind.Permission> ToolPermissions { get; init; } = [];   // by tool, or "tool:site" allowed always; unset: its standard
     public bool ToolsAuto { get; init; }                // auto: she goes ahead where she would ask first (tools switched off stay off)
-    public Privacy Privacy { get; init; } = new();      // what she is told in the background (Settings → Privacy; what she looks at is in ToolPermissions)
-    public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (Settings → Add-ons)
-    public string[] SkillFolders { get; init; } = [];   // skills folders elsewhere the player linked, read where they are (Settings → Skills)
+    public Privacy Privacy { get; init; } = new();      // what she is told in the background (Settings → Abilities and privacy; what she looks at is in ToolPermissions)
+    public AddOns AddOns { get; init; } = new();        // optional extras the player turned on (Settings → Connections, Web search)
+    public string[] SkillFolders { get; init; } = [];   // skills folders elsewhere the player linked, read where they are (Settings → Abilities and privacy → Skills)
     public string[] SkillsOff { get; init; } = [];      // skills switched off, by their folder; the rest are on
     public Dictionary<string, string[]> SkillGrants { get; init; } = [];   // the folders each skill works in, by skill as SkillsOff names them (granted on its page)
     public string[] CrtApps { get; init; } = ["focus", "done", "music", "memos", "agenda", "settings"];      // the order of the screen's apps, as the player arranged them
@@ -74,7 +74,7 @@ public sealed record AppSettings
     public int WeekendCapMinutes { get; init; } = 150;  // …and on Saturday and Sunday (a change counts from the next day)
     public string? Bedtime { get; init; }               // "23:30": play after it costs more until 04:00; unset: none
     public int FocusPerPlay { get; init; } = 4;         // minutes of focus for each minute of play
-    public bool FocusEarns { get; init; } = true;       // what earns play time (the first run, Settings → Balance): focus sessions…
+    public bool FocusEarns { get; init; } = true;       // what earns play time (the first run, Settings → Play time): focus sessions…
     public bool ActivitiesEarn { get; init; } = true;   // …the player's own activities…
     public bool? LeetCodeEarns { get; init; }           // …and LeetCode problems, with a name; unset: a profile from before the choice, where a name earns
     public string[] UnseeingModels { get; init; } = [];  // models found not to take pictures or PDFs: none is sent to them
@@ -94,14 +94,14 @@ public sealed record AppSettings
     public TimeSpan? ReminderLead => ReminderLeadMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null;
 }
 
-/// <summary>What she is told in the background, as the player chose (Settings → Privacy): all of it goes to their AI provider.</summary>
+/// <summary>What she is told in the background, as the player chose (Settings → Abilities and privacy): all of it goes to their AI provider.</summary>
 public sealed record Privacy
 {
     public bool Music { get; init; } = true;            // what is playing in their music app (track and artist)
     public bool Days { get; init; } = true;             // what the record of days shows: nights going on late, days without play
 }
 
-/// <summary>Optional extras, off until the player turns them on (Settings → Add-ons).</summary>
+/// <summary>Optional extras, off until the player turns them on (Settings → Connections, Web search).</summary>
 public sealed record AddOns
 {
     public bool SearXng { get; init; }                  // she searches the web through the player's own SearXNG, in place of the provider's search
@@ -116,8 +116,8 @@ public sealed record AddOns
 public sealed record SavedPlaylist(string Link, string Name);
 
 /// <summary>
-/// How reminders reach the player in the cabinet (Settings → Reminders), as chosen together. Where else they go is
-/// apart (Settings → Your phone), its addresses and tokens encrypted.
+/// How reminders reach the player in the cabinet (Settings → Notifications → Reminders), as chosen together. Where else they go is
+/// apart (Settings → Connections → Your phone), its addresses and tokens encrypted.
 /// </summary>
 public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMuted, bool Windows, int TicketSeconds, int SnoozeMinutes, int? LeadMinutes)
 {
@@ -131,12 +131,12 @@ public sealed record ReminderChoices(bool Spoken, bool Sound, bool ChimeWhenMute
     };
 }
 
-/// <summary>Her asking how things went, the hours she doesn't, and her suggesting standing up (Settings → Check-ins), as chosen together.</summary>
-public sealed record CheckInChoices(string CheckIns, int QuietFrom, int QuietUntil, int StandUpMinutes)
+/// <summary>Her asking how things went and her suggesting standing up (Settings → Notifications → Check-ins), as chosen together.</summary>
+public sealed record CheckInChoices(string CheckIns, int StandUpMinutes)
 {
-    public static CheckInChoices Of(AppSettings s) => new(s.CheckIns, s.QuietFrom, s.QuietUntil, s.StandUpMinutes);
+    public static CheckInChoices Of(AppSettings s) => new(s.CheckIns, s.StandUpMinutes);
 
-    public AppSettings Into(AppSettings s) => s with { CheckIns = CheckIns, QuietFrom = QuietFrom, QuietUntil = QuietUntil, StandUpMinutes = StandUpMinutes };
+    public AppSettings Into(AppSettings s) => s with { CheckIns = CheckIns, StandUpMinutes = StandUpMinutes };
 }
 
 /// <summary>The settings as saved in settings.json, shared by the parts of the app that change them: each change is saved at once.</summary>

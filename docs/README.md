@@ -10,7 +10,7 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
 tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
 (and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), Who
-keeps you company… (Settings → Characters, to choose who sits on the stool), the memory book and chat history, a
+keeps you company… (Settings → Companion, to choose who sits on the stool), the memory book and chat history, a
 memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
 Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
@@ -21,13 +21,15 @@ screen, which reads INSERT COIN the rest of the time, in a dot-matrix sign's 5×
 off, and a name flips on whole the moment the pointer rests on its button, as an LED sign turns to its next page (a
 name too long for it scrolls through, a column at a time); INSERT COIN comes back drawn in a column at a time. While
 the screen is lifted out it covers the marquee, so a switch's name also shows on the screen's top bar, in place of
-the time, while the pointer is on it. Settings is one window with a page
-for each thing, listed down its left side: Getting started and Characters; under your companion's name (whoever is on the
-stool now), Mind, Voice, Talking aloud, Abilities, Privacy, Skills and Add-ons; under Your day, Reminders, Check-ins,
-Your phone, Calendars and Balance;
-under The cabinet, Cabinet and Usage. Each is saved as you change it; only the provider waits for its Save.
+the time, while the pointer is on it. Settings is one window with plain
+categories down its left side, each with a pixel icon: Getting started (until it's done or hidden), General, Companion,
+Memory, Voice, AI model, Play time, Notifications, Connections, and Abilities and privacy. A category with more than one
+part has them as tabs inside it: Voice (Their voice, Talking to them), AI model (Connection, What it has cost),
+Notifications (Reminders, Check-ins, Bedtime and quiet hours), Connections (Your phone, Calendars, Web search) and
+Abilities and privacy (What they can do, Skills, What they may see). Memory has a button to what your companion
+remembers and one to Chat history. Each is saved as you change it; only the provider waits for its Save.
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
-the cabinet rises for a moment or is kept on top ("Always on top" on Cabinet).
+the cabinet rises for a moment or is kept on top ("Always on top" on General).
 
 At first run a Welcome asks four things: your name (what your companion calls you; your initials on the cabinet
 come from it), who keeps you company (seated on the stool as you pick, with how they sit), what earns your play time,
@@ -46,14 +48,14 @@ character calls you.
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).
 
-## Balance
+## Play time
 
-What earns play time is yours to choose, on the first run and on Settings → Balance (it counts at once): focus
+What earns play time is yours to choose, on the first run and on Settings → Play time (it counts at once): focus
 sessions, which pay by the minute as each part ends, however short: 15 minutes of play for every hour focused (half
 an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it completes one); your own activities, which
 your companion logs when you tell them or the screen's DONE app logs, paid by their size once a day; and LeetCode
 problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), read from your public profile once its name is set
-(Change… on Balance asks for it on the cabinet's screen). A source that's off pays nothing and isn't brought up: with
+(Change… on Play time asks for it on the cabinet's screen). A source that's off pays nothing and isn't brought up: with
 LeetCode off the cabinet never checks your LeetCode profile and doesn't bring it up (the attract screen, an IOU
 ticket, your companion's words), though your companion can still look a problem up when you want help with one; with
 activities off the DONE app leaves the screen and your companion has no tools for them; with
@@ -62,14 +64,14 @@ what earns. "No play time, just keep me company" clears the three (see below). A
 from Monday to Thursday, 2:00 on Friday and 2:30 at the weekend; past that, work still counts in the day's record but
 pays nothing (paying back time owed doesn't count towards it). Each night half of the unplayed time fades, so it
 can't be saved up for the weekend (time owed never fades). After the bedtime you set, until 04:00, play costs ×1.5
-(on credit, ×2.25): the screen says LATE NIGHT and a ticket tells you when it starts. Settings → Balance sets the caps
-and your bedtime; changes count from the next day. The screen's attract pages show today's earnings against the cap.
+(on credit, ×2.25): the screen says LATE NIGHT and a ticket tells you when it starts. Settings → Play time sets the caps,
+and Settings → Notifications → Bedtime and quiet hours your bedtime; changes count from the next day. The screen's attract pages show today's earnings against the cap.
 A day with a solve, an activity or 25 minutes of focus (of those that earn) is a good day; from the third good day in a row, the first
 thing each day earns brings a bonus star coin (STREAK xN BONUS). Every day is kept in a record (what was earned and
 from what, focused, played, when you were first and last at the PC), the start of your companion's sense of your
 patterns.
 
-Play time is spent by Steam games, and by programs you pick on Settings → Balance under "Programs that count as play"
+Play time is spent by Steam games, and by programs you pick on Settings → Play time under "Programs that count as play"
 (none to start with): a video player, a game from outside Steam, whatever you count. Only the program's own window
 counts: a launcher picked doesn't make the games it starts count, so pick the game's own file. Add one from "Running
 now" (the programs with a window open, found by their process, not Windows' own) or with "Add by its file…"; each
@@ -91,10 +93,10 @@ With no play time (nothing ticked) the cabinet keeps you company without a balan
 agenda and reminders, texting, focus sessions (paying nothing), the words around your bedtime and a break after two
 hours in a game all stay. What goes: credits and coins, the cap and the overnight fade, the streak, IOU tickets, the
 price after bedtime, and your companion's talk of earning. The screen shows the time and the day instead of the time
-left, with no attract pages, and the apps on it stay (DONE goes, as activities are off); Settings → Balance shows only
-the ticks and your bedtime. Games are still noticed, so the break after a long one, the bedtime words and your
+left, with no attract pages, and the apps on it stay (DONE goes, as activities are off); Settings → Play time shows only
+the ticks, and your bedtime stays under Notifications. Games are still noticed, so the break after a long one, the bedtime words and your
 companion keeping quiet while you play still work, but nothing is spent, faded or shown, not even on a corner ticket. Settings
-→ Cabinet and Privacy then say nothing of play time either. Coins you had and time you
+→ General and What they may see then say nothing of play time either. Coins you had and time you
 owed are kept out of sight (the coin tray, the IOU ticket in the slot and a game's receipt go, the tray icon says nothing of them)
 and come back as they were when you tick something again: nothing is earned or lost meanwhile.
 
@@ -105,7 +107,7 @@ cabinet does: claps for a Hard solve, a small fist pump for the others, glances 
 dozes while the session is paused, and says something about it in a speech bubble (as large by a small cabinet as
 by a large one, so on a small one it reaches past the cabinet's edge, beside the marquee). In a conversation they look away
 to think and back to answer, nod in your pauses as you talk, and their head follows what their voice stresses. Click
-them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one). Settings → Characters leaves the stool empty, silences the
+them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one). Settings → Companion leaves the stool empty, silences the
 bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too. It also sets how each
 character sits, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed (knees a little
 apart, often a foot down off the ring, a hand on each thigh, one nearer the hip, fewer tilts, the legs still, a nod
@@ -122,7 +124,7 @@ for them in every language.
 
 ## Talking together, and what they remember
 
-Your companion can also talk. In Settings → Mind pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
+Your companion can also talk. In Settings → AI model pick a provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, a
 local Ollama or LM Studio, or any OpenAI-compatible server), paste your own API key ("Get a key from …" opens the
 provider's page for one), check the model (most providers come with their small one filled in; a local server needs
 the name of a model already downloaded into it), Test and Save. Then clicking them opens a slip at the foot of the
@@ -133,10 +135,10 @@ With ChatGPT Plus or Pro, pick **ChatGPT plan** instead and press **Continue wit
 OpenAI's sign-in, you sign in and allow plan usage, and the page shows "Connected as" your account, the model (from
 the ones your account offers apps), "Using ChatGPT plan", **Manage usage** (ChatGPT's usage settings, where you set
 this app's limit) and **Disconnect**. Everything your companion does then runs on your plan (replies, check-ins,
-remarks, texts and their memory's upkeep, still counted by purpose in Settings → Usage), and nothing is charged here.
+remarks, texts and their memory's upkeep, still counted by purpose in Settings → AI model → What it has cost), and nothing is charged here.
 The sign-in is kept encrypted for your Windows account (`companion\chatgpt.bin`, never in settings.json or the log)
 and renewed before it lapses; Disconnect forgets it here and ends it at ChatGPT. When the plan's limit is reached,
-your account can't share its plan, or you are signed out (disconnected in ChatGPT, say), Settings → Mind shows it and their card says so once,
+your account can't share its plan, or you are signed out (disconnected in ChatGPT, say), Settings → AI model shows it and their card says so once,
 plainly, with Manage usage or Continue with ChatGPT; meanwhile they wait (no replies, check-ins or remarks) while
 reminders still come, in the app's own words. Once the limit was reached they try the plan again every quarter of an
 hour, and whenever you write to them. ChatGPT being briefly unable to check your usage isn't a limit: the sign-in is
@@ -155,7 +157,7 @@ preview.)
 
 They remember:
 
-- the conversation itself, one continuous thread per character. The newest part (Settings → Mind, "Word for word":
+- the conversation itself, one continuous thread per character. The newest part (Settings → AI model, "Word for word":
   32k tokens by default, 8k with a server on this PC) is sent word for word, only ever growing at its end, so
   providers serve it from their cache at a tenth of the price (Claude is asked to cache it). Each turn tells them
   the time and how long since you last talked;
@@ -211,21 +213,21 @@ They remember:
   open, and a click there opens the memory book's Agenda. A
   reminder goes off on a ticket at the screen corner with Snooze and OK, and your companion tells you in their own
   words and your language once they have finished what they are saying (never cutting themselves or you off).
-  Settings → Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the
+  Settings → Notifications → Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the
   agenda, a chime (even when muted) and a Windows notification ("Try it" sends one everywhere a reminder goes). While
   you're away from the PC, it reaches your phone instead, as a text in their words (below). One that came due while
-  the cabinet was closed goes off when it next starts, saying so. Settings → Calendars links your Google or Outlook
+  the cabinet was closed goes off when it next starts, saying so. Settings → Connections → Calendars links your Google or Outlook
   calendar by its private address (read every 15 minutes, read-only, the address stored encrypted): its next two
   weeks join the agenda;
 - they ask how things went: after something you told them about is over, once you are back at the PC and free (not
   in a call, which they tell from another app using the microphone or camera, not in a full-screen game or
   presentation, not outside 08:00–22:00), or by text while you're still out; once, and only if you have not talked
-  since. Gentle (at most one every three hours), Chatty or Off in Settings → Check-ins. Not for each calendar
+  since. Gentle (at most one every three hours), Chatty or Off in Settings → Notifications → Check-ins. Not for each calendar
   meeting, nor for plain reminders;
 - and before each reply, whatever of all that relates to what you said, including a line or two from any earlier
   conversation, however old (the whole conversation is kept and searched): by meaning, with a small model that runs
   on this PC (so "nervous about tomorrow" finds your interview, in English or Chinese), and by shared words.
-  Settings → Mind, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
+  Settings → AI model, "Memory search", picks the multilingual model (about 100 languages, about 200 MB of memory while
   chatting), the small one (Chinese and English, about 50 MB) or shared words only;
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
   longer; pinned and the most important ones never fade). About weekly, while quiet, they review their facts: what
@@ -237,10 +239,10 @@ They remember:
 
 Your companion reaches you as a roommate would
 ([docs/specs/2026-10-10-reaching-the-player.md](specs/2026-10-10-reaching-the-player.md)). At the PC they tell you
-themselves. You're away after five minutes without the mouse or keys (Settings → Your phone, "Away after", 2 to 30),
+themselves. You're away after five minutes without the mouse or keys (Settings → Connections → Your phone, "Away after", 2 to 30),
 at once with the screen locked, or when you tell them you're heading out or going to bed; asleep if that's in the
 quiet hours. Away, what matters reaches your phone as a text in their words, through [ntfy](https://ntfy.sh), a
-Discord webhook, a Telegram bot or any webhook (Settings → Your phone; addresses and tokens stored encrypted, "Send a
+Discord webhook, a Telegram bot or any webhook (Settings → Connections → Your phone; addresses and tokens stored encrypted, "Send a
 test" to check): reminders, a focus session's turns, and asking how something went (a reminder never waits more than
 30 seconds for their words: then the plain line goes). Asleep, only reminders. What only makes sense at the PC
 (bedtime words, a break from a long game) waits for you while it still matters; a suggestion to stand up is dropped.
@@ -255,7 +257,7 @@ bring it up in person.
 
 ## Texting
 
-On Telegram you can text your companion back, from anywhere (Settings → Your phone, "Text with … on Telegram": make
+On Telegram you can text your companion back, from anywhere (Settings → Connections → Your phone, "Text with … on Telegram": make
 a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). They answer by text,
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
 reach them. What they put on your agenda, change or cancel comes as a plain line from the app under their message
@@ -349,7 +351,7 @@ Japanese character counted as three letters), the last one after the voice has f
 ## Talking aloud
 
 You can talk to your companion aloud as well. Hold the mouse on them, or hold the talk key in any app (Right Ctrl
-unless Settings → Talking aloud says otherwise), say it, and let go: they lean in to listen, nodding in your pauses,
+unless Settings → Voice → Talking to them says otherwise), say it, and let go: they lean in to listen, nodding in your pauses,
 and answer what they heard as if you had typed it. The microphone at the end of the slip writes what you say into the
 slip instead, to change before you send it. They hear on this PC, on the processor, with SenseVoice-Small (Chinese,
 English, Japanese, Korean, Cantonese, told apart by itself): about a tenth of a second for a sentence. The microphone
@@ -363,7 +365,7 @@ most twice a reply, never on a quick one). When their card asks you something, y
 "always" is a yes); anything else is a new message.
 GPT-SoVITS's habit of starting a line with up to a second of silence is cut, so their first word comes sooner.
 
-They can also listen without the key, if you choose (Settings → Talking aloud). With follow-up listening they listen
+They can also listen without the key, if you choose (Settings → Voice → Talking to them). With follow-up listening they listen
 a few seconds after they speak (3 to 20, after their answers, their own questions or anything they say, as ticked),
 and if you start talking they hear it as your answer. A conversation (the tray's Conversation switch, or a double tap
 of the talk key) has them listen after everything they say, until you've been quiet for 30 seconds. They notice you
@@ -373,13 +375,13 @@ while they are speaking. The CRT shows MIC whenever the microphone is open.
 
 ## Tools
 
-Your companion can do things too, with tools (Settings → Abilities): open a web page in your browser or an app from
+Your companion can do things too, with tools (Settings → Abilities and privacy → What they can do): open a web page in your browser or an app from
 your Start menu, read a page, search the web, look up a LeetCode problem, check the cabinet's numbers, and the rest
 below. Whether they say what they're about to do is up to their character; anything acting outside the app asks first: a card
 by the stool shows what and where (the real address, whatever they said about it), with Allow once, Always (for that
 site or app) and No. Each tool can be Allowed, Ask me first, or Off; the sites you said Always to are listed there
-to forget. Auto lets them go ahead without asking (what's switched off stays off), except for what's on the Privacy
-page, and for the rest of a reply once they have read a page or search results: a page could try to talk them into
+to forget. Auto lets them go ahead without asking (what's switched off stays off), except for what's under What they
+may see, and for the rest of a reply once they have read a page or search results: a page could try to talk them into
 things. A model that can't take tools (some that run on this PC) answers as before. Design:
 [docs/specs/2026-10-05-tools-and-abilities.md](specs/2026-10-05-tools-and-abilities.md).
 
@@ -400,7 +402,7 @@ Warm the pot first. The steeping times are in references/times.md.
 ```
 
 The format asks for the name to be the folder's name, in lowercase letters, numbers and single hyphens; a skill
-without one goes by its folder's name. Settings → Skills lists every skill with its description and a tick to switch
+without one goes by its folder's name. Settings → Abilities and privacy → Skills lists every skill with its description and a tick to switch
 it on or off (a skill found is on until you switch it off). A skill made for another agent is used as it is: where it
 isn't quite as the format asks (its name, say), a hint under it says so. One whose `SKILL.md` can't be used (no
 description, or no front matter) is listed with why. Skills live in skills folders, each folder in one with a
@@ -423,7 +425,7 @@ conversation. Design: [docs/specs/2026-10-15-skills.md](specs/2026-10-15-skills.
 ### Folders a skill works in
 
 A skill can also work in your own files: a notes vault (Obsidian's, say), a folder of notes or documents. On the
-skill's own page (Settings ›, beside it on Settings → Skills; ‹ Skills, top left, goes back) Grant a folder… gives it one, or several; each is listed
+skill's own page (Settings ›, beside it on Settings → Abilities and privacy → Skills; ‹ Skills, top left, goes back) Grant a folder… gives it one, or several; each is listed
 with its path, Open and Remove, and the grant is kept in this app's settings, never in the skill. While the skill is
 on, your companion has note tools for those folders and nothing else of yours:
 
@@ -473,18 +475,17 @@ answer only if you ask again after that; long steps come as a memo. For a LeetCo
 statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is found by its number). That stays
 with LeetCode off as a way to earn, to help you study, and says nothing of play time. They can
 read a web page you name, and search the web: with your provider's own search where it has one this app can use
-(Anthropic's), or through your own SearXNG (Add-ons). They open apps from your Start menu after asking (games stay
+(Anthropic's), or through your own SearXNG (Settings → Connections → Web search). They open apps from your Start menu after asking (games stay
 the cabinet's).
 
-## Privacy and add-ons
+## Privacy and web search
 
-Settings → Privacy gathers what your companion can see of yours: your window titles (allowed unless you change it)
+Settings → Abilities and privacy → What they may see gathers what your companion can see of yours: your window titles (allowed unless you change it)
 and your screen (they ask first), which Auto never skips; and what they are told in the background, each with a
 tick: what's playing in your music app, and what the record of days shows. A note there says what a program picked
-as play on Balance tells them: its name, while it's the window in front, and nothing of its window's title or a
+as play on Play time tells them: its name, while it's the window in front, and nothing of its window's title or a
 browser tab. What they see goes to your AI provider
-with the conversation; pages they read are fetched by this PC. Settings → Add-ons holds extras that stay off until
-you turn them on. The first is web search through SearXNG, a free, open-source search engine you run yourself (with
+with the conversation; pages they read are fetched by this PC. Settings → Connections → Web search is web search through SearXNG, off until you turn it on: a free, open-source search engine you run yourself (with
 Docker: `docker run -d -p 8888:8080 searxng/searxng`, then add `json` under `search: formats:` in its settings.yml);
 its Test button says whether it answers, and what to change if not.
 
@@ -510,15 +511,15 @@ length change it): the CRT counts down, and your companion tells you when each p
 and drink some water at the breaks. Ask them to start one ("let's focus for 50 minutes"), or say yes when they offer, and they do; a question about
 them ("how long is a pomodoro?") gets an answer, not a session. MUSIC shows
 what your music app is playing (Spotify first) and plays, pauses and skips it through Windows' media controls (with
-nothing open, play starts Spotify for you). Each focus part pays into the cabinet as it ends (see Balance). Save
+nothing open, play starts Spotify for you). Each focus part pays into the cabinet as it ends (see Play time). Save
 playlists under MY PLAYLISTS (Spotify: Share, Copy link, then ADD): START plays one from its beginning (the app
 presses Spotify's own play button for it), and the starred one starts your focus sessions; it pauses at breaks and
 carries on after. Your companion can control it too, after asking ("put on Deep Focus"). And after 50 minutes at the
-PC without a break, they suggest standing up (Settings → Check-ins to change it).
+PC without a break, they suggest standing up (Settings → Notifications → Check-ins to change it).
 
 ## Rest and sleep
 
-With a bedtime (Settings → Balance, or tell your companion one: they set it after you confirm on their card, from the
+With a bedtime (Settings → Notifications → Bedtime and quiet hours, or tell your companion one: they set it after you confirm on their card, from the
 next day), they give you a word to wind down half an hour before it, say it's time to sleep at it, and once more half
 an hour after, then leave it; in a game, tickets. After two hours in one game they suggest a break. Without a bedtime
 they ask for one, once, some evening (and once more a week on, with your usual time from the record of days). At most
@@ -553,7 +554,7 @@ that can't take pictures or PDFs they say so, and none is sent to it again.
 
 ## Usage, the chat history and the memory book
 
-Settings → Usage shows what your companion's requests used, as your provider reports it, this month and day by day:
+Settings → AI model → What it has cost shows what your companion's requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, their replies apart from their
 upkeep; with the model's prices entered (from your provider's price page), the cost too.
 

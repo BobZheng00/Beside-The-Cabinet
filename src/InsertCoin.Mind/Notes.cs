@@ -65,7 +65,7 @@ public sealed record SkillChange(string Skill, string Folder, string Replaces, s
 
 /// <summary>
 /// The folders skills work in: the player's own files a skill is about (a notes vault, a folder of documents), granted
-/// to it on its page in Settings → Skills, never by the skill (docs/specs/2026-10-15-skills.md). While a skill is on,
+/// to it on its page in Settings → Abilities and privacy → Skills, never by the skill (docs/specs/2026-10-15-skills.md). While a skill is on,
 /// her note tools reach its folders and nothing else: each path starts with its folder's name, and is checked here
 /// (no "..", no other drive, no link on the way, nothing hidden). Only text is read and written, up to
 /// <see cref="Biggest"/>. Before she changes a note, the note as it was is kept in the app's profile, so the player can
