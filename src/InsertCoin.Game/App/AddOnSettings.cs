@@ -5,8 +5,8 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Add-ons: optional extras, off until the player turns them on, each saying what it needs and where their
-/// data goes. The first: web search through their own SearXNG. Each change is used at once.
+/// Settings → Connections → Web search: web search through the player's own SearXNG, off until they turn it on, saying
+/// what it needs and where their searches go. Each change is used at once.
 /// </summary>
 public partial class AddOnSettings : VBoxContainer
 {
@@ -15,8 +15,7 @@ public partial class AddOnSettings : VBoxContainer
 
     public void Build(string name, Provider? current, AddOns addOns)
     {
-        Form.Page(this, "Add-ons");
-        Form.Hint(this, "Extras that are off until you turn them on. Each says what it needs and where what you give it goes.");
+        Form.Page(this);
         Form.Subheading(this, "Web search with SearXNG");
         LineEdit address = null!;
         var on = Form.Tick(this, "Search the web through my SearXNG", addOns.SearXng,

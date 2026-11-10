@@ -76,7 +76,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
     public Func<Core.Earning> Earns { get; init; } = () => Core.Earning.All;
 
     /// <summary>
-    /// The language the player chose for her (Settings → Characters, "Language"), as set now: she replies in it whatever
+    /// The language the player chose for her (Settings → General, "Language"), as set now: she replies in it whatever
     /// they write, with her card in it if she has one. Null for Auto: the player's own language (see <see cref="CardLanguage"/>).
     /// </summary>
     public Func<string?> Language { get; init; } = () => null;

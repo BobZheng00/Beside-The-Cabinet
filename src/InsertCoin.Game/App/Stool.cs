@@ -90,7 +90,7 @@ public partial class Stool : Node2D
     /// <summary>The ticket at the screen corner, for a call of hers left unanswered (see <see cref="WaitForAnswer"/>).</summary>
     public AlertTicket? Ticket { get; set; }
 
-    /// <summary>Sends a text to the player's phone, through the places on Settings → Your phone; set by the cabinet's loop.</summary>
+    /// <summary>Sends a text to the player's phone, through the places on Settings → Connections → Your phone; set by the cabinet's loop.</summary>
     public Func<Notice, Task>? TextOut { get; set; }
 
     /// <summary>Whether any place to text the player through is on; set by the cabinet's loop. With none, what would be texted waits for them.</summary>
@@ -576,7 +576,7 @@ public partial class Stool : Node2D
     /// <summary>A game runs, isn't paused for being away from the keyboard, and isn't held behind another window.</summary>
     private bool Playing => Ledger?.Invoke() is { Session: not null, Paused: false, Held: false };
 
-    /// <summary>The away time the player chose (Settings → Your phone).</summary>
+    /// <summary>The away time the player chose (Settings → Connections → Your phone).</summary>
     private TimeSpan AwayAfter => TimeSpan.FromMinutes(Math.Clamp(_settings.Now.AwayMinutes, Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes));
 
     /// <summary>
@@ -861,7 +861,7 @@ public partial class Stool : Node2D
             return;
         if (!_chat.Ready)
         {
-            await phone.Send($"({HerName()} can't answer yet: connect a mind on the PC, in Settings → Mind.)");
+            await phone.Send($"({HerName()} can't answer yet: connect an AI on the PC, in Settings → AI model.)");
             return;
         }
         _announcing = _texting = _chat.Tools.Away = true;
@@ -1242,7 +1242,7 @@ public partial class Stool : Node2D
         ShowHer(on);
     }
 
-    /// <summary>The language she replies in and her card's (Settings → Characters), or null for the player's own: taken up at her next reply.</summary>
+    /// <summary>The language she replies in and her card's (Settings → General), or null for the player's own: taken up at her next reply.</summary>
     public void SetLanguage(string? language)
     {
         _settings.Save(_settings.Now with { Language = language });
@@ -1515,7 +1515,7 @@ public partial class Stool : Node2D
     {
         if (_chat.Ready && Her is not null)
             return true;
-        _cabinet.Screen.Flash("MIND", "CONNECT IT IN SETTINGS", 3.0);
+        _cabinet.Screen.Flash("NO AI YET", "CONNECT ONE IN SETTINGS", 3.0);
         return false;
     }
 
@@ -1695,7 +1695,7 @@ public partial class Stool : Node2D
 
     private Provider? ChatProvider() => Provider.From(_settings.Now.ChatProtocol, _settings.Now.ChatBaseUrl, _settings.Now.ChatModel);
 
-    /// <summary>The backup behind the ChatGPT plan (Settings → Mind), if one is set.</summary>
+    /// <summary>The backup behind the ChatGPT plan (Settings → AI model), if one is set.</summary>
     private Provider? BackupProvider() => Provider.From(_settings.Now.BackupProtocol, _settings.Now.BackupBaseUrl, _settings.Now.BackupModel);
 
     /// <summary>Opens the slip at the foot of the stool for the user to type to her, once she can answer.</summary>
@@ -1867,7 +1867,7 @@ public partial class Stool : Node2D
             {
                 PlanStop.Limit => ("Usage limit reached", $"Review your plan or this app's limit in ChatGPT settings. {name} waits until it works again; reminders still come.",
                                    "Manage usage"),
-                PlanStop.NotEligible => ("ChatGPT plan not available", "This ChatGPT account can't share its plan with apps. Sign in with another, or use an API key in Settings → Mind.",
+                PlanStop.NotEligible => ("ChatGPT plan not available", "This ChatGPT account can't share its plan with apps. Sign in with another, or use an API key in Settings → AI model.",
                                          "Continue with ChatGPT"),
                 _ => ("Signed out of ChatGPT", $"{name} can't use your ChatGPT plan until you sign in again. Reminders still come.", "Continue with ChatGPT"),
             };
@@ -1957,21 +1957,22 @@ public partial class Stool : Node2D
     // ---- Her pages of the settings ---------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Her pages of the settings (see <see cref="SettingsWindow"/>): characters (who sits on the stool), her mind, her
-    /// voice, talking aloud, her abilities, privacy and add-ons, and what her requests used. Each change is saved and
-    /// used at once.
+    /// Her pages of the settings (see <see cref="SettingsWindow"/>): who sits on the stool, what she remembers, her
+    /// voice and talking aloud, her AI model and what it has cost, web search, and her abilities and what she may see.
+    /// Each change is saved and used at once.
     /// </summary>
     public IEnumerable<SettingsPage> SettingsPages() =>
     [
-        new("mind", SettingsWindow.Companion, "Mind", () => MindPage()),
-        new("voice", SettingsWindow.Companion, "Voice", VoicePage),
-        new("listening", SettingsWindow.Companion, "Talking aloud", ListeningPage),
-        new("characters", SettingsWindow.First, "Characters", CharactersPage),        // above the groups: who sits there, not something about them
-        new("abilities", SettingsWindow.Companion, "Abilities", AbilitiesPage),
-        new("privacy", SettingsWindow.Companion, "Privacy", PrivacyPage),
-        new("skills", SettingsWindow.Companion, "Skills", SkillsPage, Fresh: true),     // made again each time: skills change on disk
-        new("addons", SettingsWindow.Companion, "Add-ons", AddOnsPage),
-        new("usage", SettingsWindow.Cabinet, "Usage", UsedPage),
+        new("characters", SettingsWindow.Companion, "", CharactersPage),
+        new("memory", SettingsWindow.Memory, "", MemoryPage),
+        new("voice", SettingsWindow.Voice, "Their voice", VoicePage),
+        new("listening", SettingsWindow.Voice, "Talking to them", ListeningPage),
+        new("mind", SettingsWindow.AiModel, "Connection", () => MindPage()),
+        new("usage", SettingsWindow.AiModel, "What it has cost", UsedPage),
+        new("addons", SettingsWindow.Connections, "Web search", AddOnsPage),
+        new("abilities", SettingsWindow.Abilities, "What they can do", AbilitiesPage),
+        new("skills", SettingsWindow.Abilities, "Skills", SkillsPage, Fresh: true),     // made again each time: skills change on disk
+        new("privacy", SettingsWindow.Abilities, "What they may see", PrivacyPage),
     ];
 
     /// <summary>The name of whoever is on the stool, for her pages to say.</summary>
@@ -2009,7 +2010,7 @@ public partial class Stool : Node2D
             ? new Telling("HELLO", "The player has just set up the cabinet and chosen you to keep them company: you are meeting for the first " +
                                    "time. Say hello in a short sentence.", _settings.Now.CallMe is { } name ? $"Hi, {name}!" : "Hi!",
                           Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3), Greet: true)
-            : new Telling("HELLO", "", "Hi! Connect my mind in Getting started, and we can talk.", Matters.Must, Anywhere: false, now,
+            : new Telling("HELLO", "", "Hi! Connect an AI in Getting started, and we can talk.", Matters.Must, Anywhere: false, now,
                           TimeSpan.FromMinutes(3), Greet: true));
     }
 
@@ -2071,19 +2072,19 @@ public partial class Stool : Node2D
     {
         var her = HerName();
         var provider = ChatProvider();
-        yield return new("mind", $"{her}'s mind",
+        yield return new("mind", "AI model",
             $"{her} talks through your own AI provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, or a server on this PC): pick one, get a key " +
             "on its site, name a model, Test and Save. Providers charge a little for each reply; one on this PC is free. About 5 minutes.",
             Needed: true, Done: provider is not null,
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {provider.Through}, with {provider.Model}.");
-        yield return new("voice", $"{her}'s voice",
+        yield return new("voice", "Voice",
             $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
             (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
             ". About 20 minutes; training a model of the voice takes longer.",
             Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
         if (Listening.HasEars)
-            yield return new("listening", "Talking aloud",
+            yield return new("listening", "Talking to them",
                 $"Talk to {her} through your microphone: what you say is made into words on this PC, and only the words go to your provider. " +
                 "Nothing to install.",
                 Needed: false, Done: true,
@@ -2175,10 +2176,7 @@ public partial class Stool : Node2D
     private Control CharactersPage()
     {
         var page = new CharacterSettings();
-        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, _settings.Now.CallMe,
-                   _settings.Now.Language, MannerOf, SetManner, ShowManner);
-        page.LanguageChosen += SetLanguage;
-        page.Named += CallMe;
+        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, MannerOf, SetManner, ShowManner);
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;
         page.Seated += Seat;
@@ -2250,10 +2248,21 @@ public partial class Stool : Node2D
         return page;
     }
 
+    /// <summary>What they remember, and the conversation itself, each in a window of its own.</summary>
+    private Control MemoryPage()
+    {
+        var page = Form.Page(new VBoxContainer());
+        Form.Hint(page, "Notes, your agenda, facts, their diary and your memos, yours to read and change.");
+        var buttons = Form.Buttons(page);
+        foreach (var button in new[] { Form.Button(buttons, "What they remember…", OpenMemoryBook), Form.Button(buttons, "Chat history…", OpenChatHistory) })
+            button.Disabled = OnStool() is null;            // nobody on the stool, nothing of theirs to open
+        return page;
+    }
+
     /// <summary>What her requests used, and the prices the player entered for the model she runs on.</summary>
     private Control UsedPage()
     {
-        var page = Form.Page(new VBoxContainer(), "Usage");
+        var page = Form.Page(new VBoxContainer());
         var model = _settings.Now.ChatModel;
         _ = new UsagePage(page, _chat.Store, model, _settings.Now.ChatPrices, _settings.Now.Currency, (prices, currency) =>
         {

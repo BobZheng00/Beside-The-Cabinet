@@ -202,7 +202,7 @@ public sealed class NoteTests : IDisposable
         Assert.All(["list_notes", "read_note", "search_notes", "create_note", "append_to_note", "edit_note"], name => Assert.Equal(Permission.Allowed, tools[name].Standard));
         Assert.All(["move_note", "delete_note"], name => Assert.Equal(Permission.Ask, tools[name].Standard));
         Assert.All(tools.Values, t => Assert.True(t.FromWeb));                  // what a note says is information, not instructions
-        Assert.All(tools.Values, t => Assert.NotEqual(Tool.BuiltIn, t.Source)); // set on Settings → Skills
+        Assert.All(tools.Values, t => Assert.NotEqual(Tool.BuiltIn, t.Source)); // set on Settings → Abilities and privacy → Skills
     }
 
     [Fact]

@@ -126,7 +126,7 @@ public static class BuiltIn
     /// <summary>
     /// Looks at the player's screen: a screenshot, shown to her right after this reply, of the window they were working
     /// in (at full detail, for code, an error, an exercise) or of their whole screen. It is how she helps with what they
-    /// see. A screenshot can show anything, so it is on Settings → Privacy and asks first unless they allowed it; the card
+    /// see. A screenshot can show anything, so it is on Settings → Abilities and privacy → What they may see and asks first unless they allowed it; the card
     /// names the window.
     /// </summary>
     /// <param name="take">Takes it, of the whole screen or not, to be shown to her next (the app's own way of doing it); returns what she is told.</param>
@@ -155,7 +155,7 @@ public static class BuiltIn
 
     /// <summary>
     /// Reads the titles of the player's open windows, to see what they are working on when they ask for help with it.
-    /// Titles are the player's own, so it is set on Settings → Privacy; it only reads, so it needs no asking unless they want that.
+    /// Titles are the player's own, so it is set on Settings → Abilities and privacy → What they may see; it only reads, so it needs no asking unless they want that.
     /// </summary>
     /// <param name="titles">The titles, the window in front first (with the app each belongs to).</param>
     public static Tool WindowTitles(Func<IReadOnlyList<string>> titles) => new(
@@ -328,7 +328,7 @@ public static class BuiltIn
         "Set the bedtime",
         OutsideApp: false);
 
-    /// <summary>The skill tool's name, and where it comes from: Settings → Skills, not Abilities, switches skills on and off.</summary>
+    /// <summary>The skill tool's name, and where it comes from: Settings → Abilities and privacy → Skills, not Abilities, switches skills on and off.</summary>
     public const string SkillName = "read_skill", SkillSource = "skills";
 
     /// <summary>
@@ -374,7 +374,7 @@ public static class BuiltIn
     /// editing are Allowed, the user's own exception for a folder they granted (2026-10-15: "Read and write free");
     /// moving and deleting ask first. What a note says is information, not instructions, as a web page is: once one of
     /// these has run in a reply, Auto stops going ahead (see <see cref="Tool.FromWeb"/>). Offered while a skill that is
-    /// on has a folder; set on Settings → Skills. Each runs off the game's thread (a search reads many files), and its
+    /// on has a folder; set on Settings → Abilities and privacy → Skills. Each runs off the game's thread (a search reads many files), and its
     /// answer comes back as every tool's does.
     /// </summary>
     public static IReadOnlyList<Tool> NoteTools(Notes notes)

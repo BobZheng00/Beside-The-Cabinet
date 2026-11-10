@@ -4,21 +4,18 @@ using InsertCoin.Core;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Balance: the balance of work, life and games. What earns play time (the first run's choices, to change
-/// them: focus, the player's own activities, LeetCode with their name, or no play time); the programs that count as play
-/// besides Steam games, picked from those running or by their file; how much play a day can earn,
-/// Monday to Thursday, on Friday and at the weekend; and the player's bedtime, after which play costs more. What earns
-/// counts at once; a cap or bedtime is saved at once but counts from the next day, so the cap can't be raised, nor
-/// bedtime moved, in the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md). With no play time
-/// only the ticks and the bedtime show: no caps, and no price after bedtime.
+/// Settings → Play time: what earns play time (the first run's choices, to change them: focus, the player's own
+/// activities, LeetCode with their name, or no play time); the programs that count as play besides Steam games, picked
+/// from those running or by their file; and how much play a day can earn, Monday to Thursday, on Friday and at the
+/// weekend. What earns counts at once; a cap is saved at once but counts from the next day, so it can't be raised in
+/// the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md). With no play time only the ticks show.
 /// </summary>
 public partial class BalanceSettings : VBoxContainer
 {
     private static readonly int[] Caps = [30, 45, 60, 75, 90, 105, 120, 135, 150, 180, 210, 240];
-    private static readonly string[] Bedtimes = ["21:00", "21:30", "22:00", "22:30", "23:00", "23:30", "00:00", "00:30", "01:00", "01:30", "02:00", "02:30", "03:00"];
 
-    /// <summary>The caps in minutes (Monday to Thursday, Friday, the weekend) and the bedtime ("23:30", or null for none), as chosen now.</summary>
-    public event Action<int, int, int, string?>? Chosen;
+    /// <summary>The caps in minutes (Monday to Thursday, Friday, the weekend), as chosen now.</summary>
+    public event Action<int, int, int>? Chosen;
     /// <summary>What earns play time, as ticked now: focus, activities, LeetCode.</summary>
     public event Action<bool, bool, bool>? Earning;
     /// <summary>"Change…" by the LeetCode name, or LeetCode ticked without one: the cabinet's screen asks for it.</summary>
@@ -28,9 +25,8 @@ public partial class BalanceSettings : VBoxContainer
     /// <summary>"Add by its file…": the cabinet asks for a program's file, and hands it back through <see cref="Add"/>.</summary>
     public event Action? PickFile;
 
-    private OptionButton _weekday = null!, _friday = null!, _weekend = null!, _bedtime = null!, _running = null!;
+    private OptionButton _weekday = null!, _friday = null!, _weekend = null!, _running = null!;
     private int[] _caps = Caps;
-    private string?[] _bedtimes = [];
     private List<PlayProgram> _programs = [];
     private IReadOnlyList<PlayProgram> _runningNow = [];
     private PlayProgram[] _offered = [];
@@ -40,7 +36,8 @@ public partial class BalanceSettings : VBoxContainer
     /// <param name="running">The programs running now, to pick from as play.</param>
     public void Build(AppSettings settings, string today, IReadOnlyList<PlayProgram> running)
     {
-        Form.Page(this, "Balance");
+        Form.Page(this);
+        Form.Hint(this, "Nothing ever closes or blocks a game.");
         var about = Form.Hint(this, "Good work earns play time, from what you tick below. A day can only earn so much, and each night half of the play " +
                                     "you didn't use fades, so it can't be saved up for the weekend.");
         var balance = new List<Control> { about };          // what goes with no play time, and comes back with it
@@ -54,14 +51,10 @@ public partial class BalanceSettings : VBoxContainer
         Form.Row(Form.Grid(player), "LeetCode name", name);
         Form.Hint(player, "Your solved problems are read from your public LeetCode profile. Change… asks for the name on the cabinet's screen.");
         var ticked = settings.Earning.LeetCode;
-        Label later = null!;
         void Shown(bool playTime)
         {
             foreach (var part in balance)
                 part.Visible = playTime;
-            later.Text = playTime ? "The caps and bedtime count from tomorrow, so none can be changed in the moment. " + today
-                                  : "Half an hour before your bedtime you get a word to start winding down. It counts from tomorrow, so it " +
-                                    "can't be changed in the moment.";
         }
         Sources(this, settings, player, (focus, activities, leetCode) =>
         {
@@ -98,14 +91,7 @@ public partial class BalanceSettings : VBoxContainer
         _weekend = Form.Choice(caps, "Saturday and Sunday", _caps.Select(Hours), Array.IndexOf(_caps, settings.WeekendCapMinutes), _ => Changed());
         balance.Add(Form.Hint(this, "A day runs from 04:00 to 04:00. What is left from the days before doesn't count towards it, and paying back time " +
                                     "owed doesn't either."));
-
-        Form.Subheading(this, "Bedtime");
-        _bedtimes = [null, .. Bedtimes.Union(settings.Bedtime is { } own ? [own] : []).OrderBy(Late)];
-        _bedtime = Form.Choice(Form.Grid(this), "Go to bed at", _bedtimes.Select(b => b ?? "None"), Array.IndexOf(_bedtimes, settings.Bedtime), _ => Changed());
-        balance.Add(Form.Hint(this, "After your bedtime, until the day ends at 04:00, play costs one and a half times as much, and time owed grows " +
-                                    "that much faster."));
-
-        later = Form.Hint(this, "");
+        balance.Add(Form.Hint(this, "The caps count from tomorrow, so none can be changed in the moment. " + today));
         Shown(settings.Earning.Any);
     }
 
@@ -197,10 +183,7 @@ public partial class BalanceSettings : VBoxContainer
         _running.Disabled = _offered.Length == 0;
     }
 
-    private void Changed() => Chosen?.Invoke(_caps[_weekday.Selected], _caps[_friday.Selected], _caps[_weekend.Selected], _bedtimes[_bedtime.Selected]);
-
-    /// <summary>Bedtimes in the order of the night: 21:00 first, 03:00 last.</summary>
-    private static int Late(string? time) => time is null ? -1 : (int.Parse(time[..2]) + 20) % 24 * 60 + int.Parse(time[3..]);
+    private void Changed() => Chosen?.Invoke(_caps[_weekday.Selected], _caps[_friday.Selected], _caps[_weekend.Selected]);
 
     private static string Hours(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
 }

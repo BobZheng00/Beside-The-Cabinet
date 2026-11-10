@@ -5,7 +5,7 @@ namespace InsertCoin.Mind;
 
 /// <summary>
 /// The backup she carries on with while the player's ChatGPT plan has stopped (spec 2026-10-18-chatgpt-plan.md, step 2):
-/// an API key or a local model, chosen on Settings → Mind. Nothing goes to it until the player says yes (see
+/// an API key or a local model, chosen on Settings → AI model. Nothing goes to it until the player says yes (see
 /// <see cref="Allow"/>), so a paid key is never spent unasked; until then every request fails as the plan's do, and she
 /// waits. After the yes everything she does goes to the backup, while the plan is tried again now and then (the plan's
 /// own <see cref="ChatGptPlan.TryAgainAfter"/>); as soon as it answers she is back on it (see <see cref="Back"/>), and the

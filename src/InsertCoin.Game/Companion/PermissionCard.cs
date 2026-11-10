@@ -106,8 +106,8 @@ public partial class PermissionCard : Node2D
         _detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         _always.Text = asking.Scope is { } site ? $"Always for {site}" : "Always";
         _always.TooltipText = Words.Wrap(asking.Scope is { } scope
-            ? $"From now on this is allowed on {scope} without asking. Settings → Abilities can take it back."
-            : "From now on this is allowed without asking. Settings → Abilities can take it back.");
+            ? $"From now on this is allowed on {scope} without asking. Settings → Abilities and privacy can take it back."
+            : "From now on this is allowed without asking. Settings → Abilities and privacy can take it back.");
         return Show(asking.What, asking.Detail, bottomLeft, cancel);
     }
 

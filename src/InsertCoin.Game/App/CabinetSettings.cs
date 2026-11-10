@@ -3,13 +3,20 @@ using Godot;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Cabinet: how the cabinet sits on the desktop (its size, above other windows or not, starting with
-/// Windows), its sounds, tickets while a game runs, and saving energy. Each change is used at once.
+/// Settings → General: the name the player is called by and the language their companion replies in; how the cabinet
+/// sits on the desktop (its size, above other windows or not, starting with Windows), its sounds, tickets while a game
+/// runs, and saving energy. Each change is used at once.
 /// </summary>
 public partial class CabinetSettings : VBoxContainer
 {
     private static readonly (string Size, string Label)[] Sizes = [("S", "Small"), ("M", "Medium"), ("L", "Large")];
+    /// <summary>The languages to choose from: Auto (the player's own), and those a built-in character has a card in.</summary>
+    private static readonly (string? Code, string Label)[] Languages = [(null, "Auto"), ("en", "English"), ("zh", "中文")];
 
+    /// <summary>The name they call the player by, as it is typed.</summary>
+    public event Action<string>? Named;
+    /// <summary>The language they reply in, with their card in it if they have one ("en", "zh"), or null for the player's own (Auto).</summary>
+    public event Action<string?>? LanguageChosen;
     /// <summary>The size chosen: S, M or L.</summary>
     public event Action<string>? Sized;
     public event Action<bool>? OnTop, WithWindows, Muted, Tickets, SaveEnergy;
@@ -18,7 +25,13 @@ public partial class CabinetSettings : VBoxContainer
     public void Build(SettingsFile settings, bool withWindows)
     {
         var now = settings.Now;
-        Form.Page(this, "Cabinet");
+        Form.Page(this);
+        var grid = Form.Grid(this);
+        Form.Field(grid, "Your name", now.CallMe, "what the characters call you", typed: text => Named?.Invoke(text));
+        Form.Choice(grid, "Language", Languages.Select(l => l.Label), Math.Max(0, Array.FindIndex(Languages, l => l.Code == now.Language)),
+                    index => LanguageChosen?.Invoke(Languages[index].Code));
+        Form.Hint(this, "Auto follows the language you write in. Chosen, they reply in it whatever you write, and use their own card in it if they have one.");
+
         Form.Choice(Form.Grid(this), "Size", Sizes.Select(s => s.Label), Array.FindIndex(Sizes, s => s.Size == now.Size), index => Sized?.Invoke(Sizes[index].Size));
         Form.Hint(this, "Drag the cabinet by its body to move it anywhere on your desktop.");
         Form.Tick(this, "Always on top", now.AlwaysOnTop, on => OnTop?.Invoke(on));
@@ -31,10 +44,10 @@ public partial class CabinetSettings : VBoxContainer
         void Sync() => muted.SetPressedNoSignal(settings.Now.Muted);        // the tray's Mute flipped meanwhile
         settings.Changed += Sync;
         TreeExiting += () => settings.Changed -= Sync;
-        Form.Hint(this, "The cabinet's sounds and your companion's voice. A reminder's chime can still ring (see Reminders).");
+        Form.Hint(this, "The cabinet's sounds and your companion's voice. A reminder's chime can still ring (see Notifications, Reminders).");
         Form.Tick(this, "Tickets while you play", now.InGameTickets, on => Tickets?.Invoke(on));
         var tickets = Form.Hint(this, "");
-        void Said() => tickets.Text = settings.Now.Earning.Any         // as what earns play time changes on Balance
+        void Said() => tickets.Text = settings.Now.Earning.Any         // as what earns play time changes on Play time
             ? "A ticket at the corner of the screen during a game: five minutes left, one minute left, out of time, time owed, past your bedtime."
             : "With no play time there are none: nothing counts down or is owed.";
         Said();

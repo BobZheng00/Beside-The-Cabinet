@@ -98,7 +98,7 @@ public sealed class Chat : IDisposable
     public MindStore Store { get; }
     public KeyStore Keys { get; }
 
-    /// <summary>The player's ChatGPT plan: their sign-in, and her mind on it when they chose it (Settings → Mind).</summary>
+    /// <summary>The player's ChatGPT plan: their sign-in, and her mind on it when they chose it (Settings → AI model).</summary>
     public ChatGptPlan Plan { get; }
 
     /// <summary>What she carries on with when the plan stops, once the player says yes; its key is kept apart from the main one.</summary>
@@ -145,7 +145,7 @@ public sealed class Chat : IDisposable
         return waiting;
     }
 
-    /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Skills).</summary>
+    /// <summary>Her skills: the app's own skills folder and those the player linked (Settings → Abilities and privacy → Skills).</summary>
     public Skills Skills { get; }
 
     private readonly Tool _readSkill, _changeSkill;
@@ -214,7 +214,7 @@ public sealed class Chat : IDisposable
                 Tools.Put(tool);
     }
 
-    /// <summary>What she can do with tools, and the player's permission for each (Settings → Abilities).</summary>
+    /// <summary>What she can do with tools, and the player's permission for each (Settings → Abilities and privacy → What they can do).</summary>
     public Toolbox Tools { get; }
 
     /// <summary>Prints a memo (title, text, the character printing it) and says what she is told; unset, nothing prints.</summary>

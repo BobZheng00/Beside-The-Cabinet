@@ -85,7 +85,7 @@ public static class Prompt
     /// <param name="skills">Her skills switched on (see <see cref="Skills"/>): each one's name and description, with her tools.</param>
     /// <param name="keepsInTouch">The player chose "Keeps in touch": she is told she may plan when to reach them while they are out (see <see cref="Later"/>).</param>
     /// <param name="earns">What earns the player play time (all of it when not given): only those are named.</param>
-    /// <param name="language">The language the player chose for her (Settings → Characters): wherever she would write in theirs, she writes in it. Null for theirs.</param>
+    /// <param name="language">The language the player chose for her (Settings → General): wherever she would write in theirs, she writes in it. Null for theirs.</param>
     public static List<ChatMessage> Build(Persona persona, string aboutUser, string us, IReadOnlyList<Observation>? log, IReadOnlyList<Line> lines,
                                           string situation, string said, IReadOnlyList<Memory>? memories = null, string? voiceLanguage = null,
                                           int window = DefaultWindow, DateTimeOffset? now = null, string agenda = "", bool tools = false,
@@ -285,7 +285,7 @@ public static class Prompt
     /// player's name with さん, and the subtitle has just their name (once told "call the player by name with さん", a
     /// model wrote "BobSmithさん？" in her bubble, with no [say], so her call went unheard, 2026-10-10).
     /// </summary>
-    /// <param name="writes">The language she writes in, as the player chose it (Settings → Characters), or null for theirs.</param>
+    /// <param name="writes">The language she writes in, as the player chose it (Settings → General), or null for theirs.</param>
     private static string Voice(string? language, bool tools = false, string? writes = null)
     {
         if (language is null)

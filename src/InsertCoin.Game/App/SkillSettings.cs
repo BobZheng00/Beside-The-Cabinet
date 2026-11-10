@@ -5,7 +5,7 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Skills: what she knows how to do the player's way (see <see cref="Skills"/>). The skills in the app's own
+/// Settings → Abilities and privacy → Skills: what she knows how to do the player's way (see <see cref="Skills"/>). The skills in the app's own
 /// skills folder, with a new one made there, one imported into it and the folder opened; then each skills folder the
 /// player linked, read where it is, with unlinking. Each skill has its name, its description and on/off; one that can't
 /// be read says why; and a page of its own (its Settings button), below this one and headed by its name, where the player grants it folders to work in (see <see cref="Notes"/>),
@@ -55,7 +55,7 @@ public partial class SkillSettings : VBoxContainer
         }
         _open = null;
         GD.Print("Skills: the list");
-        Form.Page(this, "Skills");
+        Form.Page(this);
         Form.Hint(this, $"What {_name} knows how to do your way. A skill is a folder with a SKILL.md in it: a name and a one-line description " +
                         "at its top, then the instructions, in the open Agent Skills format that other AI agents (Claude Code among them) read " +
                         $"too. Only each skill's name and description are always with {_name}; its instructions are read when it's used, from " +

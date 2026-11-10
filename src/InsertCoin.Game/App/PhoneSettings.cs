@@ -6,7 +6,7 @@ using HttpClient = System.Net.Http.HttpClient;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Your phone: what reaches the player while they are away from the PC (see <see cref="Reaching"/>): how
+/// Settings → Connections → Your phone: what reaches the player while they are away from the PC (see <see cref="Reaching"/>): how
 /// long without input makes them away, and whether reminders reach their phone at the PC too; texting with her on
 /// Telegram, both ways, set up a step at a time (a bot of their own, its token, then a code to scan, see
 /// <see cref="Pairing"/>); and, for notifications only, ntfy, Discord or any webhook, each with its address or token
@@ -44,7 +44,7 @@ public partial class PhoneSettings : VBoxContainer
     {
         _elsewhere = elsewhere;
         _secrets = secrets;
-        Form.Page(this, "Your phone");
+        Form.Page(this);
         Form.Hint(this, $"At the PC {name} tells you in person. When you're away from it, what matters reaches you here instead, in {name}'s words: " +
                         "reminders, a focus session's turns, and asking how something went. What only makes sense at the PC waits for you.");
         Form.Slider(Form.Grid(this), "Away after", Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes, awayMinutes,

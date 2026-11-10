@@ -8,12 +8,18 @@ namespace InsertCoin.Game.App;
 /// </summary>
 public static class Form
 {
-    /// <summary>A page to fill: a column, with its heading.</summary>
-    public static VBoxContainer Page(VBoxContainer page, string heading)
+    /// <summary>A page to fill: a column (a page of the settings, which the window heads).</summary>
+    public static VBoxContainer Page(VBoxContainer page)
     {
         page.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         page.AddThemeConstantOverride("separation", 10);
-        page.AddChild(new Label { Text = heading, ThemeTypeVariation = "Heading" });
+        return page;
+    }
+
+    /// <summary>A page to fill: a column, with its heading.</summary>
+    public static VBoxContainer Page(VBoxContainer page, string heading)
+    {
+        Page(page).AddChild(new Label { Text = heading, ThemeTypeVariation = "Heading" });
         return page;
     }
 

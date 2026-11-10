@@ -6,7 +6,7 @@ using InsertCoin.Game.Cabinet;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// The LeetCode player on the cabinet screen, arcade style (Settings → Balance → Change…): typed as a username or
+/// The LeetCode player on the cabinet screen, arcade style (Settings → Play time → Change…): typed as a username or
 /// pasted as a profile link, checked against the task source before it is accepted. Enter with none goes on without
 /// one (focus and the rest earn play too); Esc leaves it as it was. The first run asks for the rest (see <see cref="Welcome"/>).
 /// </summary>

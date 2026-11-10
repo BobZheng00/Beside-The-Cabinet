@@ -139,14 +139,16 @@ after the character. The memory book moves in as one page ("Moves into setting w
 
 The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the screen's home bar.
 
+*Built (#260):* the list of categories, each part as a tab, Memory's two buttons to the book and Chat history until the book moves in (#70), bedtime and the quiet hours together under Notifications. Not yet: replay the intro, Help and About, under General.
+
 **The look** ("We will do A", 2026-11-07):
 - unticked boxes and unchosen radios drawn empty, on every window (built, #259);
 - hints darkened from 2.77:1 to about 5:1 (built, #259);
-- a pixel icon for each category, in the style of the screen's apps;
+- a pixel icon for each category, in the style of the screen's apps (built, #260);
 - character cards with a portrait rendered from their own model;
 - one short line per control, the longer explanation behind a small "?";
 - connections as cards with their state and one button;
-- headings in the screen's pixel font, checked at 1366×768, and everything else in the windows' rounded font.
+- headings in the screen's pixel font, checked at 1366×768, and everything else in the windows' rounded font (built, #260).
 
 **Smaller fixes from the audit:** a pointer in a page ("see Reminders") is a button that opens it; one name for each thing;
 Forget looks destructive; a filter over Facts and Diary; Reminders offers the agenda; plainer words where the pages speak

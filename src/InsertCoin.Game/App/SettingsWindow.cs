@@ -5,40 +5,48 @@ using InsertCoin.Game.Companion;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// A page of the settings: its name in dev actions and links, the group it is listed in (<see cref="SettingsWindow.First"/>:
-/// above the groups), its name in the list, and how it is made: the first time it shows, or each time when it is
-/// <paramref name="Fresh"/> (it tells how things stand on the other pages).
+/// A page of the settings: its name in dev actions and links, the category it is in, its tab there (empty: the category
+/// is this page alone), and how it is made: the first time it shows, or each time when it is <paramref name="Fresh"/>
+/// (it tells how things stand on the other pages).
 /// </summary>
-public sealed record SettingsPage(string Id, string Group, string Name, Func<Control> Make, bool Fresh = false);
+public sealed record SettingsPage(string Id, string Category, string Tab, Func<Control> Make, bool Fresh = false);
 
 /// <summary>
-/// Every setting in one window (tray → Settings…): the pages listed on the left, Getting started and Characters above
-/// three groups (her, headed by her name, the player's day, the cabinet), the one chosen on the right. A page is saved
-/// as it is changed, so there is nothing to save or cancel; only a connection to something outside (her provider) waits
-/// for its own button (spec 2026-10-10-settings-and-setup.md).
+/// Every setting in one window (tray → Settings…): plain categories listed on the left, the one chosen on the right
+/// under its name, its parts as tabs when it has more than one. A page is saved as it is changed, so there is nothing to
+/// save or cancel; only a connection to something outside (their AI provider) waits for its own button (specs
+/// 2026-10-10-settings-and-setup.md, 2026-11-08-a-new-player-gets-it.md).
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    public const string First = "", Companion = "Companion", Day = "Your day", Cabinet = "The cabinet";
-    private static readonly string[] Groups = [First, Companion, Day, Cabinet];
+    public const string Start = "Getting started", General = "General", Companion = "Companion", Memory = "Memory", Voice = "Voice", AiModel = "AI model",
+        PlayTime = "Play time", Notifications = "Notifications", Connections = "Connections", Abilities = "Abilities and privacy";
+    private static readonly string[] Categories = [Start, General, Companion, Memory, Voice, AiModel, PlayTime, Notifications, Connections, Abilities];
 
     private readonly Dictionary<string, SettingsPage> _pages = [];
-    private readonly Dictionary<string, Button> _entries = [];
+    private readonly Dictionary<string, List<SettingsPage>> _parts = [];    // each category's pages, in the order given
+    private readonly Dictionary<string, Button> _entries = [];              // the list, by category
+    private readonly Dictionary<string, string> _lastPart = [];             // the page each category showed last
     private readonly Dictionary<string, ScrollContainer> _made = [];
     private MarginContainer _area = null!;
     private PanelContainer _sheet = null!;
+    private Label _heading = null!;
+    private Control _strip = null!;                         // the tabs and the line under them
+    private TabBar _tabs = null!;
+    private string? _tabsOf;                                // the category the tabs are for
     private string? _showing;
-    private Label? _her;                                    // the companion's group's heading: their name
+    private string _companion = "";                         // who the pages made so far were made for (see Rename)
     private readonly HashSet<string> _stale = [];           // pages to make again when next shown (see Rename)
 
     /// <param name="open">The page to show first, or null for the first one.</param>
-    /// <param name="companion">Who is on the stool: their name heads the companion's pages.</param>
+    /// <param name="companion">Who is on the stool: the pages name them.</param>
     public void Build(IEnumerable<SettingsPage> pages, string? open, string companion = "Your companion")
     {
         Title = "Settings";
         Visible = false;
         Transient = true;
         CloseRequested += QueueFree;
+        _companion = companion;
 
         var sheet = _sheet = new PanelContainer();
         sheet.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -47,50 +55,66 @@ public partial class SettingsWindow : Window
         row.AddThemeConstantOverride("separation", 18);
         sheet.AddChild(row);
 
-        // the list scrolls only on a screen too short for it (the window is cut to the screen), so its last page and the
+        // the list scrolls only on a screen too short for it (the window is cut to the screen), so its last entry and the
         // note below it are never out of reach
-        var side = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(200, 0) };
+        var side = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(232, 0) };
         side.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
         row.AddChild(side);
         var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         list.AddThemeConstantOverride("separation", 2);
         side.AddChild(list);
-        var chosen = new ButtonGroup();
-        var all = pages.OrderBy(p => Array.IndexOf(Groups, p.Group)).ToList();      // in each group, in the order given
-        string? group = null;
-        foreach (var page in all)
+        foreach (var page in pages)
         {
             _pages[page.Id] = page;
-            if (page.Group != group)
-            {
-                if (group is not null)
-                    list.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
-                group = page.Group;
-                if (group != First)
-                {
-                    var heading = new Label { Text = (group == Companion ? companion : group).ToUpperInvariant(), ThemeTypeVariation = "Group" };
-                    list.AddChild(heading);
-                    if (group == Companion)
-                        _her = heading;
-                }
-            }
-            var entry = new Button { Text = page.Name, ThemeTypeVariation = "Side", ToggleMode = true, ButtonGroup = chosen, Alignment = HorizontalAlignment.Left };
-            entry.Pressed += () => ShowPage(page.Id);
-            list.AddChild(entry);
-            _entries[page.Id] = entry;
+            if (!_parts.TryGetValue(page.Category, out var parts))
+                _parts[page.Category] = parts = [];
+            parts.Add(page);
         }
-        var listed = string.Join(" | ", list.GetChildren().Select(c => (c as Button)?.Text ?? (c as Label)?.Text).OfType<string>());
+        var chosen = new ButtonGroup();
+        foreach (var category in Categories.Where(_parts.ContainsKey))
+        {
+            var entry = new Button
+            {
+                Text = category, Icon = SettingsIcons.Of(category), TextureFilter = Control.TextureFilterEnum.Nearest,
+                ThemeTypeVariation = "Side", ToggleMode = true, ButtonGroup = chosen, Alignment = HorizontalAlignment.Left,
+            };
+            entry.Pressed += () => ShowPage(_lastPart.GetValueOrDefault(category, _parts[category][0].Id));
+            list.AddChild(entry);
+            _entries[category] = entry;
+        }
         list.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill });
         list.AddChild(new Label { Text = "Changes are saved as you make them.", ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart });
 
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+        column.AddThemeConstantOverride("separation", 10);
+        row.AddChild(column);
+        _heading = new Label { ThemeTypeVariation = "Heading" };
+        column.AddChild(_heading);
+        var strip = new VBoxContainer();
+        strip.AddThemeConstantOverride("separation", 0);
+        _strip = strip;
+        column.AddChild(strip);
+        _tabs = new TabBar();
+        _tabs.TabChanged += tab => ShowPage(_parts[_tabsOf!][(int)tab].Id);
+        strip.AddChild(_tabs);
+        var line = new HSeparator();
+        line.AddThemeConstantOverride("separation", 1);
+        strip.AddChild(line);
         _area = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
-        row.AddChild(_area);
-        ShowPage(open is not null && _pages.ContainsKey(open) ? open : all[0].Id);
-        if (Paper.OffScreen)                                // a test run logs the list, headings in capitals, and the page it opened at
-            GD.Print($"Settings: the list: {listed}; opened at {_showing}");
+        column.AddChild(_area);
+        ShowPage(open is not null && _pages.ContainsKey(open) ? open : _parts[_entries.Keys.First()][0].Id);
+        if (Paper.OffScreen)                                // a test run logs the list, and the page it opened at
+            GD.Print($"Settings: the list: {string.Join(" | ", _entries.Keys)}; opened at {_showing}");
     }
 
-    public void Open() => Paper.Open(this, new Vector2(820, 704));      // tall enough for every page in the list, and its note
+    private static readonly Vector2I Wanted = new(850, 704);    // tall enough for the whole list, and its note
+
+    public void Open()
+    {
+        Paper.Open(this, Wanted);
+        Theme.SetFont("font", "Heading", GD.Load<FontFile>("res://fonts/PressStart2P-Regular.ttf"));     // the screen's pixel font: at 16 px, its grid
+        Theme.SetFontSize("font_size", "Heading", 16);
+    }
 
     /// <summary>The page showing.</summary>
     public string? Showing => _showing;
@@ -118,8 +142,28 @@ public partial class SettingsWindow : Window
         }
         foreach (var (other, shown) in _made)
             shown.Visible = other == id;
-        _entries[id].ButtonPressed = true;
         _showing = id;
+        _lastPart[page.Category] = id;
+        _entries[page.Category].ButtonPressed = true;
+        _heading.Text = page.Category.ToUpperInvariant();
+        ShowTabs(page);
+    }
+
+    /// <summary>The tabs of the page's category, with the page's own chosen; none when the category is a page alone.</summary>
+    private void ShowTabs(SettingsPage page)
+    {
+        var parts = _parts[page.Category];
+        _strip.Visible = parts.Count > 1;
+        _tabs.SetBlockSignals(true);                        // only the player's own change of tab shows another page
+        if (_tabsOf != page.Category)
+        {
+            _tabs.ClearTabs();
+            foreach (var part in parts)
+                _tabs.AddTab(part.Tab);
+            _tabsOf = page.Category;
+        }
+        _tabs.CurrentTab = parts.IndexOf(page);
+        _tabs.SetBlockSignals(false);
     }
 
     /// <summary>Makes a page again if it has been made, as what it shows changed elsewhere (a voice added, a character).</summary>
@@ -135,33 +179,46 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>
-    /// Someone else took the stool: their name heads the companion's pages, and every page made before, which may say
-    /// the old name, is made again: the one showing at once, others when next shown. The one showing stays as it is
-    /// when it is <paramref name="choosingOn"/> (the player may be choosing on it), and is made again when next shown.
+    /// Someone else took the stool: every page made before, which may say the old name, is made again: the one showing
+    /// at once, others when next shown. The one showing stays as it is when it is <paramref name="choosingOn"/> (the
+    /// player may be choosing on it), and is made again when next shown.
     /// </summary>
     public void Rename(string companion, string choosingOn)
     {
-        if (_her is null || _her.Text == companion.ToUpperInvariant())
+        if (_companion == companion)
             return;
-        _her.Text = companion.ToUpperInvariant();
+        _companion = companion;
         foreach (var id in _made.Keys.Where(id => id != _showing).ToList())
             RefreshPage(id);
         if (_showing == choosingOn)
             _stale.Add(_showing);
         else if (_showing is not null)
             RefreshPage(_showing);
-        GD.Print($"Settings: the companion's pages headed {_her.Text}; {_showing} made again {(_showing == choosingOn ? "when next shown" : "now")}");
+        GD.Print($"Settings: the pages now name {companion}; {_showing} made again {(_showing == choosingOn ? "when next shown" : "now")}");
     }
 
     /// <summary>The page made for <paramref name="id"/>, if it has been.</summary>
     public Control? PageOf(string id) => _made.TryGetValue(id, out var made) ? made.GetChild(0).GetChild<Control>(0) : null;
 
     /// <summary>
-    /// Dev: on the page showing, presses the button or flips the tick whose text starts with <paramref name="label"/>;
-    /// with a value, sets the choice (by number, from 0), the field or the number that follows the label with that text.
+    /// Dev: chooses the category or the tab called <paramref name="label"/>, as a click on it would; else, on the page
+    /// showing, presses the button or flips the tick whose text starts with it; with a value, sets the choice (by
+    /// number, from 0), the field or the number that follows the label with that text.
     /// </summary>
     public void DevDo(string label, string? value)
     {
+        if (value is null && _entries.TryGetValue(label, out var entry))
+        {
+            entry.EmitSignal(BaseButton.SignalName.Pressed);
+            GD.Print($"Settings: category \"{label}\" chosen; {_showing} showing");
+            return;
+        }
+        if (value is null && _tabsOf is not null && _parts[_tabsOf].FindIndex(p => p.Tab.Equals(label, StringComparison.OrdinalIgnoreCase)) is var tab and >= 0)
+        {
+            _tabs.CurrentTab = tab;
+            GD.Print($"Settings: tab \"{label}\" chosen; {_showing} showing");
+            return;
+        }
         if (_showing is not null && PageOf(_showing) is { } page)
             DevDo(page, label, value, _showing);
     }
@@ -213,6 +270,15 @@ public partial class SettingsWindow : Window
                 GD.PrintErr($"Settings: no choice or field after \"{label}\" on {where}");
                 break;
         }
+    }
+
+    /// <summary>Dev: the window as it opens on a screen of this size at 100%, to read its pixel headings there (this PC has its own size and scale).</summary>
+    public void DevScreen(Vector2I screen)
+    {
+        ContentScaleFactor = 1;
+        MinSize = Vector2I.Zero;
+        MinSize = Size = new Vector2I(Math.Min(Wanted.X, screen.X - 16), Math.Min(Wanted.Y, screen.Y - 48));
+        GD.Print($"Settings: laid out as on a {screen.X}x{screen.Y} screen: {Size.X}x{Size.Y}");
     }
 
     /// <summary>Dev: on a page below a page, presses its way back up (see <see cref="Form.Page(VBoxContainer, string, string, Action)"/>).</summary>

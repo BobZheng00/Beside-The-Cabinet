@@ -3,7 +3,7 @@ using InsertCoin.Mind;
 
 namespace InsertCoin.Game.App;
 
-/// <summary>Settings → Talking aloud: the talk key, and when she listens without it (see <see cref="HandsFree"/>). Each change is used at once.</summary>
+/// <summary>Settings → Voice → Talking to them: the talk key, and when she listens without it (see <see cref="HandsFree"/>). Each change is used at once.</summary>
 public partial class ListeningSettings : VBoxContainer
 {
     /// <summary>The talk key chosen (see <see cref="TalkKey"/>).</summary>
@@ -21,7 +21,7 @@ public partial class ListeningSettings : VBoxContainer
     public void Build(string name, string talkKey, HandsFree handsFree, bool hears, bool turns)
     {
         _handsFree = handsFree;
-        Form.Page(this, "Talking aloud");
+        Form.Page(this);
         var talk = Form.Grid(this);
         var key = Form.Choice(talk, "Talk key", TalkKey.Keys.Select(k => k.Label), Array.FindIndex(TalkKey.Keys, k => k.Name == talkKey),
                               index => KeyChosen?.Invoke(TalkKey.Keys[index].Name), wide: true);

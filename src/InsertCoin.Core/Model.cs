@@ -17,7 +17,7 @@ public sealed record SolvedTask(string Id, string Title, Difficulty? Difficulty,
 /// </summary>
 public sealed record RunningGame(string Id, string Name, bool Picked = false, bool Held = false);
 
-/// <summary>A program the player picked to count as play (Settings → Balance): its file, and its name from the file's description.</summary>
+/// <summary>A program the player picked to count as play (Settings → Play time): its file, and its name from the file's description.</summary>
 public sealed record PlayProgram(string Path, string Name)
 {
     /// <summary>

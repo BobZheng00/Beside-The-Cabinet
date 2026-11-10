@@ -6,7 +6,7 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Her voice: whether she speaks aloud, the GPT-SoVITS that runs her voice, and the voice of whoever is on
+/// Settings → Voice: whether she speaks aloud, the GPT-SoVITS that runs her voice, and the voice of whoever is on
 /// the stool (the language it speaks, its trained model or the base model it is cloned with, the clip it speaks with and
 /// the words in it, how carefully it is made), and training it a model of its own. A change is written to the voice's
 /// folder at once; the words in a clip once the field is left.
@@ -112,7 +112,7 @@ public partial class VoiceSettings : VBoxContainer
         _preview = new AudioStreamPlayer();
         AddChild(_preview);
 
-        Form.Page(this, $"{name}'s voice");
+        Form.Page(this);
         var on = Form.Tick(this, $"{name} speaks aloud", settings.Now.Voice, ticked => Switched?.Invoke(ticked));
         void Sync() => on.SetPressedNoSignal(settings.Now.Voice);          // the tray's Voice flipped meanwhile
         settings.Changed += Sync;

@@ -37,20 +37,19 @@ screen: at scale 1.00 (0.80 per 96 dpi)`; a hidden run takes no screenshots unti
 answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupress:Voice`
 (presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
 `menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `chattype:some_text` (type it into the slip, unsent), `settings`
-(Settings; `settings:voice` at that page: `start`, `mind`, `voice`, `listening`, `characters`, `abilities`, `privacy`, `skills`, `addons`,
-`reminders`, `checkins`, `phone`, `calendars`, `balance`, `cabinet`, `usage`; a test run logs its list of pages as it opens,
-headings in capitals, and the page it opened at), `settingsdo:Label` (presses the button or
-flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
+(Settings; `settings:voice` at that page or tab: `start`, `cabinet` (General), `characters` (Companion), `memory`, `voice`, `listening`, `mind`, `usage`, `balance` (Play time), `reminders`, `checkins`, `quiet`, `phone`, `calendars`, `addons` (Web search), `abilities`, `skills`, `privacy`;
+a test run logs its list as it opens, and the page it opened at), `settingsdo:Label` (chooses the category or tab with that exact name,
+as a click would (`settingsdo:Notifications`, `settingsdo:Bedtime_and_quiet_hours`); else presses the button or flips the tick with that text on the page showing; `settingsdo:Label:value` sets the choice after that label, by number
 from 0 or by what it says (`settingsdo:Language:中文`), or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
-hover tip shows; capture it with `-Desk`), `settingswidths` (logs any page wider
+hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open window out as on a screen that size at 100%, to read its pixel headings there), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
 showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
 screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
 `welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode is a stand-in that finds every player,
 with nothing solved, except `nobody`, who isn't there, and `nolink`, for whom LeetCode doesn't answer, so
-`welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Balance page's Change… and the cabinet's
+`welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Play time page's Change… and the cabinet's
 polls see the same),
 `memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`
 (presses that button in it, `+_Add`, `Keep_yours` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
@@ -63,7 +62,7 @@ item with those words is cancelled under the open book, as upkeep might), `ticke
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
 `chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Lines` logs the lines it shows, in order, and whether the player is at the end (`Chat history shows, at the end: …`, each line's words between ` | `); `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
-agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Skills and their skill
+agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Abilities and privacy → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
 skills folder in the profile; the mock mind reads a skill the player's words name, then answers), `skillmake:a-name` (makes a skill of that name in the profile's own skills folder: a long one, to try the pages'
@@ -78,7 +77,7 @@ another note there), `noteplayer:a_line` (adds that line to that `today.md` as t
 Undo after it is refused),
 `remind:some_text` (a reminder goes off now),
 `remindin:seconds:some_text` (sets one that far ahead; negative: one missed while closed),
-`remindertry` ("Try it" on Settings → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
+`remindertry` ("Try it" on Settings → Notifications → Reminders, once open there), `elsewhere:http://127.0.0.1:port` (ntfy and the webhook pointed at a local test
 server), `checkin` (they ask about something past now), `presence` (logs do-not-disturb, call, locked, idle, where the player is, and Windows' own notification state, 5 when
 it would notify), `dnd:on` (do-not-disturb, as in a full-screen game, whatever Windows says; `dnd:locked`, the screen
 locked; `dnd:off`, back to what Windows says; a hidden test run takes neither from this PC's own user, until told;
@@ -86,7 +85,7 @@ locked; `dnd:off`, back to what Windows says; a hidden test run takes neither fr
 `later:now` (their plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here, with no time since their last input whatever this PC's own user does, until `afk`), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
 Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
-stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → Mind,
+stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → AI model,
 `settingsdo:Provider:1` and `settingsdo:Continue_with_ChatGPT`, and a test run visits the stand-in's sign-in itself,
 opening no browser; its backup, before signing in, with `settingsdo:Backup:6`, `settingsdo:Server:http://127.0.0.1:port/backup/v1`,
 `settingsdo:Model:backup-mock` and `settingsdo:Save_backup`), `plantry` (the plan's next try, past its limit, comes now
@@ -111,7 +110,7 @@ change to a skill when told "tea-timer from now on new_words instead of old_word
 `chat:tea-timer_from_now_on_rinse_the_pot_first_instead_of_warm_the_pot_first` after `skillseed`), and
 `fakewindows:1._Two_Sum_-_LeetCode|notes.md` (the window titles they read instead; a test run reads stand-ins anyway),
 `frontprogram:C:\Windows\notepad.exe` (that program's window is in front, and it's the only one running, for programs
-picked as play on Balance: `settings:balance` then `settingsdo:Running_now:1` picks it, `settingsdo:×` takes it off;
+picked as play on Play time: `settings:balance` then `settingsdo:Running_now:1` picks it, `settingsdo:×` takes it off;
 `frontprogram:behind`, it runs on behind another window, holding its session; `frontprogram:off`, it has closed; a test
 run never reads the player's, and has none until told), `display:off` (as if Windows had turned the display off, which
 stops a picked program; `display:on`; `display:windows` asks Windows again; a test run's display is on). With `--offscreen` a page they open is
