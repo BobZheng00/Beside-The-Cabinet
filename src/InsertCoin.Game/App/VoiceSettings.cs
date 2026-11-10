@@ -536,6 +536,7 @@ public partial class VoiceSettings : VBoxContainer
         _found.Visible = !works && !running && Found() is not null;
         _foundAt.Text = $"Found on this PC: {Found()}";
         _install.Visible = !works || running && !_installer.AddingFast;
+        _plan.Visible = !works;                             // on a first install's last part the engine already works
         _installButton.Visible = !running;
         _stopInstall.Visible = _installing.Visible = running;
         _into.Editable = !running;

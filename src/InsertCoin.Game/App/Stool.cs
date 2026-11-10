@@ -286,6 +286,14 @@ public partial class Stool : Node2D
             SettingsChanged?.Invoke("voice");
         };
 
+        _installer.FastAdded += engine =>                   // her voice starts again from them, unless another folder was chosen meanwhile
+        {
+            if (engine != _settings.Now.VoiceEngine)
+                return;
+            _voice.UseEngine(engine);
+            SettingsChanged?.Invoke("voice");
+        };
+
         _listening = new Listening();
         AddChild(_listening);
         _listening.Build(this, settings, window, _chatBox);
