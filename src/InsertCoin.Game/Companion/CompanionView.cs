@@ -97,13 +97,19 @@ public partial class CompanionView : Node2D
         var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _face = new Face(_character);
-        _puppet = new Puppet(_rig, _face, footRestDrop) { Viewer = _camera.Position, Screen = screen, Slot = slot, Followers = followers };
+        _puppet = new Puppet(_rig, _face, footRestDrop)
+        {
+            Viewer = _camera.Position, Screen = screen, Slot = slot, Followers = followers, Floor = (world.Floor - world.Seat.Y) / world.UnitsPerMetre, Appeared = Flash,
+        };
         BuildPadAndPencil(viewport);
 
         _lastMouse = DisplayServer.MouseGetPosition();
         var layer = new ShaderMaterial { Shader = GD.Load<Shader>("res://Companion/companion_layer.gdshader") };
         layer.SetShaderParameter("width_px", InkCanvasPixels * skin.Scale);
-        AddChild(new Sprite2D { Texture = viewport.GetTexture(), Centered = false, Scale = Vector2.One / skin.Scale, Material = layer });
+        layer.SetShaderParameter("cabinet", skin.Layers["base"]);
+        _layer = layer;
+        AddChild(_picture = new Sprite2D { Texture = viewport.GetTexture(), Centered = false, Scale = Vector2.One / skin.Scale, Material = layer, Visible = false });
+        _unposed = FramesToPose;
         var marquee = skin.Anchors.Marquee;
         _bubble = new SpeechBubble { Marquee = new Rect2(marquee[0], Vector2.Zero).Expand(marquee[1]).Expand(marquee[2]).Expand(marquee[3]) };
         // a window of its own, so it reads as well by a small cabinet as by a large one (see SpeechBubble)
@@ -123,6 +129,48 @@ public partial class CompanionView : Node2D
     }
 
     private Sprite2D? _mirror;
+    private ShaderMaterial _layer = null!;
+    private Sprite2D _picture = null!;
+    private int _unposed;                             // frames until the viewport shows them as they should be: until then the picture is not drawn
+    private bool _behind;
+    private const int FramesToPose = 3;               // their first pose set, and drawn into the viewport
+    private const float BehindFrom = 270;             // canvas x from which the cabinet hides them: the gap between stool and cabinet
+    private const double FlashSeconds = 0.4;
+
+    /// <summary>
+    /// A new companion arrives: from behind the cabinet, a peek, a wave and a jump onto the stool. One the arrival
+    /// can't pose appears on the stool under a flash instead (<paramref name="pose"/> false: as if they couldn't be).
+    /// </summary>
+    public void Arrive(bool pose = true)
+    {
+        if (!pose || !_puppet.CanArrive)
+        {
+            GD.Print("Arrival: on the stool, under a flash");
+            Flash();
+            return;
+        }
+        GD.Print("Arrival: from behind the cabinet");
+        _layer.SetShaderParameter("behind_from", BehindFrom / _skin.Canvas.X);
+        _behind = true;
+        _puppet.Arrive();
+        // the viewport still holds whatever it last drew (nothing of the arrival): not shown until it has drawn them hidden
+        _picture.Visible = false;
+        _unposed = FramesToPose;
+    }
+
+    /// <summary>Seconds of their arrival still to come (0: they are sitting), so that what would follow it can wait.</summary>
+    public double Arriving => _puppet.ArrivalLeft;
+
+    /// <summary>They whiten, and fade back to their colours: how they appear on the stool without the arrival.</summary>
+    private void Flash()
+    {
+        // not shown until drawn seated: the viewport still holds where they were
+        _picture.Visible = false;
+        _unposed = FramesToPose;
+        void Set(float amount) => _layer.SetShaderParameter("flash", amount);
+        Set(1);
+        CreateTween().TweenMethod(Callable.From<float>(Set), 1f, 0f, FlashSeconds).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
+    }
 
     public void Play(Moment moment) => _puppet.Play(moment);
 
@@ -144,6 +192,7 @@ public partial class CompanionView : Node2D
     /// <summary>Shows a line in a speech bubble over her head.</summary>
     public void Say(string line)
     {
+        _puppet.Needed();
         if (_active)
             _bubble.Say(line, OverHead(), _skin.Canvas);
     }
@@ -468,7 +517,10 @@ public partial class CompanionView : Node2D
     {
         _active = Visible = active;
         if (!active)
+        {
+            _puppet.Needed();
             _bubble?.Clear();                               // in a window of its own, it doesn't hide with her
+        }
         _viewport.RenderTargetUpdateMode = active ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
     }
 
@@ -670,8 +722,8 @@ public partial class CompanionView : Node2D
     /// <summary>True when the canvas point is on her (so the window takes the click instead of passing it through).</summary>
     public bool Hits(Vector2 canvasPoint)
     {
-        if (!_active)
-            return false;
+        if (!_active || _puppet.Away)
+            return false;                                   // arriving, what is under the point is the cabinet
         Vector2 Canvas(Vector3 point) => _camera.UnprojectPosition(point) / _skin.Scale;
         var hips = _rig.PositionOf("Hips");
         var perMetre = (Canvas(hips + _camera.Basis.X) - Canvas(hips)).Length();
@@ -710,6 +762,13 @@ public partial class CompanionView : Node2D
         }
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
+        if (_unposed > 0 && --_unposed == 0)
+            _picture.Visible = true;
+        if (_behind && !_puppet.Arriving)
+        {
+            _behind = false;
+            _layer.SetShaderParameter("behind_from", 2f);
+        }
         PlacePadAndPencil();
         PlacePhone();
         if (_closeUp)

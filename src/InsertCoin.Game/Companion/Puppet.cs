@@ -40,7 +40,7 @@ public enum Manner { Neat, Relaxed }
 /// looks away to think and back to answer, looks at whoever is talking with now and then a brief glance aside, and
 /// nods in their pauses.
 /// </remarks>
-internal sealed class Puppet
+internal sealed partial class Puppet
 {
     /// <summary>Where a hand should be: wrist position (metres from the seat centre), finger direction, the way
     /// the palm faces, and the side the elbow sticks out to.</summary>
@@ -332,6 +332,7 @@ internal sealed class Puppet
 
     public void Play(Moment moment)
     {
+        Needed();
         switch (moment)
         {
             case Moment.Cheer:
@@ -505,7 +506,7 @@ internal sealed class Puppet
 
     public void Update(double delta)
     {
-        _time += delta;
+        _time += _arrival is null ? delta : Math.Min(delta, 0.1);     // arriving, a long frame (loading them, say) slows it and skips none of it
         var dt = Mathf.Min((float)delta, 0.1f);          // the energy-saving pace is 15 frames a second
         var t = (float)_time;
         foreach (var cue in _cues.Where(c => _time >= c.At).ToList())
@@ -514,6 +515,7 @@ internal sealed class Puppet
             cue.Do();
         }
         _awake += (1 - _on["doze"] - _awake) * (1 - Mathf.Exp(-dt * 3f));
+        _legLife = _arrival is null ? Mathf.Min(1, _legLife + dt / 0.7f) : 0;
         // Poses come in and go out smoothly (a critically damped ease of about a quarter second) ...
         const float rate = Mathf.Tau * 2.6f;
         // eased in steps of at most a 25th of a second: at the slow pace while a game runs (15 frames a second) a single
@@ -549,20 +551,25 @@ internal sealed class Puppet
                 foreach (var (bone, degrees) in overlay.Body)
                     _goal[bone] = _goal.GetValueOrDefault(bone, Quaternion.Identity)
                         .Slerp(Rig.Euler(bone is "Head" or "Neck" ? degrees with { Z = degrees.Z * Tilt } : degrees), _shown[name]);
+        if (_arrival is not null)
+            ArrivalGoals();
         Gaze(dt, t);
 
         // 2. Springs: ... and each joint then chases its pose with some give.
         _frame.Clear();
         foreach (var (bone, rotation) in _goal)
             _frame[bone] = Spring(bone).Follow(rotation, dt);
+        if (_arrival is not null)
+            ArrivalDirect();
 
         // 3. Life on top of the settled pose.
         var lift = Breathe(dt);
         Sway(t);
-        Legs(t);
+        if (_arrival is null)
+            Legs(t);
         Nodding();
         Emphasis(dt);
-        var hips = _seat + new Vector3(0, 0.002f * lift, 0);
+        var hips = _arrival is null ? _seat + new Vector3(0, 0.002f * lift, 0) : ArrivalBody();
 
         foreach (var (bone, side, follow) in Followers)
             _frame[bone] = Quaternion.Identity.Slerp(_frame[side + "UpperLeg"], follow);
@@ -580,6 +587,7 @@ internal sealed class Puppet
         foreach (var (bone, rotation) in _frame)
             _rig.Rotate(bone, rotation);
         _face.Update(delta);
+        ArrivalEnds();
     }
 
     private RotationSpring Spring(string bone)
@@ -833,10 +841,10 @@ internal sealed class Puppet
     private void Legs(float t)
     {
         var drift = Manner == Manner.Relaxed ? 3 : 7;      // at ease, a hanging leg all but still
-        Add("LeftLowerLeg", drift * Mathf.Sin(t * 1.5f) * _awake * _hang["Left"], 0, 0);
-        Add("RightLowerLeg", drift * Mathf.Sin(t * 1.5f + 2.4f) * _awake * _hang["Right"], 0, 0);
-        Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake * (1 - _hang["Left"]), 0, 0);
-        Add("RightFoot", 2.5f * Mathf.Sin(t * 1.3f + 1) * _awake * (1 - _hang["Right"]), 0, 0);
+        Add("LeftLowerLeg", drift * Mathf.Sin(t * 1.5f) * _awake * _legLife * _hang["Left"], 0, 0);
+        Add("RightLowerLeg", drift * Mathf.Sin(t * 1.5f + 2.4f) * _awake * _legLife * _hang["Right"], 0, 0);
+        Add("LeftFoot", 3.5f * Mathf.Sin(t * 1.9f) * _awake * _legLife * (1 - _hang["Left"]), 0, 0);
+        Add("RightFoot", 2.5f * Mathf.Sin(t * 1.3f + 1) * _awake * _legLife * (1 - _hang["Right"]), 0, 0);
 
         var kick = (float)(_time - _kickAt);
         if (kick is >= 0 and < 2.6f)
@@ -1033,6 +1041,11 @@ internal sealed class Puppet
         // sending a memo: the phone lifts a little in both hands as the last tap goes in
         if (_shown["phone"] > 0.001f)
             place = place with { Wrist = place.Wrist + Vector3.Up * (0.016f * _size * Envelope((float)(_time - _liftAt), 0.08f, 0.16f, 0.45f) * _shown["phone"]) };
+        if (_arrival is not null)
+        {
+            place = ArrivalHand(side, hips, place);
+            grip = Grip.Even(side == "Right" && _arrival.Waving.At(ArrivalNow).X > 0.5f ? 4 : 24);
+        }
         var (upper, lower, hand) = Reach(side, place, hips);
         _frame[side + "UpperArm"] = Spring(side + "UpperArm").Follow(upper, dt);
         _frame[side + "LowerArm"] = Spring(side + "LowerArm").Follow(lower, dt);

@@ -14,9 +14,10 @@
 # -Bg       the desktop colour behind her
 # -Settings extra JSON members for settings.json, starting with a comma
 # -Characters a folder copied in as the profile's characters folder (a model and its voice, say)
+# -KeepFrames leave the frames (PNG, with alpha) in <Out>\frames-<Tag>, to read them one by one (delete them afterwards)
 # Output: <Out>\<Tag>.gif and <Tag>.mp4 (the frames are deleted), plus the app's log.
 param([string]$Script = "", [double]$Seconds = 6, [double]$From = 2, [string]$Tag = "clip", [string]$Settings = "", [string]$Characters = "",
-      [string]$Crop = "180:460:65:130", [double]$Scale = 1, [int]$Fps = 30, [string]$Bg = "#F2EFF7",
+      [string]$Crop = "180:460:65:130", [double]$Scale = 1, [int]$Fps = 30, [string]$Bg = "#F2EFF7", [switch]$KeepFrames,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-clips"),
       [string]$Godot = "",
       [string]$Ffmpeg = "ffmpeg")
@@ -68,6 +69,6 @@ $filter += ",scale=iw*${Scale}:-1:flags=lanczos"
 & $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" -filter_complex "$filter,format=yuv420p" -c:v libx264 -crf 18 (Join-Path $Out "$Tag.mp4")
 & $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" `
   -filter_complex "$filter,split[c][d];[c]palettegen=stats_mode=diff[p];[d][p]paletteuse=dither=sierra2_4a" (Join-Path $Out "$Tag.gif")
-Remove-Item $frames -Recurse -Force
+if (-not $KeepFrames) { Remove-Item $frames -Recurse -Force }
 Get-Content $err -ErrorAction SilentlyContinue | Select-String -Pattern "ERROR|Exception" | Select-Object -First 15
 "$(Join-Path $Out "$Tag.gif")  ($([int](($Seconds - $From) * $Fps)) frames)"
