@@ -469,7 +469,8 @@ it is (a browser tab's title, an editor's file), and when they need to see it (y
 ask to take a screenshot of the window you were working in (the card names it; "your whole screen" if you say so).
 Then they help a step at a time, each only when you ask for more: a nudge, the approach, an outline, and the whole
 answer only if you ask again after that; long steps come as a memo. For a LeetCode problem they look up its
-statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is found by its number). They can
+statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is found by its number). That stays
+with LeetCode off as a way to earn, to help you study, and says nothing of play time. They can
 read a web page you name, and search the web: with your provider's own search where it has one this app can use
 (Anthropic's), or through your own SearXNG (Add-ons). They open apps from your Start menu after asking (games stay
 the cabinet's).
