@@ -1004,7 +1004,7 @@ public partial class MemorySettings : VBoxContainer
         repeat.ItemSelected += i => Choose(row, p => p with { Repeat = Repeats[(int)i].Repeat });
         second.AddChild(lead);
         second.AddChild(repeat);
-        var notes = new List<string>();                     // what else there is to say about it, after those
+        string? note = null;                                // what else there is to say about it, after those
         if (plan?.Source is { } source)
         {
             // from a calendar: it says when and what; only her reminder for it is the player's to set here
@@ -1012,17 +1012,17 @@ public partial class MemorySettings : VBoxContainer
             repeat.Disabled = true;
             delete.Visible = false;
             text.TooltipText = Words.Wrap($"From your calendar “{source}”: change it there (Settings → Connections).");
-            notes.Add($"from {source}");
+            note = $"from {source}";
         }
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)
         {
             text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
-            var from = plan.Source is null ? "" : $" From your calendar “{plan.Source}”.";     // the line below may cut its name short
+            var from = plan.Source is null ? "" : $" From your calendar “{plan.Source}”.";     // the row itself says only that it's past
             text.TooltipText = Words.Wrap($"Just past: {_name} may ask how it went. It leaves the agenda two days after.{from}");
-            notes.Insert(0, "just past");
+            note = "just past";
         }
-        if (notes.Count > 0)                                // cut short to the room left: a calendar's name can be any length
-            second.AddChild(new Label { Text = string.Join(", ", notes), ThemeTypeVariation = "Hint", ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+        if (note is not null)                               // cut short to the room left: a calendar's name can be any length
+            second.AddChild(new Label { Text = note, ThemeTypeVariation = "Hint", ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                                         SizeFlagsHorizontal = SizeFlags.ExpandFill });
         row.Box.AddChild(second);
         row.Box.AddChild(new HSeparator());

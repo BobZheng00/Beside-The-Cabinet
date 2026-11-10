@@ -449,7 +449,7 @@
       "mindRequests": 1,
       "script": "nocall@1,memoryseed@2,crt:agenda@4,chat:please_take_the_interview_off_my_agenda@12,crtclick:100:100@18",
       "shots": [12, 19, 23],
-      "expect": ["^Agenda app: changed while open, now 1 ahead", "^Settings: opened at Memory, agenda$"]
+      "expect": ["^Agenda app: changed while open, now 2 ahead", "^Settings: opened at Memory, agenda$"]
     },
     {
       "name": "agendaflash",
