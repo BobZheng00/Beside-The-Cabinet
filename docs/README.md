@@ -33,7 +33,7 @@ the cabinet rises for a moment or is kept on top ("Always on top" on General).
 
 At first run a Welcome asks four things: your name (what your companion calls you; your initials on the cabinet
 come from it), who keeps you company (seated on the stool as you pick, with how they sit), what earns your play time,
-and their mind (provider, key, model, Test and Save; Skip for now leaves them unable to talk). What earns your play
+and an AI to think with (provider, key, model, Test and Save; Skip for now leaves them unable to talk). What earns your play
 time has three ticks: focus sessions and your own activities, ticked to start with, and LeetCode problems, not ticked;
 ticking LeetCode asks for your LeetCode name there (Check asks LeetCode whether you're there; if it doesn't answer,
 the name is kept and checked when the cabinet first reads it, and the first run goes on). "No play time, just keep me
