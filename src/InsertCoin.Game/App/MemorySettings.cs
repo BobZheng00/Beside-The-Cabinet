@@ -1004,6 +1004,7 @@ public partial class MemorySettings : VBoxContainer
         repeat.ItemSelected += i => Choose(row, p => p with { Repeat = Repeats[(int)i].Repeat });
         second.AddChild(lead);
         second.AddChild(repeat);
+        var notes = new List<string>();                     // what else there is to say about it, after those
         if (plan?.Source is { } source)
         {
             // from a calendar: it says when and what; only her reminder for it is the player's to set here
@@ -1011,14 +1012,18 @@ public partial class MemorySettings : VBoxContainer
             repeat.Disabled = true;
             delete.Visible = false;
             text.TooltipText = Words.Wrap($"From your calendar “{source}”: change it there (Settings → Connections).");
-            second.AddChild(new Label { Text = $"from {source}", ThemeTypeVariation = "Hint" });
+            notes.Add($"from {source}");
         }
         if (plan is not null && plan.End <= now && plan.Repeat == Repeat.Once)
         {
             text.Modulate = new Color(1, 1, 1, 0.5f);       // just past: she'll ask how it went, then it leaves the agenda
-            text.TooltipText = Words.Wrap($"Just past: {_name} may ask how it went. It leaves the agenda two days after.");
-            second.AddChild(new Label { Text = "just past", ThemeTypeVariation = "Hint" });
+            var from = plan.Source is null ? "" : $" From your calendar “{plan.Source}”.";     // the line below may cut its name short
+            text.TooltipText = Words.Wrap($"Just past: {_name} may ask how it went. It leaves the agenda two days after.{from}");
+            notes.Insert(0, "just past");
         }
+        if (notes.Count > 0)                                // cut short to the room left: a calendar's name can be any length
+            second.AddChild(new Label { Text = string.Join(", ", notes), ThemeTypeVariation = "Hint", ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                                        SizeFlagsHorizontal = SizeFlags.ExpandFill });
         row.Box.AddChild(second);
         row.Box.AddChild(new HSeparator());
 
@@ -1104,7 +1109,7 @@ public partial class MemorySettings : VBoxContainer
     private static bool Unreadable(PlanRow row) =>
         (row.Shown is null ? row.Text.Text.Trim().Length >= 2 : WhenChanged(row)) && Agenda.ParseWhen(row.When.Text, DateTimeOffset.Now, TimeZoneInfo.Local) is null;
 
-    /// <summary>What an agenda item is called in the line beside Close.</summary>
+    /// <summary>What an agenda item is called in the line under the tabs.</summary>
     private static string Called(PlanRow row) => row.Text.Text.Trim() is { Length: > 0 } text ? text : "a new item";
 
     private void CantRead(PlanRow row)

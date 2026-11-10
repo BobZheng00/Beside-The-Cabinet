@@ -2600,6 +2600,8 @@ public partial class Stool : Node2D
         _chat.Store.AddPlan("Job interview at Acme", now.Date.AddDays(3).AddHours(10), allDay: false, TimeSpan.FromHours(1), now, character.Id);
         _chat.Store.AddPlan("Take vitamins", now.Date.AddDays(1).AddHours(8), allDay: false, TimeSpan.Zero, now, character.Id, Repeat.Daily);
         _chat.Store.AddPlan("Calculus exam", now.Date.AddDays(-1), allDay: true, before: null, now, null);
+        // from a calendar with a long name, and over: the widest an agenda row gets
+        _chat.Store.AddCalendarPlan("University timetable with every lecture and seminar this term", "seed", "Linear algebra lecture", now.Date.AddDays(-1).AddHours(10), allDay: false, now);
         // and what a review would have retired
         _chat.Store.Retire(_chat.Store.AddFact(MindStore.Shared, "Bob wants to see a film on Saturday 5 September.", 4, now.AddDays(-40)), "the film date has passed", now);
         _chat.Store.AddFact(MindStore.Shared, "Bob's interview is on Friday.", 7, now);
