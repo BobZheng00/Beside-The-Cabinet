@@ -569,7 +569,7 @@ internal sealed partial class Puppet
             Legs(t);
         Nodding();
         Emphasis(dt);
-        var hips = _arrival is null ? _seat + new Vector3(0, 0.002f * lift, 0) : ArrivalBody();
+        var hips = _arrival is null ? _seat + new Vector3(0, 0.002f * lift, 0) : ArrivalBody(new Vector3(0, 0.002f * lift, 0));
 
         foreach (var (bone, side, follow) in Followers)
             _frame[bone] = Quaternion.Identity.Slerp(_frame[side + "UpperLeg"], follow);
