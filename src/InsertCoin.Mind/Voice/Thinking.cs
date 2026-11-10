@@ -41,6 +41,28 @@ public sealed class Thinking(Random? random = null)
     public static bool Due(bool underway, bool speaking, TimeSpan sinceWords, TimeSpan sinceSound, int played) =>
         underway && !speaking && played < MostPerReply && sinceWords >= Quiet && sinceSound >= (played == 0 ? Quiet : Between);
 
+    /// <summary>
+    /// Whether a sound dies away rather than breaking off: its last 30 ms are under <see cref="LoudestEnd"/> of the loudness
+    /// of the whole. Qwen TTS stops a sound that runs on at its limit, often in mid-voice, and most sounds reach that limit
+    /// (with quiet after them), so how long it ran can't say which were cut off.
+    /// </summary>
+    public static bool EndsQuietly(ReadOnlySpan<float> sound, int rate)
+    {
+        var last = sound[^Math.Min(sound.Length, (int)(rate * 0.03))..];
+        return Loudness(last) <= LoudestEnd * Loudness(sound);
+    }
+
+    // Measured in all four voices on 2026-11-10: sounds that ended 0.00 to 0.36, sounds cut off in mid-voice 0.96 to 1.48.
+    private const double LoudestEnd = 0.6;
+
+    private static double Loudness(ReadOnlySpan<float> samples)
+    {
+        var sum = 0.0;
+        foreach (var s in samples)
+            sum += s * s;
+        return Math.Sqrt(sum / Math.Max(1, samples.Length));
+    }
+
     /// <summary>Which of <paramref name="count"/> sounds to play: at random, but not one of the last two played.</summary>
     public int Pick(int count)
     {

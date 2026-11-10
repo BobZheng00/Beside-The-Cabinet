@@ -207,6 +207,27 @@ public class QwenTtsTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Spoken(Engine(server, stall: TimeSpan.FromMinutes(1)).Speak("嗯。", Serena, cut.Token)));
     }
 
+    /// <summary>A second of sound at full level, its last 30 ms at this share of it.</summary>
+    private static float[] SoundEndingAt(double end)
+    {
+        var sound = Enumerable.Repeat(0.5f, Rate).ToArray();
+        for (var i = sound.Length - (int)(Rate * 0.03); i < sound.Length; i++)
+            sound[i] = (float)(0.5 * end);
+        return sound;
+    }
+
+    [Theory]
+    [InlineData(0.00, true)]
+    [InlineData(0.36, true)]                            // the loudest end of a sound that finished by itself
+    [InlineData(0.96, false)]                           // the quietest of those cut off by the limit
+    [InlineData(1.48, false)]
+    public void A_sound_that_breaks_off_while_still_loud_is_told_from_one_that_dies_away(double end, bool kept) =>
+        Assert.Equal(kept, Thinking.EndsQuietly(SoundEndingAt(end), Rate));
+
+    [Fact]
+    public void A_sound_shorter_than_the_last_30_ms_is_judged_as_a_whole() =>
+        Assert.False(Thinking.EndsQuietly(new float[] { 0.5f, 0.5f, 0.5f }, Rate));
+
     [Theory]
     [InlineData("shino", "zh", "serena", "Serena")]
     [InlineData("shino", "ja", "ono_anna", "Ono Anna")]

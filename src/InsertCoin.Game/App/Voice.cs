@@ -581,7 +581,7 @@ public partial class Voice : Node
                     _engineFree.Release();
                 }
                 var sound = rate == 0 ? [] : QuietStart.Trim([.. samples], rate);
-                var kept = sound.Length >= rate * 0.15 && sound.Length <= rate * 2.2;
+                var kept = sound.Length >= rate * 0.15 && sound.Length <= rate * 2.2 && (_qwen is null || Thinking.EndsQuietly(sound, rate));
                 if (kept)
                     made.Add((words, new VoiceAudio(rate, sound)));
                 GD.Print($"Voice: thinking sound \"{words}\" came out {(rate == 0 ? 0 : (double)sound.Length / rate):0.00} s{(kept ? "" : ", left out")}");
