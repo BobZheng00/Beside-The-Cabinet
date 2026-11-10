@@ -272,7 +272,7 @@ public class MemoryTests
 
         var upkeep = conversation.Digest(model);
         await asked.Task;
-        // the player, in the memory book, while she thinks: the exam corrected, Rust reworded, the dentist moved
+        // the player, on Memory, while she thinks: the exam corrected, Rust reworded, the dentist moved
         Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == exam), "The player's exam is on Tuesday 6 October 2026."));
         Assert.Equal(Kept.Saved, MemoryEdits.Fact(store, "shino", store.Facts("shino").Single(f => f.Id == rust), "The player is learning Rust slowly."));
         Assert.Equal(Kept.Saved, MemoryEdits.PlanText(store, store.Agenda().Single(), "Dentist at 4"));
@@ -311,7 +311,7 @@ public class MemoryTests
         var conversation = new Conversation(store, "shino", Shino, new FakeClock(Friday.AddMinutes(11))) { Clashed = clashes.Add };
         var model = new FakeModel
         {
-            // the player, in the memory book, while she thinks: tea as she would put it, and Rust forgotten
+            // the player, on Memory, while she thinks: tea as she would put it, and Rust forgotten
             Thinking = n =>
             {
                 if (n == 1)

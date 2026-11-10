@@ -45,7 +45,14 @@ public partial class SettingsWindow : Window
         Title = "Settings";
         Visible = false;
         Transient = true;
-        CloseRequested += QueueFree;
+        // what Memory can't yet save stops the first close (see MemorySettings.Leave)
+        CloseRequested += () =>
+        {
+            if (PageOf("memory") is MemorySettings memory && !memory.Leave())
+                ShowPage("memory");
+            else
+                QueueFree();
+        };
         _companion = companion;
 
         var sheet = _sheet = new PanelContainer();
@@ -133,9 +140,10 @@ public partial class SettingsWindow : Window
         {
             made = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
             made.AddThemeStyleboxOverride("panel", new StyleBoxEmpty());
-            var margin = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            var content = page.Make();
+            var margin = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = content.SizeFlagsVertical };   // a page may fill the height (Memory, for its lists to scroll inside)
             margin.AddThemeConstantOverride("margin_right", 14);                    // room for the scroll bar
-            margin.AddChild(page.Make());
+            margin.AddChild(content);
             made.AddChild(margin);
             _area.AddChild(made);
             _made[id] = made;

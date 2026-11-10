@@ -341,7 +341,7 @@ public static class Prompt
     /// <summary>A rough token count: about four letters of English per token, one per character of Chinese or Japanese.</summary>
     /// <summary>
     /// What she always has in mind about the player, or the two of them: the player's own words as they wrote them (the
-    /// memory book's Notes), then her most important facts, listed for every reply rather than rewritten into a note by
+    /// Memory's Notes), then her most important facts, listed for every reply rather than rewritten into a note by
     /// the model, so what changes is right in her next reply and nothing is lost to a rewrite (M9). Pinned facts first,
     /// then by importance and the newest, while they fit; for a couple of weeks a fact that changed says what it was, and
     /// an important one that ended says so, so she knows what is news.

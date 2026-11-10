@@ -1,6 +1,6 @@
 namespace InsertCoin.Mind;
 
-/// <summary>What became of one edit the player made in the memory book.</summary>
+/// <summary>What became of one edit the player made in Settings' Memory.</summary>
 public enum Kept
 {
     /// <summary>Nothing to write: her memory already says that.</summary>
@@ -9,7 +9,7 @@ public enum Kept
     /// <summary>Written.</summary>
     Saved,
 
-    /// <summary>She changed the same thing since the book showed it: nothing written, and the player chooses which to keep.</summary>
+    /// <summary>She changed the same thing since Memory showed it: nothing written, and the player chooses which to keep.</summary>
     Clash,
 
     /// <summary>It has left her memory since (merged, retired, forgotten, done with): nothing written, and the player chooses.</summary>
@@ -17,19 +17,26 @@ public enum Kept
 }
 
 /// <summary>
-/// The memory book's edits, saved one field at a time as the player leaves it. Each writes only that field, onto the
-/// item as it is now, so her other changes to it stay; and only if what is stored is still what the book showed when
+/// Memory's edits, saved one field at a time as the player leaves it. Each writes only that field, onto the
+/// item as it is now, so her other changes to it stay; and only if what is stored is still what Memory showed when
 /// the player began, else she changed it meanwhile and the player chooses (<see cref="Kept.Clash"/>). Nothing the
 /// player left alone is written back. An item is matched by when it was learned or added as well as its id: a
 /// forgotten item's id can be given to the next one.
 /// </summary>
 public static class MemoryEdits
 {
-    /// <summary>The fact the book showed, as stored now; null once it has left her mind (retired, merged, forgotten).</summary>
+    /// <summary>
+    /// Whether a line shows under what the player typed in a filter on Facts or Diary: every word typed appears in it,
+    /// in any order and any case (a part of a word counts); with nothing typed, every line does.
+    /// </summary>
+    public static bool Matches(string line, string filter) =>
+        filter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).All(word => line.Contains(word, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The fact Memory showed, as stored now; null once it has left her mind (retired, merged, forgotten).</summary>
     public static Fact? Current(MindStore store, string character, Fact shown) =>
         store.Facts(character).FirstOrDefault(f => f.Id == shown.Id && f.Learned == shown.Learned);
 
-    /// <summary>The agenda item the book showed, as stored now; null once it has left the agenda.</summary>
+    /// <summary>The agenda item Memory showed, as stored now; null once it has left the agenda.</summary>
     public static Plan? Current(MindStore store, Plan shown) =>
         store.Agenda().FirstOrDefault(p => p.Id == shown.Id && p.Added == shown.Added);
 
@@ -142,7 +149,7 @@ public static class MemoryEdits
         return Kept.Saved;
     }
 
-    /// <summary>The player's value against what the book showed and what is stored now.</summary>
+    /// <summary>The player's value against what Memory showed and what is stored now.</summary>
     private static Kept Decide<T>(T shown, T edited, T now) =>
         EqualityComparer<T>.Default.Equals(edited, now) ? Kept.Same
         : EqualityComparer<T>.Default.Equals(now, shown) ? Kept.Saved

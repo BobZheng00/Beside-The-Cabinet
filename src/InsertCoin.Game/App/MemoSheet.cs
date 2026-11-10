@@ -325,7 +325,7 @@ public partial class MemoSheet : Node2D
         _copy.Visible = _edit.Visible = _delete.Visible = !editing;
         _pin.Visible = !editing && _memo is { Place: not MemoPlace.Pinned };
         _off.Visible = !editing && _memo is { Place: not MemoPlace.Archived };
-        _off.Tip = _memo is { Place: MemoPlace.Hanging } ? "Tear it off (it stays in the memory book)" : "Take it down (it stays in the memory book)";
+        _off.Tip = _memo is { Place: MemoPlace.Hanging } ? "Tear it off (it stays under Memory in Settings)" : "Take it down (it stays under Memory in Settings)";
         _done.Visible = editing && _memo is not null;
         _print.Visible = editing && _memo is null;
         _tell.Visible = editing && _memo is null && _memos.HerName is not null;

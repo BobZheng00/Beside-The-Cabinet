@@ -149,7 +149,7 @@ public partial class DesktopWindow : Node
     }
 
     /// <summary>
-    /// Keeps the app's own windows the player opened (Settings, the memory book, Chat history, a dialog, a memo's sheet)
+    /// Keeps the app's own windows the player opened (Settings, Chat history, a dialog, a memo's sheet)
     /// stacked just above the cabinet, with Windows' file dialogs the app opened above them, and above other apps exactly
     /// when the cabinet is: Godot's windows aren't owned by the cabinet's in Windows' terms, so the cabinet rising, or
     /// kept on top, would otherwise cover them. Tickets stay above them all. A window is only ever moved to just above

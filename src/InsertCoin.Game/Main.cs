@@ -277,7 +277,7 @@ public partial class Main : Node2D
             _settingsWindow!.Rename(_stool.HerName(), choosingOn: "characters");     // someone else on the stool, say
             _settingsWindow.RefreshPage(page);
         };
-        _tray.MemoryBook += _stool.OpenMemoryBook;
+        _tray.Memory += () => _stool.OpenMemory();
         _tray.WriteMemo += _stool.WriteMemo;
         _tray.ChatHistory += _stool.OpenChatHistory;
         _tray.ShowCabinet += () => _window.Rise(4, _settings.AlwaysOnTop);
@@ -760,6 +760,12 @@ public partial class Main : Node2D
                 _settingsWindow!.DevScreen(new Vector2I(int.Parse(size[0]), int.Parse(size[1])));
             return;
         }
+        if (action == "settingsclose")                      // as the window's X, with what Memory can't save stopping the first
+        {
+            if (IsInstanceValid(_settingsWindow))
+                _settingsWindow!.EmitSignal(Window.SignalName.CloseRequested);
+            return;
+        }
         if (action == "settingswidths")                     // logs any page made so far that is wider than its room
         {
             if (IsInstanceValid(_settingsWindow))
@@ -1078,6 +1084,7 @@ public partial class Main : Node2D
         page.Build(ReminderChoices.Of(_settings));
         page.Chosen += choices => SaveSettings(choices.Into(_settings));
         page.TryIt = TryReminder;
+        page.Agenda += _stool.OpenAgenda;
         return page;
     }
 

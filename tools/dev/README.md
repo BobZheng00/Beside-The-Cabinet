@@ -51,13 +51,14 @@ the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode 
 with nothing solved, except `nobody`, who isn't there, and `nolink`, for whom LeetCode doesn't answer, so
 `welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Play time page's Change… and the cabinet's
 polls see the same),
-`memorybook` (`memorybook:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorybookdo:Close`
-(presses that button in it, `+_Add`, `Keep_yours` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
-second click to press), `memorybooktype:words:new_words` (types the new words into the field showing
-with those words in it, a fact, an agenda item or a note, without leaving it), `memorybookleave` (leaves that field, as a click
+`memory` (Settings, Memory; `memory:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorydo:Keep_yours`
+(presses that button on it, `+_Add` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
+second click to press), `memoryfilter:words` (types in the filter on the tab showing, Facts or Diary, and logs how many show; `memoryfilter:` clears it),
+`settingsclose` (the Settings window's X: what Memory can't save stops the first), `memorytype:words:new_words` (types the new words into the field showing
+with those words in it, a fact, an agenda item or a note, without leaving it), `memoryleave` (leaves that field, as a click
 elsewhere: it is saved, or a question shows), `memorychange:words:new_words` (their fact with those words, or else their agenda item, is reworded
-under the open book, as upkeep might: a clash with a field typed in but not left), `memorycancel:words` (their agenda
-item with those words is cancelled under the open book, as upkeep might), `ticketpress:0`
+under Memory while it shows, as upkeep might: a clash with a field typed in but not left), `memorycancel:words` (their agenda
+item with those words is cancelled under Memory while it shows, as upkeep might), `ticketpress:0`
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
@@ -130,7 +131,7 @@ moved, as holding and carrying it would), `crtaway` (a press away from the lifte
 own pixels: its button's name lights on the marquee, logged as `Marquee: VOICE`, and with the home screen lifted a switch's name on the bar too, logged as
 `Crt: bar shows VOICE`; `crthover:off`), `marquee:words` (the
 marquee reads those words instead of INSERT COIN, to see a long name scroll; `marquee:off`), `crtclose` and
-`memorybook:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
+`memory:memos`. Focus and music: `focus` (a session started from the screen; `focus:skip`, `focus:pause`,
 `focus:resume`, `focus:stop`), `focustool:start:50` (as their tool would), `standup` (they suggest standing up, as after a
 long sitting), `musicfake:Title:Artist` (pretends a music app plays; `musicfake:off`), `musiclink:<link>` (as if pasted
 into MUSIC, named by Spotify), `musictool:pause` and `musictool:start_playlist:Deep_Focus` (their tool), `musicprobe` (checks

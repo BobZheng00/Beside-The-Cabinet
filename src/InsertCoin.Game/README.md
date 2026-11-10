@@ -28,9 +28,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   `Conversation` adds, shows them jotting it on a pad rather than thinking). `App/MindSettings.cs` is the AI model page
   in Settings (the provider, or the player's ChatGPT plan: `ChatGptPlan` in `InsertCoin.Mind` signs in and asks on it,
   `PlanBackup` carries on with the backup after the player's yes),
-  `App/MemoryBook.cs` the memory book. In `InsertCoin.Mind`: `Recall` picks memories, `Log` keeps their notes on your
+  `App/MemorySettings.cs` Settings' Memory. In `InsertCoin.Mind`: `Recall` picks memories, `Log` keeps their notes on your
   talks, a log by day, `Upkeep` turns new notes into changes to their facts and your agenda while the talk is
-  quiet, and `MemoryEdits` saves an edit made in the memory book without writing over a change of theirs. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
+  quiet, and `MemoryEdits` saves an edit made on Memory without writing over a change of theirs. Design: [docs/specs/2026-10-02-companion-helper.md](../../docs/specs/2026-10-02-companion-helper.md),
   memory: [docs/specs/2026-10-11-observational-memory.md](../../docs/specs/2026-10-11-observational-memory.md)
   (the research before it: [docs/research/2026-10-02-companion-memory.md](../../docs/research/2026-10-02-companion-memory.md)).
 - `App/Voice.cs` is the voice: `VoiceServer` runs the player's GPT-SoVITS hidden (tied to the cabinet, so it ends

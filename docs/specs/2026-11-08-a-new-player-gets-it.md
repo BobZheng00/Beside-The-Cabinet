@@ -139,7 +139,7 @@ after the character. The memory book moves in as one page ("Moves into setting w
 
 The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the screen's home bar.
 
-*Built (#260):* the list of categories, each part as a tab, Memory's two buttons to the book and Chat history until the book moves in (#70), bedtime and the quiet hours together under Notifications. Not yet: replay the intro, Help and About, under General.
+*Built (#260):* the list of categories, each part as a tab, bedtime and the quiet hours together under Notifications. *Built (#70):* Memory's six tabs inside Settings (its page's own tab row, Chat history a button above them), reached from the right-click menu, the tray, the screen's AGENDA at Agenda and Reminders' Open the agenda; a filter on Facts and Diary; red Forget buttons, still asking twice. Not yet: replay the intro, Help and About, under General.
 
 **The look** ("We will do A", 2026-11-07):
 - unticked boxes and unchosen radios drawn empty, on every window (built, #259);

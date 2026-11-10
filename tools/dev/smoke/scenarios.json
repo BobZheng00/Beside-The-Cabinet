@@ -48,7 +48,7 @@
       "shots": [7, 9, 14],
       "window": "Welcome",
       "desk": true,
-      "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
+      "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
       "forbid": ["^Main: play time is earned by .*LeetCode", "^LeetCode: ", "Check LeetCode now"]
     },
     {
@@ -153,11 +153,21 @@
       "about": "With no play time, Getting started's Play time card speaks only of the bedtime, and its button opens the page that holds it.",
       "covers": ["src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/QuietSettings.cs"],
       "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false",
-      "script": "settings:start@2,settingsscroll:1600@3,settingsdo:Change_bedtime@6",
-      "shots": [5, 9],
+      "script": "settings:start@2,settingsscroll:1600@3,settingsdo:Change_bedtime@6,settings:start@8,settingsdo:Change_limits@9",
+      "shots": [5, 9, 12],
       "window": "Settings",
-      "expect": ["^Settings: start led to quiet$"],
-      "forbid": ["^Settings: start led to balance$", "^Settings: nothing called"]
+      "expect": ["^Settings: start led to quiet$", "^Settings: nothing called \"Change limits\""],
+      "forbid": ["^Settings: start led to balance$", "^Settings: nothing called \"Change bedtime"]
+    },
+    {
+      "name": "memorytabs",
+      "about": "Memory is a category of Settings with its six tabs: the menu opens it there, Agenda at the Agenda tab, Reminders' Open the agenda leads to it; the Facts and Diary filters narrow their lists as they're typed; Forget's buttons are red and still ask.",
+      "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/ReminderSettings.cs"],
+      "script": "memoryseed@2,menupress:Memory@4,settingswidths@5,memory:agenda@6,settingswidths@7,memory:facts@9,settingswidths@9,memoryfilter:hades@10,memoryfilter:zzz@12,memoryfilter:@13,memory:diary@14,settingswidths@14,memoryfilter:zzz@15,memoryfilter:@16,memory:memos@17,memory:forget@19,settingsdo:Forget_all_about_me@20,settings:reminders@23,settingsdo:Open_the_agenda@24,settingsclose@26,crt:agenda@27,crtclick:100:100@29",
+      "shots": [5, 8, 11, 14, 16, 19, 21, 33],
+      "window": "Settings",
+      "expect": ["^Settings: opened at Memory$", "^Menu: pressed Memory", "^Settings: opened at Memory, agenda$", "^Memory: filtered by \"hades\": 1 showing$", "^Memory: filtered by \"zzz\": 0 showing$", "^Settings: \"Click again to forget\" pressed$", "^Settings: reminders led to memory$"],
+      "forbid": ["^Settings: nothing called", "^Settings: memory needs \\d+ px"]
     },
     {
       "name": "language",
@@ -178,13 +188,13 @@
       "shots": [12, 18],
       "window": "Settings",
       "expect": [
-        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$",
         "^Menu: pressed Voice$",
         "^Tray: .*\\| Voice \\[ \\] \\|",
         "^Menu: at .*\\| Voice \\[ \\] \\|",
         "^Menu: pressed Settings$",
         "^Settings: \"Shino speaks aloud\" ticked$",
-        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds \\[x\\] \\| Voice \\[x\\] \\| Conversation \\(keeps listening\\) \\[ \\] \\| Quit$"
       ],
       "forbid": ["^Menu: no entry"]
     },
@@ -196,8 +206,8 @@
       "shots": [5.5, 11, 13.5],
       "window": "Settings",
       "expect": [
-        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
-        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory book…",
+        "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory…",
+        "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory…",
         "^Menu: pressed Who keeps$",
         "^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at characters$",
         "^Settings: \"Fumiriya\" ticked$",
@@ -344,23 +354,23 @@
     },
     {
       "name": "memory",
-      "about": "The memory book opens on its tabs with a few seeded notes, facts and agenda items; a fact edited is saved on leaving it, and one the companion rewords while it is being edited asks which to keep, then keeps the player's.",
-      "covers": ["src/InsertCoin.Game/App/MemoryBook.cs", "src/InsertCoin.Mind/*"],
-      "script": "memoryseed@2,memorybook@4,memorybook:agenda@6,memorybook:facts@8,memorybooktype:Hades:Bob_loves_Hades_and_Celeste.@10,memorybookleave@11,memorybooktype:promised:Bob_promised_her_two_Hard_problems.@13,memorychange:promised:Bob_promised_her_a_Medium_problem.@14,memorybookleave@16,memorybookdo:Keep_yours@20",
+      "about": "Memory opens in Settings on its tabs with a few seeded notes, facts and agenda items; a fact edited is saved on leaving it, and one the companion rewords while it is being edited asks which to keep, then keeps the player's.",
+      "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Mind/*"],
+      "script": "memoryseed@2,memory@4,memory:agenda@6,memory:facts@8,memorytype:Hades:Bob_loves_Hades_and_Celeste.@10,memoryleave@11,memorytype:promised:Bob_promised_her_two_Hard_problems.@13,memorychange:promised:Bob_promised_her_a_Medium_problem.@14,memoryleave@16,memorydo:Keep_yours@20",
       "shots": [7, 9, 11, 15, 20, 24],
-      "window": "remembers",
-      "expect": ["^Memory book: fact saved", "^Memory book: asked which to keep: \\S+ changed this meanwhile, to: “Bob promised her a Medium problem.”", "^Memory book: \"Keep yours\" pressed"]
+      "window": "Settings",
+      "expect": ["^Memory: fact saved", "^Memory: asked which to keep: \\S+ changed this meanwhile, to: “Bob promised her a Medium problem.”", "^Memory: \"Keep yours\" pressed"]
     },
     {
       "name": "agendacancel",
-      "about": "Asked to take something off the agenda, the companion does it in that reply: the job interview the seed put there leaves the memory book's Agenda tab.",
-      "covers": ["src/InsertCoin.Mind/*", "src/InsertCoin.Game/App/MemoryBook.cs"],
+      "about": "Asked to take something off the agenda, the companion does it in that reply: the job interview the seed put there leaves Memory's Agenda tab.",
+      "covers": ["src/InsertCoin.Mind/*", "src/InsertCoin.Game/App/MemorySettings.cs"],
       "mind": true,
       "mindReply": "[cancel: #1] Done, it's off your agenda.",
       "mindRequests": 1,
-      "script": "nocall@1,memoryseed@2,memorybook:agenda@4,chat:please_take_the_interview_off_my_agenda@8",
+      "script": "nocall@1,memoryseed@2,memory:agenda@4,chat:please_take_the_interview_off_my_agenda@8",
       "shots": [8, 15],
-      "window": "remembers",
+      "window": "Settings",
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
@@ -480,12 +490,12 @@
     },
     {
       "name": "windows-above",
-      "about": "Settings and the memory book stay above the cabinet and the companion: while the cabinet rises for a moment and after it sinks back, with Always on top off, then with it on (ticked in Settings) and the cabinet rising again; then a ticket and the file dialog \"Add a character…\" opens are above them both.",
+      "about": "Settings and Chat history stay above the cabinet and the companion: while the cabinet rises for a moment and after it sinks back, with Always on top off, then with it on (ticked in Settings) and the cabinet rising again; then a ticket and the file dialog \"Add a character…\" opens are above them both.",
       "covers": ["src/InsertCoin.Game/Desktop/DesktopWindow.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
-      "script": "settings:cabinet@2,focuspaid:5@3,windoworder@4,windoworder@11,settingsdo:Always_on_top@12,memorybook@13,focuspaid:5@14,windoworder@15,ticket@16,pick@17,windoworder@19",
+      "script": "settings:cabinet@2,focuspaid:5@3,windoworder@4,windoworder@11,settingsdo:Always_on_top@12,chathistory@13,focuspaid:5@14,windoworder@15,ticket@16,pick@17,windoworder@19",
       "shots": [22],
-      "expect": ["^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings, the cabinet$", "^Windows, top first: What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), What \\S+ remembers \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$"],
-      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|What \\S+ remembers|file dialog)", "^Windows, top first: .*(Settings|remembers).*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
+      "expect": ["^Windows, top first: Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Settings, the cabinet$", "^Windows, top first: Chat with \\S+ \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$", "^Windows, top first: Beside the Cabinet ticket \\(on top\\), file dialog \"Add a character\" \\(on top\\), Chat with \\S+ \\(on top\\), Settings \\(on top\\), the cabinet \\(on top\\)$"],
+      "forbid": ["^Windows, top first: .*the cabinet.*, (Settings|Chat with \\S+|file dialog)", "^Windows, top first: .*(Settings|Chat with).*file dialog", "^Windows, top first: .+, Beside the Cabinet ticket"]
     },
     {
       "name": "windows-above-dialog",

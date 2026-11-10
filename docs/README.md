@@ -10,7 +10,7 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
 tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
 (and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), Who
-keeps you company… (Settings → Companion, to choose who sits on the stool), the memory book and chat history, a
+keeps you company… (Settings → Companion, to choose who sits on the stool), what they remember (Memory) and chat history, a
 memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
 Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
@@ -26,8 +26,8 @@ categories down its left side, each with a pixel icon: Getting started (until it
 Memory, Voice, AI model, Play time, Notifications, Connections, and Abilities and privacy. A category with more than one
 part has them as tabs inside it: Voice (Their voice, Talking to them), AI model (Connection, What it has cost),
 Notifications (Reminders, Check-ins, Bedtime and quiet hours), Connections (Your phone, Calendars, Web search) and
-Abilities and privacy (What they can do, Skills, What they may see). Memory has a button to what your companion
-remembers and one to Chat history. Each is saved as you change it; only the provider waits for its Save.
+Abilities and privacy (What they can do, Skills, What they may see). Memory has Notes, Agenda, Facts, Diary, Memos and
+Forget as tabs, and a button to Chat history. Each is saved as you change it; only the provider waits for its Save.
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
 the cabinet rises for a moment or is kept on top ("Always on top" on General).
 
@@ -182,11 +182,11 @@ They remember:
   on the CRT. A flash on the screen says what happened in a word (STAMPED, JACKPOT, IOU…) and what matters under it in
   a line or two, each as large as fits the screen;
 - what they have told you about themselves (their past, what they like), kept as theirs and always in mind, so their
-  stories stay the same; the memory book marks those facts "me";
+  stories stay the same; Memory marks those facts "me";
 - what is going on in your life with no date (a worry, a decision, something you're waiting for): a couple of days
-  after it comes up they ask how it's going, once, at the PC or by text while you're out; the memory book's Agenda
+  after it comes up they ask how it's going, once, at the PC or by text while you're out; Memory's Agenda
   lists these, and Settled closes one;
-- what they always have in mind about you and about the two of you: what you write on the memory book's Notes, word
+- what they always have in mind about you and about the two of you: what you write on Memory's Notes, word
   for word, then their most important facts (pinned first, then by importance), listed afresh for every reply, so a
   change is right in the very next one; for two weeks a fact that changed says what it was, and one that ended says
   so;
@@ -210,7 +210,7 @@ They remember:
   Monday"), is left undone, all of it, and their next reply says so. What is coming up in
   the next week, and what has just passed (so they can ask how it went), is in every turn; two days after, a one-off item leaves the agenda and a repeating one moves on to its next
   time. The screen's AGENDA app shows everything coming up, however far ahead, four to a page, following changes within a couple of seconds while it is
-  open, and a click there opens the memory book's Agenda. A
+  open, and a click there opens Settings → Memory, at Agenda. A
   reminder goes off on a ticket at the screen corner with Snooze and OK, and your companion tells you in their own
   words and your language once they have finished what they are saying (never cutting themselves or you off).
   Settings → Notifications → Reminders sets how long the ticket stays and a snooze lasts, a reminder before every timed item on the
@@ -232,7 +232,7 @@ They remember:
 - what has not come up in a long time fades (a forgetting curve: importance and every recall make a fact last
   longer; pinned and the most important ones never fade). About weekly, while quiet, they review their facts: what
   says the same thing is merged, and what is out of date (a plan already past, something since changed, trivia that
-  never came up again) is retired. Retired is not deleted: the memory book lists it under "Retired by the review", to
+  never came up again) is retired. Retired is not deleted: Memory lists it under "Retired by the review", to
   bring back, and it comes back by itself if it comes up again.
 
 ## Away from the PC
@@ -493,8 +493,8 @@ its Test button says whether it answers, and what to change if not.
 
 Anything too long for the bubble (a hint written out, a plan, a list) your companion hands over as a memo. They type
 it on their phone and send it, and it prints out of the cabinet's slot. Click it to read it whole (code in a
-fixed-width font), copy it, pin it on the cabinet's side (ten fit), or tear it off. Every memo is kept in the memory
-book's Memos tab, where you can write your own too: click the cabinet's screen and open MEMOS (NEW; an app lifts the
+fixed-width font), copy it, pin it on the cabinet's side (ten fit), or tear it off. Every memo is kept on Memory's Memos
+tab, where you can write your own too: click the cabinet's screen and open MEMOS (NEW; an app lifts the
 screen out to face you, readable at any cabinet size, and a click away settles it back; on Small and Medium it is
 already out from the home screen), or tray → "Write a memo…".
 Yours print the same way, and your companion reads them unless you untick "Let … read it": if one needs something
@@ -552,7 +552,7 @@ after asking (a card by the stool). Pictures are made no larger than models read
 upright, with the time they were taken); your companion keeps what they saw in words, not the picture. With a model
 that can't take pictures or PDFs they say so, and none is sent to it again.
 
-## Usage, the chat history and the memory book
+## Usage, the chat history and Memory
 
 Settings → AI model → What it has cost shows what your companion's requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, their replies apart from their
@@ -570,17 +570,17 @@ important facts) and "Recalled for this reply" (what came back with what was jus
 true, notes from their diary, old talk). Each says what it is in words ("About you", "About you two", "About" them,
 "No longer true", their diary, "From an earlier talk") with its date. Forget there and they forget it from then on;
 Edit corrects a fact. The talk itself can't be changed: forgetting old talk only stops them recalling it, and the line
-stays in the chat. Replies from before this version kept nothing, and don't react to a click. Tray → "Memory book…" shows all of it, a tab each (notes: yours, agenda, facts, diary: their log, memos,
-forget): edit, pin (always in mind, upkeep leaves it alone) or delete anything. Each change is saved as you make it,
+stays in the chat. Replies from before this version kept nothing, and don't react to a click. Settings → Memory (the right-click menu or the tray's "Memory…"; the screen's AGENDA and Notifications → Reminders open it at Agenda) shows all of it, a tab each (notes: yours, agenda, facts, diary: their log, memos,
+forget), with a button to Chat history: edit, pin (always in mind, upkeep leaves it alone) or delete anything. Each change is saved as you make it,
 as in Settings: a field when you leave it (Enter, or a click elsewhere), a tick or a choice at once; a × asks once
-more ("Forget?") and forgets on the second click. The line beside Close says what was saved and when, and whether a
+more ("Forget?") and forgets on the second click. Facts and Diary have a filter: type and the list narrows to what has every word you typed. The line under the tabs says what was saved and when, and whether a
 change is waiting for you to choose. Only what you changed is written. While it is open it follows what upkeep,
 their replies, reminders and the chat history change, except a field you have changed and not yet left; if they
-changed that same thing meanwhile, the row shows theirs and asks which to keep. Closing with that unanswered keeps
+changed that same thing meanwhile, the row shows theirs and asks which to keep. Closing Settings with that unanswered keeps
 yours (a fact of theirs written over is kept under "Retired by the review", as changed to yours). The other way
 round holds too: upkeep never writes over a fact or an agenda item you saved while it was thinking; yours stays, and
 a fact of theirs is kept the same way, as changed to yours (not one you forgot); nor does it add back what you forgot. A time that can't
-be read can't be saved: Close says so first, and a second Close closes without that one change. "Clear the chat" starts the conversation afresh and keeps what they remember;
+be read can't be saved: closing Settings says so first, and closing again leaves that one change out. The Forget tab's red buttons ask once more before they act: "Clear the chat" starts the conversation afresh and keeps what they remember;
 "Forget all with …" clears the conversation and everything about the two of you; "Forget all about me" clears what
 every character knows about you, and your agenda, and leaves the conversations. It stays in the profile folder
 (`companion\memory.db`); the key and a ChatGPT sign-in are encrypted for your Windows account. Without a provider they keep to their canned
