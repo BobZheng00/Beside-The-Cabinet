@@ -140,13 +140,24 @@
     },
     {
       "name": "settings",
-      "about": "The list is the nine categories, with Getting started above them while it has anything left, and every page and tab opens, none wider than the window (settingswidths logs any that is). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there.",
+      "about": "The list is the nine categories, with Getting started above them while it has anything left, and every page and tab opens, none wider than the window (settingswidths logs any that is). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there. Getting started's Play time card has a button to the limits and one to the bedtime, each opening the page that holds it.",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/SettingsIcons.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
-      "script": "settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25",
+      "script": "settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:start@26,settingsdo:Change_limits@26.5,settings:start@27,settingsdo:Change_bedtime@27.5",
       "shots": [6, 11, 16, 21, 26, 29],
       "window": "Settings",
-      "expect": ["^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at start$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$"],
+      "expect": ["^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at start$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: start led to balance$", "^Settings: start led to quiet$"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
+    },
+    {
+      "name": "start-no-play-time",
+      "about": "With no play time, Getting started's Play time card speaks only of the bedtime, and its button opens the page that holds it.",
+      "covers": ["src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/QuietSettings.cs"],
+      "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false",
+      "script": "settings:start@2,settingsscroll:1600@3,settingsdo:Change_bedtime@6",
+      "shots": [5, 9],
+      "window": "Settings",
+      "expect": ["^Settings: start led to quiet$"],
+      "forbid": ["^Settings: start led to balance$", "^Settings: nothing called"]
     },
     {
       "name": "language",

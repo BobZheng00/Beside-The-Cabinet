@@ -1056,7 +1056,7 @@ public partial class Main : Node2D
                    ? "No play time, just company: nothing is earned or spent; " + (_settings.Bedtime is { } own ? $"your bedtime is {own}." : "no bedtime is set.")
                    : $"A day can earn up to {Time(_settings.WeekdayCapMinutes)} of play Monday to Thursday, {Time(_settings.FridayCapMinutes)} on Friday " +
                      $"and {Time(_settings.WeekendCapMinutes)} at weekends; " +
-                     (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."));
+                     (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."), _settings.Earning.Any);
         page.Named += name =>
         {
             _stool.CallMe(name);
