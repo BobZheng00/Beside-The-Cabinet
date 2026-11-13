@@ -107,9 +107,14 @@ cabinet does: claps for a Hard solve, a small fist pump for the others, glances 
 dozes while the session is paused, and says something about it in a speech bubble (as large by a small cabinet as
 by a large one, so on a small one it reaches past the cabinet's edge, beside the marquee). In a conversation they look away
 to think and back to answer, nod in your pauses as you talk, and their head follows what their voice stresses. Click
-them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one). Settings → Companion leaves the stool empty, silences the
-bubbles, picks another character or adds one; a model file dropped on the cabinet adds it too. It also sets how each
-character sits, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed (knees a little
+them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one).
+
+Settings → Companion shows everyone who can sit on the stool as a card, with a portrait of their head and shoulders made
+from their own model, and the one on the stool ringed; click another card and they take the stool.
+A portrait is made the first time a card shows and kept in the profile (`portraits`); a model that changes gets a new one,
+and so does each new version of the app's own characters. A model that can't be read, or has no head and shoulders to
+frame, shows a plain silhouette. Under the cards: how they sit, adding a character (a model file dropped on the cabinet
+adds one too), and switches to leave the stool empty or silence the bubbles. Each character sits one of two ways, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed (knees a little
 apart, often a foot down off the ring, a hand on each thigh, one nearer the hip, fewer tilts, the legs still, a nod
 to a tune instead of a sway); they move into it as it is chosen, and "Show me" plays a few seconds of it. Fumiriya
 starts relaxed, the others neat; the first run and "Meet …" ask it too.

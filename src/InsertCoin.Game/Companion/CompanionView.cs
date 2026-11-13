@@ -13,7 +13,7 @@ public partial class CompanionView : Node2D
     private const float InkCanvasPixels = 1.6f;       // silhouette stroke, canvas units: finer than the cabinet's 3.5, she is a smaller, softer shape
     private const float InnerInkCanvasPixels = 0.8f;  // lines inside the figure
     private const double PointerRestSeconds = 5;      // she stops following a pointer that has been still this long
-    private static readonly Vector3 LightDirection = new Vector3(-0.45f, 0.75f, 0.5f).Normalized();   // towards the art's light: above, viewer's left
+    internal static readonly Vector3 LightDirection = new Vector3(-0.45f, 0.75f, 0.5f).Normalized();   // towards the art's light: above, viewer's left
 
     // Her outline for hit-testing: capsules between joints, radius in metres.
     private static readonly (string From, string To, float Radius)[] Body =
@@ -689,7 +689,7 @@ public partial class CompanionView : Node2D
     /// Sizes and turns a model that is not a VRM so that it is in metres and faces +z, and returns what takes its
     /// skeleton's space to character space. (A VRM is in metres and faces +z by the format's rules.)
     /// </summary>
-    private static Transform3D Fit(Node3D root, Skeleton3D skeleton, IReadOnlyDictionary<string, int>? humanoid)
+    internal static Transform3D Fit(Node3D root, Skeleton3D skeleton, IReadOnlyDictionary<string, int>? humanoid)
     {
         var inRoot = Transform3D.Identity;
         for (Node node = skeleton; node != root && node is not null; node = node.GetParent())

@@ -248,6 +248,10 @@ public partial class SettingsWindow : Window
                     tick.ButtonPressed = !tick.ButtonPressed;
                     GD.Print($"Settings: \"{tick.Text}\" {(tick.ButtonPressed ? "ticked" : "unticked")}");
                     break;
+                case { ButtonGroup: not null } card:        // one of a group (a character's card): chosen, as a click does
+                    card.ButtonPressed = true;
+                    GD.Print($"Settings: \"{card.Text}\" chosen");
+                    break;
                 case { } button:
                     button.EmitSignal(BaseButton.SignalName.Pressed);
                     GD.Print($"Settings: \"{button.Text}\" pressed");
