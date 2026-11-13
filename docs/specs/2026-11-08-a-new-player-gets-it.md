@@ -209,10 +209,22 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
   seconds kept every line whole, and 38 to 44 seconds lost more than half of them.
 - **The closest copy** is GPT-SoVITS, trained on the voice's own clips, and the NVIDIA card check comes first there. Without a
   card the page says so, says what to expect and still offers the install ("i guess we want to bring it up to user to let
-  them see if they like the performance instead of hiding it", 2026-11-08). It speaks with v2ProPlus by default there, as v4
-  takes 24 to 31 seconds for even a short line on a fast laptop processor. Even v2ProPlus falls behind speech, so sentences
-  are made whole before they play: what to expect is 6 to 8 seconds for a sentence of about 3 seconds. Training needs a
-  card, and says so.
+  them see if they like the performance instead of hiding it", 2026-11-08). Training needs a card, and says so.
+- **A copy speaks with v5 fast on every PC** (the owner, 2026-11-09, by ear: "gsv5 fast or best sounds similar in your
+  generated lines and i think better than v2"). It starts sooner and sounds closer: first sound 0.8 s against v2ProPlus's 1.2 s,
+  closeness to the recording 0.85 against 0.78, 3.7 GB of graphics memory against 3.0 (six public voices on the development
+  laptop's 8 GB card). It keeps up with playback 34 times in 35, its worst overrun 0.24 s. The Model row warns that it's newer and
+  less stable. With no card it's made whole rather than streamed, like v2ProPlus: 8.3 s of work per second of speech against 7.0.
+- **v2ProPlus stays,** as a choice on the Model row and for training ("we keep training as an option. and if v2ProPlus does
+  not add extra size we can keep the option", 2026-11-09). It adds no size, being inside the package already. An engine without
+  v5 fast's files (installed before them, a folder the player chose, the RTX 50 build) speaks with it, and the page says so.
+  v4 comes off the page; a copy saved with it speaks with v5 fast, and a trained or downloaded v3 or v4 model keeps its own.
+- **It's pinned, and shares the package.** The code is `RVC-Boss/GPT-SoVITS` at `b4570b8`, the last commit where semantic streaming
+  is connected: `04a44eb` took it out of `TTS.py`, and `api_v2.py` still accepts `gpt_streaming` and silently makes whole segments.
+  It runs on the standard package's Python from a folder of its own in the engine, linked to the package's models, and that server
+  also runs v2ProPlus and the voices already trained. The RTX 50 build has its own Python and torch, and couldn't be tried.
+- **A voice stays in the language it was recorded in.** GPT-SoVITS sounds right only when the recording and the speech are in the
+  same language.
 - Tests drive the recorder with recorded clips, never the real microphone. Recording with a real microphone is a manual
   check for the user.
 
@@ -298,7 +310,10 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
   Pocket".
 - **Qwen TTS on a graphics card, and a Mac build:** Preview 3 ships the processor build. The same source builds for CUDA,
   Vulkan and Metal, and Pocket TTS reports good speeds on Apple Silicon, so neither engine closes that door.
-- **GPT-SoVITS v5:** it changes how they sound, not how the voice is set up, so it stays out of this milestone.
+- **Training on v5:** a voice trained on v5 fast came out further from the recording than no training at all on Hana's 55
+  clips (306 s): 0.74 trained (the web UI's defaults, 2 epochs, batch 1, LoRA rank 32; 6 minutes; 0.23 GB), 0.79 with only GPT
+  trained, 0.74 with only SoVITS, against 0.81 untrained and 0.84 for v2ProPlus trained (0.33 GB). The owner couldn't hear a
+  difference between trained and untrained on this one voice, so it isn't ruled out for good; it just isn't offered here.
 - **Room art, walking on the floor, a motion-capture clip:** the arrival passes without them, and a walk would need foot
   contact faked.
 - **Showing what the first run skipped again later:** the missions and the companion's one mention do that job.

@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -14,7 +15,7 @@ public class EngineInstallTests : IDisposable
     private static readonly Uri Package = new("https://example.test/package.7z");
     private readonly string _dir = Directory.CreateTempSubdirectory("engine-install-").FullName;
 
-    public void Dispose() => Directory.Delete(_dir, recursive: true);
+    public void Dispose() => V5Fast.Remove(_dir);
 
     private sealed class Listener<T>(Action<T>? heard = null) : IProgress<T>
     {
@@ -218,5 +219,307 @@ public class EngineInstallTests : IDisposable
         var found = EngineInstall.Installed([_dir]).Select(f => Path.GetRelativePath(_dir, f)).Order().ToList();
 
         Assert.Equal([Path.Combine("sovits stuff", "gptsovits"), Path.Combine("Tools", "voice", "GPT-SoVITS-v2pro-20250604")], found);
+    }
+
+    // ---- v5 fast's files ------------------------------------------------------------------------------------------------
+
+    /// <summary>Stands in for Hugging Face and GitHub: each file by the last part of its address.</summary>
+    private sealed class Hosts(params (string Name, FakeHost Host)[] hosts) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancel) =>
+            new HttpMessageInvoker(hosts.Single(h => h.Name == request.RequestUri!.Segments[^1]).Host).SendAsync(request, cancel);
+    }
+
+    private static readonly Uri CodeZip = new("https://github.test/code.zip");
+    private static Uri WeightFrom(string name) => new($"https://hf.test/{name}");
+
+    private static V5Fast.Weight Weight(string name, byte[] file) => new(name, file.Length, Convert.ToHexString(SHA256.HashData(file)).ToLowerInvariant());
+
+    /// <summary>GitHub's kind of zip: everything in one top folder, as checked in (LF line endings).</summary>
+    private static byte[] Code()
+    {
+        using var memory = new MemoryStream();
+        using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+            foreach (var (name, text) in new[]
+                     {
+                         ("api_v2.py", "print('v5')\n"), ("GPT_SoVITS/pretrained_models/.gitignore", "*\n"), ("GPT_SoVITS/text/symbols.py", "a = 1\n"), ("tools/portable_runtime.py", "b = 2\n"),
+                     })
+                using (var writer = new StreamWriter(zip.CreateEntry("GPT-SoVITS-b4570b8/" + name).Open()))
+                    writer.Write(text);
+        return memory.ToArray();
+    }
+
+    private static string CodeHash(byte[] zip)
+    {
+        var folder = Directory.CreateTempSubdirectory("engine-install-code-").FullName;
+        try
+        {
+            using (var archive = new ZipArchive(new MemoryStream(zip)))
+                archive.ExtractToDirectory(folder);
+            return V5Fast.ContentHash(Directory.GetDirectories(folder).Single());
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    /// <summary>A package as the cabinet installs it, without the gigabytes.</summary>
+    private string Engine(string name = "GPT-SoVITS-v2pro-20250604")
+    {
+        var engine = Path.Combine(_dir, name);
+        foreach (var folder in new[] { "runtime", "GPT_SoVITS/pretrained_models/v2Pro", "GPT_SoVITS/text/G2PWModel" })
+            Directory.CreateDirectory(Path.Combine(engine, folder));
+        File.WriteAllText(Path.Combine(engine, "api_v2.py"), "print('old')");
+        File.WriteAllText(Path.Combine(engine, "runtime", "python.exe"), "");
+        File.WriteAllText(Path.Combine(engine, "GPT_SoVITS", "pretrained_models", "v2Pro", "s2Gv2ProPlus.pth"), "the package's own");
+        File.WriteAllText(Path.Combine(engine, "GPT_SoVITS", "text", "G2PWModel", "g2pw.onnx"), "the package's own");
+        return engine;
+    }
+
+    private static Task Install(string engine, Hosts hosts, IReadOnlyList<V5Fast.Weight> weights, byte[] zip) =>
+        V5Fast.Install(new HttpClient(hosts), engine, WeightFrom, weights, CodeZip, CodeHash(zip), new Listener<(EngineStep, long, long)>(), CancellationToken.None, TimeSpan.Zero);
+
+    [Fact]
+    public async Task V5_fast_comes_in_beside_the_package_and_shares_its_models_rather_than_copying_them()
+    {
+        var engine = Engine();
+        var (turbo, vocoder, zip) = (Bytes(200_000), Bytes(50_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo), Weight("vocoder.pth", vocoder)];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("vocoder.pth", new FakeHost(vocoder)), ("code.zip", new FakeHost(zip)));
+
+        Assert.False(V5Fast.Has(engine, weights));
+        await Install(engine, hosts, weights, zip);
+
+        Assert.True(V5Fast.Has(engine, weights));
+        var code = V5Fast.Code(engine);
+        Assert.Equal("print('v5')\n", File.ReadAllText(Path.Combine(code, "api_v2.py")));
+        Assert.Equal("print('old')", File.ReadAllText(Path.Combine(engine, "api_v2.py")));                 // the package as it was
+        Assert.Equal(turbo, File.ReadAllBytes(Path.Combine(code, "GPT_SoVITS", "pretrained_models", "gsv-v5-pretrained", "s2Gv5turbo.pth")));    // through the link
+        Assert.Equal("the package's own", File.ReadAllText(Path.Combine(code, "GPT_SoVITS", "pretrained_models", "v2Pro", "s2Gv2ProPlus.pth")));
+        Assert.Equal("the package's own", File.ReadAllText(Path.Combine(code, "GPT_SoVITS", "text", "G2PWModel", "g2pw.onnx")));
+        Assert.True(File.Exists(Path.Combine(code, "runtime", "python.exe")));
+        Assert.False(File.Exists(code + ".zip.part"));     // nothing left behind
+        Assert.False(Directory.Exists(code + ".unpacking"));
+    }
+
+    [Fact]
+    public async Task A_download_of_v5_fast_cut_off_leaves_the_engine_as_it_was_and_carries_on_next_time()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(3_000_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var kept = Path.Combine(engine, "GPT_SoVITS", "pretrained_models", "gsv-v5-pretrained");
+        Directory.CreateDirectory(kept);
+        File.WriteAllBytes(Path.Combine(kept, "s2Gv5turbo.pth.part"), turbo[..1_200_000]);      // what an earlier try got
+        var host = new FakeHost(turbo) { DropAfter = 0, AlwaysDrops = true };
+        var hosts = new Hosts(("s2Gv5turbo.pth", host), ("code.zip", new FakeHost(zip)));
+
+        await Assert.ThrowsAsync<IOException>(() => V5Fast.Install(new HttpClient(hosts), engine, WeightFrom, weights, CodeZip, CodeHash(zip),
+                                                                   new Listener<(EngineStep, long, long)>(), CancellationToken.None, TimeSpan.Zero));
+        Assert.False(V5Fast.Has(engine, weights));
+        Assert.False(File.Exists(Path.Combine(engine, "GPT_SoVITS", "pretrained_models", "gsv-v5-pretrained", "s2Gv5turbo.pth")));
+        Assert.False(Directory.Exists(V5Fast.Code(engine)));
+
+        host.AlwaysDrops = false;
+        host.DropAfter = null;
+        await Install(engine, hosts, weights, zip);
+
+        Assert.True(V5Fast.Has(engine, weights));
+        Assert.Equal(1_200_000, host.Asked[^1]);           // from where the last try got to
+    }
+
+    [Fact]
+    public async Task A_weight_that_doesnt_match_is_thrown_away_and_nothing_is_put_in_place()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [new("s2Gv5turbo.pth", turbo.Length, new string('0', 64))];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip)));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => Install(engine, hosts, weights, zip));
+
+        Assert.Empty(Directory.GetFiles(Path.Combine(engine, "GPT_SoVITS", "pretrained_models", "gsv-v5-pretrained")));
+        Assert.False(V5Fast.Has(engine, weights));
+    }
+
+    [Fact]
+    public async Task Code_that_doesnt_match_is_thrown_away_and_the_engine_speaks_as_before()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip)));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => V5Fast.Install(new HttpClient(hosts), engine, WeightFrom, weights, CodeZip, new string('0', 64),
+                                                                            new Listener<(EngineStep, long, long)>(), CancellationToken.None, TimeSpan.Zero));
+
+        Assert.False(V5Fast.Has(engine, weights));
+        Assert.False(Directory.Exists(V5Fast.Code(engine)));
+        Assert.False(Directory.Exists(V5Fast.Code(engine) + ".unpacking"));
+        Assert.Null(EngineInstall.Problem(engine));
+    }
+
+    [Fact]
+    public async Task Unpacking_cut_short_starts_again_and_takes_only_its_links_away_not_what_they_lead_to()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip)));
+        var left = V5Fast.Code(engine) + ".unpacking";
+        Directory.CreateDirectory(left);
+        var link = Path.Combine(left, "runtime");
+        Junction(link, Path.Combine(engine, "runtime"));
+        Assert.True(File.Exists(Path.Combine(link, "python.exe")));
+
+        await Install(engine, hosts, weights, zip);
+
+        Assert.True(V5Fast.Has(engine, weights));
+        Assert.True(File.Exists(Path.Combine(engine, "runtime", "python.exe")));
+    }
+
+    private static void Junction(string link, string target)
+    {
+        using var mklink = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd")
+        {
+            ArgumentList = { "/c", "mklink", "/J", link, target }, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        })!;
+        mklink.StandardOutput.ReadToEnd();
+        mklink.WaitForExit();
+    }
+
+    [Fact]
+    public void Removing_a_folder_that_is_itself_a_link_takes_only_the_link_away()
+    {
+        var real = Path.Combine(_dir, "real");
+        Directory.CreateDirectory(Path.Combine(real, "inside"));
+        File.WriteAllText(Path.Combine(real, "inside", "keep.txt"), "kept");
+        var link = Path.Combine(_dir, "gsv-v5");
+        Junction(link, real);
+        Assert.True(File.Exists(Path.Combine(link, "inside", "keep.txt")));
+
+        V5Fast.Remove(link);
+
+        Assert.False(Directory.Exists(link));
+        Assert.True(File.Exists(Path.Combine(real, "inside", "keep.txt")));
+    }
+
+    [Fact]
+    public async Task Code_with_no_promised_size_is_fetched_whole_each_time()
+    {
+        var file = Bytes(100_000);
+        var path = Path.Combine(_dir, "code.zip.part");
+        File.WriteAllBytes(path, file[..1000]);             // left from a try cut short, and of no use: its size isn't known
+        var host = new FakeHost(file);
+
+        await EngineInstall.Fetch(new HttpClient(host), Package, path, null, new Listener<long>(), CancellationToken.None);
+
+        Assert.Equal(file, File.ReadAllBytes(path));
+        Assert.Equal([null], host.Asked);
+    }
+
+    [Fact]
+    public async Task Code_on_a_connection_that_keeps_dropping_gives_up_rather_than_going_round_for_ever()
+    {
+        var file = Bytes(100_000);
+        var host = new FakeHost(file) { DropAfter = 40_000, AlwaysDrops = true };
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            EngineInstall.Fetch(new HttpClient(host), Package, Path.Combine(_dir, "code.zip.part"), null, new Listener<long>(), CancellationToken.None, tries: 3, backOff: TimeSpan.Zero));
+
+        Assert.Equal(3, host.Asked.Count);
+    }
+
+    [Fact]
+    public async Task A_reply_that_isnt_a_whole_zip_says_so_in_plain_words_and_the_next_try_carries_on()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var cut = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip[..(zip.Length / 2)])));
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => V5Fast.Install(new HttpClient(cut), engine, WeightFrom, weights, CodeZip, CodeHash(zip),
+                                                                                        new Listener<(EngineStep, long, long)>(), CancellationToken.None, TimeSpan.Zero));
+
+        Assert.Equal("v5 fast's code came through damaged. Try again.", error.Message);
+        Assert.False(V5Fast.Has(engine, weights));
+        await Install(engine, new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip))), weights, zip);
+        Assert.True(V5Fast.Has(engine, weights));
+    }
+
+    [Fact]
+    public async Task A_folder_with_an_ampersand_in_its_name_links_like_any_other()
+    {
+        var engine = Engine("GPT&SoVITS");
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+
+        await Install(engine, new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip))), weights, zip);
+
+        Assert.True(V5Fast.Has(engine, weights));
+    }
+
+    [Fact]
+    public async Task A_package_moved_elsewhere_speaks_without_v5_fast_until_its_links_are_made_again()
+    {
+        var engine = Engine();
+        var (turbo, zip) = (Bytes(100_000), Code());
+        V5Fast.Weight[] weights = [Weight("s2Gv5turbo.pth", turbo)];
+        var hosts = new Hosts(("s2Gv5turbo.pth", new FakeHost(turbo)), ("code.zip", new FakeHost(zip)));
+        await Install(engine, hosts, weights, zip);
+
+        var moved = Path.Combine(_dir, "moved", "GPT-SoVITS-v2pro-20250604");
+        Directory.CreateDirectory(Path.GetDirectoryName(moved)!);
+        Directory.Move(engine, moved);
+
+        Assert.True(Directory.Exists(Path.Combine(V5Fast.Code(moved), "runtime")));         // a link leading nowhere still "exists": why Has looks where it leads
+        Assert.False(V5Fast.Has(moved, weights));
+
+        await Install(moved, hosts, weights, zip);
+        Assert.True(V5Fast.Has(moved, weights));
+        Assert.True(File.Exists(Path.Combine(V5Fast.Code(moved), "runtime", "python.exe")));
+    }
+
+    [Fact]
+    public void Only_the_package_the_cabinet_installs_can_have_v5_fast_added()
+    {
+        Assert.True(V5Fast.CanAdd(Engine()));
+        Assert.False(V5Fast.CanAdd(Engine("GPT-SoVITS-v2pro-20250604-nvidia50")));         // its own Python and torch, untried
+        Assert.False(V5Fast.CanAdd(Engine("a folder the player chose")));
+        Assert.False(V5Fast.CanAdd(Path.Combine(_dir, "nothing here")));
+    }
+
+    [Fact]
+    public void The_download_the_player_agrees_to_is_added_up_in_one_place()
+    {
+        Assert.Equal(EnginePackage.Standard.Size + V5Fast.Download, EnginePackage.Standard.Download);
+        Assert.Equal(EnginePackage.Blackwell.Size, EnginePackage.Blackwell.Download);
+        Assert.InRange(V5Fast.Download, 824_167_307, 900_000_000);
+    }
+
+    [Fact]
+    public void V5_fast_stays_pinned_to_the_commit_that_really_streams()
+    {
+        // later versions accept gpt_streaming and silently make whole segments: moving this needs streaming heard again
+        Assert.Equal("b4570b876f5c086819ba84e3215472733c6a7b70", V5Fast.Commit);
+    }
+
+    [Fact]
+    public void The_code_is_checked_by_its_contents_whatever_its_line_endings()
+    {
+        void Write(string folder, string text)
+        {
+            Directory.CreateDirectory(Path.Combine(folder, "tools"));
+            File.WriteAllText(Path.Combine(folder, "tools", "a.py"), text);
+            File.WriteAllBytes(Path.Combine(folder, "model.bin"), [1, 13, 2]);          // a lone carriage return stays
+        }
+        var (lf, crlf, other) = (Path.Combine(_dir, "lf"), Path.Combine(_dir, "crlf"), Path.Combine(_dir, "other"));
+        Write(lf, "x = 1\ny = 2\n");
+        Write(crlf, "x = 1\r\ny = 2\r\n");
+        Write(other, "x = 1\ny = 3\n");
+
+        Assert.Equal(V5Fast.ContentHash(lf), V5Fast.ContentHash(crlf));
+        Assert.NotEqual(V5Fast.ContentHash(lf), V5Fast.ContentHash(other));
     }
 }

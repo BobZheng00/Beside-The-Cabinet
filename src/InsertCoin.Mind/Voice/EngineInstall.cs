@@ -14,11 +14,17 @@ public enum EngineSource { HuggingFace, HfMirror }
 /// <summary>
 /// The GPT-SoVITS Windows package the cabinet installs for the player: the release her voice is tested with, in the
 /// build for their graphics card. Its size and SHA-256 are the ones Hugging Face publishes; a newer release means
-/// changing them here and trying it with her voice first (v5 came out 2026-10-05, not tried yet).
+/// changing them here and trying it with her voice first. v5 fast's files come on top of it (see <see cref="V5Fast"/>).
 /// </summary>
 /// <param name="Unpacked">About the room it takes unpacked, with a little to spare.</param>
 public sealed record EnginePackage(string Name, long Size, string Sha256, long Unpacked)
 {
+    /// <summary>The one download the player agrees to: the package and, in the standard build, v5 fast's files.</summary>
+    public long Download => Size + (this == Standard ? V5Fast.Download : 0);
+
+    /// <summary>The room that takes beyond the package itself.</summary>
+    public long ExtraRoom => this == Standard ? V5Fast.Room : 0;
+
     // Unpacked: 14.13 GB in 50,612 files, unpacked in 10 minutes on the development PC (2026-10-12).
     public static readonly EnginePackage Standard = new("GPT-SoVITS-v2pro-20250604", 8_185_086_602,
         "bd60d0796553ff05d8568136e199c13e0dc22ebe2ed24273134e34ed6f215cd6", 14_500_000_000);
@@ -60,12 +66,13 @@ public static class EngineInstall
 
     /// <summary>
     /// Fetches <paramref name="from"/> into <paramref name="path"/> until it holds <paramref name="size"/> bytes,
-    /// carrying on from what is already there; a connection that drops or goes quiet for <paramref name="stall"/> is
+    /// carrying on from what is already there (null: a size nobody promises, so it is fetched whole, each time, until
+    /// the host says that's all); a connection that drops or goes quiet for <paramref name="stall"/> is
     /// tried again from where it got to, after a wait that doubles from <paramref name="backOff"/> each time.
     /// <paramref name="progress"/> hears how many bytes are there. Throws when it keeps failing (or is cancelled),
     /// keeping what it has for next time.
     /// </summary>
-    public static async Task Fetch(HttpClient http, Uri from, string path, long size, IProgress<long> progress, CancellationToken cancel,
+    public static async Task Fetch(HttpClient http, Uri from, string path, long? size, IProgress<long> progress, CancellationToken cancel,
                                    TimeSpan? stall = null, int tries = 6, TimeSpan? backOff = null)
     {
         var quiet = stall ?? TimeSpan.FromSeconds(60);
@@ -73,7 +80,7 @@ public static class EngineInstall
         var failed = 0;
         while (true)
         {
-            var have = File.Exists(path) ? new FileInfo(path).Length : 0;
+            var have = size is not null && File.Exists(path) ? new FileInfo(path).Length : 0;
             if (have > size)
             {
                 File.Delete(path);
@@ -120,9 +127,12 @@ public static class EngineInstall
                         await file.WriteAsync(buffer.AsMemory(0, read), cancel);
                         have += read;
                         progress.Report(have);
-                        failed = 0;                         // getting somewhere
+                        if (size is not null)
+                            failed = 0;                     // getting somewhere: with no size to carry on from, each try starts over
                     }
                 }
+                if (size is null)
+                    return;
             }
             catch (Exception e) when (!cancel.IsCancellationRequested && e is HttpRequestException or IOException or OperationCanceledException)
             {

@@ -100,8 +100,8 @@ the app's own and the profile's, with no spaces in either path; for a voice in C
 with `"Language": "zh"` or `"ja"` in `-Settings`, as a character given a voice already keeps it),
 `voicecheck:some_words` (makes those words in their voice without playing them and logs what their ears hear in the
 audio, `Voice: asked to say … her ears heard …`, with this PC's pace) and
-`voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its own, as choosing it
-in Settings does), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
+`voicemodel:v5turbo` or `voicemodel:v2ProPlus` (speak as a clone with that base model, or `voicemodel:trained` with its
+own, as choosing it in Settings does; anything else, or `trained` on a voice with no model, does nothing), `voicetrain` (train their voice, as the page's button does) and `voicetrainstop`, `hear:C:\path\said.wav`
 (a recording they hear as if said holding the talk key), `talk:C:\path\said.wav` (the same, played out in time: they
 listen and nod for its length first) and `dictate:C:\path\said.wav` (as if said into the slip's
 microphone), and, opening the real microphone (except in a test copy, where they hear silence), `mic` (click the

@@ -286,6 +286,14 @@ public partial class Stool : Node2D
             SettingsChanged?.Invoke("voice");
         };
 
+        _installer.FastAdded += engine =>                   // her voice starts again from them, unless another folder was chosen meanwhile
+        {
+            if (engine != _settings.Now.VoiceEngine)
+                return;
+            _voice.UseEngine(engine);
+            SettingsChanged?.Invoke("voice");
+        };
+
         _listening = new Listening();
         AddChild(_listening);
         _listening.Build(this, settings, window, _chatBox);
@@ -2164,6 +2172,7 @@ public partial class Stool : Node2D
             _installer.Start(into, source);
         };
         page.StopInstall += _installer.Stop;
+        page.GetFast += source => _installer.AddFast(_settings.Now.VoiceEngine!, source);
         page.EngineChosen += engine =>
         {
             if (engine == _settings.Now.VoiceEngine)
@@ -2580,7 +2589,7 @@ public partial class Stool : Node2D
                 _voice.UseQwen(program, weights);
                 break;
             case "voicecheck": _ = VoiceCheck(text); break; // voicecheck:words: says them in her voice (off the speakers) and logs the words her ears find in it
-            case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
+            case "voicemodel":                              // voicemodel:v5turbo or v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
                 if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(rest) || rest == "trained" && voice.Trained))
                 {
                     (voice with { CloneWith = rest == "trained" ? null : rest }).Save(_voice.Folder);
