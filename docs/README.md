@@ -299,9 +299,10 @@ than speech. It loads when your companion sits down (the first line waits for it
 runs, letting its memory go, and loads again after. A line that comes out silent is made once more; if it's silent
 again, or the files are missing or won't load, that line stays in text and the log says why in a line. Settings →
 Voice says who they speak as, and switches between English, Chinese and Japanese. A profile from before Preview 3 had
-Shino and Fumiriya speak with voices made with Kokoro-82M: one that wasn't trained gives way to Eve or George. A voice
-you made or added stays; where GPT-SoVITS isn't set up for it, the page says so and offers the suggested voice. A
-character whose voice you removed stays without one until you pick one there.
+Shino and Fumiriya speak with voices made with Kokoro-82M: one as it came (its twelve clips, not trained) gives way to
+Eve or George. A voice you made or added, or added clips to, stays; where GPT-SoVITS isn't set up for it, the page says
+so and offers the suggested voice, and taking it keeps yours in a folder beside it (`<id>.voice.before-<date>`), never
+deleted. A character whose voice you removed stays without one until you pick one there.
 
 **In Chinese and Japanese** your companion speaks with Qwen TTS (Qwen3-TTS by Alibaba Cloud, Apache-2.0, in a build of
 qwentts.cpp, MIT), on this PC's processor with no graphics card needed: Shino as Serena in Chinese and Ono Anna in

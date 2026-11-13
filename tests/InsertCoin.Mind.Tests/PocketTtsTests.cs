@@ -89,6 +89,37 @@ public class PocketTtsTests
         Assert.Null(VoiceProfile.ToGive("hana", Kokoro, givenBefore: true, setting: null, display: "en-US"));      // nothing to give a character of their own
     }
 
+    [Fact]
+    public void An_old_Kokoro_voice_the_player_added_a_clip_to_is_theirs_and_stays()
+    {
+        var added = Kokoro with { Clips = [.. Kokoro.Clips, new VoiceClip(@"clips\my take.wav", "Hello.", "en")] };
+
+        Assert.False(added.MadeWithKokoro);
+        Assert.Null(VoiceProfile.ToGive("shino", added, givenBefore: true, setting: null, display: "en-US"));
+        Assert.True((Kokoro with { Clips = [new VoiceClip(@"clips\[sad] 07.wav", "Oh no.", "en")] }).MadeWithKokoro);
+    }
+
+    [Fact]
+    public void Only_a_folder_of_nothing_but_what_the_app_gave_counts_as_safe_to_replace()
+    {
+        var folder = Directory.CreateTempSubdirectory("given-").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(folder, "clips"));
+            foreach (var file in new[] { "voice.json", "README.md", "eve.wav", "clips/01.wav", "clips/[surprised] 09.wav" })
+                File.WriteAllText(Path.Combine(folder, file), "");
+            Assert.True(VoiceProfile.OnlyGiven(folder));
+            Assert.True(VoiceProfile.OnlyGiven(Path.Combine(folder, "nowhere")));
+
+            File.WriteAllText(Path.Combine(folder, "clips", "my take.wav"), "");
+            Assert.False(VoiceProfile.OnlyGiven(folder));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     // ---- The text ------------------------------------------------------------------------------------------------------
 
     [Theory]
