@@ -99,20 +99,44 @@ public class PocketTtsTests
         Assert.True((Kokoro with { Clips = [new VoiceClip(@"clips\[sad] 07.wav", "Oh no.", "en")] }).MadeWithKokoro);
     }
 
-    [Fact]
-    public void Only_a_folder_of_nothing_but_what_the_app_gave_counts_as_safe_to_replace()
+    /// <summary>A voice folder holding this voice.json and these files (empty: only their names count).</summary>
+    private static string Folder(VoiceProfile? voice, params string[] files)
     {
-        var folder = Directory.CreateTempSubdirectory("given-").FullName;
+        var folder = Directory.CreateTempSubdirectory("voice-").FullName;
+        voice?.Save(folder);
+        foreach (var file in files)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(folder, file))!);
+            File.WriteAllText(Path.Combine(folder, file), "");
+        }
+        return folder;
+    }
+
+    [Theory]
+    [InlineData(true, "Eve as given")]
+    [InlineData(true, "Serena as given")]
+    [InlineData(true, "the old Kokoro voice as it came")]
+    [InlineData(false, "Eve with a file of the player's beside")]
+    [InlineData(false, "the old Kokoro voice with a clip added")]
+    [InlineData(false, "the player's own voice, its clips named as Kokoro's were")]
+    [InlineData(false, "clips with no voice.json")]
+    public void A_voice_folder_is_deleted_only_when_it_holds_a_voice_the_app_gave_and_nothing_else(bool safe, string what)
+    {
+        var folder = what switch
+        {
+            "Eve as given" => Folder(PocketTts.Suggested("shino", "en"), "README.md", "eve.wav"),
+            "Serena as given" => Folder(QwenTts.Suggested("shino", "zh")),
+            "the old Kokoro voice as it came" => Folder(Kokoro, "README.md", "clips/01.wav", "clips/[sad] 07.wav"),
+            "Eve with a file of the player's beside" => Folder(PocketTts.Suggested("shino", "en"), "eve.wav", "clips/01.wav"),
+            "the old Kokoro voice with a clip added" => Folder(Kokoro, "clips/01.wav", "clips/my take.wav"),
+            "the player's own voice, its clips named as Kokoro's were" =>
+                Folder(Theirs with { Clips = [new VoiceClip("clips/01.wav", "你好。", "zh"), new VoiceClip("clips/02.wav", "早上好。", "zh")] }, "clips/01.wav", "clips/02.wav"),
+            _ => Folder(null, "clips/01.wav"),
+        };
         try
         {
-            Directory.CreateDirectory(Path.Combine(folder, "clips"));
-            foreach (var file in new[] { "voice.json", "README.md", "eve.wav", "clips/01.wav", "clips/[surprised] 09.wav" })
-                File.WriteAllText(Path.Combine(folder, file), "");
-            Assert.True(VoiceProfile.OnlyGiven(folder));
-            Assert.True(VoiceProfile.OnlyGiven(Path.Combine(folder, "nowhere")));
-
-            File.WriteAllText(Path.Combine(folder, "clips", "my take.wav"), "");
-            Assert.False(VoiceProfile.OnlyGiven(folder));
+            Assert.True(safe == VoiceProfile.SafeToReplace(folder), what);
+            Assert.True(VoiceProfile.SafeToReplace(Path.Combine(folder, "nowhere")));     // nothing there to lose
         }
         finally
         {

@@ -1366,7 +1366,7 @@ public partial class Stool : Node2D
         var recording = voice.Engine == VoiceProfile.Pocket ? ModelFiles.OnDisk($"res://characters/{id}/voice.zip", "voice-" + id) : null;
         if (_trainer.Running && _trainer.Folder == folder)
             _trainer.Stop("The voice was replaced.");
-        if (VoiceProfile.OnlyGiven(folder))
+        if (VoiceProfile.SafeToReplace(folder))
         {
             if (Directory.Exists(folder))
                 Directory.Delete(folder, recursive: true);
