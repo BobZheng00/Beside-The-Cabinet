@@ -115,13 +115,24 @@ public sealed partial record VoiceProfile
     ];
 
     /// <summary>
-    /// Every file in a voice's folder is one the app put there (its voice.json and README, a recording Pocket TTS copies, the
-    /// clips of a voice made with Kokoro-82M): replacing it loses nothing of the player's. Otherwise it is set aside, never deleted.
+    /// The voice in this folder can be deleted to make room for another: the folder isn't there, or the voice in it is one the
+    /// app gave (Pocket TTS's or Qwen TTS's, or an old one made with Kokoro-82M as it came) and the folder holds nothing else
+    /// (its voice.json and README, the recording Pocket TTS copies, those twelve clips). In any other case it holds something
+    /// of the player's, and it is set aside, never deleted.
     /// </summary>
-    public static bool OnlyGiven(string folder) =>
-        !Directory.Exists(folder) || Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
-            .Select(f => Path.GetRelativePath(folder, f).Replace('\\', '/'))
-            .All(f => f is FileName or "README.md" or "eve.wav" or "george.wav" || f.StartsWith("clips/", StringComparison.Ordinal) && KokoroClips.Contains(f[6..]));
+    public static bool SafeToReplace(string folder)
+    {
+        if (!Directory.Exists(folder))
+            return true;
+        var given = Load(folder);
+        if (given is null || given.Engine is not (Pocket or Qwen) && !given.MadeWithKokoro)
+            return false;
+        string[] ours = given.MadeWithKokoro
+            ? [FileName, "README.md", .. KokoroClips.Select(c => "clips/" + c)]
+            : [FileName, "README.md", .. given.Clips.Select(c => c.File.Replace('\\', '/'))];
+        return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+            .All(f => ours.Contains(Path.GetRelativePath(folder, f).Replace('\\', '/')));
+    }
 
     /// <summary>It speaks with its trained model, not as a clone.</summary>
     [JsonIgnore]
