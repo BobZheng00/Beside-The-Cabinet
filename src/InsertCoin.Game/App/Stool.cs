@@ -22,6 +22,7 @@ public partial class Stool : Node2D
     private Func<string> _situation = null!;
     private Action<double> _lively = null!;
     private string _characters = "";
+    private Portraits _portraits = null!;
     private Chat _chat = null!;
     private ChatBox _chatBox = null!;
     private PermissionCard _permission = null!;
@@ -131,6 +132,7 @@ public partial class Stool : Node2D
         _situation = situation;
         _lively = lively;
         _characters = Path.Combine(dataDir, "characters");
+        AddChild(_portraits = new Portraits { Folder = Path.Combine(dataDir, "portraits") });
 
         _chat = new Chat(dataDir)
         {
@@ -1369,6 +1371,10 @@ public partial class Stool : Node2D
         SettingsChanged?.Invoke("voice");                   // a voice of their own
     }
 
+    /// <summary>A character's portrait as it is now (a silhouette until it is made), and what to do with it once made.</summary>
+    public Texture2D PortraitOf(string id, Action<Texture2D> made) =>
+        CompanionView.Available(_characters).FirstOrDefault(c => c.Id == id) is { } character ? _portraits.Of(character, made) : Portraits.Silhouette;
+
     public (string Id, string Name)[] Characters() => [.. CompanionView.Available(_characters).Select(c => (c.Id, c.Name))];
 
     /// <summary>The character chosen for the stool (whether shown or not), with the name their persona goes by.</summary>
@@ -2194,7 +2200,8 @@ public partial class Stool : Node2D
     private Control CharactersPage()
     {
         var page = new CharacterSettings();
-        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, MannerOf, SetManner, ShowManner);
+        _portraits.KeepOnly(CompanionView.Available(_characters));
+        page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, PortraitOf, MannerOf, SetManner, ShowManner);
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;
         page.Seated += Seat;

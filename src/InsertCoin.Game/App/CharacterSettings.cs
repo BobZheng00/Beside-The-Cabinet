@@ -4,8 +4,9 @@ using InsertCoin.Game.Companion;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Settings → Companion: who sits on the stool, or nobody; whether they say their lines in speech bubbles; adding a
-/// character (a 3D model, a character card, a voice), and the folder they are kept in. Each change is used at once.
+/// Settings → Companion: who sits on the stool, as cards with their portraits, the one there chosen; how they sit;
+/// adding a character (a 3D model, a character card, a voice), and the folder they are kept in; then whether anyone
+/// sits there at all, and whether they say their lines in speech bubbles. Each change is used at once.
 /// </summary>
 public partial class CharacterSettings : VBoxContainer
 {
@@ -18,19 +19,19 @@ public partial class CharacterSettings : VBoxContainer
     /// <summary>"Add a character…" and "Open characters folder".</summary>
     public event Action? Add, OpenFolder;
 
+    /// <param name="portrait">A character's portrait (by id) as it is now, and what to do with it once it is made.</param>
     /// <param name="mannerOf">How a character sits (see <see cref="Manner"/>).</param>
     /// <param name="setManner">The player chose how one sits.</param>
     /// <param name="showMe">"Show me": a few seconds of it on the stool.</param>
     public void Build((string Id, string Name)[] characters, string seated, bool shown, bool bubbles,
+                      Func<string, Action<Texture2D>, Texture2D> portrait,
                       Func<string, Manner> mannerOf, Action<string, Manner> setManner, Action showMe)
     {
         Form.Page(this);
-        Form.Tick(this, "Someone on the stool", shown, on => ShownChosen?.Invoke(on));
-        Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without anyone on it.");
-        Form.Tick(this, "Speech bubbles", bubbles, on => BubblesChosen?.Invoke(on));
-        Form.Hint(this, "Without them, whoever is on the stool still reacts to what happens, but says nothing unless you talk to them.");
-
-        Form.Subheading(this, "On the stool");
+        var cards = new HFlowContainer();
+        cards.AddThemeConstantOverride("h_separation", 10);
+        cards.AddThemeConstantOverride("v_separation", 10);
+        AddChild(cards);
         var group = new ButtonGroup();
         var manner = new VBoxContainer();
         void HowTheySit(string id)
@@ -45,15 +46,26 @@ public partial class CharacterSettings : VBoxContainer
         }
         foreach (var (id, name) in characters)
         {
-            var pick = new CheckBox { Text = name, ButtonGroup = group, ButtonPressed = id == seated };
-            pick.Toggled += on =>
+            var card = new Button
+            {
+                Text = name, TooltipText = name, ToggleMode = true, ButtonGroup = group, ButtonPressed = id == seated, ThemeTypeVariation = "Card",
+                IconAlignment = HorizontalAlignment.Center, VerticalIconAlignment = VerticalAlignment.Top,
+                // the whole name, wrapped under a portrait the same size on every card (the theme's icon_max_width)
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(112, 0),
+            };
+            card.Icon = portrait(id, made =>
+            {
+                if (IsInstanceValid(card))
+                    card.Icon = made;
+            });
+            card.Toggled += on =>
             {
                 if (!on)
                     return;
                 Seated?.Invoke(id);
                 HowTheySit(id);
             };
-            AddChild(pick);
+            cards.AddChild(card);
         }
         AddChild(manner);
         if (seated.Length > 0)
@@ -64,6 +76,11 @@ public partial class CharacterSettings : VBoxContainer
         Form.Hint(this, "A 3D character (.vrm, .glb, .gltf, or a .zip holding one) takes the stool. A character card (.png or .json, " +
                         "SillyTavern style) gives whoever is on the stool a persona; a voice's clips or .zip give them a voice. Dropping " +
                         "any of them on the cabinet does the same. Files put in the folder by hand show up after a restart.");
+
+        Form.Tick(this, "Someone on the stool", shown, on => ShownChosen?.Invoke(on));
+        Form.Hint(this, "Untick it to leave the stool empty: the cabinet goes on as before, without anyone on it.");
+        Form.Tick(this, "Speech bubbles", bubbles, on => BubblesChosen?.Invoke(on));
+        Form.Hint(this, "Without them, whoever is on the stool still reacts to what happens, but says nothing unless you talk to them.");
     }
 
     /// <summary>
@@ -76,7 +93,11 @@ public partial class CharacterSettings : VBoxContainer
         foreach (var (manner, label) in new[] { (Manner.Neat, "Neat: knees together, hands in the lap"),
                                                 (Manner.Relaxed, "Relaxed: knees apart, hands on the thighs, fewer head tilts") })
         {
-            var pick = new CheckBox { Text = label, ButtonGroup = group, ButtonPressed = manner == current };
+            var pick = new CheckBox
+            {
+                Text = label, ButtonGroup = group, ButtonPressed = manner == current, SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(200, 0),     // wraps in a narrow window
+            };
             pick.Toggled += on =>
             {
                 if (on)

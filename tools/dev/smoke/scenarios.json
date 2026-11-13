@@ -189,6 +189,16 @@
       "forbid": ["^Settings: \\S+ needs \\d+ px"]
     },
     {
+      "name": "charactercards",
+      "about": "Settings → Companion leads with a card for each character, a portrait made from their own model, the one on the stool ringed; it fits Settings at its narrowest default size (as on a 2560x1440 screen at 125%, about 708 px wide). Choosing Fumiriya's card seats them, and they arrive from behind the cabinet.",
+      "covers": ["src/InsertCoin.Game/App/CharacterSettings.cs", "src/InsertCoin.Game/Companion/Portraits.cs", "src/InsertCoin.Mind/PortraitFile.cs"],
+      "script": "settings:characters@3,settingsat:708x736@4,settingswidths@6,settingsdo:Fumiriya@8",
+      "shots": [7, 9.5, 16],
+      "window": "Settings",
+      "expect": ["^Portrait: shino made$", "^Portrait: fumiriya made$", "^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: 1 of \\d+ pages measured$", "^Settings: \"Fumiriya\" chosen$", "^Arrival: from behind the cabinet$"],
+      "forbid": ["^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "is a silhouette$"]
+    },
+    {
       "name": "language",
       "about": "Settings → General has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
       "covers": ["src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/characters/*/persona.*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],
@@ -229,7 +239,7 @@
         "^Menu: at -?\\d+,-?\\d+: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory…",
         "^Menu: pressed Who keeps$",
         "^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at characters$",
-        "^Settings: \"Fumiriya\" ticked$",
+        "^Settings: \"Fumiriya\" chosen$",
         "^Settings: the pages now name Fumiriya; characters made again when next shown$"
       ],
       "forbid": ["^Menu: no entry", "^Settings: nothing called"]
