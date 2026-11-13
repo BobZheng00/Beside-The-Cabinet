@@ -106,15 +106,15 @@ public static class Paper
 
         // tabs like index cards: the chosen one is part of the page, the others washed out behind it
         theme.SetStylebox("panel", "TabContainer", Box(Sheet, line, 1, 8, 12, 12));
-        foreach (var tabs in new[] { "TabContainer", "TabBar" })
+        StyleBoxFlat Tab(Color fill, Color border, int marginX = 14)
         {
-        StyleBoxFlat Tab(Color fill, Color border)
-        {
-            var tab = Box(fill, border, 1, 8, 14, 6);
+            var tab = Box(fill, border, 1, 8, marginX, 6);
             tab.BorderWidthBottom = 0;
             tab.CornerRadiusBottomLeft = tab.CornerRadiusBottomRight = 0;
             return tab;
         }
+        foreach (var tabs in new[] { "TabContainer", "TabBar" })
+        {
             theme.SetStylebox("tab_selected", tabs, Tab(Sheet, line));
             theme.SetStylebox("tab_unselected", tabs, Tab(Wash, Wash));
             theme.SetStylebox("tab_hovered", tabs, Tab(new Color("E2DAF7"), new Color("E2DAF7")));
@@ -124,6 +124,11 @@ public static class Paper
             theme.SetColor("font_hovered_color", tabs, Ink);
         }
         theme.SetConstant("side_margin", "TabContainer", 0);
+        // closer together, so Memory's six all show at Settings' narrowest
+        theme.SetTypeVariation("NarrowTabs", "TabContainer");
+        theme.SetStylebox("tab_selected", "NarrowTabs", Tab(Sheet, line, 8));
+        theme.SetStylebox("tab_unselected", "NarrowTabs", Tab(Wash, Wash, 8));
+        theme.SetStylebox("tab_hovered", "NarrowTabs", Tab(new Color("E2DAF7"), new Color("E2DAF7"), 8));
 
         // the settings' list of categories: an icon and plain words, the one showing on a wash
         theme.SetTypeVariation("Side", "Button");

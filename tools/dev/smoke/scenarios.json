@@ -170,6 +170,16 @@
       "forbid": ["^Settings: nothing called", "^Settings: memory needs \\d+ px"]
     },
     {
+      "name": "memorynarrow",
+      "about": "Every tab of Memory fits Settings at its narrowest default size (as on a 2560x1440 screen at 125%, about 708 px wide): nothing on any tab is wider than the window.",
+      "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
+      "script": "memoryseed@2,settings:memory@3,settingsat:708x736@4,settingswidths@5,memory:agenda@6,settingswidths@7,memory:facts@8,settingswidths@9,memory:diary@10,settingswidths@11,memory:memos@12,settingswidths@13,memory:forget@14,settingswidths@15",
+      "shots": [6.5, 8.5, 10.5, 12.5, 14.5, 18],
+      "window": "Settings",
+      "expect": ["^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: 1 of \\d+ pages measured$"],
+      "forbid": ["^Settings: \\S+ needs \\d+ px"]
+    },
+    {
       "name": "language",
       "about": "Settings → General has a Language row (Auto, English, 中文); choosing 中文 there is saved and used: the companion's next reply, to a line in English, is on their card in Chinese (persona.zh.md).",
       "covers": ["src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/characters/*/persona.*.md", "src/InsertCoin.Game/Companion/CompanionView.cs", "src/InsertCoin.Mind/Persona.cs", "src/InsertCoin.Mind/Prompt.cs"],

@@ -111,6 +111,7 @@ public partial class MemorySettings : VBoxContainer
 
         _tabs = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill };
         _tabs.AddThemeStyleboxOverride("panel", new StyleBoxEmpty { ContentMarginTop = 10 });     // the page is Settings' already: no second box round it
+        _tabs.ThemeTypeVariation = "NarrowTabs";            // all six show at Settings' narrowest (about 380 px for the page), not behind arrows
         AddChild(_tabs);
 
         var notes = Tab("Notes");
@@ -988,7 +989,6 @@ public partial class MemorySettings : VBoxContainer
 
         var second = new HBoxContainer();
         second.AddThemeConstantOverride("separation", 6);
-        second.AddChild(new Control { CustomMinimumSize = new Vector2(150, 0) });         // under the time: the what, and how it reminds
         var lead = row.Lead = new OptionButton { TooltipText = Words.Wrap("When its reminder goes off. For a whole day, counted from 09:00 that day.") };
         foreach (var (label, before) in Leads)
         {
@@ -1339,7 +1339,7 @@ public partial class MemorySettings : VBoxContainer
     }
 
     private static Label Hint(string text) =>
-        new() { Text = text, ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(400, 0) };
+        new() { Text = text, ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart };
 
     private static string Day(DateTimeOffset at) => at.ToString("ddd d MMM", CultureInfo.InvariantCulture);
 }
