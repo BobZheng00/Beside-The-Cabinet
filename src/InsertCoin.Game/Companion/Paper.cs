@@ -145,6 +145,19 @@ public static class Paper
         theme.SetColor("font_pressed_color", "Side", AccentDark);
         theme.SetColor("font_hover_pressed_color", "Side", AccentDark);
 
+        // a character's card (Settings → Companion): their portrait on a wash, their name under it; the one chosen ringed
+        theme.SetTypeVariation("Card", "Button");
+        theme.SetStylebox("normal", "Card", Box(Wash, Wash, 2, 10, 6, 6));
+        theme.SetStylebox("hover", "Card", Box(Wash, AccentLight, 2, 10, 6, 6));
+        theme.SetStylebox("pressed", "Card", Box(Wash, Accent, 3, 10, 6, 6));
+        theme.SetStylebox("hover_pressed", "Card", Box(Wash, Accent, 3, 10, 6, 6));
+        theme.SetStylebox("focus", "Card", new StyleBoxEmpty());
+        theme.SetColor("font_color", "Card", Letters);
+        theme.SetColor("font_focus_color", "Card", Letters);
+        theme.SetColor("font_hover_color", "Card", Ink);
+        theme.SetColor("font_pressed_color", "Card", AccentDark);
+        theme.SetColor("font_hover_pressed_color", "Card", AccentDark);
+
         // hover tips: a slip of the same paper, not Godot's dark strip (their text is wrapped where set: tips don't wrap)
         theme.SetStylebox("panel", "TooltipPanel", Box(Colors.White, line, 1, 6, 10, 6));
         theme.SetColor("font_color", "TooltipLabel", Letters);
