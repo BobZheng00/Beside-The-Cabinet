@@ -179,12 +179,15 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
   done, a player in Chinese or Japanese has them in text.
 - **While a game runs the voice rests,** as it does now, and Qwen TTS's server stops, so the game gets its memory and
   processor back. *Built (#281): Qwen TTS for Chinese and Japanese, its download on Their voice, and which language a
-  voice starts in (`SpokenLanguage.ForVoice`). The server starts at the first thing there is to say. A Qwen voice's page
-  offers Chinese and Japanese until English has its engine (#282) and the list of voices arrives (#283).*
+  voice starts in (`SpokenLanguage.ForVoice`). The server starts at the first thing there is to say.*
+  *Built (#282, with #287): Pocket TTS for English, run in the app with ONNX Runtime (`PocketTts`), from the export on
+  the release `pocket-tts-en-1`; Eve's and George's recordings in each character's `voice.zip`. It loads when the
+  character sits down rather than at the first line, as it takes far less memory than Qwen TTS. The page switches
+  between English, Chinese and Japanese until the list of voices arrives (#283).*
 - **Profiles from before Preview 3.** Shino's and Fumiriya's old voices, made with Kokoro-82M, stop shipping, and one that hasn't
   been trained gives way to the suggested voice. A voice the player made or added stays chosen: with no engine for it on
   this PC the page says so and offers the suggested one. A character whose given voice the player removed stays without
-  one until they pick a voice.
+  one until they pick a voice. *Built (#282): `VoiceProfile.ToGive`.*
 - **What ships is a suggestion** ("we can open up the choice for user? and what we provide will just be a suggested default
   option?", 2026-11-09). Each character has a suggested voice for each language, and Their voice lists the others that
   language's engine has, each with a "Try it". All nine of Qwen TTS's come with the one download, with Dylan's and Eric's

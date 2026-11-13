@@ -265,6 +265,11 @@ public partial class Stool : Node2D
         var besideApp = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "qwen-tts");
         _voice.UseQwen(File.Exists(Path.Combine(besideApp, "tts-server.exe")) ? besideApp : ProjectSettings.GlobalizePath("res://../../builds/qwen-tts"),
                        Path.Combine(dataDir, "qwen-tts"));
+        // a test copy speaks English only when its script asks (the dev action pocket): its scenarios are of a companion in text
+        if (Paper.OffScreen || OS.GetCmdlineUserArgs().Contains("--test-run"))
+            _voice.UsePocket("Off in a test run.", () => "");
+        else
+            UsePocket();
         _voice.Muted = settings.Now.Muted;
         _voice.Answering = () => _chat.Answering && !_permission.IsOpen;     // waiting on her card, she isn't thinking: no thinking sounds
         _voice.Testing += line =>                           // only the bubble: she is already saying it in her own language
@@ -1319,38 +1324,53 @@ public partial class Stool : Node2D
     /// <summary>Where a character's voice is kept: a folder beside them in the user's characters folder.</summary>
     private string VoiceFolder(string characterId) => Path.Combine(_characters, characterId + ".voice");
 
+    /// <summary>Pocket TTS's files, packed into the app (see <see cref="PocketTts"/>).</summary>
+    private const string PocketModels = "res://models/pocket-tts-en/";
+
+    /// <summary>English speaks with the Pocket TTS packed into the app: a release copies its files out the first time they load.</summary>
+    private void UsePocket() =>
+        _voice.UsePocket(PocketTts.Files.All(f => ModelFiles.Present(PocketModels + f)) ? null : "The files that speak English are missing from the app's folder.",
+                         () => Path.GetDirectoryName(PocketTts.Files.Select(f => ModelFiles.OnDisk(PocketModels + f, "pocket-tts-en")).ToArray()[0])!);
+
     /// <summary>
-    /// A built-in character comes with a voice of their own (<c>res://characters/&lt;id&gt;/voice.zip</c>, made with
-    /// Kokoro-82M): given to them the first time they sit down without one, and only once, so one the player removed
-    /// stays removed.
+    /// A built-in character is given the voice suggested in the language they start in (<see cref="VoiceProfile.ToGive"/>)
+    /// the first time they sit down, and only once, so one the player removed stays removed; an old voice of theirs made
+    /// with Kokoro-82M gives way to it. In Chinese or Japanese that is Qwen TTS, a character kept in text until it is fetched.
     /// </summary>
     private void GiveOwnVoice(string id, string name)
     {
-        var resource = $"res://characters/{id}/voice.zip";
-        var folder = VoiceFolder(id);
-        var existing = VoiceProfile.Load(folder);
-        // in Chinese or Japanese they speak with Qwen TTS, once it's fetched: a character kept in text until then
-        var suggested = existing is null ? QwenTts.Suggested(id, SpokenLanguage.ForVoice(null, _settings.Now.Language, OS.GetLocaleLanguage())) : null;
-        if (_settings.Now.VoicesGiven.Contains(id) || suggested is null && !ModelFiles.Present(resource))
+        var existing = VoiceProfile.Load(VoiceFolder(id));
+        var given = _settings.Now.VoicesGiven.Contains(id);
+        if (VoiceProfile.ToGive(id, existing, given, _settings.Now.Language, OS.GetLocaleLanguage()) is not { } voice)
             return;
-        _settings.Save(_settings.Now with { VoicesGiven = [.. _settings.Now.VoicesGiven, id] });
-        if (existing is not null)
-            return;                                         // they have one already
         try
         {
-            if (suggested is not null)
-            {
-                suggested.Save(folder);
-                GD.Print($"Voice: {name} speaks {suggested.Language} as {suggested.Name}");
-                return;
-            }
-            (VoiceProfile.Import(ModelFiles.OnDisk(resource, "voice-" + id), VoiceFolder(id)) with { Name = name }).Save(VoiceFolder(id));
-            GD.Print($"Voice: {name} given their own voice");
+            Give(id, voice);
+            GD.Print($"Voice: {name} speaks {SpokenLanguage.Name(voice.Language)} as {voice.Name}{(existing is null ? "" : ", in place of their voice made with Kokoro-82M")}");
+            if (!given)
+                _settings.Save(_settings.Now with { VoicesGiven = [.. _settings.Now.VoicesGiven, id] });
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            GD.PrintErr($"Voice: giving {name} their own voice: {e.Message}");
+            GD.PrintErr($"Voice: giving {name} their voice: {e.Message}");
         }
+    }
+
+    /// <summary>
+    /// Puts a suggested voice in a built-in character's voice folder, in place of what was there; for Pocket TTS with the
+    /// recording it copies, which comes with the character (<c>res://characters/&lt;id&gt;/voice.zip</c>).
+    /// </summary>
+    private void Give(string id, VoiceProfile voice)
+    {
+        var folder = VoiceFolder(id);
+        var recording = voice.Engine == VoiceProfile.Pocket ? ModelFiles.OnDisk($"res://characters/{id}/voice.zip", "voice-" + id) : null;
+        if (_trainer.Running && _trainer.Folder == folder)
+            _trainer.Stop("The voice was replaced.");
+        if (Directory.Exists(folder))
+            Directory.Delete(folder, recursive: true);
+        if (recording is not null)
+            System.IO.Compression.ZipFile.ExtractToDirectory(recording, folder);
+        voice.Save(folder);
     }
 
     /// <summary>Someone else takes the stool.</summary>
@@ -2094,9 +2114,9 @@ public partial class Stool : Node2D
             provider is null ? $"Not connected: {her} can't talk with you yet."
                 : $"{her} answers through {provider.Through}, with {provider.Model}.");
         yield return new("voice", "Voice",
-            _voice.Profile is { Engine: VoiceProfile.Qwen } qwen
-                ? $"{her} speaks {SpokenLanguage.Name(qwen.Language)} on this PC, with no graphics card needed." +
-                  (_voice.QwenWantsDownload ? $" It takes one download of {QwenInstaller.Gb(QwenWeights.Size)} GB, on the Voice page." : "")
+            _voice.Profile is { Engine: VoiceProfile.Qwen or VoiceProfile.Pocket } given
+                ? $"{her} speaks {SpokenLanguage.Name(given.Language)} on this PC, with no graphics card needed." +
+                  (given.Engine == VoiceProfile.Qwen && _voice.QwenWantsDownload ? $" It takes one download of {QwenInstaller.Gb(QwenWeights.Size)} GB, on the Voice page." : "")
                 : $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
                   (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
                   ". About 20 minutes; training a model of the voice takes longer.",
@@ -2164,6 +2184,19 @@ public partial class Stool : Node2D
             _voice.UseEngine(engine);
         };
         page.VoiceChanged += () => _voice.Seat(folder);     // read again: its language, words, model or quality changed
+        page.Suggested += voice =>                          // a built-in character's suggested voice chosen, in place of what they had
+        {
+            try
+            {
+                Give(Path.GetFileNameWithoutExtension(folder), voice);
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                GD.PrintErr($"Voice: giving {HerName()} {voice.Name}'s voice: {e.Message}");
+            }
+            _voice.Seat(folder);
+            SettingsChanged?.Invoke("voice");
+        };
         page.AddVoice += PickVoice;
         page.AddFolder += PickVoiceFolder;
         page.Train += Train;
@@ -2564,6 +2597,8 @@ public partial class Stool : Node2D
                 var (program, weights) = (rest[..rest.IndexOf('|')], rest[(rest.IndexOf('|') + 1)..]);
                 _voice.UseQwen(program, weights);
                 break;
+            case "pocket": UsePocket(); break;              // English speaks with the Pocket TTS packed into the app, as outside a test run
+            case "pocketat": _voice.UsePocket(PocketTts.Missing(rest), () => rest); break;     // pocketat:folder: Pocket TTS's files from there (pocketat:nowhere, as if they were missing)
             case "voicecheck": _ = VoiceCheck(text); break; // voicecheck:words: says them in her voice (off the speakers) and logs the words her ears find in it
             case "voicemodel":                              // voicemodel:v2ProPlus clones her voice with that base model, voicemodel:trained uses its own
                 if (_voice.Profile is { } voice && (VoiceProfile.CloneVersions.Contains(rest) || rest == "trained" && voice.Trained))

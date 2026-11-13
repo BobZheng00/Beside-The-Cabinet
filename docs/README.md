@@ -290,6 +290,19 @@ Auto from the PC's display language (Chinese, Japanese, otherwise English), and 
 Settings → Voice. A character who already has a voice keeps that voice's language. Writing in another language doesn't
 change it: they say their voice's language over the subtitle.
 
+**In English** your companion speaks with Pocket TTS (Kyutai, CC BY 4.0), which comes with the app (185 MB) and runs
+on this PC's processor, in the app itself, with nothing to set up or download: Shino as Eve and Fumiriya as George,
+two speakers of the VCTK corpus (CC BY 4.0). Pocket TTS copies a voice from about 30 seconds of it, ending on a short
+pause, which comes with each character (`characters/<id>/voice.zip`). It runs on 4 threads and needs about 0.4 seconds
+of work for a second of speech on a fast laptop's processor; speech plays as it's made, held back only on a PC slower
+than speech. It loads when your companion sits down (the first line waits for it, a few seconds), rests while a game
+runs, letting its memory go, and loads again after. A line that comes out silent is made once more; if it's silent
+again, or the files are missing or won't load, that line stays in text and the log says why in a line. Settings →
+Voice says who they speak as, and switches between English, Chinese and Japanese. A profile from before Preview 3 had
+Shino and Fumiriya speak with voices made with Kokoro-82M: one that wasn't trained gives way to Eve or George. A voice
+you made or added stays; where GPT-SoVITS isn't set up for it, the page says so and offers the suggested voice. A
+character whose voice you removed stays without one until you pick one there.
+
 **In Chinese and Japanese** your companion speaks with Qwen TTS (Qwen3-TTS by Alibaba Cloud, Apache-2.0, in a build of
 qwentts.cpp, MIT), on this PC's processor with no graphics card needed: Shino as Serena in Chinese and Ono Anna in
 Japanese, Fumiriya as Aiden in both. It takes one download of 1.26 GB, asked for on Settings → Voice and never in the
@@ -300,7 +313,7 @@ PC falls behind speech, each line is held back just long enough to play without 
 seconds at 1.4 seconds of work per second of speech). If the program or its files are missing, or the server stops,
 they stay in text and the page says why in a line.
 
-**In English,** your companion can speak with a voice from GPT-SoVITS running on this PC (its official Windows package; a
+**A voice of your own,** in any of the three languages, speaks with GPT-SoVITS running on this PC (its official Windows package; a
 laptop graphics card starts each sentence in about a second). Settings → Voice: point it at the GPT-SoVITS folder,
 or use the one it finds on the PC ("Found on this PC"), or press "Install it for me": it downloads the package the
 voices are tested with (v2pro of June 2025, 8.2 GB; the build for RTX 50 cards on those) from Hugging Face, or
@@ -318,11 +331,9 @@ page marks those clips "words to check", says so, and shows how to listen and co
 or "They're right", clears the mark. Without ears, a folder keeps only its clips with words (six clips when none has
 any), and the page asks for the rest ("no words yet"). "What goes in a voice folder?" on the page says the same, and
 where a voice can come from (your own recordings, a friend who agrees, a voice actor, an open licence; shared game or
-anime voices are for yourself only) and how to record one. Shino and Fumiriya come with voices of their own
-(`characters/<id>/voice.zip`: twelve English clips each, everyday, happy, sad and surprised, a minute in all, so they
-can be trained too), made with Kokoro-82M (Apache-2.0; its voices af_bella and am_fenrir, synthetic, not a real
-person's): given to them the first time they sit down without one, and only once, so a voice removed stays removed
-(`VoicesGiven`). For example:
+anime voices are for yourself only) and how to record one. Shino's and Fumiriya's own voices (above) are given to
+them the first time they sit down without one, and only once, so a voice removed stays removed (`VoicesGiven`). For
+example:
 
 ```
 hana/

@@ -202,7 +202,10 @@ def notices(app, data, version, shipped):
     section('Characters and their voices')
     for f in sorted((GAME / 'characters').glob('*/SOURCE.txt')):
         out += [f'--- {f.parent.name}', f.read_text(encoding='utf-8', errors='replace').strip(), '']
-    out += ['Shino\'s and Fumiriya\'s voices were made with Kokoro-82M (hexgrad, Apache-2.0): https://huggingface.co/hexgrad/Kokoro-82M']
+    out += ['In English, Shino and Fumiriya speak as Eve and George, speakers of the VCTK corpus (CSTR, University of Edinburgh, CC BY 4.0: '
+            'https://datashare.ed.ac.uk/handle/10283/3443), as Kyutai\'s Pocket TTS (CC BY 4.0: https://github.com/kyutai-labs/pocket-tts) '
+            'speaks them: characters/*/voice.zip holds the recording each voice is copied from. '
+            'CC BY 4.0 (which asks for a link to itself, not its text): https://creativecommons.org/licenses/by/4.0/']
 
     unknown = sorted(f.name for f in data.iterdir() if f.suffix.lower() in ('.dll', '.exe') and f.name.lower() not in known)
     qwen = [f for f in (app / 'qwen-tts').iterdir() if f.suffix.lower() in ('.dll', '.exe')]
