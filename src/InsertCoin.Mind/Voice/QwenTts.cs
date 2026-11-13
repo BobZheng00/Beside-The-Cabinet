@@ -9,13 +9,14 @@ namespace InsertCoin.Mind;
 /// it are made. Holding back an amount of audio, rather than a time, keeps it right when the PC is slower than it was.
 /// The pace and how long a character takes are learned from the lines this PC has said.
 /// </summary>
-public sealed class HoldBack
+/// <param name="firstPace">Seconds of work for a second of speech until a line is heard: what the engine took on 4 fast cores.</param>
+public sealed class HoldBack(double firstPace = 1.4)
 {
     private const double Fade = 0.8;                    // older lines count for less: the PC may have got busier
     private double _work, _speech, _chars;
 
-    /// <summary>Seconds of work for a second of speech. Until a line is heard, what 4 fast cores measured.</summary>
-    public double Pace => _speech > 0 ? _work / _speech : 1.4;
+    /// <summary>Seconds of work for a second of speech.</summary>
+    public double Pace => _speech > 0 ? _work / _speech : firstPace;
 
     /// <summary>Roughly how long a character takes to say.</summary>
     public double SecondsPerCharacter => _chars > 0 ? _speech / _chars : 0.2;
@@ -35,6 +36,41 @@ public sealed class HoldBack
         _work = _work * Fade + work;
         _speech = _speech * Fade + speech;
         _chars = _chars * Fade + characters;
+    }
+
+    /// <summary>
+    /// A line's speech as it is made, held back until enough is made to play without a gap, then passed on as it comes;
+    /// what it took is learned. <paramref name="started"/>: when the line was asked for, on <paramref name="now"/>'s clock.
+    /// </summary>
+    public async IAsyncEnumerable<VoiceAudio> Through(IAsyncEnumerable<float[]> made, int rate, int characters, TimeSpan started, Func<TimeSpan> now)
+    {
+        var hold = Seconds(characters);
+        var held = new List<float[]>();
+        var heldSeconds = 0.0;
+        var count = 0L;
+        var flowing = hold <= 0;
+        await foreach (var samples in made)
+        {
+            if (samples.Length == 0)
+                continue;
+            count += samples.Length;
+            if (flowing)
+            {
+                yield return new VoiceAudio(rate, samples);
+                continue;
+            }
+            held.Add(samples);
+            heldSeconds += (double)samples.Length / rate;
+            if (heldSeconds < hold)
+                continue;
+            flowing = true;
+            foreach (var piece in held)
+                yield return new VoiceAudio(rate, piece);
+            held.Clear();
+        }
+        foreach (var piece in held)
+            yield return new VoiceAudio(rate, piece);   // a line shorter than guessed
+        Learn((now() - started).TotalSeconds, (double)count / rate, characters);
     }
 }
 
@@ -83,40 +119,17 @@ public sealed class QwenTts(HttpClient http, TimeSpan? stall = null, Func<TimeSp
         if (!response.IsSuccessStatusCode)
             throw VoiceException.From(await response.Content.ReadAsStringAsync(cancel));
         await using var stream = await response.Content.ReadAsStreamAsync(cancel);
+        await foreach (var audio in Held.Through(Pieces(stream, cancel), Rate, text.Length, started, _now))
+            yield return audio;
+    }
 
-        var hold = Held.Seconds(text.Length);
-        var held = new List<float[]>();
-        var heldSeconds = 0.0;
-        var made = 0L;
-        var flowing = hold <= 0;
+    /// <summary>The speech as the server streams it, a read at a time.</summary>
+    private async IAsyncEnumerable<float[]> Pieces(Stream stream, [EnumeratorCancellation] CancellationToken cancel)
+    {
         var buffer = new byte[16384];
         var left = -1;                                  // a sample cut in two between reads: its first byte
-        while (true)
-        {
-            var read = await Quietly(() => stream.ReadAsync(buffer, cancel).AsTask(), cancel);
-            if (read == 0)
-                break;
-            var samples = Samples(buffer.AsSpan(0, read), ref left);
-            if (samples.Length == 0)
-                continue;
-            made += samples.Length;
-            if (flowing)
-            {
-                yield return new VoiceAudio(Rate, samples);
-                continue;
-            }
-            held.Add(samples);
-            heldSeconds += (double)samples.Length / Rate;
-            if (heldSeconds < hold)
-                continue;
-            flowing = true;
-            foreach (var piece in held)
-                yield return new VoiceAudio(Rate, piece);
-            held.Clear();
-        }
-        foreach (var piece in held)
-            yield return new VoiceAudio(Rate, piece);   // a line shorter than guessed
-        Held.Learn((_now() - started).TotalSeconds, (double)made / Rate, text.Length);
+        while (await Quietly(() => stream.ReadAsync(buffer, cancel).AsTask(), cancel) is var read && read > 0)
+            yield return Samples(buffer.AsSpan(0, read), ref left);
     }
 
     /// <summary>A step that may never finish if the server has hung: nothing for <see cref="_stall"/> is a failure, not a wait.</summary>

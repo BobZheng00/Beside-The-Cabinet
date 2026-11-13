@@ -11,11 +11,13 @@ listening     her ears: SenseVoice-Small (FunAudioLLM; FunASR model licence, whi
               English, Japanese, Korean and Cantonese, 240 MB
 turns         hands-free turns: Silero's voice detector (MIT, 0.6 MB) and Pipecat's Smart Turn v3.2 at full
               precision (BSD-2, 32 MB), which tell when the player starts talking and when they have finished
+voice         their voice in English: Kyutai's Pocket TTS (CC BY 4.0), exported by pocket_export.py (#280), 185 MB
 The app works without any of them (memory search by shared words only; no talking to her aloud; without the turn
-models, she listens only while the talk key is held or she is held).
+models, she listens only while the talk key is held or she is held; without the voice, English stays in text).
 
 Each file is pinned: fetched from a fixed revision (a Hugging Face commit; Silero's from sherpa-onnx's release, which
-has none) and kept only if its SHA-256 is the one below, so a release ships exactly the files checked here. A file
+has none; Pocket TTS's export from a release of this repository) and kept only if its SHA-256 is the one below, so a
+release ships exactly the files checked here. A file
 already there that isn't the pinned one is fetched again; `check` fails on one.
 """
 import hashlib
@@ -55,6 +57,18 @@ MODELS = {
               "Silero VAD (https://github.com/snakers4/silero-vad), MIT License, Silero Team: the copy sherpa-onnx ships.\n"
               "Smart Turn v3.2 (https://huggingface.co/pipecat-ai/smart-turn-v3), BSD 2-Clause License, Copyright (c) 2024-2025, Daily.\n"
               "Its full-precision build (smart-turn-v3.2-gpu.onnx), which runs on the processor too.\n"),
+    "voice": ("pocket-tts-en", "https://github.com/BobZheng00/Beside-The-Cabinet/releases/download/pocket-tts-en-1",
+              {"text_conditioner.onnx": ("text_conditioner.onnx", "94721d7d170d7810009899dad4f795cfbfb66c491e83212463c38ad3466ca6eb"),
+               "encoder.onnx": ("encoder.onnx", "a4db1b4eb1046a6549ad9e5e21946d84b860fd611e2d4f58c6d2454399441d71"),
+               "lm_main.int8.onnx": ("lm_main.int8.onnx", "31b7c05f52ae5ef6908e5ad2d27ecde38e571a8c9af60923030ec12e72729b84"),
+               "lm_flow.int8.onnx": ("lm_flow.int8.onnx", "7ae46f00a4e7de1a69a8165f618a5a7fe835896666f674d9e64a2c03f7a2bd7b"),
+               "decoder.onnx": ("decoder.onnx", "feb0e7df0c922a03172098766f993f1d7ff16216635ed264c6ff36474be9a746"),
+               "vocab.json": ("vocab.json", "2db0001bb15a3dbb42f5c50f9973d6a610e69d8276d1a732bcad0e523c99186a"),
+               "token_scores.json": ("token_scores.json", "0ca95ed85ec94ee887b333c80da05f6119264eebad05ed5058857e55084b5b53")},
+              "Pocket TTS (https://github.com/kyutai-labs/pocket-tts), Kyutai: code MIT, weights CC BY 4.0\n"
+              "(https://creativecommons.org/licenses/by/4.0/). Its English model, changed: exported to ONNX by\n"
+              "tools/models/pocket_export.py (#280), its main model and flow quantised to 8 bits.\n"
+              "Eve's and George's voices are speakers of the VCTK corpus (CSTR, University of Edinburgh), CC BY 4.0.\n"),
 }
 
 
