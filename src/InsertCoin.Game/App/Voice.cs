@@ -8,9 +8,10 @@ using HttpClient = System.Net.Http.HttpClient;
 namespace InsertCoin.Game.App;
 
 /// <summary>
-/// Her voice. Keeps the player's GPT-SoVITS in step with what is wanted: started, with the voice of whoever is on the
-/// stool loaded and warmed up, while she has a voice that can talk; stopped (its graphics memory given back) when the
-/// voice is switched off, she has none, or a game runs. Speaks a sentence at a time as a reply streams in, plays the
+/// Her voice. Keeps the engine of the voice on the stool in step with what is wanted: Pocket TTS (English, in the app
+/// itself), Qwen TTS (Chinese and Japanese, a server on this PC) or the player's GPT-SoVITS, started with the voice of
+/// whoever is on the stool loaded and warmed up while she has a voice that can talk; stopped (its memory given back) when
+/// the voice is switched off, she has none, or a game runs. Speaks a sentence at a time as a reply streams in, plays the
 /// audio as it arrives, and opens her mouth with its loudness. Without a working voice she simply stays text-only.
 /// </summary>
 [SupportedOSPlatform("windows")]
@@ -49,6 +50,11 @@ public partial class Voice : Node
     private string? _qwenProgram, _qwenWeights;         // where the engine's program is, and its downloaded weights
     private bool _needed;                               // Qwen TTS starts the first time it is needed, and again after it rests
     private string? _qwenProblem;                       // why it last failed: said until a start succeeds
+    private PocketTts? _pocket;
+    private Task<PocketTts?>? _loading;                 // Pocket TTS being loaded: one load at a time
+    private string? _saidMissing;                       // why Pocket TTS can't run here, as last said in the log
+    private string? _pocketMissing;                     // why Pocket TTS can't run here, or null when its files are here
+    private Func<string> _pocketFiles = () => "";       // where its files are on disk (a release copies them out of the app the first time)
     private VoiceProfile? _profile, _warm;
     private string _folder = "";
     private bool _enabled = true, _gameRunning, _training;
@@ -103,9 +109,9 @@ public partial class Voice : Node
 
     public string Status => Now switch
     {
-        Phase.NotSetUp => IsQwen ? QwenMissing ?? "" : "Not set up: choose where GPT-SoVITS is.",
+        Phase.NotSetUp => IsQwen ? QwenMissing ?? "" : IsPocket ? _pocketMissing ?? "" : "Not set up: choose where GPT-SoVITS is.",
         Phase.Off => "Switched off: tick the box above, or the tray's Voice.",
-        Phase.Resting => IsQwen ? "Resting while your game runs." : "Resting while your game runs, to leave it the graphics card.",
+        Phase.Resting => IsQwen || IsPocket ? "Resting while your game runs." : "Resting while your game runs, to leave it the graphics card.",
         Phase.Training => "Resting while a voice is trained (it takes the whole graphics card).",
         Phase.NoVoice => _profile is null ? "No voice yet." : $"The voice still needs {_profile.Missing}.",
         Phase.Starting => IsQwen ? "Getting ready…" : "Starting GPT-SoVITS… (a first start can take a minute)",
@@ -190,6 +196,63 @@ public partial class Voice : Node
     public QwenInstaller Download { get; } = new();
 
     private bool IsQwen => _profile?.Engine == VoiceProfile.Qwen;
+    private bool IsPocket => _profile?.Engine == VoiceProfile.Pocket;
+
+    /// <summary>
+    /// Where Pocket TTS's files are (see <see cref="PocketTts"/>): <paramref name="missing"/> says why they can't be used
+    /// (null when they're all here), and <paramref name="files"/> gives their folder, which may take a while the first time.
+    /// </summary>
+    public void UsePocket(string? missing, Func<string> files)
+    {
+        LetPocketGo();
+        (_pocketMissing, _pocketFiles, _loading) = (missing, files, null);     // a load of other files under way is let go when it ends
+        Refresh();
+        Changed?.Invoke();
+    }
+
+    /// <summary>Pocket TTS's memory back, once a line being made has finished (off this thread: that can take a moment).</summary>
+    private void LetPocketGo()
+    {
+        if (_pocket is not { } pocket)
+            return;
+        _pocket = null;
+        _warm = null;
+        _ = Task.Run(pocket.Dispose);
+    }
+
+    /// <summary>
+    /// Loads Pocket TTS, once however many refreshes wait for it (a release copies its files out of the app the first
+    /// time, and two copies at once would trip over each other). It is kept only if it is still wanted when done; null
+    /// when its files didn't load, said once in the log.
+    /// </summary>
+    private async Task<PocketTts?> LoadPocket()
+    {
+        var files = _pocketFiles;
+        try
+        {
+            var clock = Stopwatch.StartNew();
+            var loaded = await Task.Run(() => new PocketTts(files()));
+            GD.Print($"Voice: Pocket TTS loaded in {clock.ElapsedMilliseconds} ms");
+            if (Wanted && IsPocket && ReferenceEquals(files, _pocketFiles) && _pocket is null)
+                _pocket = loaded;
+            else
+                _ = Task.Run(loaded.Dispose);       // wanted no longer (a game started, another voice): its memory back
+            return loaded;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Voice: Pocket TTS's files didn't load, so they stay in text: {e.Message}");
+            return null;
+        }
+        finally
+        {
+            if (ReferenceEquals(files, _pocketFiles))
+                _loading = null;                    // else other files were chosen meanwhile, and their load is the one waited for
+        }
+    }
+
+    /// <summary>The engine of the voice on the stool can run here.</summary>
+    private bool CanRun => IsPocket ? _pocketMissing is null : Server is not null;
 
     /// <summary>What Qwen TTS is still missing here, in a line for the player, or null when it can run.</summary>
     public string? QwenMissing =>
@@ -226,13 +289,13 @@ public partial class Voice : Node
         Refresh();
     }
 
-    private bool Wanted => _enabled && !_gameRunning && !_training && Server is not null && _profile is { Missing: null };
+    private bool Wanted => _enabled && !_gameRunning && !_training && CanRun && _profile is { Missing: null };
 
     /// <summary>
     /// The language her voice speaks while she has a working voice switched on, whether or not it can speak this
     /// moment (it rests during games): what her mind is told, kept steady so the start of its prompt stays cached.
     /// </summary>
-    public string? Language => _enabled && Server is not null && _profile is { Missing: null } profile ? profile.Language : null;
+    public string? Language => _enabled && CanRun && _profile is { Missing: null } profile ? profile.Language : null;
 
     /// <summary>She has something still to say or still playing.</summary>
     public bool Speaking => _toSay.Count > 0 || _working || _audio.Count > 0 || _sentenceEnds.Count > 0;
@@ -260,7 +323,8 @@ public partial class Voice : Node
     }
 
     /// <summary>She can say something right now.</summary>
-    public bool CanSpeak => Wanted && (Now == Phase.Ready || IsQwen && Now is Phase.Asleep or Phase.Starting or Phase.Loading or Phase.Failed);      // failed: the next line tries again
+    public bool CanSpeak => Wanted && (Now == Phase.Ready || IsQwen && Now is Phase.Asleep or Phase.Starting or Phase.Loading or Phase.Failed      // failed: the next line tries again
+                                       || IsPocket && Now == Phase.Loading);
 
     /// <summary>Brings the server and the loaded voice in line with what is wanted.</summary>
     private async void Refresh()
@@ -274,14 +338,25 @@ public partial class Voice : Node
             _qwenServer?.Stop();
             _needed = false;
             _engine?.Forget();
-            Set(Server is null ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
+            LetPocketGo();
+            var missing = IsPocket ? _pocketMissing : null;
+            if (missing is not null && missing != _saidMissing)
+                GD.Print($"Voice: English stays in text: {missing}");      // once, not a line a reply: the page says it too
+            _saidMissing = missing;
+            Set(!CanRun ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
             return;
         }
-        var server = Server!;
-        (IsQwen ? _server : _qwenServer)?.Stop();       // the other engine's memory back
-        if (Now == Phase.Ready && server.Ready && ReferenceEquals(_warm, _profile))
+        var server = IsPocket ? null : Server!;
+        // the other engines' memory back
+        if (!IsQwen)
+            _qwenServer?.Stop();
+        if (server != _server)
+            _server?.Stop();
+        if (!IsPocket)
+            LetPocketGo();
+        if (Now == Phase.Ready && (server?.Ready ?? _pocket is not null) && ReferenceEquals(_warm, _profile))
             return;                                 // already loaded and warmed up
-        if (IsQwen && !_needed && !server.Ready)
+        if (IsQwen && !_needed && !server!.Ready)
         {
             if (_qwenProblem is { } why)
                 Fail(why);
@@ -293,7 +368,21 @@ public partial class Voice : Node
         var profile = _profile!;
         try
         {
-            if (!server.Ready)
+            if (server is null && _pocket is null)
+            {
+                Set(Phase.Loading);
+                (_engine, _qwen) = (null, null);
+                var loaded = await (_loading ??= LoadPocket());     // a refresh while it loads waits for the same load
+                if (refresh != _refreshes)
+                    return;
+                if (loaded is null)
+                {
+                    _problem = "The files that speak English didn't load, so they stay in text.";
+                    Set(Phase.Failed);
+                    return;
+                }
+            }
+            else if (server is not null && !server.Ready)
             {
                 Set(Phase.Starting);
                 if (!await server.Start(cancel))
@@ -318,8 +407,16 @@ public partial class Voice : Node
             var clock = Stopwatch.StartNew();
             if (_engine is { } sovits)
                 await sovits.Load(profile, _folder, cancel);
-            await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel, limit: ShortFrames))
+            try
             {
+                await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel, limit: ShortFrames))
+                {
+                }
+            }
+            catch (Exception e) when (IsPocket && e is not OperationCanceledException)
+            {
+                // the engine is fine; each line tries again, and one that fails stays in text with its own line in the log
+                GD.PrintErr($"Voice: warming up {profile.Name} didn't work: {e.Message}");
             }
             GD.Print($"Voice: {profile.Name} loaded and warmed up in {clock.ElapsedMilliseconds} ms");
             if (refresh == _refreshes)
@@ -366,7 +463,9 @@ public partial class Voice : Node
 
     /// <summary>A line in the voice on the stool, from whichever engine it speaks with.</summary>
     private IAsyncEnumerable<VoiceAudio> Speak(string text, VoiceProfile profile, string? mood, CancellationToken cancel, TimeSpan? leadIn = null, int? limit = null) =>
-        _qwen is { } qwen ? qwen.Speak(text, profile, cancel, limit) : _engine!.Speak(text, profile, _folder, profile.ClipFor(mood)!, cancel, leadIn);
+        profile.Engine == VoiceProfile.Pocket ? (_pocket ?? throw new OperationCanceledException("Pocket TTS was let go")).Speak(text, profile, _folder, cancel, limit)
+        : _qwen is { } qwen ? qwen.Speak(text, profile, cancel, limit)
+        : _engine!.Speak(text, profile, _folder, profile.ClipFor(mood)!, cancel, leadIn);
 
     /// <summary>A reply is starting: whatever she was saying stops, and the reply goes to her voice as it streams in (null when she can't speak now).</summary>
     /// <param name="thinkAloud">The player is waiting for it: while her words are slow to come, she may make a thinking sound.</param>
@@ -451,6 +550,7 @@ public partial class Voice : Node
         _http = null;
         _engine = null;
         _qwen = null;
+        LetPocketGo();
     }
 
     public override void _ExitTree() => Shutdown();
@@ -458,7 +558,7 @@ public partial class Voice : Node
     private void Say(string text, string? mood)
     {
         Wake();
-        if (IsQwen)
+        if (IsQwen || IsPocket)
             _soundCut?.Cancel();                        // a thinking sound being made gives way: on a processor it would hold this line up for seconds
         _givenChars += text.Length;
         _toSay.Enqueue((text, mood));
@@ -478,7 +578,7 @@ public partial class Voice : Node
                 await ToSignal(GetTree().CreateTimer(0.1), SceneTreeTimer.SignalName.Timeout);     // Qwen TTS getting up
             if (Now != Phase.Ready && !stop.IsCancellationRequested)
                 Stop();                                 // it didn't: what was queued stays unsaid, and the words are on the bubble
-            while (!stop.IsCancellationRequested && (_engine is not null || _qwen is not null) && _profile is { } profile && _toSay.TryDequeue(out var line))
+            while (!stop.IsCancellationRequested && (_engine is not null || _qwen is not null || _pocket is not null) && _profile is { } profile && _toSay.TryDequeue(out var line))
             {
                 var clock = Stopwatch.StartNew();
                 var first = true;
@@ -494,6 +594,10 @@ public partial class Voice : Node
                         first = false;
                         Queue(audio);
                     }
+                }
+                catch (Exception e) when (IsPocket && e is not OperationCanceledException)
+                {
+                    GD.PrintErr($"Voice: {e.Message}, so it stays in text");     // that line only: the next is tried as usual
                 }
                 finally
                 {
@@ -544,7 +648,7 @@ public partial class Voice : Node
     /// </summary>
     private async Task MakeSounds(VoiceProfile profile, CancellationToken cancel)
     {
-        if (ReferenceEquals(_soundsFor, profile) || _engine is null && _qwen is null)
+        if (ReferenceEquals(_soundsFor, profile) || _engine is null && _qwen is null && _pocket is null)
             return;
         var clock = Stopwatch.StartNew();
         var made = new List<(string, VoiceAudio)>();
@@ -574,6 +678,10 @@ public partial class Voice : Node
                 {
                     i--;                                    // a line came: it goes first, and this sound after it
                     continue;
+                }
+                catch (VoiceException) when (IsPocket)
+                {
+                    rate = 0;                               // it came out silent: left out
                 }
                 finally
                 {
@@ -625,7 +733,7 @@ public partial class Voice : Node
             {
                 _engineFree.Release();
             }
-            GD.Print($"Voice: made in {clock.ElapsedMilliseconds} ms; this PC's pace is {_qwen?.Held.Pace:0.00} s of work a second of speech");
+            GD.Print($"Voice: made in {clock.ElapsedMilliseconds} ms; this PC's pace is {(_qwen?.Held ?? _pocket?.Held)?.Pace:0.00} s of work a second of speech");
         }
         return new VoiceAudio(rate, [.. samples]);
     }

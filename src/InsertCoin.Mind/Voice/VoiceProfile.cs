@@ -44,6 +44,23 @@ public sealed partial record VoiceProfile
 
     /// <summary>The value of <see cref="Engine"/> for one of Qwen TTS's own speakers (see <see cref="QwenTts"/>).</summary>
     public const string Qwen = "qwen-tts";
+    /// <summary>The value of <see cref="Engine"/> for a voice Pocket TTS copies from its one recording (see <see cref="PocketTts"/>).</summary>
+    public const string Pocket = "pocket-tts";
+
+    /// <summary>The voice a built-in character is given in this language, from whichever engine speaks it; null when there is none.</summary>
+    public static VoiceProfile? Suggested(string character, string language) =>
+        PocketTts.Suggested(character, language) ?? QwenTts.Suggested(character, language);
+
+    /// <summary>
+    /// The voice to give a built-in character as they sit down, or null to leave them as they are: the suggested one in the
+    /// language they start in (<see cref="SpokenLanguage.ForVoice"/>), the first time only, so one the player removed stays
+    /// removed; and in place of one made with Kokoro-82M. A voice the player made or added stays.
+    /// </summary>
+    /// <param name="givenBefore">The app gave this character a voice before.</param>
+    public static VoiceProfile? ToGive(string character, VoiceProfile? existing, bool givenBefore, string? setting, string display) =>
+        existing is { MadeWithKokoro: false } || existing is null && givenBefore
+            ? null
+            : Suggested(character, SpokenLanguage.ForVoice(existing?.Language, setting, display));
 
     public string Engine { get; init; } = "gpt-sovits";
     /// <summary>The engine's name for a built-in speaker (Qwen TTS's "serena"); null for a voice made from clips.</summary>
@@ -71,6 +88,7 @@ public sealed partial record VoiceProfile
     [JsonIgnore]
     public string? Missing =>
         Engine == Qwen ? null                   // a speaker the engine has: no clips to give it
+        : Engine == Pocket ? (Clips.Count == 0 ? "a recording of the voice" : null)     // copied from the sound alone: no words needed
         : Clips.Count == 0 ? "a 3 to 10 second clip of the voice"
         : !Clips.Any(c => c.Text.Trim().Length > 0) ? "the words spoken in its clip"
         : Language.Length == 0 ? "the language it speaks"
@@ -79,6 +97,42 @@ public sealed partial record VoiceProfile
     /// <summary>It has a trained model of its own.</summary>
     [JsonIgnore]
     public bool Trained => Gpt is not null && Sovits is not null;
+
+    /// <summary>
+    /// One of the voices the app gave Shino and Fumiriya before Preview 3, made with Kokoro-82M (its README says so), as it
+    /// came: none of its clips but the twelve it shipped with, and not trained since. It gives way to the voice now
+    /// suggested, as the app no longer gives anyone those. One the player added clips to or trained is theirs, and stays.
+    /// </summary>
+    [JsonIgnore]
+    public bool MadeWithKokoro => !Trained && About?.Contains("Kokoro-82M", StringComparison.Ordinal) == true
+                                  && Clips.All(c => KokoroClips.Contains(Path.GetFileName(c.File.Replace('\\', '/'))));
+
+    /// <summary>The clips the voices made with Kokoro-82M came with.</summary>
+    private static readonly HashSet<string> KokoroClips =
+    [
+        "01.wav", "02.wav", "03.wav", "04.wav", "10.wav", "11.wav", "12.wav",
+        "[happy] 05.wav", "[happy] 06.wav", "[sad] 07.wav", "[sad] 08.wav", "[surprised] 09.wav",
+    ];
+
+    /// <summary>
+    /// The voice in this folder can be deleted to make room for another: the folder isn't there, or the voice in it is one the
+    /// app gave (Pocket TTS's or Qwen TTS's, or an old one made with Kokoro-82M as it came) and the folder holds nothing else
+    /// (its voice.json and README, the recording Pocket TTS copies, those twelve clips). In any other case it holds something
+    /// of the player's, and it is set aside, never deleted.
+    /// </summary>
+    public static bool SafeToReplace(string folder)
+    {
+        if (!Directory.Exists(folder))
+            return true;
+        var given = Load(folder);
+        if (given is null || given.Engine is not (Pocket or Qwen) && !given.MadeWithKokoro)
+            return false;
+        string[] ours = given.MadeWithKokoro
+            ? [FileName, "README.md", .. KokoroClips.Select(c => "clips/" + c)]
+            : [FileName, "README.md", .. given.Clips.Select(c => c.File.Replace('\\', '/'))];
+        return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+            .All(f => ours.Contains(Path.GetRelativePath(folder, f).Replace('\\', '/')));
+    }
 
     /// <summary>It speaks with its trained model, not as a clone.</summary>
     [JsonIgnore]
@@ -261,7 +315,7 @@ public sealed partial record VoiceProfile
 
     private static VoiceProfile FromClip(string clip, string folder)
     {
-        var existing = Load(folder) is { Engine: not Qwen } voice ? voice : null;   // a clip can't join one of Qwen TTS's speakers: it starts a voice
+        var existing = Load(folder) is { Engine: not (Qwen or Pocket) } voice ? voice : null;   // a clip can't join a built-in speaker: it starts a voice
         if (existing is null)
             Clear(folder);                                  // whatever is there without a voice.json is no voice
         var said = FromName(clip);

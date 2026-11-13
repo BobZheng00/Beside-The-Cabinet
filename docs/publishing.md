@@ -171,6 +171,9 @@ subtitle does, and holds the words people search for: **Beside the Cabinet: A De
   by our own scripts (`tools/art`, `tools/sfx`). Shino's and Fumiriya's voices (2026-10-12, the user's picks) were made
   with Kokoro-82M (Apache-2.0; synthetic voices, its makers welcome commercial use; its model card says it learned
   from public-domain and permissively licensed audio and from synthetic audio of large providers' closed models).
+  Since #282 (Preview 3) they speak English as Eve and George instead: VCTK speakers (CC BY 4.0) as Kyutai's Pocket TTS
+  (CC BY 4.0) speaks them, its model exported and hosted on this repository's release `pocket-tts-en-1`, credited and
+  marked as changed (the owner read Kyutai's terms on 2026-11-09).
 - Sizes are fine: the largest file is 18.7 MB (GitHub refuses files over 100 MB).
 
 ## Before going public

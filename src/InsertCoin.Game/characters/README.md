@@ -1,8 +1,9 @@
 # Characters
 
 Shino and Fumiriya come with the app: VRoid's sample models "Sendagaya Shino" and "Sakurada Fumiriya", released
-by pixiv under CC0 (`SOURCE.txt` in each folder), with personas (`persona.md`, and Shino's `persona.zh.md` in Chinese) and voices (`voice.zip`) of our
-own, which stay ours ([NOTICE.md](../../../NOTICE.md)).
+by pixiv under CC0 (`SOURCE.txt` in each folder), with personas (`persona.md`, and Shino's `persona.zh.md` in Chinese) of our
+own, which stay ours ([NOTICE.md](../../../NOTICE.md)). Each `voice.zip` holds the recording they speak English from:
+Eve or George, VCTK speakers (CC BY 4.0) as Kyutai's Pocket TTS (CC BY 4.0) speaks them.
 
 ## Adding a character
 

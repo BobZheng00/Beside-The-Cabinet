@@ -64,6 +64,8 @@ public partial class VoiceSettings : VBoxContainer
     public event Action<string?>? EngineChosen;
     /// <summary>The voice's choices were written to its folder: it is read again.</summary>
     public event Action? VoiceChanged;
+    /// <summary>The voice suggested for this character in a language was chosen: it takes the place of theirs, and the page is made again after.</summary>
+    public event Action<VoiceProfile>? Suggested;
     /// <summary>The user wants to add a voice (a file, or a folder), or take this one away; the page is made again after.</summary>
     public event Action? AddVoice, AddFolder, RemoveVoice;
     /// <summary>The user wants this voice trained (its changes written first), or the training stopped.</summary>
@@ -117,14 +119,15 @@ public partial class VoiceSettings : VBoxContainer
         void Sync() => on.SetPressedNoSignal(settings.Now.Voice);          // the tray's Voice flipped meanwhile
         settings.Changed += Sync;
         TreeExiting += () => settings.Changed -= Sync;
-        if (_profile?.Engine == VoiceProfile.Qwen)
+        if (_profile?.Engine is VoiceProfile.Qwen or VoiceProfile.Pocket)
         {
-            BuildQwen();
+            BuildGiven();
             return;
         }
         Form.Hint(this, $"{name} speaks with GPT-SoVITS, running on this PC: with a model trained on the voice, or cloning it from clips " +
                         "with their words. Drop a voice's folder (or .zip) on the cabinet, or add one below. While a game runs the voice rests, " +
                         "to leave the game the graphics card.");
+        OfferSuggested(settings);
         Form.Button(this, "What goes in a voice folder?", ShowGuide).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
 
         var engine = Form.Grid(this);
@@ -547,14 +550,41 @@ public partial class VoiceSettings : VBoxContainer
     }
 
     /// <summary>
-    /// The page for one of Qwen TTS's speakers: who they speak as and in which language, the one download it takes, and how
-    /// it is doing. It goes on its own, so the steps the page is growing into (#260, #264) can move it whole.
+    /// For a built-in character with no voice, or one GPT-SoVITS would speak with when it isn't set up here: the voice
+    /// suggested in their language, which runs on this PC. Taking it in place of the player's own asks twice, and theirs is kept in a folder beside it.
     /// </summary>
-    private void BuildQwen()
+    private void OfferSuggested(SettingsFile settings)
+    {
+        var language = SpokenLanguage.ForVoice(_profile?.Language, settings.Now.Language, OS.GetLocaleLanguage());
+        if (VoiceProfile.Suggested(Path.GetFileNameWithoutExtension(_voice.Folder), language) is not { } suggested
+            || _profile is not null && _voice.Now != Voice.Phase.NotSetUp)
+            return;
+        Form.Hint(this, (_profile is null ? $"{_name} has no voice." : $"GPT-SoVITS isn't set up on this PC, so {_name} stays in text.") +
+                        $" In {SpokenLanguage.Name(language)} they can speak as {suggested.Name}, with nothing to install.");
+        var sure = _profile is null;
+        Button use = null!;
+        use = Form.Button(Form.Buttons(this), $"Use {suggested.Name}", () =>
+        {
+            if (!sure)
+            {
+                sure = true;
+                use.Text = $"Sure? {_profile!.Name} is set aside. Click again";
+                return;
+            }
+            Suggested?.Invoke(suggested);
+        }, quiet: false);
+    }
+
+    /// <summary>
+    /// The page for a voice the app gives (Pocket TTS's in English, Qwen TTS's in Chinese and Japanese): who they speak as
+    /// and in which language, the one download Qwen TTS takes, and how it is doing. It goes on its own, so the steps the page
+    /// is growing into (#264) can move it whole.
+    /// </summary>
+    private void BuildGiven()
     {
         var download = _voice.Download;
         var character = Path.GetFileNameWithoutExtension(_voice.Folder);
-        string[] languages = ["zh", "ja"];
+        string[] languages = ["en", "zh", "ja"];
 
         var who = Form.Hint(this, "");
         void ShowWho() => who.Text = $"In {SpokenLanguage.Name(_profile!.Language)}, {_name} speaks as {_profile.Name}, on this PC.";
@@ -567,12 +597,8 @@ public partial class VoiceSettings : VBoxContainer
         speaks.Select(Math.Max(0, Array.IndexOf(languages, _profile!.Language)));
         speaks.ItemSelected += index =>
         {
-            if (QwenTts.Suggested(character, languages[index]) is not { } voice)
-                return;
-            voice.Save(_voice.Folder);
-            _profile = voice;
-            ShowWho();
-            VoiceChanged?.Invoke();
+            if (VoiceProfile.Suggested(character, languages[index]) is { } voice)
+                Suggested?.Invoke(voice);
         };
         Form.Row(grid, "Speaks", speaks);
         var status = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -603,7 +629,7 @@ public partial class VoiceSettings : VBoxContainer
                 Voice.Phase.Failed => Paper.Bad,
                 _ => Paper.Faint,
             });
-            install.Visible = download.Running || _voice.QwenWantsDownload;
+            install.Visible = _profile!.Engine == VoiceProfile.Qwen && (download.Running || _voice.QwenWantsDownload);
             fetch.Visible = !download.Running;
             stop.Visible = bar.Visible = download.Running;
             bar.Value = download.Done;

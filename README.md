@@ -18,8 +18,9 @@ bring your own.
 - Windows 10 or 11, 64-bit.
 - A mind for your companion: your own key for OpenAI, Anthropic, OpenRouter, DeepSeek or Qwen (each reply costs a
   little), or a model running on your own PC (Ollama, LM Studio), which is free.
-- For a voice, an NVIDIA graphics card: voices run on GPT-SoVITS, which the app can download and install for you
-  (8 GB). Without one, your companion talks in a speech bubble.
+- Nothing more for a voice in English: your companion speaks it on any PC. Chinese and Japanese take one download
+  (1.26 GB), asked for on the Voice page. For a voice of your own, GPT-SoVITS, which the app can install for you
+  (8 GB), runs best on an NVIDIA graphics card.
 
 ## Getting it running
 
@@ -41,8 +42,9 @@ bring your own.
 
 ## Characters and voices
 
-Shino and Fumiriya are pixiv's CC0 VRoid sample models, with personas and voices of our own (the voices made with
-Kokoro-82M). Add your own as a VRM model, a character card (SillyTavern style) or a voice: drop it on the cabinet
+Shino and Fumiriya are pixiv's CC0 VRoid sample models, with personas of our own. In English they speak as Eve and
+George, speakers of the VCTK corpus (CC BY 4.0), with Kyutai's Pocket TTS (CC BY 4.0). Add your own as a VRM model, a
+character card (SillyTavern style) or a voice: drop it on the cabinet
 ([how](src/InsertCoin.Game/characters/README.md)).
 Voices shared online are often cut from games and anime: fine for yourself, never to share on.
 
@@ -61,6 +63,6 @@ Voices shared online are often cut from games and anime: fine for yourself, neve
 
 Beside the Cabinet is **source-available** under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): you may use,
 change and share it for free, for any noncommercial purpose; selling it, or using it commercially, isn't allowed. The
-name, the cabinet's artwork and sounds, and the built-in characters' personas and voices aren't covered by that licence
+name, the cabinet's artwork and sounds, and the built-in characters' personas aren't covered by that licence
 ([NOTICE.md](NOTICE.md)). Contributions are welcome under a short contributor agreement
 ([CONTRIBUTING.md](CONTRIBUTING.md)).

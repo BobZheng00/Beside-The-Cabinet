@@ -18,9 +18,9 @@ These stay the copyright holder's, with all rights reserved, and LICENSE.md gran
   and look different enough not to be taken for this app.
 - **The cabinet's artwork and the app's sounds**: the pictures under `art/` and `src/InsertCoin.Game/skins/`, and the
   sounds under `src/InsertCoin.Game/sounds/`, along with what `tools/art` and `tools/sfx` make.
-- **The built-in characters' personas and voices**: `src/InsertCoin.Game/characters/*/persona*.md` and
-  `src/InsertCoin.Game/characters/*/voice.zip`, and the personas' text in the appendices of
-  `docs/specs/2026-10-24-default-cards.md`.
+- **The built-in characters' personas**: `src/InsertCoin.Game/characters/*/persona*.md`, and the personas' text in the
+  appendices of `docs/specs/2026-10-24-default-cards.md`. (Their voices' recordings, `characters/*/voice.zip`, are
+  VCTK speakers under CC BY 4.0: see below.)
 
 They may be used only as part of this app, unchanged, or in a noncommercial fork of it; never on their own, never in
 another project, and never commercially.
@@ -31,7 +31,7 @@ another project, and never commercially.
 |---|---|---|
 | Godot Engine (the app runs on it) | Juan Linietsky, Ariel Manzur and contributors | MIT |
 | Shino and Fumiriya's 3D models (`characters/*/*.vrm`) | pixiv Inc. (VRoid Studio sample models) | CC0 |
-| Their voices were made with Kokoro-82M | hexgrad | Apache-2.0 |
+| Their English voices, Eve and George (`characters/*/voice.zip`): speakers of the VCTK corpus as Pocket TTS speaks them | CSTR, University of Edinburgh; Kyutai | CC BY 4.0 |
 | Fredoka, Press Start 2P (`fonts/`, licences beside them) | The Fredoka Project Authors; The Press Start 2P Project Authors | SIL Open Font License 1.1 |
 | VRM add-on, MToon shader (`addons/`, licences inside) | V-Sekai contributors; Masataka SUMI | MIT |
 | .NET libraries: Anthropic, Microsoft.Extensions.AI, Microsoft.Data.Sqlite, ONNX Runtime, Microsoft.ML.Tokenizers, SharpCompress | their authors | MIT |
@@ -41,6 +41,8 @@ another project, and never commercially.
 Models fetched into `src/InsertCoin.Game/models/` (not in this repository; each folder carries its own `LICENSE.txt`):
 SenseVoice-Small (Tongyi Lab, Alibaba Group; FunASR Model Open Source License 1.1, which asks for its name and
 attribution to be kept), multilingual-e5-small (intfloat) and bge-small-zh-v1.5 (BAAI), both MIT, in Xenova's ONNX exports, Silero VAD (MIT), Smart Turn v3.2 (BSD
-2-Clause, Daily). GPT-SoVITS (MIT) isn't part of the app: it is installed on the player's PC from its makers' own
+2-Clause, Daily), and Pocket TTS's English model (Kyutai, CC BY 4.0; its code MIT), changed: exported to ONNX by
+`tools/models/pocket_export.py`, its main model and flow quantised to 8 bits, and hosted on this repository's release
+`pocket-tts-en-1`. GPT-SoVITS (MIT) isn't part of the app: it is installed on the player's PC from its makers' own
 download, when the player asks. The same goes for Qwen3-TTS's weights (Alibaba Cloud, Apache-2.0), fetched from
 `ldov/Qwen3-TTS-GGUF` on Hugging Face, or HF-Mirror, when the player asks on Their voice.
