@@ -551,7 +551,7 @@ public partial class VoiceSettings : VBoxContainer
 
     /// <summary>
     /// For a built-in character with no voice, or one GPT-SoVITS would speak with when it isn't set up here: the voice
-    /// suggested in their language, which runs on this PC. Taking it in place of the player's own asks twice.
+    /// suggested in their language, which runs on this PC. Taking it in place of the player's own asks twice, and theirs is kept in a folder beside it.
     /// </summary>
     private void OfferSuggested(SettingsFile settings)
     {
@@ -568,7 +568,7 @@ public partial class VoiceSettings : VBoxContainer
             if (!sure)
             {
                 sure = true;
-                use.Text = $"Sure? {_profile!.Name} goes. Click again";
+                use.Text = $"Sure? {_profile!.Name} is set aside. Click again";
                 return;
             }
             Suggested?.Invoke(suggested);

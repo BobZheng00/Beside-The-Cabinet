@@ -51,6 +51,8 @@ public partial class Voice : Node
     private bool _needed;                               // Qwen TTS starts the first time it is needed, and again after it rests
     private string? _qwenProblem;                       // why it last failed: said until a start succeeds
     private PocketTts? _pocket;
+    private Task<PocketTts?>? _loading;                 // Pocket TTS being loaded: one load at a time
+    private string? _saidMissing;                       // why Pocket TTS can't run here, as last said in the log
     private string? _pocketMissing;                     // why Pocket TTS can't run here, or null when its files are here
     private Func<string> _pocketFiles = () => "";       // where its files are on disk (a release copies them out of the app the first time)
     private VoiceProfile? _profile, _warm;
@@ -203,7 +205,7 @@ public partial class Voice : Node
     public void UsePocket(string? missing, Func<string> files)
     {
         LetPocketGo();
-        (_pocketMissing, _pocketFiles) = (missing, files);
+        (_pocketMissing, _pocketFiles, _loading) = (missing, files, null);     // a load of other files under way is let go when it ends
         Refresh();
         Changed?.Invoke();
     }
@@ -216,6 +218,37 @@ public partial class Voice : Node
         _pocket = null;
         _warm = null;
         _ = Task.Run(pocket.Dispose);
+    }
+
+    /// <summary>
+    /// Loads Pocket TTS, once however many refreshes wait for it (a release copies its files out of the app the first
+    /// time, and two copies at once would trip over each other). It is kept only if it is still wanted when done; null
+    /// when its files didn't load, said once in the log.
+    /// </summary>
+    private async Task<PocketTts?> LoadPocket()
+    {
+        var files = _pocketFiles;
+        try
+        {
+            var clock = Stopwatch.StartNew();
+            var loaded = await Task.Run(() => new PocketTts(files()));
+            GD.Print($"Voice: Pocket TTS loaded in {clock.ElapsedMilliseconds} ms");
+            if (Wanted && IsPocket && ReferenceEquals(files, _pocketFiles) && _pocket is null)
+                _pocket = loaded;
+            else
+                _ = Task.Run(loaded.Dispose);       // wanted no longer (a game started, another voice): its memory back
+            return loaded;
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr($"Voice: Pocket TTS's files didn't load, so they stay in text: {e.Message}");
+            return null;
+        }
+        finally
+        {
+            if (ReferenceEquals(files, _pocketFiles))
+                _loading = null;                    // else other files were chosen meanwhile, and their load is the one waited for
+        }
     }
 
     /// <summary>The engine of the voice on the stool can run here.</summary>
@@ -306,6 +339,10 @@ public partial class Voice : Node
             _needed = false;
             _engine?.Forget();
             LetPocketGo();
+            var missing = IsPocket ? _pocketMissing : null;
+            if (missing is not null && missing != _saidMissing)
+                GD.Print($"Voice: English stays in text: {missing}");      // once, not a line a reply: the page says it too
+            _saidMissing = missing;
             Set(!CanRun ? Phase.NotSetUp : !_enabled ? Phase.Off : _gameRunning ? Phase.Resting : _training ? Phase.Training : Phase.NoVoice);
             return;
         }
@@ -335,22 +372,12 @@ public partial class Voice : Node
             {
                 Set(Phase.Loading);
                 (_engine, _qwen) = (null, null);
-                try
+                var loaded = await (_loading ??= LoadPocket());     // a refresh while it loads waits for the same load
+                if (refresh != _refreshes)
+                    return;
+                if (loaded is null)
                 {
-                    var loaded = await Task.Run(() => new PocketTts(_pocketFiles()), cancel);
-                    if (refresh != _refreshes || !IsPocket)
-                    {
-                        _ = Task.Run(loaded.Dispose);       // wanted no longer, or loaded twice over
-                        return;
-                    }
-                    _pocket = loaded;
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    if (refresh != _refreshes)
-                        return;
                     _problem = "The files that speak English didn't load, so they stay in text.";
-                    GD.PrintErr($"Voice: Pocket TTS's files didn't load, so they stay in text: {e.Message}");
                     Set(Phase.Failed);
                     return;
                 }
@@ -380,8 +407,16 @@ public partial class Voice : Node
             var clock = Stopwatch.StartNew();
             if (_engine is { } sovits)
                 await sovits.Load(profile, _folder, cancel);
-            await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel, limit: ShortFrames))
+            try
             {
+                await foreach (var _ in Speak(WarmUp(profile.Language), profile, null, cancel, limit: ShortFrames))
+                {
+                }
+            }
+            catch (Exception e) when (IsPocket && e is not OperationCanceledException)
+            {
+                // the engine is fine; each line tries again, and one that fails stays in text with its own line in the log
+                GD.PrintErr($"Voice: warming up {profile.Name} didn't work: {e.Message}");
             }
             GD.Print($"Voice: {profile.Name} loaded and warmed up in {clock.ElapsedMilliseconds} ms");
             if (refresh == _refreshes)

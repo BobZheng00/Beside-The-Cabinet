@@ -99,11 +99,29 @@ public sealed partial record VoiceProfile
     public bool Trained => Gpt is not null && Sovits is not null;
 
     /// <summary>
-    /// One of the voices the app gave Shino and Fumiriya before Preview 3, made with Kokoro-82M (its README says so), and
-    /// not trained since: it gives way to the voice now suggested, as the app no longer gives anyone those.
+    /// One of the voices the app gave Shino and Fumiriya before Preview 3, made with Kokoro-82M (its README says so), as it
+    /// came: none of its clips but the twelve it shipped with, and not trained since. It gives way to the voice now
+    /// suggested, as the app no longer gives anyone those. One the player added clips to or trained is theirs, and stays.
     /// </summary>
     [JsonIgnore]
-    public bool MadeWithKokoro => !Trained && About?.Contains("Kokoro-82M", StringComparison.Ordinal) == true;
+    public bool MadeWithKokoro => !Trained && About?.Contains("Kokoro-82M", StringComparison.Ordinal) == true
+                                  && Clips.All(c => KokoroClips.Contains(Path.GetFileName(c.File.Replace('\\', '/'))));
+
+    /// <summary>The clips the voices made with Kokoro-82M came with.</summary>
+    private static readonly HashSet<string> KokoroClips =
+    [
+        "01.wav", "02.wav", "03.wav", "04.wav", "10.wav", "11.wav", "12.wav",
+        "[happy] 05.wav", "[happy] 06.wav", "[sad] 07.wav", "[sad] 08.wav", "[surprised] 09.wav",
+    ];
+
+    /// <summary>
+    /// Every file in a voice's folder is one the app put there (its voice.json and README, a recording Pocket TTS copies, the
+    /// clips of a voice made with Kokoro-82M): replacing it loses nothing of the player's. Otherwise it is set aside, never deleted.
+    /// </summary>
+    public static bool OnlyGiven(string folder) =>
+        !Directory.Exists(folder) || Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+            .Select(f => Path.GetRelativePath(folder, f).Replace('\\', '/'))
+            .All(f => f is FileName or "README.md" or "eve.wav" or "george.wav" || f.StartsWith("clips/", StringComparison.Ordinal) && KokoroClips.Contains(f[6..]));
 
     /// <summary>It speaks with its trained model, not as a clone.</summary>
     [JsonIgnore]

@@ -1366,8 +1366,17 @@ public partial class Stool : Node2D
         var recording = voice.Engine == VoiceProfile.Pocket ? ModelFiles.OnDisk($"res://characters/{id}/voice.zip", "voice-" + id) : null;
         if (_trainer.Running && _trainer.Folder == folder)
             _trainer.Stop("The voice was replaced.");
-        if (Directory.Exists(folder))
-            Directory.Delete(folder, recursive: true);
+        if (VoiceProfile.OnlyGiven(folder))
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+        else
+        {
+            var aside = $"{folder}.before-{DateTime.Now:yyyy-MM-dd-HHmmss}";      // anything of the player's is never deleted
+            Directory.Move(folder, aside);
+            GD.Print($"Voice: the voice {id} had is kept in {aside}");
+        }
         if (recording is not null)
             System.IO.Compression.ZipFile.ExtractToDirectory(recording, folder);
         voice.Save(folder);

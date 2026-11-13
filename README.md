@@ -63,6 +63,6 @@ Voices shared online are often cut from games and anime: fine for yourself, neve
 
 Beside the Cabinet is **source-available** under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): you may use,
 change and share it for free, for any noncommercial purpose; selling it, or using it commercially, isn't allowed. The
-name, the cabinet's artwork and sounds, and the built-in characters' personas and voices aren't covered by that licence
+name, the cabinet's artwork and sounds, and the built-in characters' personas aren't covered by that licence
 ([NOTICE.md](NOTICE.md)). Contributions are welcome under a short contributor agreement
 ([CONTRIBUTING.md](CONTRIBUTING.md)).

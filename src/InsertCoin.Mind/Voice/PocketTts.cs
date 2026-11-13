@@ -81,6 +81,9 @@ public sealed partial class PocketTts : IDisposable
     private InferenceSession Session(string file)
     {
         using var options = new SessionOptions { IntraOpNumThreads = Threads, InterOpNumThreads = 1, ExecutionMode = ExecutionMode.ORT_SEQUENTIAL };
+        // each model has its own 4 threads, which by default spin while another runs: measured as fast without (0.41 s of work a
+        // second of speech against 0.42) at under a quarter of the processor time (0.9 s against 4.1)
+        options.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
         return new InferenceSession(Path.Combine(_folder, file), options);
     }
 
@@ -231,6 +234,8 @@ public sealed partial class PocketTts : IDisposable
     {
         if (_voice is { } known && known.File == recording)
             return known.State;
+        if (!File.Exists(recording))
+            throw new VoiceException($"the recording the voice is copied from ({Path.GetFileName(recording)}) is missing");
         var wav = new Wav();
         var samples = wav.Feed(File.ReadAllBytes(recording));
         // shortcut: no resampling, as the recordings that come with the characters are 24 kHz; the guided recorder (#265) brings its own
