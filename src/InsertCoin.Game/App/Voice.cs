@@ -298,6 +298,7 @@ public partial class Voice : Node
                 Set(Phase.Starting);
                 // before the server is Ready, when another Refresh could find no engine yet; Qwen TTS never asks
                 var card = !IsQwen && await Task.Run(VoiceServer.SeesCard, cancel);
+                cancel.ThrowIfCancellationRequested();      // a game, another voice or another engine came meanwhile: Start would launch regardless
                 if (!await server.Start(cancel))
                 {
                     if (refresh == _refreshes)
