@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Godot;
 using InsertCoin.Mind;
 
@@ -45,6 +44,19 @@ public partial class Portraits : Node
         return Silhouette;
     }
 
+    /// <summary>Portraits of characters no longer there (a model the player removed) go.</summary>
+    public void KeepOnly(IEnumerable<Character> present)
+    {
+        try
+        {
+            PortraitFile.KeepOnly(Folder, [.. present.Select(c => c.Id)]);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            GD.Print($"Portrait: old ones not cleared: {e.Message}");
+        }
+    }
+
     /// <summary>Their portrait's file: a built-in character's is made again with each new build of the app.</summary>
     private string FileOf(Character character) =>
         PortraitFile.For(Folder, character.Id, ProjectSettings.GlobalizePath(character.Path),
@@ -53,6 +65,7 @@ public partial class Portraits : Node
     private async void Next()
     {
         _making = true;
+        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);    // the page that asked is drawn first: a model can take a while to load
         while (_waiting.TryDequeue(out var job))
         {
             Image? taken = null;
@@ -71,7 +84,7 @@ public partial class Portraits : Node
                 image.SavePng(job.File);
                 PortraitFile.Kept(job.File);
             }
-            catch (IOException e)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 GD.Print($"Portrait: {job.Character.Id} not kept: {e.Message}");      // shown all the same, and made again next time
             }
@@ -86,7 +99,7 @@ public partial class Portraits : Node
     /// <summary>Their head and shoulders, arms down from where they stand at rest, or null when the model can't give them.</summary>
     private async Task<Image?> Take(Character character)
     {
-        if (!character.BuiltIn && !Readable(character.Path))
+        if (!character.BuiltIn && !ModelFile.LooksWhole(character.Path))
             return null;
         if (character.Load() is not { } model)
             return null;
@@ -127,26 +140,6 @@ public partial class Portraits : Node
         finally
         {
             viewport.QueueFree();
-        }
-    }
-
-    /// <summary>Whether a model of the player's is what it says it is, before it's handed to the loader (which logs errors).</summary>
-    private static bool Readable(string path)
-    {
-        try
-        {
-            if (path.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase))
-            {
-                using var _ = JsonDocument.Parse(File.ReadAllText(path));
-                return true;
-            }
-            using var file = File.OpenRead(path);
-            var magic = new byte[4];
-            return file.Read(magic, 0, 4) == 4 && magic.SequenceEqual("glTF"u8.ToArray());
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return false;
         }
     }
 

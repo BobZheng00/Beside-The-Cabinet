@@ -48,9 +48,10 @@ public partial class CharacterSettings : VBoxContainer
         {
             var card = new Button
             {
-                Text = name, ToggleMode = true, ButtonGroup = group, ButtonPressed = id == seated, ThemeTypeVariation = "Card",
-                ExpandIcon = true, IconAlignment = HorizontalAlignment.Center, VerticalIconAlignment = VerticalAlignment.Top,
-                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis, CustomMinimumSize = new Vector2(112, 140),
+                Text = name, TooltipText = name, ToggleMode = true, ButtonGroup = group, ButtonPressed = id == seated, ThemeTypeVariation = "Card",
+                IconAlignment = HorizontalAlignment.Center, VerticalIconAlignment = VerticalAlignment.Top,
+                // the whole name, wrapped under a portrait the same size on every card (the theme's icon_max_width)
+                AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(112, 0),
             };
             card.Icon = portrait(id, made =>
             {
