@@ -33,6 +33,15 @@ public static class PortraitFile
             File.Delete(old);
     }
 
+    /// <summary>Portraits of characters no longer there (a model the player removed) go.</summary>
+    public static void KeepOnly(string folder, IReadOnlyCollection<string> ids)
+    {
+        if (!Directory.Exists(folder))
+            return;
+        foreach (var old in Directory.GetFiles(folder, "*.png").Where(f => !ids.Contains(Owner(f), StringComparer.OrdinalIgnoreCase)))
+            File.Delete(old);
+    }
+
     private static string Owner(string file) => Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(file));
 
     private static bool IsAboutThem(string file) =>

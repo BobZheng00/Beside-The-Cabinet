@@ -152,6 +152,7 @@ public static class Paper
         theme.SetStylebox("pressed", "Card", Box(Wash, Accent, 3, 10, 6, 6));
         theme.SetStylebox("hover_pressed", "Card", Box(Wash, Accent, 3, 10, 6, 6));
         theme.SetStylebox("focus", "Card", new StyleBoxEmpty());
+        theme.SetConstant("icon_max_width", "Card", 100);
         theme.SetColor("font_color", "Card", Letters);
         theme.SetColor("font_focus_color", "Card", Letters);
         theme.SetColor("font_hover_color", "Card", Ink);

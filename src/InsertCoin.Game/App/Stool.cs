@@ -2200,6 +2200,7 @@ public partial class Stool : Node2D
     private Control CharactersPage()
     {
         var page = new CharacterSettings();
+        _portraits.KeepOnly(CompanionView.Available(_characters));
         page.Build(Characters(), OnStool()?.Id ?? "", _settings.Now.ShowCompanion, _settings.Now.SpeechBubbles, PortraitOf, MannerOf, SetManner, ShowManner);
         page.ShownChosen += SetCompanion;
         page.BubblesChosen += SetBubbles;
