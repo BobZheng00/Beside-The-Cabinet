@@ -213,18 +213,23 @@ public partial class MemorySettings : VBoxContainer
         AddChild(check);
     }
 
+    /// <summary>A time typed on the agenda can't be read, so the page can't save everything on it yet.</summary>
+    public bool CantSave => _plans.Any(Unreadable);
+
     /// <summary>
     /// Settings is closing, and what is here will be saved. A time that can't be read can't be saved, so this says which
-    /// first and Settings stays open; closing again within a few seconds goes without that one change.
+    /// first and Settings stays open; closing again within a few seconds goes without that one change. With
+    /// <paramref name="closing"/> false, someone else took the stool and the page stays as it is, saying the same.
     /// </summary>
-    public bool Leave()
+    public bool Leave(bool closing = true)
     {
         if (_plans.FirstOrDefault(Unreadable) is { } row && (DateTime.Now - _closeAsked).TotalSeconds > 5)
         {
             _closeAsked = DateTime.Now;
             _tabs.CurrentTab = 1;
-            Say($"Not saved: the time “{row.When.Text.Trim()}” for “{Called(row)}” can't be read. Write it as YYYY-MM-DD HH:MM, or a date alone, " +
-                "or close Settings again to leave it unchanged.");
+            Say($"Not saved: the time “{row.When.Text.Trim()}” for “{Called(row)}” can't be read. Write it as YYYY-MM-DD HH:MM, or a date alone" +
+                (closing ? ", or close Settings again to leave it unchanged." : "."));
+            GD.Print($"Memory: kept open: the time “{row.When.Text.Trim()}” for “{Called(row)}” can't be read");
             return false;
         }
         return true;
