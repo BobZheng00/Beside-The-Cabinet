@@ -92,6 +92,9 @@ stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: the
 opening no browser; its backup, before signing in, with `settingsdo:Backup:6`, `settingsdo:Server:http://127.0.0.1:port/backup/v1`,
 `settingsdo:Model:backup-mock` and `settingsdo:Save_backup`), `plantry` (the plan's next try, past its limit, comes now
 rather than a quarter of an hour on),
+`openaiat:http://127.0.0.1:port` (OpenAI with a key, answered by `mock_chatgpt.py` at `/openai/v1`: the profile's
+provider becomes OpenAI, model `gpt-mock`, and no request reaches OpenAI itself; "search" in the player's words gets
+OpenAI's own web search, with its pages),
 `pastplan:minutes:some_text` (something on the agenda that ended that long ago),
 `calendar:URL` (links a calendar named Test), `forget:chat|all|me` (its three forget
 buttons), `upkeep` (note the conversation and keep its facts now), `moment:note`, `voicetest` (the voice's
@@ -327,7 +330,10 @@ What a commit must pass before its pull request is marked ready, run the same wa
   app's listener), the account's models and the Responses API, turning down a request that breaks the plan's rules
   and reaching the plan's limit once the player's words say "limit" ("midstream" too: part-way through the stream;
   "reset" lifts it again; "notebook": a memo written on the plan, then the limit on the request bringing its result).
-  It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key).
+  It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key), and OpenAI itself asked with a key
+  at `/openai/v1` (`openaiat:`; the Responses API: "search" in the player's words searches the web, with its pages, and
+  `--refuse-search` turns the search down; "notebook" writes a memo after reasoning, checking the reasoning comes back).
+  Words with "search" search on the plan too, without the pages.
   A run points at it with `chatgptat:`; a scenario with `"mind": "chatgpt"` starts it and writes its address for
   `{mind}` in the script.
 - A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a

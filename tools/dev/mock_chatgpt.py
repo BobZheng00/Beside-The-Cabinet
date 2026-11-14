@@ -10,7 +10,7 @@ Continue with ChatGPT): a test run opens no browser, but visits the sign-in itse
 redirect a browser would follow. The account is player@example.com, offering two models.
 
 Every request on the plan is checked against the plan's rules (OpenAI's preview limitations): streamed, not stored, no
-system items, none of the refused fields, no hosted tools. One that breaks them is turned down as the plan would (400
+system items, none of the refused fields, no hosted tools but web search. One that breaks them is turned down as the plan would (400
 subscription_sharing_unsupported_capability) and logged with "broke". Otherwise it gets the reply, streamed, ending
 with response.completed. Once the player's words say "limit", the plan's limit is reached: that request and every one
 after it get 429 subscription_sharing_usage_limit_exceeded (with "midstream" in the words too, the first comes as
@@ -20,6 +20,15 @@ subscription_sharing_user_not_eligible; "unavailable", a passing 503 subscriptio
 "reset" lift the limit again (the plan works once more), and that request is answered on the plan. Words with "notebook"
 get a call of her print_memo tool, and the request that brings its result reaches the limit (a turn stopped part-way);
 the backup calls print_memo too ("Notebook again") for such words, so a turn asked again after the yes would show.
+
+Words with "search" in a request offering web search get OpenAI's own web search: a web_search_call (its pages too
+when the request includes web_search_call.action.sources), then --search-reply with a citation of the first page.
+
+It also stands in for OpenAI itself, asked with a key, at /openai/v1/responses (the dev action openaiat: points the app
+there): the Responses API without the plan's rules, each request logged with "openai": true, whether it was stored,
+what it included and whether her reasoning came back. Words with "search" search as above (--refuse-search turns the
+tool down, as an account without it would); "notebook" calls print_memo after some reasoning, encrypted when the
+request includes reasoning.encrypted_content, and answers once its result comes back.
 
 It also stands in for the player's backup behind the plan: an OpenAI-compatible server at /backup/v1 (chat
 completions, streamed or not, answering --backup-reply, no key needed), each request logged with "backup": true. It
@@ -90,7 +99,7 @@ def broken_rules(body):
         broke.append("stored")
     if any(isinstance(i, dict) and i.get("role") == "system" for i in body.get("input") or []):
         broke.append("a system item")
-    broke += [f"hosted tool {t.get('type')}" for t in body.get("tools") or [] if t.get("type") in HOSTED or t.get("type", "").startswith("web_search")]
+    broke += [f"hosted tool {t.get('type')}" for t in body.get("tools") or [] if t.get("type") in HOSTED]
     return broke
 
 
@@ -198,6 +207,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.backup(body.get("model") or "backup-mock", ARGS.backup_reply, bool(body.get("stream")))
             return
+        if url.path == "/openai/v1/responses":
+            self.openai(json.loads(raw or "{}"))
+            return
         if url.path != "/v1/responses":
             self.answer(404, {"error": "not found"})
             return
@@ -243,8 +255,82 @@ class Handler(BaseHTTPRequestHandler):
             log({**entry, "limit": True})
             self.answer(429, {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "The plan's usage limit for this app is reached."}})
             return
+        if "search" in said and searching(body) and not STATE["limit"]:
+            log({**entry, "searched": True})
+            self.search(body)
+            return
         log({**entry, "limit": STATE["limit"]})
         self.stream(body.get("model") or "gpt-mock", ARGS.reply, failed=STATE["limit"])
+
+    def openai(self, body):
+        """OpenAI's own Responses API, asked with a key: her replies, her tools and its web search, without the plan's rules."""
+        said = newest(words_of(body)).lower()
+        items = [i for i in body.get("input") or [] if isinstance(i, dict)]
+        entry = {"path": self.path, "openai": True, "model": body.get("model"), "said": words_of(body)[-200:], "bearer": bool(self.bearer()),
+                 "stream": body.get("stream"), "store": body.get("store"), "include": body.get("include") or [],
+                 "tools": [t.get("name") or t.get("type") for t in body.get("tools") or []],
+                 "reasoning_back": [i.get("encrypted_content") for i in items if i.get("type") == "reasoning"]}
+        if not self.bearer():
+            log({**entry, "answered": 401})
+            self.answer(401, {"error": {"message": "No API key.", "type": "invalid_request_error", "code": "invalid_api_key"}})
+            return
+        if "search" in said and searching(body):
+            if ARGS.refuse_search:
+                log({**entry, "answered": 400})
+                self.answer(400, {"error": {"message": "Hosted tool 'web_search' is not supported with this model.", "type": "invalid_request_error",
+                                            "param": "tools", "code": None}})
+                return
+            log({**entry, "searched": True})
+            self.search(body)
+            return
+        if "notebook" in said and body.get("tools") and not any(i.get("type") == "function_call_output" for i in items):
+            log({**entry, "tool_call": "print_memo"})
+            encrypted = "reasoning.encrypted_content" in (body.get("include") or [])
+            reasoning = {"id": "rs_mock", "type": "reasoning", "summary": [], **({"encrypted_content": "enc-mock"} if encrypted else {})}
+            self.call(body.get("model") or "gpt-mock", "print_memo", {"title": "Notebook", "text": "- a memo from OpenAI"}, first=reasoning)
+            return
+        log(entry)
+        self.stream(body.get("model") or "gpt-mock", ARGS.reply, failed=False)
+
+    def search(self, body):
+        """A reply that searches the web first, as the Responses API streams OpenAI's web search, then cites a page it found."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        model = body.get("model") or "gpt-mock"
+        response = {"id": "resp_search", "object": "response", "created_at": int(time.time()), "status": "in_progress", "model": model, "output": []}
+        query = "museum opening hours"
+        action = {"type": "search", "query": query, "queries": [query]}
+        if "web_search_call.action.sources" in (body.get("include") or []):
+            action["sources"] = [{"type": "url", "url": "https://museum.example.org/visit"}, {"type": "url", "url": "https://news.example.com/museum"}]
+        call = {"id": "ws_mock", "type": "web_search_call", "status": "in_progress"}
+        called = {**call, "status": "completed", "action": action}
+        text = ARGS.search_reply
+        cite = {"type": "url_citation", "start_index": 0, "end_index": len(text), "url": "https://museum.example.org/visit", "title": "Visit the museum"}
+        message = {"id": "msg_search", "type": "message", "status": "in_progress", "role": "assistant", "content": []}
+        said = {**message, "status": "completed", "content": [{"type": "output_text", "text": text, "annotations": [cite]}]}
+        n = 0
+
+        def send(kind, payload):
+            nonlocal n
+            self.wfile.write(f"event: {kind}\ndata: {json.dumps({'type': kind, 'sequence_number': n, **payload}, ensure_ascii=False)}\n\n".encode("utf-8"))
+            self.wfile.flush()
+            n += 1
+
+        send("response.created", {"response": response})
+        send("response.output_item.added", {"output_index": 0, "item": call})
+        for step in ("in_progress", "searching", "completed"):
+            send(f"response.web_search_call.{step}", {"output_index": 0, "item_id": "ws_mock"})
+            time.sleep(0.05)
+        send("response.output_item.done", {"output_index": 0, "item": called})
+        send("response.output_item.added", {"output_index": 1, "item": message})
+        for i in range(0, len(text), 12):
+            send("response.output_text.delta", {"item_id": "msg_search", "output_index": 1, "content_index": 0, "delta": text[i:i + 12]})
+            time.sleep(0.02)
+        send("response.output_item.done", {"output_index": 1, "item": said})
+        send("response.completed", {"response": {**response, "status": "completed", "output": [called, said],
+             "usage": {"input_tokens": 3000, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 40,
+                       "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 3040}}})
 
     def backup(self, model, text, streamed):
         """The backup's answer, as an OpenAI-compatible server gives one: chat completion chunks, or one whole completion."""
@@ -290,8 +376,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
-    def call(self, model, name, arguments):
-        """A reply on the plan that calls one of her tools, as the Responses API streams a function call."""
+    def call(self, model, name, arguments, first=None):
+        """A reply that calls one of her tools, as the Responses API streams a function call (after reasoning, <first>, if given)."""
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
@@ -300,16 +386,24 @@ class Handler(BaseHTTPRequestHandler):
         item = {"id": "fc_mock", "type": "function_call", "status": "in_progress", "call_id": "call_mock", "name": name, "arguments": ""}
         done = {**item, "status": "completed", "arguments": args}
 
-        def send(kind, payload):
-            self.wfile.write(f"event: {kind}\ndata: {json.dumps({'type': kind, **payload})}\n\n".encode("utf-8"))
-            self.wfile.flush()
+        n = 0
 
-        send("response.created", {"sequence_number": 0, "response": response})
-        send("response.output_item.added", {"sequence_number": 1, "output_index": 0, "item": item})
-        send("response.function_call_arguments.delta", {"sequence_number": 2, "item_id": "fc_mock", "output_index": 0, "delta": args})
-        send("response.function_call_arguments.done", {"sequence_number": 3, "item_id": "fc_mock", "output_index": 0, "arguments": args})
-        send("response.output_item.done", {"sequence_number": 4, "output_index": 0, "item": done})
-        send("response.completed", {"sequence_number": 5, "response": {**response, "status": "completed", "output": [done],
+        def send(kind, payload):
+            nonlocal n
+            self.wfile.write(f"event: {kind}\ndata: {json.dumps({'type': kind, 'sequence_number': n, **payload})}\n\n".encode("utf-8"))
+            self.wfile.flush()
+            n += 1
+
+        at = 1 if first else 0
+        send("response.created", {"response": response})
+        if first:
+            send("response.output_item.added", {"output_index": 0, "item": first})
+            send("response.output_item.done", {"output_index": 0, "item": first})
+        send("response.output_item.added", {"output_index": at, "item": item})
+        send("response.function_call_arguments.delta", {"item_id": "fc_mock", "output_index": at, "delta": args})
+        send("response.function_call_arguments.done", {"item_id": "fc_mock", "output_index": at, "arguments": args})
+        send("response.output_item.done", {"output_index": at, "item": done})
+        send("response.completed", {"response": {**response, "status": "completed", "output": ([first] if first else []) + [done],
              "usage": {"input_tokens": 900, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 30,
                        "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 930}}})
 
@@ -343,6 +437,11 @@ class Handler(BaseHTTPRequestHandler):
                        "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 920}}})
 
 
+def searching(body):
+    """Whether a request offers OpenAI's web search."""
+    return any((t.get("type") or "").startswith("web_search") for t in body.get("tools") or [])
+
+
 def main():
     global ARGS
     parser = argparse.ArgumentParser()
@@ -350,6 +449,8 @@ def main():
     parser.add_argument("--log")
     parser.add_argument("--reply", default="Hi! It's good to see you.")
     parser.add_argument("--backup-reply", default="Still here, on the backup.")
+    parser.add_argument("--search-reply", default="Found it: the museum opens at ten tomorrow.")
+    parser.add_argument("--refuse-search", action="store_true")
     parser.add_argument("--quit-after", type=float)
     ARGS = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)

@@ -126,6 +126,52 @@ public class LearningTests
     }
 
     [Fact]
+    public async Task OpenAIs_search_coming_as_it_begins_and_again_with_its_words_shows_her_busy_once()
+    {
+        using var temp = new TempStore();
+        var tools = new Toolbox([BuiltIn.ProviderSearch()]);
+        var used = new List<string>();
+        tools.Using += tool => used.Add(tool.Name);
+        var begins = new WebSearchToolCallContent("ws_1");
+        var words = new WebSearchToolCallContent("ws_1") { Queries = ["museum opening hours"] };
+        var found = new WebSearchToolResultContent("ws_1") { Outputs = [new UriContent(new Uri("https://museum.example.org/visit"), "text/html")] };
+        var model = new FakeToolModel([new ChatResponseUpdate(ChatRole.Assistant, [begins]), new ChatResponseUpdate(ChatRole.Assistant, [words, found]),
+                                       "It opens at ten."]);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(model, "when does the museum open?", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal(["web_search"], used);
+        Assert.Contains(temp.Store.After("shino", 0), l => l.Text == "You searched the web for \"museum opening hours\": found museum.example.org/visit.");
+    }
+
+    [Fact]
+    public async Task A_search_whose_pages_the_provider_doesnt_name_is_kept_with_what_it_was_for()
+    {
+        using var temp = new TempStore();
+        var tools = new Toolbox([BuiltIn.ProviderSearch()]);
+        var model = new FakeToolModel([new ChatResponseUpdate(ChatRole.Assistant, [new WebSearchToolCallContent("ws_1") { Queries = ["museum"] },
+                                                                                   new WebSearchToolResultContent("ws_1")]), "Ten."]);
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(model, "museum?", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Contains(temp.Store.After("shino", 0), l => l.Text == "You searched the web for \"museum\".");
+    }
+
+    [Theory]
+    [InlineData(Protocol.Anthropic, "https://api.anthropic.com", "Anthropic's")]
+    [InlineData(Protocol.OpenAi, "https://api.openai.com/v1", "OpenAI's")]
+    [InlineData(Protocol.OpenAi, "https://api.openai.com/v1/", "OpenAI's")]
+    [InlineData(Protocol.ChatGpt, "https://api.openai.com/v1", "OpenAI's")]
+    [InlineData(Protocol.OpenAi, "https://openrouter.ai/api/v1", null)]
+    [InlineData(Protocol.OpenAi, "http://localhost:11434/v1", null)]
+    public void She_searches_with_the_providers_own_search_only_where_this_app_can_use_it(Protocol protocol, string server, string? own)
+    {
+        Assert.Equal(own, new Provider(protocol, server, "a-model").OwnSearch);
+    }
+
+    [Fact]
     public async Task A_provider_that_turns_its_search_down_keeps_the_other_tools()
     {
         using var temp = new TempStore();
