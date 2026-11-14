@@ -338,9 +338,9 @@
       "covers": ["src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Mind/Usage.cs", "src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
       "mindReply": "Hi! I'm on OpenAI now.",
-      "mindRequests": 4,
-      "script": "nocall@1,openaiat:{mind}@1.5,chat:please_search_the_web_for_the_museum@4,chat:put_it_in_my_notebook@11,settings:abilities@15,settingsscroll:2000@16,settings:usage@19",
-      "shots": [9, 16, 20, 23],
+      "mindRequests": 3,
+      "script": "nocall@1,openaiat:{mind}@1.5,settings:abilities@2.5,settingsscroll:2000@3.5,chat:please_search_the_web_for_the_museum@4,chat:put_it_in_my_notebook@10,settings:usage@14",
+      "shots": [9, 15, 19],
       "window": "Settings",
       "desk": true,
       "expect": ["^Tools: she uses web_search$", "^Tools: she uses print_memo$", "^Memos: printed \"Notebook\""]
