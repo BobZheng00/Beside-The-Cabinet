@@ -121,6 +121,16 @@ public partial class SettingsWindow : Window
         Paper.Open(this, Wanted);
         Theme.SetFont("font", "Heading", GD.Load<FontFile>("res://fonts/PressStart2P-Regular.ttf"));     // the screen's pixel font: at 16 px, its grid
         Theme.SetFontSize("font_size", "Heading", 16);
+        // the log says the size it opened at, a moment on once Windows has placed it, and the screens it was sized for:
+        // on a narrow one (a portrait screen beside the main one) its pages get less room than asked for (#312)
+        var screen = DisplayServer.WindowGetCurrentScreen();
+        var room = DisplayServer.ScreenGetUsableRect(screen).Size;
+        GetTree().CreateTimer(1).Timeout += () =>
+        {
+            if (IsInstanceValid(this))
+                GD.Print($"Settings: opened {Size.X}x{Size.Y}, its pages {GetVisibleRect().Size.X:0}x{GetVisibleRect().Size.Y:0}, sized for the cabinet's screen {screen} ({room.X}x{room.Y} free at {DisplayServer.ScreenGetDpi(screen)} dpi); screens: "
+                         + string.Join(", ", Enumerable.Range(0, DisplayServer.GetScreenCount()).Select(s => $"{DisplayServer.ScreenGetSize(s).X}x{DisplayServer.ScreenGetSize(s).Y} at {DisplayServer.ScreenGetDpi(s)} dpi")));
+        };
     }
 
     /// <summary>The page showing.</summary>

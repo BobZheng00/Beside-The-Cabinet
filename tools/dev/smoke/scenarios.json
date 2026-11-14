@@ -149,13 +149,23 @@
     },
     {
       "name": "settings",
-      "about": "The list is the nine categories, with Getting started above them while it has anything left, and every page and tab opens, none wider than the window (settingswidths logs any that is). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there. Getting started's Play time card has a button to the limits and one to the bedtime, each opening the page that holds it.",
+      "about": "The list is the nine categories, with Getting started above them while it has anything left, and every page and tab opens, none wider than the window at its usual size, 850 by 704 whatever this PC's screens (settingswidths logs any that is; settingsnarrow measures the narrowest). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there. Getting started's Play time card has a button to the limits and one to the bedtime, each opening the page that holds it.",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/SettingsIcons.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
-      "script": "settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:start@26,settingsdo:Change_limits@26.5,settings:start@27,settingsdo:Change_bedtime@27.5",
+      "script": "settings@2,settingsat:1366x768@2.5,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:start@26,settingsdo:Change_limits@26.5,settings:start@27,settingsdo:Change_bedtime@27.5",
       "shots": [6, 11, 16, 21, 26, 27.5, 32],
       "window": "Settings",
       "expect": ["^Settings: the list: Getting started \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at start$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: start led to balance$", "^Settings: start led to quiet$"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
+    },
+    {
+      "name": "settingsnarrow",
+      "about": "Every page of Settings fits it at its narrowest default size: on a portrait screen beside the main one (1080 px wide at 150%) it opens about 708 px wide, here 692, and nothing on any page is wider than the window. Memory is measured by memorynarrow; Companion, Their voice and Your phone are left to their own reworks (#261, #264, #263).",
+      "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/GettingStarted.cs"],
+      "script": "settings:start@2,settingsat:708x736@3,settings:cabinet@5,settings:listening@7,settings:mind@9,settings:usage@11,settings:balance@13,settings:reminders@15,settings:checkins@17,settings:quiet@19,settings:calendars@21,settings:addons@23,settingsdo:Search_the_web_through_my_SearXNG@23.5,settings:abilities@25,settings:skills@27,settings:privacy@29,settingswidths@31",
+      "shots": [6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26.5, 28, 30, 32, 34],
+      "window": "Settings",
+      "expect": ["^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: 14 of \\d+ pages measured$"],
+      "forbid": ["^Settings: \\S+ needs \\d+ px", "^Settings: nothing called"]
     },
     {
       "name": "start-no-play-time",
