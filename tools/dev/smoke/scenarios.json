@@ -52,12 +52,12 @@
       "name": "firstrun",
       "about": "A new player's first run: the Welcome opens beside the cabinet; past their name and who keeps them company, \"What earns your play time?\" has focus and their own activities ticked and LeetCode not, and going on with those leaves LeetCode unasked and out of the tray.",
       "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/Onboarding.cs", "src/InsertCoin.Game/App/MeetSheet.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
-      "settings": ", \"SetUp\": false",
+      "settings": ", \"SetUp\": false, \"Language\": \"en\"",
       "script": "welcomedo:Your_name:Bob@4,welcomedo:Next@5,welcomedo:Next@6,welcomedo:Next@9,trayitems@10,missions@10.5",
       "shots": [7, 9, 14],
       "window": "Welcome",
       "desk": true,
-      "expect": ["^Main: play time is earned by focus, activities$", "^Main: missions left: CONNECT AN AI, SAY HELLO, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
+      "expect": ["^Main: play time is earned by focus, activities$", "^Main: missions left: CONNECT AN AI, SAY HELLO, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
       "forbid": ["^Main: play time is earned by .*LeetCode", "^LeetCode: ", "Check LeetCode now"]
     },
     {
@@ -151,21 +151,21 @@
       "name": "settings",
       "about": "The list is the nine categories, with Missions above them while any are left, and every page and tab opens, none wider than the window (settingswidths logs any that is). Clicking Notifications shows the part it showed last, its tabs show the others, and bedtime can be set there. A mission's button opens the page that does it: Agenda… Memory's agenda, Choose one… AI model.",
       "covers": ["src/InsertCoin.Game/App/*Settings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/SettingsIcons.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/PhoneCard.cs"],
-      "script": "missions@1,settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:missions@26,settingsdo:Agenda@26.5,settings:missions@27,settingsdo:Choose_one@27.5",
+      "script": "missions@1,settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settings:missions@19.5,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:missions@26,settingsdo:Agenda@26.5,settings:missions@27,settingsdo:Choose_one@27.5",
       "shots": [6, 11, 16, 21, 26, 27.5, 32],
       "window": "Settings",
-      "expect": ["^Settings: the list: Missions \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at missions$", "^Settings: 1[78] of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: missions led to memory$", "^Settings: missions led to mind$", "^Main: the mission OPEN MEMORY is cleared$"],
+      "expect": ["^Settings: the list: Missions \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at missions$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: missions led to memory$", "^Settings: missions led to mind$", "^Main: the mission OPEN MEMORY is cleared$"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
       "name": "missions-free-play",
       "about": "With no play time (every way to earn unticked) the missions have no EARN A CREDIT, and one cleared pays nothing; ticking focus sessions on Play time brings EARN A CREDIT back and pays the one cleared, once; unticking and ticking it again pays nothing more.",
       "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
-      "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false",
+      "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false, \"Language\": \"en\"",
       "script": "missions@1,mission:hello@2,settings@3,settings:balance@5,settingsdo:Focus_sessions@6,missions@8,settingsdo:Focus_sessions@9,settingsdo:Focus_sessions@11,settings:missions@14",
       "shots": [4.5, 17],
       "window": "Settings",
-      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$", "^Main: the mission SAY HELLO is cleared$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$"],
+      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Main: the mission SAY HELLO is cleared$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$"],
       "forbid": ["\\(2 paid in all\\)"]
     },
     {

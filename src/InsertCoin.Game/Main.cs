@@ -112,7 +112,10 @@ public partial class Main : Node2D
         // a profile not set up yet has missions from its first run on; one set up before them has none, as has one whose
         // first run was the cabinet's own (a LeetCode name and no choice of what earns: it never sees the welcome either)
         if (_state.Missions is null && !_settings.SetUp && (_settings.LeetCodeEarns is not null || string.IsNullOrWhiteSpace(_settings.Username)))
+        {
             _state = _state with { Missions = new MissionProgress() };
+            _stateStore.Save(_state);                       // kept at once: killed before the next save, the profile would come back set up without them
+        }
         _ledger = new Ledger(_rules);
         _tasks = testRun ? new StandInLeetCode() : new LeetCodeSource(new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });     // no test ever asks leetcode.com
         _games = args.ContainsKey("no-steam") ? new NoGames() : new SteamDetector(new WindowsSteamRegistry(), _settings.IgnoredSteamAppIds);
@@ -147,7 +150,7 @@ public partial class Main : Node2D
         _stool.Rules = () => _rules;
         _stool.RulesChanged = UseRules;
         _stool.MissionDone = Did;
-        _reminders =new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
+        _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
         _reminders.Sent += SendOut;
@@ -1264,14 +1267,20 @@ public partial class Main : Node2D
         page.LanguageChosen += _stool.SetLanguage;
         if (_settings.MissionsHidden && MissionsLeft())     // the way back for missions hidden from their list
         {
-            Form.Subheading(page, "Missions");
-            Form.Button(Form.Buttons(page), "Show missions", () =>
+            Control[] back =
+            [
+                Form.Subheading(page, "Missions"),
+                Form.Buttons(page),
+                Form.Hint(page, "Back at the top of Settings until they're done."),
+            ];
+            Form.Button((Container)back[1], "Show missions", () =>
             {
                 SaveSettings(_settings with { MissionsHidden = false });
                 GD.Print("Main: the missions are shown again");
                 ReopenSettings("missions");
             });
-            Form.Hint(page, "Back at the top of Settings until they're done.");
+            for (var i = 0; i < back.Length; i++)
+                page.MoveChild(back[i], i);                 // at the top, in sight as General opens after Hide missions
         }
         return page;
     }
