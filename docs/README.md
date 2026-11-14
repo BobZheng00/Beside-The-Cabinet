@@ -579,8 +579,9 @@ that can't take pictures or PDFs they say so, and none is sent to it again.
 
 Settings → AI model → What it has cost shows what your companion's requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, their replies apart from their
-upkeep, and how many web searches your provider ran itself (Anthropic's or OpenAI's), which it charges for on top of
-tokens; with the model's prices entered (from your provider's price page), the cost too, before searches.
+upkeep, and how many web searches your provider ran itself (Anthropic's or OpenAI's; a page read along the way isn't
+one), which with a key it charges for apart from tokens, and on the ChatGPT plan come out of the plan; with the model's
+prices entered (from your provider's price page), the cost too, before searches.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes they work from above
 it). While it is open it follows the conversation: what either of you says comes in at the bottom within a second,

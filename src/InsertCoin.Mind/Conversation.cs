@@ -475,6 +475,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
+        var pagesRead = new HashSet<Uri>();                 // pages its search read in this reply (OpenAI's open a page, then look in it)
         // the silent call (#193): the reply ends after a round of agenda calls that all went through, with whatever she
         // said before them (flow C, spike #105) or nothing; the cabinet shows what was set (Agended). Written after the
         // result, her words reported it back (#128: the date said back in 10 of 12). A failure, or a round with another
@@ -520,7 +521,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                     }
                     else if (content is WebSearchToolResultContent found)
                     {
-                        store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
+                        if (!Provider.ReadsAPage(found, out var page))
+                            store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
+                        else if (page is not null && pagesRead.Add(page))
+                            store.Add(character, Speaker.Cabinet, $"You read {BuiltIn.Shown(page)} while searching the web.", _clock.GetLocalNow());
                         toolsDone = reply.Length;
                         acted = true;
                     }

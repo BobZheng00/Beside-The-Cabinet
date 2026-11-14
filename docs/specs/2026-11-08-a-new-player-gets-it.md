@@ -237,7 +237,9 @@ Each search is billed to the player's own account, and AI model → What it has 
 *Built (#266):* OpenAI with a key through the Responses API, unstored (its reasoning sent back encrypted, dropped for a
 model that turns that down), with its web search and the pages it found; the ChatGPT plan offered the same search,
 going on without it where the plan turns it down (the user's own sign-in still to try); every provider's own searches
-counted on What it has cost (Anthropic's too), outside the cost estimate.
+counted on What it has cost (Anthropic's too), outside the cost estimate; a page OpenAI's search reads along the way
+is kept as read, not counted (OpenAI charges for its searches). The backup behind the plan, through the chat API, is
+never offered a search.
 
 ## What was tried in the real app
 

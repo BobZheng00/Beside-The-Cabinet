@@ -333,7 +333,9 @@ What a commit must pass before its pull request is marked ready, run the same wa
   It is also a backup at `/backup/v1` (OpenAI-compatible chat completions, no key), and OpenAI itself asked with a key
   at `/openai/v1` (`openaiat:`; the Responses API: "search" in the player's words searches the web, with its pages, and
   `--refuse-search` turns the search down; "notebook" writes a memo after reasoning, checking the reasoning comes back).
-  Words with "search" search on the plan too, without the pages.
+  Words with "search" search on the plan too, without the pages; `--plan-refuses-search` has the plan turn the search
+  down with its own code, in words that don't name it. A search also opens its first page and looks in it, as OpenAI's
+  reasoning models do: those steps are page reads, not searches.
   A run points at it with `chatgptat:`; a scenario with `"mind": "chatgpt"` starts it and writes its address for
   `{mind}` in the script.
 - A scenario has a name, what it checks, a script of dev actions and the shots to take, and optionally settings, a

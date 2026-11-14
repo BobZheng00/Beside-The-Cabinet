@@ -449,6 +449,27 @@ public class ChatGptPlanTests : IDisposable
     }
 
     [Fact]
+    public async Task A_plan_that_turns_web_search_down_in_words_that_dont_name_it_still_answers_without_it()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "hana", new Persona("Hana", "Hana is calm."), _clock);
+        var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), BuiltIn.ProviderSearch()]);
+        _openAi.Answers.Enqueue(Json(HttpStatusCode.BadRequest, """{"error":{"code":"subscription_sharing_unsupported_capability","message":"Not available on this plan."}}"""));
+        _openAi.Answers.Enqueue(Streamed("Hi there."));
+
+        var answer = await conversation.Answer(plan.Client("gpt-5.5"), "hello", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Hi there.", answer);
+        Assert.True(tools.HostedRefused);
+        Assert.False(tools.Refused);
+        var asked = _openAi.Asked.Where(a => a.Path == "/v1/responses").Select(a => a.Body).ToList();
+        Assert.Equal([true, false], asked.Select(body => body.Contains("\"web_search\"")));
+        Assert.Contains("open_link", asked[1]);
+    }
+
+    [Fact]
     public async Task On_the_plan_an_agenda_call_that_fails_goes_back_to_her()
     {
         var plan = Plan();

@@ -74,8 +74,38 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
 #pragma warning disable OPENAI001                           // the Responses client is marked experimental
         _ when IsOpenAi => new Unstored(OpenAi(key).GetResponsesClient().AsIChatClient(Model)),
 #pragma warning restore OPENAI001
-        _ => WithoutThinking(ToolsWithoutReasoning(OpenAi(key).GetChatClient(Model).AsIChatClient())),
+        _ => WithoutThinking(ToolsWithoutReasoning(WithoutOwnSearch(OpenAi(key).GetChatClient(Model).AsIChatClient()))),
     };
+
+    /// <summary>
+    /// Through the chat API no provider's own search is offered (the client would send it as web_search_options, which a
+    /// strict server turns down and another may run, billed to the player unasked): the backup behind the ChatGPT plan
+    /// is asked as the plan is, search and all.
+    /// </summary>
+    private static IChatClient WithoutOwnSearch(IChatClient client) =>
+        client.AsBuilder().ConfigureOptions(options =>
+        {
+            if (options.Tools?.Any(t => t is HostedWebSearchTool) == true)
+                options.Tools = options.Tools.Where(t => t is not HostedWebSearchTool).ToList() is { Count: > 0 } rest ? rest : null;
+        }).Build();
+
+    /// <summary>
+    /// Whether what the provider's web search brought back was a page it read (OpenAI's reasoning models open a page, or
+    /// look within one, as steps of a search) rather than a search: <paramref name="page"/> is that page. OpenAI charges
+    /// for its searches, not for those steps.
+    /// </summary>
+    public static bool ReadsAPage(WebSearchToolResultContent found, out Uri? page)
+    {
+#pragma warning disable OPENAI001
+        page = found.RawRepresentation switch
+        {
+            OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchOpenPageAction open } => open.Uri,
+            OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchFindInPageAction find } => find.Uri,
+            _ => null,
+        };
+        return found.RawRepresentation is OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchOpenPageAction or OpenAI.Responses.WebSearchFindInPageAction };
+#pragma warning restore OPENAI001
+    }
 
     /// <summary>
     /// DeepSeek's small model thinks unless told not to, and then wants its thinking sent back with every later request
@@ -221,7 +251,7 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
 
         private bool WithoutReasoning(ClientResultException e)
         {
-            if (e.Status != 400 || !e.Message.Contains("encrypted content", StringComparison.OrdinalIgnoreCase))
+            if (e.Status != 400 || !e.Message.Contains("encrypted content", StringComparison.OrdinalIgnoreCase) || !e.Message.Contains("not supported", StringComparison.OrdinalIgnoreCase))
                 return false;
             _reasons = false;
             return true;
