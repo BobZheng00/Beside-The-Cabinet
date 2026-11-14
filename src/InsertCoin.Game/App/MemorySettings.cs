@@ -219,17 +219,20 @@ public partial class MemorySettings : VBoxContainer
     /// <summary>
     /// Settings is closing, and what is here will be saved. A time that can't be read can't be saved, so this says which
     /// first and Settings stays open; closing again within a few seconds goes without that one change. With
-    /// <paramref name="closing"/> false, someone else took the stool and the page stays as it is, saying the same.
+    /// <paramref name="closing"/> false, someone else took the stool and the page stays as it is, saying the same; the
+    /// next close still stops first.
     /// </summary>
     public bool Leave(bool closing = true)
     {
-        if (_plans.FirstOrDefault(Unreadable) is { } row && (DateTime.Now - _closeAsked).TotalSeconds > 5)
+        if (_plans.FirstOrDefault(Unreadable) is { } row && (!closing || (DateTime.Now - _closeAsked).TotalSeconds > 5))
         {
-            _closeAsked = DateTime.Now;
+            if (closing)
+                _closeAsked = DateTime.Now;
             _tabs.CurrentTab = 1;
-            Say($"Not saved: the time “{row.When.Text.Trim()}” for “{Called(row)}” can't be read. Write it as YYYY-MM-DD HH:MM, or a date alone" +
+            var what = row.When.Text.Trim() is { Length: > 0 } when ? $"the time “{when}” for “{Called(row)}” can't be read" : $"“{Called(row)}” has no time";
+            Say($"Not saved: {what}. Write the time as YYYY-MM-DD HH:MM, or a date alone" +
                 (closing ? ", or close Settings again to leave it unchanged." : "."));
-            GD.Print($"Memory: kept open: the time “{row.When.Text.Trim()}” for “{Called(row)}” can't be read");
+            GD.Print($"Memory: kept open: {what}");
             return false;
         }
         return true;

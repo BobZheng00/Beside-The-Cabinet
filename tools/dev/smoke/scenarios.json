@@ -382,13 +382,23 @@
     },
     {
       "name": "memory-stool",
-      "about": "A time on Memory's Agenda that can't be read, then a move to Companion and someone else taking the stool: Memory comes back as it was, saying which time can't be read; put right, it is saved, and Memory is made again with the new name when next shown.",
+      "about": "A time on Memory's Agenda that can't be read, then a move to Companion and someone else taking the stool: Memory comes back as it was, saying which time can't be read, and its Chat history is still the old companion's; put right, it is saved, and Memory is made again with the new name when next shown.",
       "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
-      "script": "memoryseed@2,memory:agenda@4,memorytype:20:soonish@6,settings:characters@8,character:fumiriya@10,memorytype:soonish:2031-01-01@14,memoryleave@15,settings:characters@17,memory:agenda@19",
+      "script": "memoryseed@2,memory:agenda@4,memorytype:20:soonish@6,settings:characters@8,character:fumiriya@10,settingsdo:Chat_history@11.5,windoworder@12.5,memorytype:soonish:2031-01-01@14,memoryleave@15,settings:characters@17,memory:agenda@19",
       "shots": [9, 14.5, 18, 24],
       "window": "Settings",
-      "expect": ["^Settings: the pages now name Fumiriya; characters made again when next shown$", "^Memory: kept open: the time “soonish” for “.+” can't be read$", "^Memory: typed in the field with \"soonish\"$", "^Memory: agenda item saved$"],
+      "expect": ["^Settings: the pages now name Fumiriya; characters made again when next shown$", "^Memory: kept open: the time “soonish” for “.+” can't be read$", "^Memory: typed in the field with \"soonish\"$", "^Memory: agenda item saved$", "^Windows, top first: .*Chat with Shino"],
       "forbid": ["^Memory: closed without", "^Memory: no field showing"]
+    },
+    {
+      "name": "memory-stool-close",
+      "about": "An agenda item's time cleared on Memory, then someone else taking the stool, then Settings closed at once: Memory says the item has no time, and the close still stops at it first, keeping what was typed.",
+      "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
+      "script": "memoryseed@2,memory:agenda@4,memorytype:20:@6,settings:characters@8,character:fumiriya@10,settingsclose@12,memory:agenda@15",
+      "shots": [13.5, 19],
+      "window": "Settings",
+      "expect": ["^Settings: the pages now name Fumiriya; characters made again when next shown$", "^Memory: kept open: “.+” has no time$"],
+      "forbid": ["^Memory: closed without", "^Memory: no field showing", "^Memory: kept open: the time “”"]
     },
     {
       "name": "agendacancel",

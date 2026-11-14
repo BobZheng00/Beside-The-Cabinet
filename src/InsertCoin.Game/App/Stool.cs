@@ -2277,7 +2277,7 @@ public partial class Stool : Node2D
         }
         _memory = new MemorySettings();
         _memory.Build(_chat.Store, character.Id, character.Name, _memos);
-        _memory.History += OpenChatHistory;
+        _memory.History += () => OpenChatHistory(character);     // Memory's own companion, even after someone else takes the stool
         return _memory;
     }
 
@@ -2301,14 +2301,17 @@ public partial class Stool : Node2D
     }
 
     /// <summary>The conversation with whoever is on the stool, as stored.</summary>
-    public void OpenChatHistory()
+    public void OpenChatHistory() => OpenChatHistory(OnStool());
+
+    /// <summary>The conversation with <paramref name="who"/>, as stored.</summary>
+    private void OpenChatHistory((string Id, string Name)? who)
     {
         if (IsInstanceValid(_history))
         {
             _history!.GrabFocus();
             return;
         }
-        if (OnStool() is not { } character)
+        if (who is not { } character)
             return;
         _history = new ChatHistory();
         AddChild(_history);
