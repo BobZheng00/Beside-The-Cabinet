@@ -198,7 +198,7 @@ public class ChatGptPlanTests : IDisposable
     }
 
     [Fact]
-    public async Task A_request_on_the_plan_is_streamed_unstored_with_instructions_and_only_her_own_tools()
+    public async Task A_request_on_the_plan_is_streamed_unstored_with_instructions_her_own_tools_and_web_search()
     {
         var plan = Plan();
         await SignIn(plan);
@@ -224,7 +224,7 @@ public class ChatGptPlanTests : IDisposable
             Assert.Null(sent[refused]);
         var roles = sent["input"]!.AsArray().Select(i => (string?)i!["role"]).ToList();
         Assert.Equal(["user", "developer", "user"], roles);
-        Assert.Equal(["print_memo"], sent["tools"]!.AsArray().Select(t => (string?)t!["name"]));
+        Assert.Equal(["print_memo", "web_search"], sent["tools"]!.AsArray().Select(t => (string?)t!["name"] ?? (string?)t!["type"]));
     }
 
     [Fact]
@@ -446,6 +446,27 @@ public class ChatGptPlanTests : IDisposable
         Assert.Single(_openAi.Paths, p => p == "/v1/responses");
         var item = Assert.Single(temp.Store.Agenda());
         Assert.Equal(("Dentist", TimeSpan.FromMinutes(10)), (item.Text, item.Before));
+    }
+
+    [Fact]
+    public async Task A_plan_that_turns_web_search_down_in_words_that_dont_name_it_still_answers_without_it()
+    {
+        var plan = Plan();
+        await SignIn(plan);
+        using var temp = new TempStore();
+        var conversation = new Conversation(temp.Store, "hana", new Persona("Hana", "Hana is calm."), _clock);
+        var tools = new Toolbox([BuiltIn.OpenLink(_ => { }), BuiltIn.ProviderSearch()]);
+        _openAi.Answers.Enqueue(Json(HttpStatusCode.BadRequest, """{"error":{"code":"subscription_sharing_unsupported_capability","message":"Not available on this plan."}}"""));
+        _openAi.Answers.Enqueue(Streamed("Hi there."));
+
+        var answer = await conversation.Answer(plan.Client("gpt-5.5"), "hello", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal("Hi there.", answer);
+        Assert.True(tools.HostedRefused);
+        Assert.False(tools.Refused);
+        var asked = _openAi.Asked.Where(a => a.Path == "/v1/responses").Select(a => a.Body).ToList();
+        Assert.Equal([true, false], asked.Select(body => body.Contains("\"web_search\"")));
+        Assert.Contains("open_link", asked[1]);
     }
 
     [Fact]

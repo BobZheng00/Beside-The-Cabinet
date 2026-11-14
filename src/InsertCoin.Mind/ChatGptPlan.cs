@@ -443,7 +443,8 @@ public sealed class ChatGptPlan
     /// <summary>
     /// The request as the plan takes it (OpenAI's preview limitations): the opening system message as instructions, any
     /// later one as a developer message; no output limit, temperature, top-p, earlier response or background; only her
-    /// own function tools; not stored. The callers stay as they are for every provider.
+    /// own function tools and OpenAI's web search (which the plan may turn down: then she goes on without it); not
+    /// stored. The callers stay as they are for every provider.
     /// </summary>
     internal static (List<ChatMessage> Sent, ChatOptions Options) Shaped(IEnumerable<ChatMessage> messages, ChatOptions? options)
     {
@@ -457,7 +458,7 @@ public sealed class ChatGptPlan
         shaped.TopP = null;
         shaped.ConversationId = null;
         shaped.AllowBackgroundResponses = null;
-        shaped.Tools = options?.Tools?.Where(t => t is AIFunctionDeclaration).ToList() is { Count: > 0 } own ? own : null;
+        shaped.Tools = options?.Tools?.Where(t => t is AIFunctionDeclaration or HostedWebSearchTool).ToList() is { Count: > 0 } own ? own : null;
         shaped.RawRepresentationFactory = _ => new CreateResponseOptions { StoredOutputEnabled = false };
         return ([.. all.Skip(lead).Select(m => m.Role == ChatRole.System ? new ChatMessage(Developer, m.Contents) : m)], shaped);
     }

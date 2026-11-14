@@ -70,6 +70,8 @@ public class CheckInTests
     private sealed class Reporting(params UsageDetails[] usages) : IChatClient
     {
         private int _next;
+        /// <summary>Web searches the provider runs in each streamed reply.</summary>
+        public int Searches { get; init; }
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")) { Usage = usages[_next++] });
 
@@ -77,6 +79,8 @@ public class CheckInTests
                                                                                     [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.Yield();
+            for (var i = 0; i < Searches; i++)
+                yield return new ChatResponseUpdate(ChatRole.Assistant, [new WebSearchToolCallContent($"ws_{i}"), new WebSearchToolResultContent($"ws_{i}")]);
             yield return new ChatResponseUpdate(ChatRole.Assistant, "ok");
             yield return new ChatResponseUpdate { Contents = [new UsageContent(usages[_next++])] };
         }
@@ -108,5 +112,20 @@ public class CheckInTests
         var prices = new Prices(Input: 3m, Cached: 0.3m, Written: 3.75m, Output: 15m);
         Assert.Equal((200 * 3m + 1800 * 0.3m + 100 * 3.75m + 40 * 15m) / 1_000_000m, prices.Cost(talk));
         Assert.Equal((2000L, 0L, 300L, 200L), rows.Single(r => r.Purpose == "upkeep") is var u ? (u.Uncached, u.Cached, u.Output, u.Reasoning) : default);
+        Assert.All(rows, r => Assert.Equal(0, r.Searches));
+    }
+
+    [Fact]
+    public async Task Each_web_search_the_provider_runs_is_counted_with_the_request()
+    {
+        using var temp = new TempStore();
+        var used = new UsageDetails { InputTokenCount = 3000, OutputTokenCount = 40 };
+        using var replies = new Metered(new Reporting(used, used) { Searches = 2 }, temp.Store, "gpt-x", "replies", new FakeClock(Monday));
+
+        await foreach (var _ in replies.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "search for two things")])) { }
+        await foreach (var _ in replies.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "and again")])) { }
+
+        var row = temp.Store.Usage(DateOnly.FromDateTime(Monday.DateTime)).Single();
+        Assert.Equal((2L, 4L, 6000L), (row.Requests, row.Searches, row.Input));
     }
 }

@@ -242,10 +242,10 @@ public partial class MindSettings : VBoxContainer
             using var searching = new CancellationTokenSource(TimeSpan.FromSeconds(90));       // the player's provider took 47 s to search
             var searches = await provider.SearchesItself(key, searching.Token);
             if (IsInstanceValid(this))
-                Form.Say(result, connected + " " + (searches, provider.Protocol) switch
+                Form.Say(result, connected + " " + (searches, provider.OwnSearch is not null) switch
                 {
-                    (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
-                    (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
+                    (true, true) => $"Web search: {_name} can use your provider's own.",
+                    (true, false) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
                                  "Until it is, SearXNG (Connections, Web search) can give web search.",
                     _ => "Web search: your provider has none for this model. SearXNG (Connections, Web search) can give web search.",
                 }, Paper.Good);

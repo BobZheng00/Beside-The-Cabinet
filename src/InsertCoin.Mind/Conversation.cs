@@ -475,6 +475,7 @@ public sealed class Conversation(MindStore store, string character, Persona pers
         var acted = false;                                  // a tool was used in this reply
         var toolsDone = 0;                                  // where in her reply what she wrote after her last tool begins
         var searches = new Dictionary<string, string>();    // the provider's own web searches in this reply: what for, by call
+        var pagesRead = new HashSet<Uri>();                 // pages its search read in this reply (OpenAI's open a page, then look in it)
         // the silent call (#193): the reply ends after a round of agenda calls that all went through, with whatever she
         // said before them (flow C, spike #105) or nothing; the cabinet shows what was set (Agended). Written after the
         // result, her words reported it back (#128: the date said back in 10 of 12). A failure, or a round with another
@@ -513,12 +514,17 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 foreach (var content in update.Contents)
                     if (content is WebSearchToolCallContent search)
                     {
+                        var begun = searches.ContainsKey(search.CallId);    // OpenAI's comes twice: as it begins, then with its words
                         searches[search.CallId] = string.Join("; ", search.Queries ?? []);
-                        tools?.Hosted(BuiltIn.SearchName);
+                        if (!begun)
+                            tools?.Hosted(BuiltIn.SearchName);
                     }
                     else if (content is WebSearchToolResultContent found)
                     {
-                        store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
+                        if (!Provider.ReadsAPage(found, out var page))
+                            store.Add(character, Speaker.Cabinet, Searched(searches.GetValueOrDefault(found.CallId), found), _clock.GetLocalNow());
+                        else if (page is not null && pagesRead.Add(page))
+                            store.Add(character, Speaker.Cabinet, $"You read {BuiltIn.Shown(page)} while searching the web.", _clock.GetLocalNow());
                         toolsDone = reply.Length;
                         acted = true;
                     }
@@ -710,12 +716,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>
     /// The line kept for a web search the provider ran: what for, and the pages it found (the sources, for the chat
-    /// history), like the line for one of her own tools.
+    /// history), like the line for one of her own tools. A provider that doesn't name them (the ChatGPT plan) leaves the
+    /// pages out.
     /// </summary>
     private static string Searched(string? query, WebSearchToolResultContent found)
     {
         var pages = (found.Outputs ?? []).OfType<UriContent>().Select(u => BuiltIn.Shown(u.Uri)).Distinct().Take(5).ToList();
-        var line = $"You searched the web for \"{query ?? "?"}\": " + (pages.Count == 0 ? "nothing came back." : $"found {string.Join(", ", pages)}.");
+        var line = $"You searched the web for \"{(string.IsNullOrEmpty(query) ? "?" : query)}\"" + (found.Outputs is null ? "." : pages.Count == 0 ? ": nothing came back." : $": found {string.Join(", ", pages)}.");
         return line.Length <= 300 ? line : line[..299] + "…";
     }
 

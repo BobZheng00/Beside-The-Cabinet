@@ -333,6 +333,19 @@
       "forbid": ["^ChatGPT: sign-in didn't finish", "^ChatGPT: not now", "^Memos: printed \"Notebook again\""]
     },
     {
+      "name": "openai-search",
+      "about": "With OpenAI and a key (a stand-in, at OpenAI's own address), the companion answers through OpenAI's Responses API, unstored: asked to search, they search the web with OpenAI's own search, the chat history keeps what it was for and the pages it found, and their reply carries on after it; a memo still works, their reasoning sent back with its result; What they can do says they search with OpenAI's; AI model, What it has cost counts the search.",
+      "covers": ["src/InsertCoin.Mind/Provider.cs", "src/InsertCoin.Mind/Usage.cs", "src/InsertCoin.Mind/Conversation.cs", "src/InsertCoin.Game/App/UsagePage.cs", "src/InsertCoin.Game/App/Chat.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "tools/dev/mock_chatgpt.py"],
+      "mind": "chatgpt",
+      "mindReply": "Hi! I'm on OpenAI now.",
+      "mindRequests": 3,
+      "script": "nocall@1,openaiat:{mind}@1.5,settings:abilities@2.5,settingsscroll:2000@3.5,chat:please_search_the_web_for_the_museum@4,chat:put_it_in_my_notebook@10,settings:usage@14",
+      "shots": [9, 15, 19],
+      "window": "Settings",
+      "desk": true,
+      "expect": ["^Tools: she uses web_search$", "^Tools: she uses print_memo$", "^Memos: printed \"Notebook\""]
+    },
+    {
       "name": "skills",
       "about": "Settings → Abilities and privacy → Skills lists the seeded skills (one in the app's folder, one broken); a vault's skills folder linked on the page says how many skills it has and lists them (two, one with a hint); a skill's Settings › opens its own page, headed by where it is (‹ Skills › tea-timer, top left) and its name, and ‹ Skills goes back to the list where it was scrolled to, keyboard focus on the way back each time (‹ Skills going down, the skill's Settings › coming up); a skill with a name too long for the window wraps it in its page's heading, and neither its page nor the list is wider than the window (settingswidths, there); asked for one by name, the companion's mind (the mock) reads it with their skill tool, then answers.",
       "covers": ["src/InsertCoin.Mind/Skills.cs", "src/InsertCoin.Mind/Tools/*", "src/InsertCoin.Mind/Prompt.cs", "src/InsertCoin.Game/App/SkillSettings.cs", "src/InsertCoin.Game/App/Chat.cs"],

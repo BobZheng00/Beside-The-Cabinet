@@ -495,7 +495,10 @@ answer only if you ask again after that; long steps come as a memo. For a LeetCo
 statement, topics and LeetCode's own hints (from leetcode.com; a leetcode.cn tab is found by its number). That stays
 with LeetCode off as a way to earn, to help you study, and says nothing of play time. They can
 read a web page you name, and search the web: with your provider's own search where it has one this app can use
-(Anthropic's), or through your own SearXNG (Settings → Connections → Web search). They open apps from your Start menu after asking (games stay
+(Anthropic's; OpenAI's, with a key or the ChatGPT plan), or through your own SearXNG (Settings → Connections → Web
+search). With OpenAI and a key, the app talks to OpenAI through its Responses API, which has the search, and asks it
+to keep nothing (as before, through the chat API). On the ChatGPT plan, whether the search works depends on your
+account and model; where the provider turns it down, your companion answers without searching. They open apps from your Start menu after asking (games stay
 the cabinet's).
 
 ## Privacy and web search
@@ -576,7 +579,9 @@ that can't take pictures or PDFs they say so, and none is sent to it again.
 
 Settings → AI model → What it has cost shows what your companion's requests used, as your provider reports it, this month and day by day:
 tokens read, the share served from the provider's cache, cache writes and output, their replies apart from their
-upkeep; with the model's prices entered (from your provider's price page), the cost too.
+upkeep, and how many web searches your provider ran itself (Anthropic's or OpenAI's; a page read along the way isn't
+one), which with a key it charges for apart from tokens, and on the ChatGPT plan come out of the plan; with the model's
+prices entered (from your provider's price page), the cost too, before searches.
 
 Tray → "Chat history…" shows the conversation itself, every line kept, by day (with the notes they work from above
 it). While it is open it follows the conversation: what either of you says comes in at the bottom within a second,

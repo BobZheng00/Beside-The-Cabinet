@@ -6,7 +6,8 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → AI model → What it has cost: what her requests used, as the provider reported it (this month, and day by day for two weeks):
-/// input read, the share served from the provider's cache, what was written to the cache, and output. With the prices
+/// input read, the share served from the provider's cache, what was written to the cache, and output; and the web searches
+/// the provider ran itself, which it charges for apart. With the prices
 /// the player enters for a model (from their provider's price page: no table of prices is kept here, it would go out of
 /// date and cannot know a proxy's), the cost too, cache reads and writes at their own prices.
 /// </summary>
@@ -104,11 +105,15 @@ public sealed class UsagePage
             return "Nothing yet.";
         var read = rows.Sum(r => r.Input);
         var replies = rows.Where(r => r.Purpose == "replies").Sum(r => r.Requests);
-        var text = $"{rows.Sum(r => r.Requests)} requests ({replies} replies, {rows.Sum(r => r.Requests) - replies} upkeep). " +
+        var requests = rows.Sum(r => r.Requests);
+        var text = $"{requests} request{(requests == 1 ? "" : "s")} ({replies} {(replies == 1 ? "reply" : "replies")}, {requests - replies} upkeep). " +
                    $"Read {Tokens(read)} tokens, {(read == 0 ? 0 : (double)rows.Sum(r => r.Cached) / read):P0} of them from the provider's cache" +
                    $"{(rows.Sum(r => r.Written) > 0 ? $", {Tokens(rows.Sum(r => r.Written))} written to it" : "")}; " +
                    $"output {Tokens(rows.Sum(r => r.Output))} ({Tokens(rows.Sum(r => r.Reasoning))} of them thinking).";
-        return text + (cost == "?" ? " Enter prices below to estimate the cost." : $" About {cost}.");
+        var searches = rows.Sum(r => r.Searches);
+        if (searches > 0)
+            text += $" {searches} web search{(searches == 1 ? "" : "es")}, not counted in the tokens.";
+        return text + (cost == "?" ? " Enter prices below to estimate the cost." : $" About {cost}{(searches > 0 ? " before searches" : "")}.");
     }
 
     private static string Tokens(long count) => count switch

@@ -1,5 +1,6 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Runtime.CompilerServices;
 using Anthropic;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.AI;
@@ -22,7 +23,7 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     /// <summary>Starting points for the settings form. "Other" takes any OpenAI-compatible server.</summary>
     public static readonly Preset[] Presets =
     [
-        new("OpenAI", Protocol.OpenAi, "https://api.openai.com/v1", "gpt-6-luna", NeedsKey: true, "https://platform.openai.com/api-keys"),
+        new("OpenAI", Protocol.OpenAi, OpenAiApi, "gpt-6-luna", NeedsKey: true, "https://platform.openai.com/api-keys"),
         new("ChatGPT plan", Protocol.ChatGpt, ChatGptPlan.Api, "", NeedsKey: false),
         new("Anthropic", Protocol.Anthropic, "https://api.anthropic.com", "claude-haiku-5-5", NeedsKey: true, "https://platform.claude.com/settings/keys"),
         new("OpenRouter", Protocol.OpenAi, "https://openrouter.ai/api/v1", "openai/gpt-6-luna", NeedsKey: true, "https://openrouter.ai/settings/keys"),
@@ -34,6 +35,21 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     ];
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>OpenAI's own API: her replies go through its Responses API, with its web search (see <see cref="OwnSearch"/>).</summary>
+    public const string OpenAiApi = "https://api.openai.com/v1";
+
+    /// <summary>Test runs: a stand-in that answers in place of <see cref="OpenAiApi"/> (tools/dev/mock_chatgpt.py at /openai/v1); null for OpenAI itself.</summary>
+    public static string? OpenAiAt { get; set; }
+
+    /// <summary>OpenAI's own API, with a key (not the ChatGPT plan, nor another server speaking its protocol).</summary>
+    public bool IsOpenAi => Protocol == Protocol.OpenAi && BaseUrl.TrimEnd('/') == OpenAiApi;
+
+    /// <summary>
+    /// Whose web search she uses when the provider runs it itself, in a word for the player ("Anthropic's"); null when
+    /// this app can't use the provider's own (a SearXNG can still give her one).
+    /// </summary>
+    public string? OwnSearch => Protocol == Protocol.Anthropic ? "Anthropic's" : Protocol == Protocol.ChatGpt || IsOpenAi ? "OpenAI's" : null;
 
     /// <summary>A provider only counts once it says where to go and which model to ask.</summary>
     public static Provider? From(string? protocol, string? baseUrl, string? model) =>
@@ -55,8 +71,41 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     {
         Protocol.ChatGpt => (plan ?? throw new InvalidOperationException("The ChatGPT plan needs its sign-in.")).Client(Model),
         Protocol.Anthropic => new AnthropicClient { ApiKey = key, BaseUrl = BaseUrl.TrimEnd('/'), Timeout = Timeout, MaxRetries = 1 }.AsIChatClient(Model),
-        _ => WithoutThinking(ToolsWithoutReasoning(OpenAi(key).GetChatClient(Model).AsIChatClient())),
+#pragma warning disable OPENAI001                           // the Responses client is marked experimental
+        _ when IsOpenAi => new Unstored(OpenAi(key).GetResponsesClient().AsIChatClient(Model)),
+#pragma warning restore OPENAI001
+        _ => WithoutThinking(ToolsWithoutReasoning(WithoutOwnSearch(OpenAi(key).GetChatClient(Model).AsIChatClient()))),
     };
+
+    /// <summary>
+    /// Through the chat API no provider's own search is offered (the client would send it as web_search_options, which a
+    /// strict server turns down and another may run, billed to the player unasked): the backup behind the ChatGPT plan
+    /// is asked as the plan is, search and all.
+    /// </summary>
+    private static IChatClient WithoutOwnSearch(IChatClient client) =>
+        client.AsBuilder().ConfigureOptions(options =>
+        {
+            if (options.Tools?.Any(t => t is HostedWebSearchTool) == true)
+                options.Tools = options.Tools.Where(t => t is not HostedWebSearchTool).ToList() is { Count: > 0 } rest ? rest : null;
+        }).Build();
+
+    /// <summary>
+    /// Whether what the provider's web search brought back was a page it read (OpenAI's reasoning models open a page, or
+    /// look within one, as steps of a search) rather than a search: <paramref name="page"/> is that page. OpenAI charges
+    /// for its searches, not for those steps.
+    /// </summary>
+    public static bool ReadsAPage(WebSearchToolResultContent found, out Uri? page)
+    {
+#pragma warning disable OPENAI001
+        page = found.RawRepresentation switch
+        {
+            OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchOpenPageAction open } => open.Uri,
+            OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchFindInPageAction find } => find.Uri,
+            _ => null,
+        };
+        return found.RawRepresentation is OpenAI.Responses.WebSearchCallResponseItem { Action: OpenAI.Responses.WebSearchOpenPageAction or OpenAI.Responses.WebSearchFindInPageAction };
+#pragma warning restore OPENAI001
+    }
 
     /// <summary>
     /// DeepSeek's small model thinks unless told not to, and then wants its thinking sent back with every later request
@@ -75,8 +124,8 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
 
     /// <summary>
     /// On the chat API, OpenAI's newest small model calls tools only with reasoning off (OpenAI's page for it), so a
-    /// request offering tools says so, through any server. Every other model's requests stay as they were. For OpenAI
-    /// itself this goes when her replies move to the Responses API (#266).
+    /// request offering tools says so, through any other server. Every other model's requests stay as they were. OpenAI
+    /// itself is asked through the Responses API (#266), where its models call tools while reasoning.
     /// </summary>
     private IChatClient ToolsWithoutReasoning(IChatClient client) =>
         Model.Split('/')[^1] != "gpt-6-luna" ? client
@@ -89,19 +138,19 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     // local servers want no key, but the client insists on one
     private OpenAIClient OpenAi(string? key) =>
         new(new ApiKeyCredential(string.IsNullOrEmpty(key) ? "none" : key),
-            new OpenAIClientOptions { Endpoint = new Uri(BaseUrl), NetworkTimeout = Timeout, RetryPolicy = new ClientRetryPolicy(maxRetries: 1) });
+            new OpenAIClientOptions { Endpoint = new Uri(IsOpenAi && OpenAiAt is { } at ? at : BaseUrl), NetworkTimeout = Timeout, RetryPolicy = new ClientRetryPolicy(maxRetries: 1) });
 
     /// <summary>
     /// Whether the provider searches the web itself for this model, asked once with its search tool (a search, so it
-    /// costs a little; only when the player tests). Anthropic's goes through the Messages API her replies use. An
+    /// costs a little; only when the player tests). Anthropic's and OpenAI's go through the API her replies use. Another
     /// OpenAI-compatible one is asked through OpenAI's Responses API, the only one with a search tool for most models:
-    /// her replies use the chat API, which has none (2026-10-11: the player's provider searched with a GPT model through
-    /// the first, not the second), so for those this says only that the provider could.
+    /// her replies there use the chat API, which has none (2026-10-11: the player's provider searched with a GPT model
+    /// through the first, not the second), so for those this says only that the provider could.
     /// </summary>
     public async Task<bool> SearchesItself(string? key, CancellationToken cancel)
     {
 #pragma warning disable OPENAI001                           // the Responses client is marked experimental
-        using var client = Protocol == Protocol.Anthropic ? Connect(key) : OpenAi(key).GetResponsesClient().AsIChatClient(Model);
+        using var client = Protocol == Protocol.Anthropic || IsOpenAi ? Connect(key) : OpenAi(key).GetResponsesClient().AsIChatClient(Model);
 #pragma warning restore OPENAI001
         try
         {
@@ -150,6 +199,81 @@ public sealed record Provider(Protocol Protocol, string BaseUrl, string Model)
     /// writing them to Anthropic's cache would cost a quarter more.
     /// </summary>
     public IChatClient ForConversation(IChatClient client) => Protocol == Protocol.Anthropic ? new CachedAnthropic(client, Model) : client;
+
+    /// <summary>
+    /// OpenAI's Responses API asked as the chat API was: nothing kept at OpenAI (the chat API keeps nothing unless asked).
+    /// So its reasoning between her tool calls comes back encrypted, to be sent again (OpenAI's stateless use), and its
+    /// web search names the pages it found. A model that doesn't reason turns the encrypted reasoning down: it is asked
+    /// again without it, and never again by this client.
+    /// </summary>
+    private sealed class Unstored(IChatClient inner) : DelegatingChatClient(inner)
+    {
+        private bool _reasons = true;
+
+        public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await base.GetResponseAsync(messages, Shaped(options), cancellationToken);
+            }
+            catch (ClientResultException e) when (_reasons && WithoutReasoning(e))
+            {
+                return await base.GetResponseAsync(messages, Shaped(options), cancellationToken);
+            }
+        }
+
+        public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+                                                                                         [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            for (var mayRetry = _reasons; ; mayRetry = false)
+            {
+                await using var updates = base.GetStreamingResponseAsync(messages, Shaped(options), cancellationToken).GetAsyncEnumerator(cancellationToken);
+                bool started = false, again = false;
+                while (true)
+                {
+                    try
+                    {
+                        if (!await updates.MoveNextAsync())
+                            break;
+                    }
+                    catch (ClientResultException e) when (mayRetry && !started && WithoutReasoning(e))
+                    {
+                        again = true;
+                        break;
+                    }
+                    started = true;
+                    yield return updates.Current;
+                }
+                if (!again)
+                    yield break;
+            }
+        }
+
+        private bool WithoutReasoning(ClientResultException e)
+        {
+            if (e.Status != 400 || !e.Message.Contains("encrypted content", StringComparison.OrdinalIgnoreCase) || !e.Message.Contains("not supported", StringComparison.OrdinalIgnoreCase))
+                return false;
+            _reasons = false;
+            return true;
+        }
+
+#pragma warning disable OPENAI001                           // the Responses API's types are marked experimental
+        private ChatOptions Shaped(ChatOptions? options)
+        {
+            var shaped = options?.Clone() ?? new ChatOptions();
+            var reasons = _reasons;
+            shaped.RawRepresentationFactory = _ =>
+            {
+                var request = new OpenAI.Responses.CreateResponseOptions { StoredOutputEnabled = false };
+                request.IncludedProperties.Add(OpenAI.Responses.IncludedResponseProperty.WebSearchCallActionSources);
+                if (reasons)
+                    request.IncludedProperties.Add(OpenAI.Responses.IncludedResponseProperty.ReasoningEncryptedContent);
+                return request;
+            };
+            return shaped;
+        }
+#pragma warning restore OPENAI001
+    }
 
     private sealed class CachedAnthropic(IChatClient inner, string model) : DelegatingChatClient(inner)
     {
