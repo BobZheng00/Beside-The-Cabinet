@@ -208,14 +208,12 @@ public static class Paper
     /// A window in the cabinet's paper style, sized for the screen's DPI (no bigger than the screen leaves room for: at
     /// 150% a tall one would run under the taskbar) and opened in the middle of it, or <paramref name="besideCabinet"/>
     /// where whoever is on the stool stays in view (left of the cabinet if there is room, else right of it).
+    /// <paramref name="narrowest"/>: the least width its contents may be laid out at (see <see cref="Fit"/>).
     /// </summary>
-    public static void Open(Window window, Vector2 size, bool besideCabinet = false)
+    public static void Open(Window window, Vector2 size, bool besideCabinet = false, float narrowest = 0)
     {
-        var scale = DisplayServer.ScreenGetDpi(DisplayServer.WindowGetCurrentScreen()) / 96f;
         var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
-        var wanted = (Vector2I)(size * scale);
-        window.ContentScaleFactor = scale;
-        window.Size = new Vector2I(Math.Min(wanted.X, screen.Size.X - 16), Math.Min(wanted.Y, screen.Size.Y - 48));     // the title bar is outside it
+        (window.Size, window.ContentScaleFactor) = Fit(size, DisplayServer.ScreenGetDpi(DisplayServer.WindowGetCurrentScreen()) / 96f, screen.Size, narrowest);
         window.MinSize = window.Size;
         window.Theme = WindowTheme();
         window.Position = OffScreen ? new Vector2I(-6000, 100) : besideCabinet ? Beside(window.Size, screen) : screen.Position + (screen.Size - window.Size) / 2;
@@ -225,6 +223,21 @@ public static class Paper
         window.Show();
         if (!OffScreen)
             window.GrabFocus();
+    }
+
+    /// <summary>
+    /// The size a window asking for <paramref name="size"/> at <paramref name="scale"/> opens at on a screen with this
+    /// much room, and the scale it is drawn at: no bigger than the screen (the title bar is outside it). Where that would
+    /// lay its contents out narrower than <paramref name="narrowest"/> (Settings on a narrow portrait screen), it is drawn
+    /// a little smaller instead, so they still get that width.
+    /// </summary>
+    public static (Vector2I Size, float Scale) Fit(Vector2 size, float scale, Vector2I screen, float narrowest = 0)
+    {
+        var room = screen - new Vector2I(16, 48);
+        if (narrowest > 0)
+            scale = Math.Min(scale, room.X / narrowest);
+        var wanted = (Vector2I)(size * scale);
+        return (new Vector2I(Math.Min(wanted.X, room.X), Math.Min(wanted.Y, room.Y)), scale);
     }
 
     private static Vector2I Beside(Vector2I size, Rect2I screen)

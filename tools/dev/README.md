@@ -43,7 +43,8 @@ a test run logs its list as it opens, and the page it opened at), `settingsdo:La
 as a click would (`settingsdo:Notifications`, `settingsdo:Bedtime_and_quiet_hours`); else presses the button or flips the tick with that text on the page showing, and logs `Settings: start led to quiet` when that opens another page; `settingsdo:Label:value` sets the choice after that label, by number
 from 0 or by what it says (`settingsdo:Language:中文`), or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
-hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open window out as on a screen that size at 100%, to read its pixel headings there), `settingswidths` (logs any page wider
+hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open window out as on a screen that size at 100%, to read its pixel headings there;
+`settingsat:1080x1920x175` as on one at 175%, where Settings is drawn smaller so its pages still get 692 px; it logs the size, and at a scale other than 100% its pages' size), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
 showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
 screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),

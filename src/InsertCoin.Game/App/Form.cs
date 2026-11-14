@@ -99,6 +99,7 @@ public static class Form
         var choice = new OptionButton
         {
             SizeFlagsHorizontal = wide ? Control.SizeFlags.ExpandFill : Control.SizeFlags.ShrinkBegin, ClipText = wide, FitToLongestItem = !wide,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,     // cut short, it says so (the list shows it whole)
         };
         foreach (var option in options)
             choice.AddItem(option);

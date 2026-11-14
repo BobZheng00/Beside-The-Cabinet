@@ -152,8 +152,10 @@ The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the scr
 - connections as cards with their state and one button;
 - headings in the screen's pixel font, checked at 1366×768, and everything else in the windows' rounded font (built, #260);
 - every page fits Settings at its narrowest: it opens at 850 by 704 times the display scale, cut to the screen the
-  cabinet is on, so on a portrait screen beside the main one (1080 px wide at 150%) its pages get about 708 px; smoke's `memorynarrow` and `settingsnarrow` measure them at 692 (built,
-  #304 and #312; Companion, Their voice and Your phone with their reworks, #261, #264, #263).
+  cabinet is on, so on a portrait screen beside the main one (1080 px wide at 150%) its pages get about 708 px; on a
+  screen narrower for its scale (1080 px at 175% or 200%) Settings is drawn a little smaller instead, so they never get
+  under 692. Smoke's `memorynarrow` and `settingsnarrow` measure them at 692 (built, #304 and #312; Companion, Their
+  voice and Your phone with their reworks, #261, #264, #263).
 
 **Smaller fixes from the audit:** a pointer in a page ("see Reminders") is a button that opens it; one name for each thing;
 Forget looks destructive; a filter over Facts and Diary; Reminders offers the agenda; plainer words where the pages speak
