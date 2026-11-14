@@ -160,6 +160,10 @@ never) and `crt:done`; `allow` and `deny` answer their card as Yes, count it and
 Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (sets your bedtime, today's too),
 `nextday` (as if the night had passed: the next check turns the day and half the unplayed time fades).
 
+Missions: `missions` (gives the profile missions, as a new one has: a test profile is set up already, so has none;
+logs those left), `mission:hello` (as if the player did what one asks: `ai`, `hello`, `credit`, `reminder`, `memory`,
+`voice`; it ticks once, and pays while play time is earned).
+
 ## Test runs
 
 `--offscreen` makes a copy a test copy: its windows open off every monitor; with it,

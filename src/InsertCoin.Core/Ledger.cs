@@ -19,10 +19,11 @@ public sealed class Ledger(Rules rules)
             TasksObserved t => Observe(TurnDay(state, now, events, deferWhilePlaying: false), t, events),
             Focused f => Focus(TurnDay(state, now, events, deferWhilePlaying: false), f, events),
             ActivityDone a => Activity(TurnDay(state, now, events, deferWhilePlaying: false), a, events),
+            MissionDone d => Clear(TurnDay(state, now, events, deferWhilePlaying: false), d.Id, events),
             Tick k => OnTick(TurnDay(state, now, events, deferWhilePlaying: true), k, now, events),
             _ => throw new ArgumentOutOfRangeException(nameof(input), input, null),
         };
-        return new LedgerResult(state, events);
+        return new LedgerResult(Settle(state, events), events);
     }
 
     private static LedgerState SetPlayer(LedgerState state, PlayerSet p) => state with
@@ -100,6 +101,8 @@ public sealed class Ledger(Rules rules)
         var (paid, payout, after) = Pay(state, tokens * Rules.TokenMs);
         events.Add(new CoinsEarned(task, tokens, star, streak, payout));
         events.AddRange(after);
+        if (Rules.Earns.LeetCode)                           // not LeetCode's last answer as it is switched off
+            paid = Clear(paid, Missions.EarnACredit, events);
         return paid with
         {
             SeenTaskIds = paid.SeenTaskIds.Add(task.Id),
@@ -129,7 +132,9 @@ public sealed class Ledger(Rules rules)
             Week = paid.Week with { FocusedMs = paid.Week.FocusedMs + focusedMs },
             Today = paid.Today! with { FocusedMs = paid.Today.FocusedMs + focusedMs },
         };
-        return Rules.Earns.Focus && paid.Today.FocusedMs >= Rules.GoodDayFocusMs ? GoodDay(paid, paid.Today.Day, events) : paid;
+        if (Rules.Earns.Focus && paid.Today.FocusedMs >= Rules.MissionFocusMs)
+            paid = Clear(paid, Missions.EarnACredit, events);
+        return Rules.Earns.Focus && paid.Today!.FocusedMs >= Rules.GoodDayFocusMs ? GoodDay(paid, paid.Today.Day, events) : paid;
     }
 
     /// <summary>
@@ -148,6 +153,7 @@ public sealed class Ledger(Rules rules)
         var (paid, payout, after) = Pay(state, (long)Math.Round(Rules.TokensFor(done.Size) * Rules.TokenMs * share));
         events.Add(new ActivityPaid(done.Name, done.Size, share, before + share, payout));
         events.AddRange(after);
+        paid = Clear(paid, Missions.EarnACredit, events);
         return GoodDay(paid with
         {
             Week = before > 0 ? paid.Week : paid.Week with { Activities = paid.Week.Activities + 1 },
@@ -175,12 +181,48 @@ public sealed class Ledger(Rules rules)
         return paid;
     }
 
+    // ---- Missions ----
+
+    /// <summary>
+    /// A mission ticks the first time it is done, for a profile that has missions. EARN A CREDIT is only on the list
+    /// while play time is earned (CREDITS); under FREE PLAY there is no earning to tick it.
+    /// </summary>
+    private LedgerState Clear(LedgerState state, string id, List<LedgerEvent> events)
+    {
+        if (state.Missions is not { } missions || missions.Done.Contains(id) || (id == Missions.EarnACredit && !Rules.Earns.Any)
+            || Missions.All.FirstOrDefault(m => m.Id == id) is not { } mission)
+            return state;
+        events.Add(new MissionCleared(mission));
+        return state with { Missions = missions with { Done = missions.Done.Add(id) } };
+    }
+
+    /// <summary>
+    /// Pays each mission done and not yet paid, <see cref="Rules.MissionMs"/> each, outside the day's cap, while play
+    /// time is earned: as it clears, or, cleared under FREE PLAY, at the first step once play time is back. Paid once:
+    /// switching the mode again pays nothing more, and what was paid stays in the balance.
+    /// </summary>
+    private LedgerState Settle(LedgerState state, List<LedgerEvent> events)
+    {
+        if (state.Missions is not { } missions || !Rules.Earns.Any || state.Today is null)
+            return state;
+        foreach (var mission in Missions.All.Where(m => missions.Done.Contains(m.Id) && !missions.Paid.Contains(m.Id)))
+        {
+            var (paid, payout, after) = Pay(state, Rules.MissionMs, capped: false);
+            events.Add(new MissionPaid(mission, payout));
+            events.AddRange(after);
+            missions = missions with { Paid = missions.Paid.Add(mission.Id) };
+            state = paid with { Missions = missions };
+        }
+        return state;
+    }
+
     /// <summary>
     /// Pays something earned: debt first, then new play up to what is left of today's cap (whole tokens to credits,
     /// the rest to fuel; a full tank becomes a credit, except the token in the slot while a game runs). Past the cap
     /// it is done but not paid. Also returns the events that follow the earning's own: debt paid, the cap reached.
+    /// Not <paramref name="capped"/> (a mission's reward), it is paid whole and doesn't count towards the cap.
     /// </summary>
-    private (LedgerState State, Payout Payout, List<LedgerEvent> After) Pay(LedgerState state, long earnedMs)
+    private (LedgerState State, Payout Payout, List<LedgerEvent> After) Pay(LedgerState state, long earnedMs, bool capped = true)
     {
         var after = new List<LedgerEvent>();
         var today = state.Today!;
@@ -191,7 +233,8 @@ public sealed class Ledger(Rules rules)
             after.Add(new DebtPaid(debtPaid, state.IouTickets(Rules), (int)(debtMs / Rules.TokenMs), debtMs));
 
         var rest = earnedMs - debtPaid;
-        var credited = Math.Min(rest, today.RoomMs());
+        var credited = capped ? Math.Min(rest, today.RoomMs()) : rest;
+        var counted = capped ? credited : 0;                // towards the cap
         var credits = state.Credits + (int)(credited / Rules.TokenMs);
         var fuelMs = state.FuelMs + credited % Rules.TokenMs;
         if (fuelMs > Rules.TokenMs || (fuelMs == Rules.TokenMs && state.Session is null))
@@ -199,7 +242,7 @@ public sealed class Ledger(Rules rules)
             credits++;
             fuelMs -= Rules.TokenMs;
         }
-        if (credited > 0 && today.EarnedMs + credited >= today.CapMs)
+        if (counted > 0 && today.EarnedMs + counted >= today.CapMs)
             after.Add(new CapReached(today.CapMs));
 
         var payout = new Payout(earnedMs, debtPaid, credited, rest - credited, credits - state.Credits);
@@ -208,10 +251,10 @@ public sealed class Ledger(Rules rules)
             Credits = credits,
             FuelMs = fuelMs,
             DebtMs = debtMs,
-            Week = state.Week with { EarnedMs = state.Week.EarnedMs + credited },
+            Week = state.Week with { EarnedMs = state.Week.EarnedMs + counted },
             Today = today with
             {
-                EarnedMs = today.EarnedMs + credited,
+                EarnedMs = today.EarnedMs + counted,
                 OverCapMs = today.OverCapMs + rest - credited,
                 DebtPaidMs = today.DebtPaidMs + debtPaid,
             },

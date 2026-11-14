@@ -19,6 +19,9 @@ public sealed record Focused(TimeSpan Time) : LedgerInput;
 /// </summary>
 public sealed record ActivityDone(string Name, Size Size, double Share) : LedgerInput;
 
+/// <summary>The player did what a mission asks (see <see cref="Missions"/>): it ticks, and pays while play time is earned.</summary>
+public sealed record MissionDone(string Id) : LedgerInput;
+
 /// <summary>One detector check. Elapsed is monotonic time since the previous tick; Idle is time since the last user input.</summary>
 public sealed record Tick(IReadOnlyList<RunningGame> Games, TimeSpan Elapsed, TimeSpan Idle) : LedgerInput;
 
@@ -46,6 +49,15 @@ public sealed record ActivityPaid(string Name, Size Size, double Share, double T
 /// star comes with its coins, in <see cref="CoinsEarned"/>).
 /// </summary>
 public sealed record StreakStar(int Streak, Payout Paid) : LedgerEvent;
+
+/// <summary>A mission ticked, the first time it was done.</summary>
+public sealed record MissionCleared(Mission Mission) : LedgerEvent;
+
+/// <summary>
+/// A mission paid its reward, outside the day's cap: as it cleared, or, cleared under FREE PLAY, once play time is
+/// earned again.
+/// </summary>
+public sealed record MissionPaid(Mission Mission, Payout Paid) : LedgerEvent;
 
 public sealed record DebtPaid(long PaidMs, int TicketsBefore, int TicketsAfter, long DebtLeftMs) : LedgerEvent;
 

@@ -92,6 +92,8 @@ public partial class Voice : Node
     public event Action? Changed;
     /// <summary>Test is saying its sample line: the line for her bubble, in English like the rest of the cabinet (a subtitle when she speaks another language).</summary>
     public event Action<string>? Testing;
+    /// <summary>A sentence of hers was heard aloud, played to its end (not a thinking sound).</summary>
+    public event Action? SaidAloud;
 
     /// <summary>Whether a reply is still under way (being written, or waiting on her card): she may think aloud while it is.</summary>
     public Func<bool> Answering { get; set; } = () => false;
@@ -772,6 +774,7 @@ public partial class Voice : Node
             {
                 _heardChars += heard.Chars;
                 _heardLines++;
+                SaidAloud?.Invoke();
             }
             _lastEnd = heard.End;
         }

@@ -51,7 +51,7 @@ public class KnownTests
 
         await new Conversation(temp.Store, "shino", new Persona("Shino", "A friend.") { Player = "Bob" }, new FakeClock(DateTimeOffset.Now))
             .Answer(model, "hi", "", _ => { }, (_, _) => { });
-        Assert.Contains("What you know about the player:\nThe player goes by Bob.\n\n", model.Requests[^1][0].Text.ReplaceLineEndings("\n"));   // the name they gave at Getting started
+        Assert.Contains("What you know about the player:\nThe player goes by Bob.\n\n", model.Requests[^1][0].Text.ReplaceLineEndings("\n"));   // the name they gave (General, the first run)
 
         temp.Store.Forget("shino");
         Assert.Empty(temp.Store.Facts("shino"));

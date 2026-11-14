@@ -68,6 +68,12 @@ public partial class Stool : Node2D
     /// <summary>How much of an activity's worth the cabinet has paid today; set by the cabinet's loop.</summary>
     public Func<string, double>? PaidToday { get; set; }
 
+    /// <summary>The player did what a mission asks (see <see cref="Missions"/>); set by the cabinet's loop.</summary>
+    public Action<string>? MissionDone { get; set; }
+
+    /// <summary>Their voice takes a download (Chinese and Japanese, Qwen TTS): hearing it is an extra mission.</summary>
+    internal bool VoiceExtra => _voice.Profile is { Engine: VoiceProfile.Qwen };
+
     /// <summary>The game day of a moment; set by the cabinet's loop.</summary>
     public Func<DateTimeOffset, DateOnly>? DayOf { get; set; }
 
@@ -181,6 +187,7 @@ public partial class Stool : Node2D
         _chat.CantSee = model => _settings.Now.UnseeingModels.Contains(model);
         _chat.FoundCantSee += model => _settings.Save(_settings.Now with { UnseeingModels = [.. _settings.Now.UnseeingModels, model] });
         _chat.Agended += Agended;
+        _chat.Answered += () => MissionDone?.Invoke(Missions.ConnectAnAi);
         _permission = new PermissionCard();
         AddChild(_permission);
         _chat.Plan.Stopping += why => Callable.From(() => { _ = TellPlan(why); }).CallDeferred();
@@ -261,6 +268,7 @@ public partial class Stool : Node2D
         _voice = new Voice();
         AddChild(_voice);
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => Her);
+        _voice.SaidAloud += () => MissionDone?.Invoke(Missions.HearTheirVoice);
         // a release carries the engine beside the app; run from source it is what tools/export/build_qwen_tts.py built
         var besideApp = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "qwen-tts");
         _voice.UseQwen(File.Exists(Path.Combine(besideApp, "tts-server.exe")) ? besideApp : ProjectSettings.GlobalizePath("res://../../builds/qwen-tts"),
@@ -875,6 +883,7 @@ public partial class Stool : Node2D
                 _chat.Conversation?.Witness(Reaching.TextingBegins);
             _texted = true;
             phone.Typing();
+            MissionDone?.Invoke(Missions.SayHello);        // texted counts as typed
             var (words, set) = await _chat.TextBack(said, handed, Situation(), Her!, _voice.Language);
             // the app's plain line for what she set comes under her words, or is the message when she said none (#129)
             if (Agenda.Receipted(words ?? "", set, _settings.Now.ReminderLead) is { Length: > 0 } text)
@@ -1729,6 +1738,7 @@ public partial class Stool : Node2D
     {
         if (Her is null)
             return;
+        MissionDone?.Invoke(Missions.SayHello);            // typed or spoken
         if (_texted)
         {
             _chat.Conversation?.Witness(Reaching.TextingEnds);     // so she knows which lines were texted
@@ -2025,7 +2035,7 @@ public partial class Stool : Node2D
             ? new Telling("HELLO", "The player has just set up the cabinet and chosen you to keep them company: you are meeting for the first " +
                                    "time. Say hello in a short sentence.", _settings.Now.CallMe is { } name ? $"Hi, {name}!" : "Hi!",
                           Matters.Must, Anywhere: false, now, TimeSpan.FromMinutes(3), Greet: true)
-            : new Telling("HELLO", "", "Hi! Connect an AI in Getting started, and we can talk.", Matters.Must, Anywhere: false, now,
+            : new Telling("HELLO", "", "Hi! Connect an AI in Settings, and we can talk.", Matters.Must, Anywhere: false, now,
                           TimeSpan.FromMinutes(3), Greet: true));
     }
 
@@ -2068,7 +2078,7 @@ public partial class Stool : Node2D
     }
 
     /// <summary>
-    /// The name the player gave to be called by (Getting started, Characters): saved at once, and taken up by whoever is
+    /// The name the player gave to be called by (General, the first run, Meet): saved at once, and taken up by whoever is
     /// on the stool once the typing stops (taking it up cancels what she is saying).
     /// </summary>
     internal void CallMe(string name)
@@ -2080,34 +2090,6 @@ public partial class Stool : Node2D
             if (typed == _naming && _chat.Conversation is { } now && CompanionView.Available(_characters).FirstOrDefault(c => c.Id == now.Character) is { } character)
                 _chat.Seat(character.Id, character.Persona(_characters, _settings.Now.CallMe));
         };
-    }
-
-    /// <summary>Her steps of Getting started: her mind, which she needs to talk; her voice; talking aloud, when this build has ears.</summary>
-    internal IEnumerable<StartStep> StartSteps()
-    {
-        var her = HerName();
-        var provider = ChatProvider();
-        yield return new("mind", "AI model",
-            $"{her} talks through your own AI provider (OpenAI, Anthropic, OpenRouter, DeepSeek, Qwen, or a server on this PC): pick one, get a key " +
-            "on its site, name a model, Test and Save. Providers charge a little for each reply; one on this PC is free. About 5 minutes.",
-            Needed: true, Done: provider is not null,
-            provider is null ? $"Not connected: {her} can't talk with you yet."
-                : $"{her} answers through {provider.Through}, with {provider.Model}.");
-        yield return new("voice", "Voice",
-            _voice.Profile is { Engine: VoiceProfile.Qwen } qwen
-                ? $"{her} speaks {SpokenLanguage.Name(qwen.Language)} on this PC, with no graphics card needed." +
-                  (_voice.QwenWantsDownload ? $" It takes one download of {QwenInstaller.Gb(QwenWeights.Size)} GB, on the Voice page." : "")
-                : $"{her} speaks aloud with GPT-SoVITS, run on this PC's graphics card: installed for you there (an 8 GB download, 13 GB on disk)" +
-                  (_voice.Profile is null ? $", then give {her} a voice from clips with their words" : $"; {her} has a voice already, which you can change") +
-                  ". About 20 minutes; training a model of the voice takes longer.",
-            Needed: false, Done: _voice.Now is not (Voice.Phase.NotSetUp or Voice.Phase.NoVoice or Voice.Phase.Failed), _voice.Status);
-        if (Listening.HasEars)
-            yield return new("listening", "Talking to them",
-                $"Talk to {her} through your microphone: what you say is made into words on this PC, and only the words go to your provider. " +
-                "Nothing to install.",
-                Needed: false, Done: true,
-                _settings.Now.TalkKey == TalkKey.Off ? $"Ready: hold the mouse on {her} and speak."
-                    : $"Ready: hold {TalkKey.Keys.FirstOrDefault(k => k.Name == _settings.Now.TalkKey).Label ?? "the talk key"} in any app and speak.");
     }
 
     private MindSettings? _mindPage;                        // the latest made, for her card's Continue with ChatGPT

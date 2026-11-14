@@ -27,7 +27,7 @@ bring your own.
    anywhere and run `BesideTheCabinet.exe`. The app isn't signed yet, so Windows may say it protected your PC: More
    info → Run anyway. Previews are early builds; you can also [build it from source](src/README.md).
 2. The first run asks your name, who keeps you company and which mind to use.
-3. Tray → **Getting started…** goes through the rest whenever you like: the voice, talking aloud, your phone, a calendar.
+3. Tray → **Missions…** lists a few things to try next. Your phone and a calendar are in Settings.
 
 ## What goes where
 

@@ -109,6 +109,13 @@ public partial class Main : Node2D
         _stateStore = new JsonFileStore<LedgerState>(Path.Combine(dataDir, "state.json"));
         _rules = RulesOf(_settings);
         _state = _stateStore.Load() ?? LedgerState.New(DateTimeOffset.Now, _rules);
+        // a profile not set up yet has missions from its first run on; one set up before them has none, as has one whose
+        // first run was the cabinet's own (a LeetCode name and no choice of what earns: it never sees the welcome either)
+        if (_state.Missions is null && !_settings.SetUp && (_settings.LeetCodeEarns is not null || string.IsNullOrWhiteSpace(_settings.Username)))
+        {
+            _state = _state with { Missions = new MissionProgress() };
+            _stateStore.Save(_state);                       // kept at once: killed before the next save, the profile would come back set up without them
+        }
         _ledger = new Ledger(_rules);
         _tasks = testRun ? new StandInLeetCode() : new LeetCodeSource(new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(20) });     // no test ever asks leetcode.com
         _games = args.ContainsKey("no-steam") ? new NoGames() : new SteamDetector(new WindowsSteamRegistry(), _settings.IgnoredSteamAppIds);
@@ -142,6 +149,7 @@ public partial class Main : Node2D
         _stool.Ledger = () => _state;
         _stool.Rules = () => _rules;
         _stool.RulesChanged = UseRules;
+        _stool.MissionDone = Did;
         _reminders = new Reminders(_stool.Store, _ticket, _audio, () => _settings, _stool.Remind);
         _elsewhereKeys = new KeyStore(Path.Combine(dataDir, "companion", "reminders.bin"));
         _calendars = new Calendars(_stool.Store, new KeyStore(Path.Combine(dataDir, "companion", "calendars.bin")));
@@ -256,9 +264,14 @@ public partial class Main : Node2D
         _settingsFile.Changed += () =>
         {
             _tray.Sync(_settings.Muted, _settings.Voice);   // flipped in Settings too
-            _tray.ShowStart(StartLeft());
             if (_settings.Earning != _rules.Earns)
+            {
+                var was = _rules.Earns.Any;
                 UseEarning();
+                if (_rules.Earns.Any && !was)
+                    Tick();                                 // play time back: missions cleared without it are paid now, not at the next check
+            }
+            _tray.ShowMissions(MissionsShown());            // hidden or brought back, EARN A CREDIT back with play time
         };
         UseEarning();
         _tray.MutedChanged += SetMuted;
@@ -267,7 +280,7 @@ public partial class Main : Node2D
         _stool.ConversingChanged += _tray.SetConversation;
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.Settings += () => OpenSettings(null);
-        _tray.GettingStarted += () => OpenSettings("start");
+        _tray.Missions += () => OpenSettings("missions");
         _tray.Characters += () => OpenSettings("characters");
         _stool.OpenSettings += OpenSettings;
         _stool.SettingsChanged += page =>
@@ -311,7 +324,13 @@ public partial class Main : Node2D
 
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
-        AddTimer(5.0, () => _reminders.Tick(DateTimeOffset.Now));
+        AddTimer(5.0, () =>
+        {
+            _reminders.Tick(DateTimeOffset.Now);
+            // ASK FOR A REMINDER: one set by them or on the agenda, however it came (her reply, upkeep, Memory, a snooze)
+            if (_state.Missions is { } missions && !missions.Done.Contains(Missions.AskForAReminder) && _stool.Store.Agenda().Any(p => p.Remind && p.Source is null))
+                Did(Missions.AskForAReminder);
+        });
         AddTimer(Calendars.Every.TotalSeconds, () => _ = _calendars.Sync());
         GetTree().CreateTimer(3).Timeout += () => _ = _calendars.Sync();     // soon after starting: the agenda in step
         AddTimer(1.0, RefreshScreen);
@@ -367,7 +386,7 @@ public partial class Main : Node2D
             GD.Print("Main: the session is held, its program behind another window");
         else if (held && _state.Session is not null && !_state.Held)
             GD.Print("Main: the session goes on, its program in front");
-        _tray.ShowStart(StartLeft());                       // her voice coming up, a calendar linked: not settings
+        _tray.ShowMissions(MissionsShown());                // a mission cleared, their voice changed: not settings
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
             Save();
@@ -489,12 +508,17 @@ public partial class Main : Node2D
                 Paused => "the session pauses, the player away from the keyboard",
                 Resumed => "the session goes on",
                 FocusPaid f => $"focus pays for {f.FocusedMs / 1000} s focused",
+                MissionCleared c => $"the mission {c.Mission.Title} is cleared",
+                MissionPaid p => $"the mission {p.Mission.Title} pays {p.Paid.EarnedMs / 60_000} min, {p.Paid.DebtPaidMs / 60_000} of it to a debt " +
+                                 $"({_state.Missions?.Paid.Count} paid in all)",
                 _ => null,
             };
             if (session is not null)
                 GD.Print($"Main: {session}");
             _director.Play(e);
         }
+        if (result.Events.Any(e => e is MissionCleared or MissionPaid) && IsInstanceValid(_settingsWindow))
+            Callable.From(() => _settingsWindow?.RefreshPage("missions")).CallDeferred();     // not while a page is being made (Memory's, say)
         _stool.Witness(result.Events, _rules);
         _stool.Record(_state);
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
@@ -520,8 +544,8 @@ public partial class Main : Node2D
         var shownLeft = Math.Max(0, left - since);
         var shownDebt = s.DebtMs + (left == 0 ? (long)(since * _rules.DebtMultiplier) : 0);
         // the time left never goes up in a game (played, paused, held or unseen), nor at the check that ends it, unless
-        // something was earned meanwhile: logged, for the smoke suite to catch
-        var earned = s.Today?.EarnedMs ?? 0;
+        // something was earned (or a mission paid) meanwhile: logged, for the smoke suite to catch
+        var earned = (s.Today?.EarnedMs ?? 0) + (s.Missions?.Paid.Count ?? 0);
         if (_shownInGame is { } last && balance && shownLeft > last.Left && earned == last.Earned)
             GD.Print($"Main: the time left shown went up in a game, from {last.Left} to {shownLeft} ms");
         _shownInGame = s.Session is not null ? (shownLeft, earned) : null;
@@ -827,6 +851,19 @@ public partial class Main : Node2D
             _elsewhereKeys.Save(new ElsewhereSecrets { NtfyTopic = "test", WebhookUrl = server + "/hook" }.ToJson());
             return;
         }
+        if (action == "missions")                           // missions on this profile, as on a new one (a test profile is set up already)
+        {
+            _state = _state with { Missions = _state.Missions ?? new MissionProgress() };
+            Save();
+            _tray.ShowMissions(MissionsShown());
+            GD.Print($"Main: missions left: {string.Join(", ", Missions.Left(_state.Missions, _rules.Earns, _stool.VoiceExtra).Select(m => m.Title))}");
+            return;
+        }
+        if (action.StartsWith("mission:"))                  // mission:hello as if the player did what it asks (ai, hello, credit, reminder, memory, voice)
+        {
+            Apply(new MissionDone(action["mission:".Length..]));
+            return;
+        }
         if (action.StartsWith("focuspaid:"))
         {
             // focuspaid:minutes pays as a focus part of that length would
@@ -984,19 +1021,42 @@ public partial class Main : Node2D
         }
         _settingsWindow = new SettingsWindow();
         AddChild(_settingsWindow);
-        SettingsPage[] pages = [.. SettingsPages(page), .. _stool.SettingsPages()];
-        // Settings… opens at Getting started while it is listed, else at her AI model
-        _settingsWindow.Build(pages, page ?? (pages[0].Id == "start" ? "start" : "mind"), _stool.HerName());
+        // OPEN MEMORY ticks as Memory is first shown, however it was opened
+        SettingsPage[] pages = [.. SettingsPages(), .. _stool.SettingsPages().Select(p => p.Category != SettingsWindow.Memory ? p : p with
+        {
+            Make = () =>
+            {
+                Did(Missions.OpenMemory);
+                return p.Make();
+            },
+        })];
+        // Settings… opens at the missions while they are listed, else at her AI model
+        _settingsWindow.Build(pages, page ?? (pages[0].Id == "missions" ? "missions" : "mind"), _stool.HerName());
         _settingsWindow.Open();
     }
 
     /// <summary>
-    /// The cabinet's pages of the settings: Getting started while anything is left of it (or when asked for), the
-    /// cabinet itself, play time, notifications, and their phone and calendars.
+    /// Settings made again at <paramref name="page"/>, as its list changed (the missions hidden or brought back); what
+    /// Memory can't yet save keeps it open as it is.
     /// </summary>
-    private IEnumerable<SettingsPage> SettingsPages(string? open) =>
+    private void ReopenSettings(string page) => Callable.From(() =>
+    {
+        if (!IsInstanceValid(_settingsWindow))
+            return;
+        _settingsWindow!.EmitSignal(Window.SignalName.CloseRequested);
+        if (!_settingsWindow.IsQueuedForDeletion())
+            return;
+        _settingsWindow = null;
+        OpenSettings(page);
+    }).CallDeferred();                                      // not while one of its buttons is telling of its press
+
+    /// <summary>
+    /// The cabinet's pages of the settings: the missions while any are left and not hidden, the cabinet itself, play
+    /// time, notifications, and their phone and calendars.
+    /// </summary>
+    private IEnumerable<SettingsPage> SettingsPages() =>
     [
-        .. StartLeft() || open == "start" ? [new SettingsPage("start", SettingsWindow.Start, "", StartPage, Fresh: true)] : Array.Empty<SettingsPage>(),
+        .. MissionsShown() ? [new SettingsPage("missions", SettingsWindow.Missions, "", MissionsPage, Fresh: true)] : Array.Empty<SettingsPage>(),
         new("cabinet", SettingsWindow.General, "", CabinetPage),
         new("balance", SettingsWindow.PlayTime, "", BalancePage),
         new("reminders", SettingsWindow.Notifications, "Reminders", RemindersPage),
@@ -1008,8 +1068,8 @@ public partial class Main : Node2D
 
     /// <summary>
     /// The first run (see <see cref="Welcome"/>): the player's name, who keeps them company, what earns their play time
-    /// and her mind; then the cabinet is theirs, their initials taken from the name, and she says hello. The rest waits
-    /// in Getting started.
+    /// and her mind; then the cabinet is theirs, their initials taken from the name, and she says hello. The missions
+    /// come after it.
     /// </summary>
     private void OpenWelcome()
     {
@@ -1030,51 +1090,38 @@ public partial class Main : Node2D
         _welcome.Open();
     }
 
-    /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar. What earns play time is the first run's.</summary>
-    private List<StartStep> StartSteps()
+    // ---- Missions (spec 2026-11-08-a-new-player-gets-it.md) ----------------------------------------------------------
+
+    /// <summary>The player did what a mission asks: it ticks, once, and pays while play time is earned (see <see cref="Ledger"/>).</summary>
+    private void Did(string mission)
     {
-        var where = _settings.ReminderElsewhere;
-        var places = new[] { (where.Telegram, "Telegram"), (where.Ntfy, "ntfy"), (where.Discord, "Discord"), (where.Webhook, "a webhook") }
-            .Where(p => p.Item1).Select(p => p.Item2).ToList();
-        var linked = _calendars.Links.Count;
-        return
-        [
-            .. _stool.StartSteps(),
-            new("phone", "Your phone",
-                $"Reminders, and {_stool.HerName()}'s texts while you are away from the PC; with Telegram you can text back. Needs Telegram on your phone " +
-                "(or ntfy, Discord, any webhook). About 5 minutes.",
-                Needed: false, Done: places.Count > 0, places.Count > 0 ? $"They reach you by {string.Join(", ", places)}." : "Not set up."),
-            new("calendars", "Calendars",
-                $"Your calendar's next two weeks join the agenda, so {_stool.HerName()} knows what is coming up. Needs its secret iCal address (Google or " +
-                "Outlook). About 2 minutes.",
-                Needed: false, Done: linked > 0, linked > 0 ? $"{linked} linked." : "Not set up."),
-        ];
+        if (_state.Missions is { } missions && !missions.Done.Contains(mission))
+            Apply(new MissionDone(mission));
     }
 
-    /// <summary>Whether Getting started has anything left and isn't hidden: it is listed first in Settings and in the tray till then.</summary>
-    private bool StartLeft() => !_settings.StartHidden && GettingStarted.Left(_settings.CallMe, StartSteps(), _settings.StartLater);
+    /// <summary>Whether any mission is left on the list, as play time is earned now (none for a profile without missions).</summary>
+    private bool MissionsLeft() => Missions.Left(_state.Missions, _rules.Earns, _stool.VoiceExtra).Any();
 
-    private Control StartPage()
+    /// <summary>The missions are listed first in Settings and in the tray: some are left, and they aren't hidden.</summary>
+    private bool MissionsShown() => !_settings.MissionsHidden && MissionsLeft();
+
+    private Control MissionsPage()
     {
-        static string Time(int minutes) => $"{minutes / 60}:{minutes % 60:00}";
-        var page = new GettingStarted();
-        page.Build(_stool.HerName(), _settings.CallMe, StartSteps(), _settings.StartLater, !_settings.Earning.Any
-                   ? "No play time, just company: nothing is earned or spent; " + (_settings.Bedtime is { } own ? $"your bedtime is {own}." : "no bedtime is set.")
-                   : $"A day can earn up to {Time(_settings.WeekdayCapMinutes)} of play Monday to Thursday, {Time(_settings.FridayCapMinutes)} on Friday " +
-                     $"and {Time(_settings.WeekendCapMinutes)} at weekends; " +
-                     (_settings.Bedtime is { } bedtime ? $"play after your bedtime ({bedtime}) costs more." : "no bedtime is set."), _settings.Earning.Any);
-        page.Named += name =>
+        var page = new MissionSettings();
+        page.Build(_stool.HerName(), _state.Missions ?? new MissionProgress(), _rules.Earns, _stool.VoiceExtra, _rules.MissionMs);
+        page.Open += id =>
         {
-            _stool.CallMe(name);
-            _settingsWindow?.RefreshPage("cabinet");       // the name shown there too
+            if (id == "agenda")
+                _stool.OpenAgenda();
+            else
+                _settingsWindow?.ShowPage(id);
         };
-        page.Open += id => _settingsWindow?.ShowPage(id);
-        page.Later += id =>
+        page.HideAsked += () =>
         {
-            SaveSettings(_settings with { StartLater = [.. _settings.StartLater, id] });
-            _settingsWindow?.RefreshPage("start");
+            SaveSettings(_settings with { MissionsHidden = true });
+            GD.Print("Main: the missions are hidden");
+            ReopenSettings("cabinet");                      // where they can be brought back
         };
-        page.HideAsked += () => SaveSettings(_settings with { StartHidden = true });
         return page;
     }
 
@@ -1218,6 +1265,23 @@ public partial class Main : Node2D
         page.SaveEnergy += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
         page.Named += _stool.CallMe;
         page.LanguageChosen += _stool.SetLanguage;
+        if (_settings.MissionsHidden && MissionsLeft())     // the way back for missions hidden from their list
+        {
+            Control[] back =
+            [
+                Form.Subheading(page, "Missions"),
+                Form.Buttons(page),
+                Form.Hint(page, "Back at the top of Settings until they're done."),
+            ];
+            Form.Button((Container)back[1], "Show missions", () =>
+            {
+                SaveSettings(_settings with { MissionsHidden = false });
+                GD.Print("Main: the missions are shown again");
+                ReopenSettings("missions");
+            });
+            for (var i = 0; i < back.Length; i++)
+                page.MoveChild(back[i], i);                 // at the top, in sight as General opens after Hide missions
+        }
         return page;
     }
 
