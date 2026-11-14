@@ -385,9 +385,9 @@
       "about": "A time on Memory's Agenda that can't be read, then a move to Companion and someone else taking the stool: Memory comes back as it was, saying which time can't be read; put right, it is saved, and Memory is made again with the new name when next shown.",
       "covers": ["src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs"],
       "script": "memoryseed@2,memory:agenda@4,memorytype:20:soonish@6,settings:characters@8,character:fumiriya@10,memorytype:soonish:2031-01-01@14,memoryleave@15,settings:characters@17,memory:agenda@19",
-      "shots": [7, 12.5, 16, 21],
+      "shots": [9, 14.5, 18, 24],
       "window": "Settings",
-      "expect": ["^Settings: the pages now name Fumiriya; characters made again when next shown$", "^Memory: kept open: the time “soonish” for “.+” can't be read$", "^Memory: typed in the field with \"soonish\"$"],
+      "expect": ["^Settings: the pages now name Fumiriya; characters made again when next shown$", "^Memory: kept open: the time “soonish” for “.+” can't be read$", "^Memory: typed in the field with \"soonish\"$", "^Memory: agenda item saved$"],
       "forbid": ["^Memory: closed without", "^Memory: no field showing"]
     },
     {
