@@ -118,6 +118,12 @@ change which is not very sustainable?").
 - **Three suggestions** sit over the empty slip until the first message: "What can you do?", "Remind me to stretch at 4",
   "Let's focus for 25 minutes".
 
+*Built (#272): the missions as data (`Core/Missions.cs`), ticked and paid by the ledger (`MissionDone`, `MissionCleared`,
+`MissionPaid`; EARN A CREDIT by the ledger itself), kept in `state.json` (`LedgerState.Missions`: none for a profile set up
+when this version first opens it), the list at the top of Settings and as Missions… in the tray (`MissionSettings.cs`, which
+takes Getting started's place: that page is gone), Hide and General's Show missions. The five minutes of focus count across
+the day. Showing them on the screen and the companion's mentions are #273.*
+
 ### Settings
 
 One window still, saved as changed. The list shows only nine plain categories, named the way ChatGPT and Claude name

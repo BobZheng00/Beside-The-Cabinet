@@ -9,7 +9,7 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
 tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
-(and they go on talking and moving while it is open): the cabinet, Settings…, Getting started… (until it is done), Who
+(and they go on talking and moving while it is open): the cabinet, Settings…, Missions… (until they're done), Who
 keeps you company… (Settings → Companion, to choose who sits on the stool), what they remember (Memory) and chat history, a
 memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
 Conversation). A
@@ -22,7 +22,7 @@ off, and a name flips on whole the moment the pointer rests on its button, as an
 name too long for it scrolls through, a column at a time); INSERT COIN comes back drawn in a column at a time. While
 the screen is lifted out it covers the marquee, so a switch's name also shows on the screen's top bar, in place of
 the time, while the pointer is on it. Settings is one window with plain
-categories down its left side, each with a pixel icon: Getting started (until it's done or hidden), General, Companion,
+categories down its left side, each with a pixel icon: Missions (until they're done or hidden), General, Companion,
 Memory, Voice, AI model, Play time, Notifications, Connections, and Abilities and privacy. A category with more than one
 part has them as tabs inside it: Voice (Their voice, Talking to them), AI model (Connection, What it has cost),
 Notifications (Reminders, Check-ins, Bedtime and quiet hours), Connections (Your phone, Calendars, Web search) and
@@ -37,13 +37,24 @@ and an AI to think with (provider, key, model, Test and Save; Skip for now leave
 time has three ticks: focus sessions and your own activities, ticked to start with, and LeetCode problems, not ticked;
 ticking LeetCode asks for your LeetCode name there (Check asks LeetCode whether you're there; if it doesn't answer,
 the name is kept and checked when the cabinet first reads it, and the first run goes on). "No play time, just keep me
-company" clears the three: with nothing ticked, nothing earns play time. Then they say hello. The rest is in Getting
-started, first in Settings and in the tray: their voice, talking aloud, your phone and a calendar, each saying what it
-gives and takes, with Set up… (its page) and Later, and what balance starts with. It stays until everything is done or
-put off, or you hide it. A profile from before this choice keeps what it had: focus and activities, and LeetCode when
+company" clears the three: with nothing ticked, nothing earns play time. Then they say hello, and the missions take
+it from there. A profile from before this choice keeps what it had: focus and activities, and LeetCode when
 it has a LeetCode name. A character added
 later gets a "Meet …" sheet: who they are (a card, or none yet), their voice, how they sit, and the name every
 character calls you.
+
+Missions are a few things to try after the first run, each ticked as you do it: CONNECT AN AI (an AI answers), SAY
+HELLO (your first message, typed, spoken or texted), EARN A CREDIT (your first earning from whatever earns your play
+time: five minutes of focus in a day, an activity logged, a solve), ASK FOR A REMINDER (one set by your companion or
+on the agenda), OPEN MEMORY (Settings → Memory) and HEAR THEIR VOICE (your companion answers aloud). They're listed
+at the top of Settings, and as Missions… in the tray, until they're done, each with how it stands and a way to do it.
+Each pays 15 minutes of play time as it clears, once, on top of the day's limit, and a debt is paid from it first, as
+from any earning. With no play time there is no EARN A CREDIT and the others pay nothing; tick a way to earn on Play
+time and EARN A CREDIT is back, and what was cleared meanwhile is paid then, once. Switching play time off again takes
+nothing away: what was paid stays in the balance, out of sight with the rest of it. Where their voice takes a
+download (Chinese and Japanese), HEAR THEIR VOICE is an extra: it pays if done, and the list is done without it. Hide
+missions takes them out of Settings and the tray, and Show missions on General brings them back. A profile set up
+before missions came has none, and its play time is as it was.
 
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).

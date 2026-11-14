@@ -12,7 +12,7 @@ public static class SettingsIcons
 
     private static readonly Dictionary<string, (Color Tint, string[] Rows)> Icons = new()
     {
-        [SettingsWindow.Start] = (new("D4F2DF"),
+        [SettingsWindow.Missions] = (new("D4F2DF"),
         [
             "..#.........",
             "..#######...",

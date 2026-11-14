@@ -334,6 +334,9 @@ public sealed class Chat : IDisposable
     public string? Replied { get; private set; }
     public Conversation? Conversation => _conversation;
 
+    /// <summary>Her AI answered: a reply came in whole, with words in it.</summary>
+    public event Action? Answered;
+
     /// <summary>Her reply put an item on the agenda, changed it or called it off, just now: the cabinet shows it.</summary>
     public event Action<AgendaDone>? Agended;
 
@@ -768,6 +771,8 @@ public sealed class Chat : IDisposable
                 else if (speech is { Unheard: > 0 } partly)
                     GD.Print($"Voice: about {partly.Unheard} of her reply's sentences went unheard: the model gave them no [say: …] of their own");
                 Replied = text.Length > 0 ? text : null;
+                if (Replied is not null)
+                    Answered?.Invoke();
             }
         }
         catch (OperationCanceledException) when (_cutting)

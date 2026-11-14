@@ -103,6 +103,12 @@ public sealed record Rules
     /// <summary>How many past days the record keeps.</summary>
     public int DaysKept { get; init; } = 120;
 
+    /// <summary>What each mission pays as it clears, once, outside the day's cap.</summary>
+    public long MissionMs { get; init; } = 15 * 60_000;
+
+    /// <summary>Focus in a day that ticks EARN A CREDIT, when focus earns.</summary>
+    public long MissionFocusMs { get; init; } = 5 * 60_000;
+
     public int TokensFor(Difficulty d) => d switch
     {
         Difficulty.Easy => EasyTokens,
@@ -255,6 +261,9 @@ public sealed record LedgerState
 
     /// <summary>The late-night price was announced this game day.</summary>
     public bool LateNightGiven { get; init; }
+
+    /// <summary>The missions done and paid; null for a profile without them (one set up before they came).</summary>
+    public MissionProgress? Missions { get; init; }
 
     public long TimeLeftMs(Rules rules) => Credits * rules.TokenMs + FuelMs;
 
