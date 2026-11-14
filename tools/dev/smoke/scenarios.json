@@ -6,11 +6,48 @@
   "scenarios": [
     {
       "name": "boot",
-      "about": "A fresh profile: the cabinet and the companion come up and nothing in the log goes wrong.",
+      "about": "A fresh profile: the cabinet and the companion come up and nothing in the log goes wrong. The profile is set up already (as one from before Preview 3 is), so the first run's intro doesn't play.",
       "covers": ["src/InsertCoin.Game/Companion/*", "src/InsertCoin.Game/Cabinet/*", "src/InsertCoin.Game/skins/*", "src/InsertCoin.Game/characters/*", "src/InsertCoin.Game/Desktop/DesktopWindow.cs"],
       "shots": [6, 10],
       "desk": true,
-      "expect": ["^Reaching: the player is here"]
+      "expect": ["^Reaching: the player is here"],
+      "forbid": ["^Intro: "]
+    },
+    {
+      "name": "intro",
+      "about": "A new player's first run: the intro plays in a window of its own across the screen, from the dark room; a coin in the slots lights the screen; the Welcome asks its questions at the close-up; once answered, the view steps back, the companion arrives and lands, every light comes on, and the cabinet's own window takes over in the same place at the same size (the two windows' pictures compared), then the companion says hello.",
+      "covers": ["src/InsertCoin.Game/App/Intro.cs", "src/InsertCoin.Game/Cabinet/intro_*", "src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/Companion/companion_layer.gdshader"],
+      "settings": ", \"SetUp\": false, \"WindowX\": 300, \"WindowY\": 300",
+      "script": "nocall@1,coin@3,welcomedo:Your_name:Bob@13,welcomedo:Next@14,welcomedo:Next@15,welcomedo:Next@16,welcomedo:Skip_for_now@17",
+      "shots": [5, 10, 14, 24, 38],
+      "desk": true,
+      "expect": ["^Intro: the room is dark \\(in a window of its own", "^Intro: a coin goes in$", "^Intro: the questions, at the close-up$", "^Intro: answered; the view steps back$", "^Arrival: from behind the cabinet$",
+                 "^Intro: they have landed, and every light comes on$", "^Intro: the handover lines up: ", "^Intro: done$", "^Reaching: HELLO to tell"],
+      "forbid": ["^Intro: the handover is out", "^Intro: skipped$"]
+    },
+    {
+      "name": "introskip",
+      "about": "Skip on the first run's intro, while the Welcome asks at the close-up: straight to the desktop, the name given kept (Settings → General shows it) and the defaults for the rest; the companion is on the stool, the cabinet's own window takes over in the same place, and they say hello.",
+      "covers": ["src/InsertCoin.Game/App/Intro.cs", "src/InsertCoin.Game/App/Welcome.cs"],
+      "settings": ", \"SetUp\": false, \"WindowX\": 300, \"WindowY\": 300",
+      "script": "nocall@1,coin@3,welcomedo:Your_name:Bob@13,introskip@14,settings:cabinet@17",
+      "shots": [12, 16, 20],
+      "window": "Settings",
+      "desk": true,
+      "expect": ["^Intro: a coin goes in$", "^Intro: skipped$", "^Intro: the handover lines up: ", "^Intro: done$", "^Reaching: HELLO to tell", "^Main: play time is earned by focus, activities$"],
+      "forbid": ["^Intro: answered", "^Intro: the handover is out"]
+    },
+    {
+      "name": "introreplay",
+      "about": "Settings → General's \"Replay the intro\", on a profile set up already: the intro plays again without asking anything, and nobody says hello again. General fits Settings at its narrowest default size (as on a 2560x1440 screen at 125%).",
+      "covers": ["src/InsertCoin.Game/App/Intro.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],
+      "settings": ", \"WindowX\": 300, \"WindowY\": 300",
+      "script": "nocall@1,settings:cabinet@2,settingsat:708x736@3,settingswidths@4,settingsdo:Replay_the_intro@5,coin@7",
+      "shots": [4.5, 9, 18, 32],
+      "window": "Settings",
+      "desk": true,
+      "expect": ["^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: \"Replay the intro\" pressed$", "^Intro: a coin goes in$", "^Intro: answered; the view steps back$", "^Intro: the handover lines up: ", "^Intro: done$"],
+      "forbid": ["^Intro: the questions", "^Reaching: HELLO", "^Settings: \\S+ needs \\d+ px", "^Intro: the handover is out"]
     },
     {
       "name": "gamepace",
@@ -50,11 +87,11 @@
     },
     {
       "name": "firstrun",
-      "about": "A new player's first run: the Welcome opens beside the cabinet; past their name and who keeps them company, \"What earns your play time?\" has focus and their own activities ticked and LeetCode not, and going on with those leaves LeetCode unasked and out of the tray.",
+      "about": "A new player's first run: after a coin in the intro's slots, the Welcome opens at its close-up; past their name and who keeps them company, \"What earns your play time?\" has focus and their own activities ticked and LeetCode not, and going on with those leaves LeetCode unasked and out of the tray.",
       "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/Onboarding.cs", "src/InsertCoin.Game/App/MeetSheet.cs", "src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
       "settings": ", \"SetUp\": false",
-      "script": "welcomedo:Your_name:Bob@4,welcomedo:Next@5,welcomedo:Next@6,welcomedo:Next@9,trayitems@10",
-      "shots": [7, 9, 14],
+      "script": "coin@3,welcomedo:Your_name:Bob@13,welcomedo:Next@14,welcomedo:Next@15,welcomedo:Next@18,trayitems@19",
+      "shots": [16, 18, 23],
       "window": "Welcome",
       "desk": true,
       "expect": ["^Main: play time is earned by focus, activities$", "^Tray: Show cabinet \\| Settings… \\| Getting started… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
@@ -65,8 +102,8 @@
       "about": "A first run that ticks LeetCode on \"What earns your play time?\": its name field shows, a name that isn't one is said so and Next stays, a name LeetCode (a test run's stand-in, never leetcode.com) has no player for is said so, and a real one is checked, kept and earns; the tray then has \"Check LeetCode now\".",
       "covers": ["src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Adapters/LeetCodeProfile.cs"],
       "settings": ", \"SetUp\": false",
-      "script": "welcomedo:Your_name:Bob@4,welcomedo:Next@5,welcomedo:Next@6,welcomedo:LeetCode_problems@7,welcomedo:Next@8,welcomedo:LeetCode_name:nobody@9,welcomedo:Check@10,welcomedo:LeetCode_name:BobSmith@12,welcomedo:Check@13,welcomedo:Next@15,trayitems@20",
-      "shots": [9, 12, 15, 18, 24],
+      "script": "coin@3,welcomedo:Your_name:Bob@13,welcomedo:Next@14,welcomedo:Next@15,welcomedo:LeetCode_problems@16,welcomedo:Next@17,welcomedo:LeetCode_name:nobody@18,welcomedo:Check@19,welcomedo:LeetCode_name:BobSmith@21,welcomedo:Check@22,welcomedo:Next@24,trayitems@29",
+      "shots": [18, 21, 24, 27, 33],
       "window": "Welcome",
       "expect": ["^Settings: \"LeetCode problems\" ticked$", "^LeetCode: a test run's stand-in asked for nobody$", "^LeetCode: a test run's stand-in asked for BobSmith$", "^Main: play time is earned by focus, activities, LeetCode$", "^Tray: .*\\| Write a memo… \\| Check LeetCode now \\| Mute sounds"],
       "forbid": ["NO LEETCODE NAME"]

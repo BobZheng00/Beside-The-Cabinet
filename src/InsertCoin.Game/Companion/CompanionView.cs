@@ -160,6 +160,9 @@ public partial class CompanionView : Node2D
         _unposed = FramesToPose;
     }
 
+    /// <summary>Wanted before they have landed (the first run skipped): on the stool at once, under the arrival's flash.</summary>
+    public void SeatNow() => _puppet.Needed();
+
     /// <summary>Seconds of their arrival still to come (0: they are sitting), so that what would follow it can wait.</summary>
     public double Arriving => _puppet.ArrivalLeft;
 

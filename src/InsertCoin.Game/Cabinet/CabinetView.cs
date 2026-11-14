@@ -19,6 +19,8 @@ public partial class CabinetView : Node2D
     public Printer Printer { get; private set; } = null!;
     public Receipt Receipt { get; private set; } = null!;
     public MemoBoard Memos { get; private set; } = null!;
+    /// <summary>The picture's layers by name (base, screen-glass, the glows, check-cap), for the first run's dark room to light.</summary>
+    public Dictionary<string, Sprite2D> Art { get; } = [];
 
     private Sprite2D _checkCap = null!, _screenGlow = null!, _slotGlow = null!, _marqueeGlow = null!;
     private Tween? _checkTween;
@@ -102,6 +104,7 @@ public partial class CabinetView : Node2D
             Material = material,
         };
         AddChild(sprite);
+        Art[name] = sprite;
         return sprite;
     }
 

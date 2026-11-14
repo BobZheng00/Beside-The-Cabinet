@@ -73,3 +73,12 @@ Art revert points: git tags `art-v3-boxy`, `art-v4-traditional`, `art-v5-perspec
 
 The skin's canvas is wider and taller than the cabinet art (see `layout()` in `tools/art/cozy_cabinet.py`) so that
 a raised arm stays inside the window.
+
+## The first run's intro
+
+`App/Intro.cs` plays it in a window of its own across the screen, `Beside the Cabinet intro`, that shares the cabinet's
+2D world (`World2D`) with its own camera (its canvas transform), so the art, the live screen and the companion move as
+one and the cabinet's window never resizes: hidden under the dark, that window draws nothing while the dark fades
+(`CanvasCullMask` 0) and draws again at the end, a moment before the intro's closes. The dark is the `Cabinet/intro_*` shaders on the real art and the
+sprites' modulate (`CabinetView.Art`; the companion's layer takes its modulate too); its sounds are `tools/sfx`'s.
+`Main.PlayIntro` starts it on a profile not set up yet, with the Welcome at its close-up, and from General's replay.

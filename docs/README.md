@@ -31,6 +31,15 @@ Forget as tabs, and a button to Chat history. Each is saved as you change it; on
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
 the cabinet rises for a moment or is kept on top ("Always on top" on General).
 
+The first run opens on an intro across the screen: the cabinet dark and dusty in one beam of light, seen from a way
+off. The view walks up to it and its coin slots pulse until you click them. A coin goes in, the screen strikes on, the
+dust lifts and the marquee sputters into life, and the view leans in until the screen faces you, where the Welcome asks
+its questions (below). Then the view steps back, your companion arrives from behind the cabinet, every light comes on
+as they land, and the dark gives way to your desktop as the cabinet settles in its place, at its size. The intro has
+its own sounds, silent with Mute sounds. Skip, in the corner throughout (or Esc), goes straight to the desktop and
+keeps what you've answered, with the defaults for the rest. "Replay the intro" on General plays it again, without the
+questions. A profile set up before the intro existed never sees it unasked, and its play time is as it was.
+
 At first run a Welcome asks four things: your name (what your companion calls you; your initials on the cabinet
 come from it), who keeps you company (seated on the stool as you pick, with how they sit), what earns your play time,
 and an AI to think with (provider, key, model, Test and Save; Skip for now leaves them unable to talk). What earns your play
