@@ -36,6 +36,18 @@ public sealed class IcsCalendar(HttpClient http, string name, string url) : ICal
             throw new FormatException("that link does not give a calendar (no BEGIN:VCALENDAR)");
         return Ics.Events(text, from, to, TimeZoneInfo.Local);
     }
+
+    /// <summary>
+    /// Why a read failed, in a few words of the app's own for the Calendars page; the exception's own text (in
+    /// Windows' language) belongs in the log. Null for a failure that isn't the calendar's.
+    /// </summary>
+    public static string? Why(Exception e) => e switch
+    {
+        HttpRequestException { StatusCode: not null } => "the calendar's site refused the link",
+        HttpRequestException or TaskCanceledException => "the address can't be reached",
+        FormatException or InvalidOperationException => "that address isn't a calendar",   // UriFormatException is a FormatException
+        _ => null,
+    };
 }
 
 /// <summary>
