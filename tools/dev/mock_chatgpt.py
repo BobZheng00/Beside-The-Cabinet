@@ -22,7 +22,10 @@ get a call of her print_memo tool, and the request that brings its result reache
 the backup calls print_memo too ("Notebook again") for such words, so a turn asked again after the yes would show.
 
 Words with "search" in a request offering web search get OpenAI's own web search: a web_search_call (its pages too
-when the request includes web_search_call.action.sources), then --search-reply with a citation of the first page.
+when the request includes web_search_call.action.sources), then, as OpenAI's reasoning models do, one opening the first
+page and one looking in it (open_page, find_in_page), then --search-reply with a citation of that page. With
+--plan-refuses-search the plan turns down any request offering web search (400 subscription_sharing_unsupported_capability,
+in words that don't name it), as an account or model without it would.
 
 It also stands in for OpenAI itself, asked with a key, at /openai/v1/responses (the dev action openaiat: points the app
 there): the Responses API without the plan's rules, each request logged with "openai": true, whether it was stored,
@@ -255,6 +258,10 @@ class Handler(BaseHTTPRequestHandler):
             log({**entry, "limit": True})
             self.answer(429, {"error": {"code": "subscription_sharing_usage_limit_exceeded", "message": "The plan's usage limit for this app is reached."}})
             return
+        if ARGS.plan_refuses_search and searching(body):
+            log({**entry, "answered": 400})
+            self.answer(400, {"error": {"code": "subscription_sharing_unsupported_capability", "message": "Not available on this plan."}})
+            return
         if "search" in said and searching(body) and not STATE["limit"]:
             log({**entry, "searched": True})
             self.search(body)
@@ -323,12 +330,19 @@ class Handler(BaseHTTPRequestHandler):
             send(f"response.web_search_call.{step}", {"output_index": 0, "item_id": "ws_mock"})
             time.sleep(0.05)
         send("response.output_item.done", {"output_index": 0, "item": called})
-        send("response.output_item.added", {"output_index": 1, "item": message})
+        page = "https://museum.example.org/visit"
+        steps = [{"id": "ws_open", "type": "web_search_call", "status": "completed", "action": {"type": "open_page", "url": page}},
+                 {"id": "ws_find", "type": "web_search_call", "status": "completed", "action": {"type": "find_in_page", "url": page, "pattern": "opening"}}]
+        for at, step in enumerate(steps, 1):
+            send("response.output_item.added", {"output_index": at, "item": {"id": step["id"], "type": "web_search_call", "status": "in_progress"}})
+            send("response.web_search_call.completed", {"output_index": at, "item_id": step["id"]})
+            send("response.output_item.done", {"output_index": at, "item": step})
+        send("response.output_item.added", {"output_index": 3, "item": message})
         for i in range(0, len(text), 12):
-            send("response.output_text.delta", {"item_id": "msg_search", "output_index": 1, "content_index": 0, "delta": text[i:i + 12]})
+            send("response.output_text.delta", {"item_id": "msg_search", "output_index": 3, "content_index": 0, "delta": text[i:i + 12]})
             time.sleep(0.02)
-        send("response.output_item.done", {"output_index": 1, "item": said})
-        send("response.completed", {"response": {**response, "status": "completed", "output": [called, said],
+        send("response.output_item.done", {"output_index": 3, "item": said})
+        send("response.completed", {"response": {**response, "status": "completed", "output": [called, *steps, said],
              "usage": {"input_tokens": 3000, "input_tokens_details": {"cached_tokens": 0}, "output_tokens": 40,
                        "output_tokens_details": {"reasoning_tokens": 0}, "total_tokens": 3040}}})
 
@@ -451,6 +465,7 @@ def main():
     parser.add_argument("--backup-reply", default="Still here, on the backup.")
     parser.add_argument("--search-reply", default="Found it: the museum opens at ten tomorrow.")
     parser.add_argument("--refuse-search", action="store_true")
+    parser.add_argument("--plan-refuses-search", action="store_true")
     parser.add_argument("--quit-after", type=float)
     ARGS = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)

@@ -146,6 +146,34 @@ public class LearningTests
     }
 
     [Fact]
+    public async Task Pages_OpenAIs_search_reads_along_the_way_are_kept_once_as_read_and_never_counted_as_searches()
+    {
+        using var temp = new TempStore();
+        var tools = new Toolbox([BuiltIn.ProviderSearch()]);
+        WebSearchToolResultContent Step(string id, string action) => new(id) { RawRepresentation = Item($$"""{"id":"{{id}}","type":"web_search_call","status":"completed","action":{{action}}}""") };
+        var search = Step("ws_1", """{"type":"search","query":"museum opening hours"}""");
+        var open = Step("ws_2", """{"type":"open_page","url":"https://museum.example.org/visit"}""");
+        var find = Step("ws_3", """{"type":"find_in_page","url":"https://museum.example.org/visit","pattern":"opening"}""");
+        var model = new FakeToolModel([new ChatResponseUpdate(ChatRole.Assistant, [new WebSearchToolCallContent("ws_1") { Queries = ["museum opening hours"] }, search]),
+                                       new ChatResponseUpdate(ChatRole.Assistant, [new WebSearchToolCallContent("ws_2"), open]),
+                                       new ChatResponseUpdate(ChatRole.Assistant, [new WebSearchToolCallContent("ws_3"), find]),
+                                       "It opens at ten.", new ChatResponseUpdate { Contents = [new UsageContent(new UsageDetails { InputTokenCount = 10 })] }]);
+        using var metered = new Metered(model, temp.Store, "gpt-x", "replies", new FakeClock(Friday));
+        var conversation = new Conversation(temp.Store, "shino", Shino, new FakeClock(Friday));
+
+        await conversation.Answer(metered, "when does the museum open?", "", _ => { }, (_, _) => { }, tools: tools);
+
+        Assert.Equal(["You searched the web for \"museum opening hours\".", "You read museum.example.org/visit while searching the web."],
+                     temp.Store.After("shino", 0).Where(l => l.Speaker == Speaker.Cabinet).Select(l => l.Text));
+        Assert.Equal(1, temp.Store.Usage(DateOnly.FromDateTime(Friday.DateTime)).Single().Searches);
+    }
+
+#pragma warning disable OPENAI001
+    private static OpenAI.Responses.ResponseItem Item(string json) =>
+        System.ClientModel.Primitives.ModelReaderWriter.Read<OpenAI.Responses.ResponseItem>(BinaryData.FromString(json))!;
+#pragma warning restore OPENAI001
+
+    [Fact]
     public async Task A_search_whose_pages_the_provider_doesnt_name_is_kept_with_what_it_was_for()
     {
         using var temp = new TempStore();

@@ -105,13 +105,14 @@ public sealed class UsagePage
             return "Nothing yet.";
         var read = rows.Sum(r => r.Input);
         var replies = rows.Where(r => r.Purpose == "replies").Sum(r => r.Requests);
-        var text = $"{rows.Sum(r => r.Requests)} requests ({replies} replies, {rows.Sum(r => r.Requests) - replies} upkeep). " +
+        var requests = rows.Sum(r => r.Requests);
+        var text = $"{requests} request{(requests == 1 ? "" : "s")} ({replies} {(replies == 1 ? "reply" : "replies")}, {requests - replies} upkeep). " +
                    $"Read {Tokens(read)} tokens, {(read == 0 ? 0 : (double)rows.Sum(r => r.Cached) / read):P0} of them from the provider's cache" +
                    $"{(rows.Sum(r => r.Written) > 0 ? $", {Tokens(rows.Sum(r => r.Written))} written to it" : "")}; " +
                    $"output {Tokens(rows.Sum(r => r.Output))} ({Tokens(rows.Sum(r => r.Reasoning))} of them thinking).";
         var searches = rows.Sum(r => r.Searches);
         if (searches > 0)
-            text += $" {searches} web search{(searches == 1 ? "" : "es")}, which your provider charges for on top.";
+            text += $" {searches} web search{(searches == 1 ? "" : "es")}, not counted in the tokens.";
         return text + (cost == "?" ? " Enter prices below to estimate the cost." : $" About {cost}{(searches > 0 ? " before searches" : "")}.");
     }
 

@@ -312,12 +312,15 @@ public sealed class Toolbox
         && (e.Message.Contains("tool", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("function", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Whether a failed request looks like the provider turning its own web search down: Anthropic answers "web search
-    /// is not enabled" when the account's administrator switched it off.
+    /// Whether a failed request that offered the provider's own web search looks like the provider turning it down:
+    /// Anthropic answers "web search is not enabled" when the account's administrator switched it off; the ChatGPT plan
+    /// answers with its code for what it doesn't allow (subscription_sharing_unsupported_capability), whose words may
+    /// not name the search.
     /// </summary>
     public static bool RefusesHosted(Exception e) =>
         e is not OperationCanceledException && e is not TimeoutException
-        && (e.Message.Contains("web search", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("web_search", StringComparison.OrdinalIgnoreCase));
+        && (e.Message.Contains("web search", StringComparison.OrdinalIgnoreCase) || e.Message.Contains("web_search", StringComparison.OrdinalIgnoreCase)
+            || e.Message.Contains("unsupported_capability", StringComparison.OrdinalIgnoreCase));
 
     // the agenda call's reply is her own line, kept as hers when shown; in the record too it would be in her history
     // twice, or, after a round that went back to her, there as words the player never saw (#206)

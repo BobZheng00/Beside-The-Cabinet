@@ -28,7 +28,7 @@ public sealed record Prices(decimal Input, decimal Cached, decimal Written, deci
 /// Counts what each request used, from the provider's own report (MEAI's <see cref="UsageDetails"/>: input in all,
 /// cache reads as <see cref="UsageDetails.CachedInputTokenCount"/>, cache writes, where the provider reports them,
 /// among the additional counts), into the store, a row a day per model and purpose, with each web search the provider
-/// ran in it (a search's results, Anthropic's or OpenAI's).
+/// ran in it (a search's results, Anthropic's or OpenAI's; not a page read as a step of one).
 /// </summary>
 public sealed class Metered(IChatClient inner, MindStore store, string model, string purpose, TimeProvider? clock = null) : DelegatingChatClient(inner)
 {
@@ -38,7 +38,7 @@ public sealed class Metered(IChatClient inner, MindStore store, string model, st
                                                               CancellationToken cancellationToken = default)
     {
         var response = await base.GetResponseAsync(messages, options, cancellationToken);
-        Count(response.Usage, response.Messages.SelectMany(m => m.Contents).Count(c => c is WebSearchToolResultContent));
+        Count(response.Usage, response.Messages.SelectMany(m => m.Contents).Count(Searched));
         return response;
     }
 
@@ -52,7 +52,7 @@ public sealed class Metered(IChatClient inner, MindStore store, string model, st
             await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken))
             {
                 usage = update.Contents.OfType<UsageContent>().LastOrDefault()?.Details ?? usage;
-                searches += update.Contents.Count(c => c is WebSearchToolResultContent);
+                searches += update.Contents.Count(Searched);
                 yield return update;
             }
         }
@@ -61,6 +61,8 @@ public sealed class Metered(IChatClient inner, MindStore store, string model, st
             Count(usage, searches);
         }
     }
+
+    private static bool Searched(AIContent content) => content is WebSearchToolResultContent found && !Provider.ReadsAPage(found, out _);
 
     private void Count(UsageDetails? usage, int searches)
     {

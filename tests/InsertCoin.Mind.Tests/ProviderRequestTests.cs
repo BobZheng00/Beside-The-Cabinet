@@ -69,11 +69,48 @@ public class ProviderRequestTests
         Assert.Equal([true, false, false], asked.Select(a => a.Request.GetProperty("include").EnumerateArray().Any(i => i.GetString() == "reasoning.encrypted_content")));
     }
 
+    [Fact]
+    public async Task A_streamed_reply_from_a_model_that_turns_encrypted_reasoning_down_is_asked_again_without_it()
+    {
+        const string refused = """{"error":{"message":"Encrypted content is not supported with this model.","type":"invalid_request_error","param":"include","code":null}}""";
+
+        var (asked, reply) = await AskOpenAi("gpt-4.1", stream: true, (400, refused), (200, Streamed), (200, Streamed));
+
+        Assert.Equal("Hi", reply);
+        Assert.Equal([true, false, false], asked.Select(a => a.Request.GetProperty("include").EnumerateArray().Any(i => i.GetString() == "reasoning.encrypted_content")));
+        Assert.All(asked, a => Assert.True(a.Request.GetProperty("stream").GetBoolean()));
+    }
+
+    [Fact]
+    public async Task Another_turn_down_mentioning_encrypted_content_is_no_reason_to_stop_sending_reasoning()
+    {
+        const string other = """{"error":{"message":"The encrypted content of item rs_1 could not be verified.","type":"invalid_request_error","param":"input","code":null}}""";
+
+        await Assert.ThrowsAnyAsync<Exception>(() => AskOpenAi("gpt-6-luna", (400, other)));
+    }
+
     /// <summary>
     /// Asks OpenAI with a key, at a stand-in, for two streamed replies (one when the first request is turned down),
     /// answering each request in turn with a whole response, as the Responses API sends one.
     /// </summary>
-    private static async Task<(List<(string Path, JsonElement Request)> Asked, string Reply)> AskOpenAi(string model, params (int Status, string Body)[] answers)
+    private static Task<(List<(string Path, JsonElement Request)> Asked, string Reply)> AskOpenAi(string model, params (int Status, string Body)[] answers) =>
+        AskOpenAi(model, stream: false, answers);
+
+    /// <summary>A whole reply as the Responses API streams it.</summary>
+    private const string Streamed = """
+        event: response.created
+        data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_1","object":"response","created_at":1,"status":"in_progress","model":"m","output":[]}}
+
+        event: response.output_text.delta
+        data: {"type":"response.output_text.delta","sequence_number":1,"item_id":"msg_1","output_index":0,"content_index":0,"delta":"Hi"}
+
+        event: response.completed
+        data: {"type":"response.completed","sequence_number":2,"response":{"id":"resp_1","object":"response","created_at":1,"status":"completed","model":"m","output":[{"type":"message","id":"msg_1","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hi","annotations":[]}]}],"usage":{"input_tokens":10,"output_tokens":2,"total_tokens":12}}}
+
+
+        """;
+
+    private static async Task<(List<(string Path, JsonElement Request)> Asked, string Reply)> AskOpenAi(string model, bool stream, params (int Status, string Body)[] answers)
     {
         var free = new TcpListener(IPAddress.Loopback, 0);
         free.Start();
@@ -91,7 +128,7 @@ public class ProviderRequestTests
                 asked.Add((context.Request.Url!.AbsolutePath, JsonDocument.Parse(await reader.ReadToEndAsync()).RootElement.Clone()));
                 var answer = Encoding.UTF8.GetBytes(body);
                 context.Response.StatusCode = status;
-                context.Response.ContentType = "application/json";
+                context.Response.ContentType = body.StartsWith("event:") ? "text/event-stream" : "application/json";
                 await context.Response.OutputStream.WriteAsync(answer);
                 context.Response.Close();
             }
@@ -100,15 +137,26 @@ public class ProviderRequestTests
         Provider.OpenAiAt = $"http://localhost:{port}/v1";
         using var client = new Provider(Protocol.OpenAi, Provider.OpenAiApi, model).Connect("key");
         var options = new ChatOptions { Tools = [AIFunctionFactory.Create(() => "done", "print_memo"), new HostedWebSearchTool()] };
-        var reply = await client.GetResponseAsync("Hello", options);
+        async Task<string> Ask(string said) =>
+            stream ? (await client.GetStreamingResponseAsync(said, options).ToChatResponseAsync()).Text : (await client.GetResponseAsync(said, options)).Text;
+        var reply = await Ask("Hello");
         if (answers.Length > 2)
-            await client.GetResponseAsync("And?", options);
+            await Ask("And?");
         await serving;
-        return (asked, reply.Text);
+        return (asked, reply);
+    }
+
+    [Fact]
+    public async Task Through_the_chat_API_no_providers_own_search_is_offered()
+    {
+        var request = await Sent("backup-model", tools: true, search: true);
+
+        Assert.False(request.TryGetProperty("web_search_options", out _));
+        Assert.Equal(["print_memo"], request.GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("function").GetProperty("name").GetString()));
     }
 
     /// <summary>The body of the one request a provider at a stand-in sends for one reply.</summary>
-    private static async Task<JsonElement> Sent(string model, bool tools)
+    private static async Task<JsonElement> Sent(string model, bool tools, bool search = false)
     {
         var free = new TcpListener(IPAddress.Loopback, 0);
         free.Start();
@@ -119,7 +167,10 @@ public class ProviderRequestTests
         var received = Answer(server);
 
         using var client = new Provider(Protocol.OpenAi, $"http://localhost:{port}/v1", model).Connect("key");
-        await client.GetResponseAsync("Hello", tools ? new ChatOptions { Tools = [AIFunctionFactory.Create(() => "done", "print_memo")] } : new ChatOptions());
+        var offered = new List<AITool> { AIFunctionFactory.Create(() => "done", "print_memo") };
+        if (search)
+            offered.Add(new HostedWebSearchTool());
+        await client.GetResponseAsync("Hello", tools ? new ChatOptions { Tools = offered } : new ChatOptions());
 
         return await received;
     }
