@@ -55,6 +55,8 @@ public partial class Main : Node2D
     private Calendars _calendars = null!;
     private SettingsWindow? _settingsWindow;
     private Welcome? _welcome;
+    private Intro? _intro;
+    private bool _recording;                                // a clip of a whole screen (clip.ps1 -Resolution): the cabinet's window is that size
     private Texting _texting = null!;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
@@ -246,7 +248,9 @@ public partial class Main : Node2D
         };
         _window.RightClicked += () => _tray.ShowMenu(DisplayServer.MouseGetPosition());     // the tray's own menu, at the pointer
         _cabinet.CheckPressed += OnCheck;
-        ApplySize();
+        _recording = args.ContainsKey("full-window");
+        if (!_recording)
+            ApplySize();
         PlaceWindow();
         _window.SetTopmost(_settings.AlwaysOnTop);
 
@@ -305,9 +309,9 @@ public partial class Main : Node2D
         };
         AddTimer(0.5, _onboarding.Blink);
         // not set up yet: an older profile with a LeetCode name and no LeetCodeEarns (its first run was the cabinet's own)
-        // never sees the welcome; a first run left after a name was kept on its LeetCode page sees it again
+        // never sees the intro; a first run left after a name was kept on its LeetCode page sees it again
         if (!_settings.SetUp && (_settings.LeetCodeEarns is not null || string.IsNullOrWhiteSpace(_settings.Username)))
-            GetTree().CreateTimer(1.0).Timeout += OpenWelcome;          // the cabinet first, then the welcome beside it
+            GetTree().CreateTimer(1.0).Timeout += () => PlayIntro(replay: false);
 
         _cabinet.Tray.Set(_state.Credits);
         AddTimer(5.0, Tick);
@@ -664,6 +668,12 @@ public partial class Main : Node2D
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
+        if (key.Keycode == Key.Escape && IsInstanceValid(_intro) && _intro!.Playing)
+        {
+            _intro.Skip();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (key.Keycode == Key.Escape && _stool.CloseSlip())
         {
             GetViewport().SetInputAsHandled();
@@ -872,7 +882,10 @@ public partial class Main : Node2D
         {
             case "enter": _onboarding.Key(new InputEventKey { Pressed = true, Keycode = Key.Enter }); break;
             case "player": _onboarding.Start(); break;
-            case "welcome": OpenWelcome(); break;                // the first run's welcome, again
+            case "welcome": OpenWelcome(); break;                // the first run's welcome, again, on its own
+            case "intro": PlayIntro(replay: true); break;        // the intro again, as General's "Replay the intro"
+            case "coin": if (IsInstanceValid(_intro)) _intro!.Coin(); break;          // as a click on the intro's coin slots
+            case "introskip": if (IsInstanceValid(_intro)) _intro!.Skip(); break;     // the intro's Skip
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "windoworder": GD.Print($"Windows, top first: {_window.DevOrder()}"); break;     // the app's windows as they are stacked on screen
             case "menu": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2); break;     // as if she or the cabinet were right-clicked mid-window (a test run never follows the pointer): logs it
@@ -1007,14 +1020,15 @@ public partial class Main : Node2D
     ];
 
     /// <summary>
-    /// The first run (see <see cref="Welcome"/>): the player's name, who keeps them company, what earns their play time
-    /// and her mind; then the cabinet is theirs, their initials taken from the name, and she says hello. The rest waits
-    /// in Getting started.
+    /// The first run's questions (see <see cref="Welcome"/>): the player's name, who keeps them company, what earns their
+    /// play time and her mind; then the cabinet is theirs, their initials taken from the name. On its own (the dev action
+    /// "welcome") she says hello at once; in the intro, which asks them at its close-up, once the cabinet has settled.
+    /// The rest waits in Getting started.
     /// </summary>
-    private void OpenWelcome()
+    private Welcome OpenWelcome(bool alone = true)
     {
         if (IsInstanceValid(_welcome))
-            return;
+            return _welcome!;
         _welcome = new Welcome();
         AddChild(_welcome);
         _welcome.Build(_settingsFile, _stool, () => Provider.From(_settings.ChatProtocol, _settings.ChatBaseUrl, _settings.ChatModel) is not null, _tasks);
@@ -1022,12 +1036,49 @@ public partial class Main : Node2D
         {
             var initials = new string([.. (name ?? "").ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).Take(3)]);
             SaveSettings(_settings with { SetUp = true, Initials = initials.Length > 0 ? initials : _settings.Initials });
-            _cabinet.Screen.Flash($"HI {_settings.Initials}", "LET'S PLAY", 3.0);
+            if (!alone)
+                return;
+            Welcomed();
             _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
-            _audio.Play("hello");
             _stool.Greet();
         };
         _welcome.Open();
+        return _welcome;
+    }
+
+    /// <summary>The cabinet greets the player by their initials.</summary>
+    private void Welcomed()
+    {
+        _cabinet.Screen.Flash($"HI {_settings.Initials}", "LET'S PLAY", 3.0);
+        _audio.Play("hello");
+    }
+
+    /// <summary>
+    /// The first run's intro (see <see cref="Intro"/>), its questions asked at the close-up; once the cabinet has settled,
+    /// the first run is over (Skip takes the defaults for whatever wasn't answered) and they say hello. A replay (General)
+    /// asks nothing, and nobody says hello again.
+    /// </summary>
+    private void PlayIntro(bool replay)
+    {
+        if (IsInstanceValid(_intro))
+            return;
+        // where the cabinet's window is, or in a clip of a whole screen, where it would be at its size (above a taskbar)
+        var size = _recording ? (Vector2I)(_cabinet.Skin.Canvas * (_settings.Size switch { "S" => 0.6f, "L" => 1.0f, _ => 0.8f })).Round() : DisplayServer.WindowGetSize();
+        var resting = new Rect2I(_recording ? DisplayServer.WindowGetSize() - size - new Vector2I(40, 120) : DisplayServer.WindowGetPosition(), size);
+        _intro = new Intro(_cabinet, () => _stool.Her, _audio, replay ? null : () => OpenWelcome(alone: false), _settings.Initials, resting, _recording);
+        AddChild(_intro);
+        _window.SetTopmost(true);                           // with the intro's window over it, above other apps' windows
+        _intro.Landed += Welcomed;
+        _intro.Done += () =>
+        {
+            _window.SetTopmost(_settings.AlwaysOnTop);
+            if (replay)
+                return;
+            if (!_settings.SetUp)
+                SaveSettings(_settings with { SetUp = true });      // skipped before the questions: the defaults
+            _stool.Greet();
+        };
+        _intro.Start();
     }
 
     /// <summary>Getting started's steps: hers (her mind, voice, talking aloud), then the player's phone and calendar. What earns play time is the first run's.</summary>
@@ -1218,6 +1269,7 @@ public partial class Main : Node2D
         page.SaveEnergy += on => { SaveSettings(_settings with { EnergySaver = on }); SetPace(); };
         page.Named += _stool.CallMe;
         page.LanguageChosen += _stool.SetLanguage;
+        page.Replay += () => PlayIntro(replay: true);
         return page;
     }
 

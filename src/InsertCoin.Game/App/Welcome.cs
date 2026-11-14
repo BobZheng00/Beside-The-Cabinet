@@ -16,6 +16,8 @@ public partial class Welcome : Window
 {
     /// <summary>The first run is over (finished, skipped or closed), with the name given, if any.</summary>
     public event Action<string?>? Done;
+    /// <summary>Another page is showing: 0 their name, 1 who keeps them company, 2 what earns play time, 3 the AI.</summary>
+    public event Action<int>? Paged;
 
     private readonly List<Control> _pages = [];
     private int _at;
@@ -176,6 +178,7 @@ public partial class Welcome : Window
             _chosen = false;
         }
         Refresh();
+        Paged?.Invoke(_at);
     }
 
     /// <summary>The page they are on, and the buttons as they stand: Next only once there is a name; Finish once her mind is connected.</summary>

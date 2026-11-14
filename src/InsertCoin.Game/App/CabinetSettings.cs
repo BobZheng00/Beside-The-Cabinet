@@ -4,8 +4,8 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → General: the name the player is called by and the language their companion replies in; how the cabinet
-/// sits on the desktop (its size, above other windows or not, starting with Windows), its sounds, tickets while a game
-/// runs, and saving energy. Each change is used at once.
+/// sits on the desktop (its size, above other windows or not, starting with Windows), the first run's intro again, its
+/// sounds, tickets while a game runs, and saving energy. Each change is used at once.
 /// </summary>
 public partial class CabinetSettings : VBoxContainer
 {
@@ -20,6 +20,8 @@ public partial class CabinetSettings : VBoxContainer
     /// <summary>The size chosen: S, M or L.</summary>
     public event Action<string>? Sized;
     public event Action<bool>? OnTop, WithWindows, Muted, Tickets, SaveEnergy;
+    /// <summary>"Replay the intro": the first run's walk-up and light-up, again, without its questions.</summary>
+    public event Action? Replay;
 
     /// <param name="withWindows">Whether it starts with Windows now (kept by Windows, not in the settings).</param>
     public void Build(SettingsFile settings, bool withWindows)
@@ -38,6 +40,7 @@ public partial class CabinetSettings : VBoxContainer
         Form.Hint(this, "Above other windows, so it is always in sight.");
         Form.Tick(this, "Start with Windows", withWindows, on => WithWindows?.Invoke(on));
         Form.Hint(this, "Opens by itself when you sign in to Windows.");
+        Form.Button(Form.Buttons(this), "Replay the intro", () => Replay?.Invoke());
 
         Form.Subheading(this, "Sounds and tickets");
         var muted = Form.Tick(this, "Mute sounds", now.Muted, on => Muted?.Invoke(on));

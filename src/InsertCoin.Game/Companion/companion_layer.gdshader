@@ -12,6 +12,11 @@ uniform float behind_past = 2.0;     // and from this far across (inside the cab
 uniform float flash = 0.0;           // how white they are: appearing on the stool under a flash
 
 const int RING = 16;
+varying vec4 room;                   // the node's modulate: how lit the room leaves them (the first run's dark)
+
+void vertex() {
+	room = COLOR;
+}
 
 void fragment() {
 	vec4 colour = texture(TEXTURE, UV);
@@ -25,5 +30,5 @@ void fragment() {
 	vec4 shown = vec4(colour.rgb + ink.rgb * (spread - colour.a), spread);
 	if (UV.x > behind_from)
 		shown *= UV.x > behind_past ? 0.0 : 1.0 - smoothstep(0.35, 0.9, texture(cabinet, UV).a);
-	COLOR = vec4(mix(shown.rgb, vec3(shown.a), flash), shown.a);
+	COLOR = vec4(mix(shown.rgb * room.rgb, vec3(shown.a), flash), shown.a);
 }
