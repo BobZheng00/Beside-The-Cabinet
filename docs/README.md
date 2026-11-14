@@ -269,7 +269,7 @@ bring it up in person.
 
 ## Texting
 
-On Telegram you can text your companion back, from anywhere (Settings → Connections → Your phone, Set up Telegram: make
+On Telegram you can text your companion back, from anywhere (Settings → Connections → Your phone, "Text with … on Telegram": make
 a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). They answer by text,
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
 reach them. What they put on your agenda, change or cancel comes as a plain line from the app under their message

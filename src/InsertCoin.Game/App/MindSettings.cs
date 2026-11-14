@@ -144,8 +144,8 @@ public partial class MindSettings : VBoxContainer
     }
 
     /// <summary>
-    /// The line at the top, on the panel with its state in a word and Test (or Continue with ChatGPT, not yet connected to
-    /// the plan chosen): which provider she answers through now, or that she can't talk yet.
+    /// The line at the top, on the panel with its state in a word and Test (or, with the ChatGPT plan picked and not in
+    /// use, Continue with ChatGPT or Use your ChatGPT plan): which provider she answers through now, or that she can't talk yet.
     /// </summary>
     private void ShowNow()
     {
@@ -163,8 +163,14 @@ public partial class MindSettings : VBoxContainer
             : ("Not connected", false, $"Not connected: {_name} can't talk with you until this is filled in and saved.");
         if (_standing is null)
             Form.Say(_now, said, works ? Paper.Good : Paper.Bad);
-        else if (_saved is null && _protocol == Protocol.ChatGpt)
-            _standing.Show(state, works, said, "Continue with ChatGPT", () => _ = ContinueWithChatGpt());
+        else if (_protocol == Protocol.ChatGpt && !OnPlan)        // the plan picked, not in use: its next step, not a test of what's hidden
+            _standing.Show(state, works, said, _chat.Plan.Connected ? "Use your ChatGPT plan" : "Continue with ChatGPT", () =>
+            {
+                if (_chat.Plan.Connected)
+                    Use(_models.ElementAtOrDefault(_planModel?.Selected ?? 0).Slug);
+                else
+                    _ = ContinueWithChatGpt();
+            });
         else
             _standing.Show(state, works, said, "Test", () => _ = _saved is { } saved && !_unsaved
                 ? Test(saved, "", saved.Protocol == Protocol.ChatGpt ? null : _chat.Keys.Load(), _standing.Result, "", search: saved.Protocol != Protocol.ChatGpt)

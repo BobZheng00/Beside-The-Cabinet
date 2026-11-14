@@ -218,7 +218,7 @@ public static class Form
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
         column.AddChild(row);
-        var line = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(160, 0) };
+        var line = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(130, 0) };     // beside Continue with ChatGPT, at 125%
         row.AddChild(line);
         var button = new Button { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         row.AddChild(button);
@@ -241,15 +241,6 @@ public static class Form
             }
         if (control.FocusMode != Control.FocusModeEnum.None)
             control.GrabFocus();
-    }
-
-    /// <summary>Opens a page in the player's browser, as they asked by pressing its button; a test run only logs it.</summary>
-    public static void Browse(string address)
-    {
-        if (Paper.OffScreen)
-            GD.Print($"Settings: a test run opens no browser: {address}");
-        else
-            OS.ShellOpen(address);
     }
 
     /// <summary>The tick and the fields that belong to it: the fields only show while it is ticked.</summary>

@@ -108,7 +108,8 @@ public partial class CalendarSettings : VBoxContainer
         if (links.Count == 0)
             _standing.Show("Not linked", null, $"Link your calendar and {_companion} knows what's coming up in the next two weeks.", "Link a calendar", () => Form.Bring(_name));
         else if (unread > 0)
-            _standing.Show("Can't be read", false, unread == links.Count ? "It couldn't be read last time: see below." : $"{unread} of {links.Count} couldn't be read last time: see below.",
+            _standing.Show("Can't be read", false, links.Count == 1 ? "It couldn't be read last time: see below." : unread == links.Count ? "None of them could be read last time: see below."
+                               : $"{unread} of {links.Count} couldn't be read last time: see below.",
                            "Read them now", () => _ = _calendars.Sync());
         else
             _standing.Show("Linked", true, $"{links.Count} linked: {_companion} knows what's on {(links.Count == 1 ? "it" : "them")}, read again every 15 minutes.",

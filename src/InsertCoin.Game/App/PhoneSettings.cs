@@ -37,7 +37,7 @@ public partial class PhoneSettings : VBoxContainer
     private CheckBox _ntfy = null!, _discord = null!, _webhook = null!;
     private LineEdit _ntfyServer = null!, _ntfyTopic = null!, _ntfyToken = null!, _discordUrl = null!, _webhookUrl = null!;
     private Standing _standing = null!;
-    private VBoxContainer _telegram = null!;               // the Telegram part: shown once paired, or to set it up
+    private VBoxContainer _telegram = null!;               // the Telegram part, Set up Telegram's place
     private bool _paired;
     private string _name = "";
 
@@ -84,20 +84,25 @@ public partial class PhoneSettings : VBoxContainer
         ShowStanding();
     }
 
-    /// <summary>The panel at the top: connected, by Telegram or the places ticked, with a test; or Set up Telegram.</summary>
+    /// <summary>
+    /// The panel at the top: connected, by Telegram or a place ticked and filled in, with a test; else Set up Telegram,
+    /// saying so when a place is ticked but lacks what it needs (nothing can be sent there).
+    /// </summary>
     private void ShowStanding()
     {
         var where = Where();
-        var places = new[] { (where.Ntfy, "ntfy"), (where.Discord, "Discord"), (where.Webhook, "a webhook") }.Where(p => p.Item1).Select(p => p.Item2).ToList();
-        if (_paired || places.Count > 0)
+        var ticked = new[] { (where.Ntfy, "ntfy", _ntfyTopic), (where.Discord, "Discord", _discordUrl), (where.Webhook, "the webhook", _webhookUrl) }
+            .Where(p => p.Item1).ToList();
+        var ready = ticked.Where(p => Value(p.Item3) is not null).Select(p => p.Item2).ToList();
+        var empty = ticked.Where(p => Value(p.Item3) is null).Select(p => p.Item2).ToList();
+        if (_paired || ready.Count > 0)
             _standing.Show("Connected", true, _paired ? $"{_name} texts you on Telegram while you're away, and you can text back."
-                                                      : $"While you're away, {_name}'s texts reach you by {string.Join(", ", places)}.", "Send a test", () => _ = Test());
+                                                      : $"While you're away, {_name}'s texts reach you by {string.Join(", ", ready)}.", "Send a test", () => _ = Test());
         else
-            _standing.Show("Not set up", null, $"While you're away from the PC, {_name} can text you on Telegram, and you can text back.", "Set up Telegram", () =>
-            {
-                _telegram.Visible = true;
-                Form.Bring(_telegram);
-            });
+            _standing.Show("Not set up", empty.Count > 0 ? false : null,
+                           empty.Count > 0 ? $"{string.Join(" and ", empty)} {(empty.Count == 1 ? "needs" : "need")} filling in below before {_name}'s texts can reach you there."
+                                           : $"While you're away from the PC, {_name} can text you on Telegram, and you can text back.",
+                           "Set up Telegram", () => Form.Bring(_telegram));
     }
 
     /// <summary>
@@ -106,7 +111,7 @@ public partial class PhoneSettings : VBoxContainer
     /// </summary>
     private void BuildTelegram(Texting texting, string name, bool paired)
     {
-        var part = _telegram = new VBoxContainer { Visible = paired };
+        var part = _telegram = new VBoxContainer();
         part.AddThemeConstantOverride("separation", 10);
         AddChild(part);
         Form.Subheading(part, $"Text with {name} on Telegram");
@@ -129,7 +134,7 @@ public partial class PhoneSettings : VBoxContainer
         Form.Hint(steps, $"A bot of your own, for {name} alone: about two minutes, all but the last step in Telegram.");
         Form.Hint(steps, $"1. Open BotFather (Telegram in your browser; log in there once with your phone) and send /newbot. Give " +
                          $"it {name}'s name, then a username ending in \"bot\".");
-        Form.Button(steps, "Open BotFather", () => Form.Browse(BotFather)).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;     // under it: beside it, too wide at 125%
+        Form.Button(steps, "Open BotFather", () => Chat.OpenPage(new Uri(BotFather))).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;     // under it: beside it, too wide at 125%
         Form.Hint(steps, "2. Paste the token BotFather gives you, and Check it.");
         var token = Form.Field(Form.Grid(steps), "Bot token", paired ? _secrets.TelegramToken : null, "123456:ABC…", secret: true);
         var check = Form.Buttons(steps);
@@ -148,7 +153,7 @@ public partial class PhoneSettings : VBoxContainer
         var link = new LineEdit { Editable = false, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         open.AddChild(link);
         var web = "";
-        Form.Button(open, "Open it in this browser", () => Form.Browse(web));
+        Form.Button(open, "Open it in this browser", () => Chat.OpenPage(new Uri(web)));
         Form.Say(Form.Result(scan), "Waiting for you to press Start…", Paper.Faint);
         Form.Button(check, "Check", async () =>
         {

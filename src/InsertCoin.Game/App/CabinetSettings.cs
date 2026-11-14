@@ -70,7 +70,7 @@ public partial class CabinetSettings : VBoxContainer
     {
         Form.Subheading(this, "Help and about");
         var row = Form.Buttons(this);
-        Form.Button(row, "Help", () => Form.Browse(Project + "/blob/main/docs/README.md"));
+        Form.Button(row, "Help", () => Chat.OpenPage(new Uri(Project + "/blob/main/docs/README.md")));
         var about = new VBoxContainer { Visible = false };
         about.AddThemeConstantOverride("separation", 6);
         Form.Button(row, "About", () =>
@@ -86,6 +86,6 @@ public partial class CabinetSettings : VBoxContainer
                          "and a balance of work, life and games.");
         Form.Hint(about, "Free for non-commercial use (PolyForm Noncommercial 1.0.0). The work of others it includes is listed in " +
                          "THIRD-PARTY-NOTICES.txt beside the app.");
-        Form.Button(about, "Project page", () => Form.Browse(Project)).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        Form.Button(about, "Project page", () => Chat.OpenPage(new Uri(Project))).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
     }
 }
