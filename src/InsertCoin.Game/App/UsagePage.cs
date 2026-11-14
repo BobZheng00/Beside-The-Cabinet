@@ -40,7 +40,7 @@ public sealed class UsagePage
         page.AddChild(new Label { Text = Summary(thisMonth, Cost(thisMonth)), AutowrapMode = TextServer.AutowrapMode.WordSmart });
 
         page.AddChild(new Label { Text = "Day by day", ThemeTypeVariation = "Subheading" });
-        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 140), HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
+        var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(0, 140) };    // in a narrow window the days scroll sideways, never widening the page
         var table = new GridContainer { Columns = 6, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         table.AddThemeConstantOverride("h_separation", 14);
         table.AddThemeConstantOverride("v_separation", 4);
@@ -130,5 +130,5 @@ public sealed class UsagePage
         decimal.TryParse(field.Text.Trim().TrimStart('$', '¥', '€', '£'), NumberStyles.Number, Invariant, out var value) && value >= 0 ? value : null;
 
     private static Label Hint(string text) =>
-        new() { Text = text, ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(400, 0) };
+        new() { Text = text, ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart };
 }
