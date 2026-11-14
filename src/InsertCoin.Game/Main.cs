@@ -753,11 +753,11 @@ public partial class Main : Node2D
                 _settingsWindow!.DevUp();
             return;
         }
-        if (action.StartsWith("settingsat:"))               // settingsat:1366x768 lays the window out as on a screen that size, at 100%
+        if (action.StartsWith("settingsat:"))               // settingsat:1366x768 lays the window out as on a screen that size, at 100%; settingsat:1080x1920x175 at 175%
         {
             var size = action["settingsat:".Length..].Split('x');
             if (IsInstanceValid(_settingsWindow))
-                _settingsWindow!.DevScreen(new Vector2I(int.Parse(size[0]), int.Parse(size[1])));
+                _settingsWindow!.DevScreen(new Vector2I(int.Parse(size[0]), int.Parse(size[1])), size.Length > 2 ? int.Parse(size[2]) / 100f : 1);
             return;
         }
         if (action == "settingsclose")                      // as the window's X, with what Memory can't save stopping the first

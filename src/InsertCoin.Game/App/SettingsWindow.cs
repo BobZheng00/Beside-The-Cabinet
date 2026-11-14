@@ -115,10 +115,11 @@ public partial class SettingsWindow : Window
     }
 
     private static readonly Vector2I Wanted = new(850, 704);    // tall enough for the whole list, and its note
+    private const float Narrowest = 692;                        // every page fits this (smoke: settingsnarrow); a narrower screen draws it smaller
 
     public void Open()
     {
-        Paper.Open(this, Wanted);
+        Paper.Open(this, Wanted, narrowest: Narrowest);
         Theme.SetFont("font", "Heading", GD.Load<FontFile>("res://fonts/PressStart2P-Regular.ttf"));     // the screen's pixel font: at 16 px, its grid
         Theme.SetFontSize("font_size", "Heading", 16);
         // the log says the size it opened at, a moment on once Windows has placed it, and the screens it was sized for:
@@ -295,13 +296,14 @@ public partial class SettingsWindow : Window
         }
     }
 
-    /// <summary>Dev: the window as it opens on a screen of this size at 100%, to read its pixel headings there (this PC has its own size and scale).</summary>
-    public void DevScreen(Vector2I screen)
+    /// <summary>Dev: the window as it opens on a screen of this size at this scale, to read its pages there (this PC has its own size and scale).</summary>
+    public void DevScreen(Vector2I screen, float scale)
     {
-        ContentScaleFactor = 1;
         MinSize = Vector2I.Zero;
-        MinSize = Size = new Vector2I(Math.Min(Wanted.X, screen.X - 16), Math.Min(Wanted.Y, screen.Y - 48));
-        GD.Print($"Settings: laid out as on a {screen.X}x{screen.Y} screen: {Size.X}x{Size.Y}");
+        (Size, ContentScaleFactor) = Paper.Fit(Wanted, scale, screen, Narrowest);
+        MinSize = Size;
+        GD.Print(scale == 1 ? $"Settings: laid out as on a {screen.X}x{screen.Y} screen: {Size.X}x{Size.Y}"
+            : $"Settings: laid out as on a {screen.X}x{screen.Y} screen at {scale * 100:0}%: {Size.X}x{Size.Y}, its pages {GetVisibleRect().Size.X:0}x{GetVisibleRect().Size.Y:0}");
     }
 
     /// <summary>Dev: on a page below a page, presses its way back up (see <see cref="Form.Page(VBoxContainer, string, string, Action)"/>).</summary>
