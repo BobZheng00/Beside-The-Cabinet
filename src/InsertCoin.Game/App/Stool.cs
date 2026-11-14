@@ -2401,6 +2401,11 @@ public partial class Stool : Node2D
                 ChatGptPlan.Api = rest + "/v1";
                 _chat.Connect(ChatProvider(), BackupProvider());
                 break;
+            case "openaiat":                                // openaiat:http://127.0.0.1:port: OpenAI with a key, answered by a stand-in (tools/dev/mock_chatgpt.py)
+                Provider.OpenAiAt = rest + "/openai/v1";
+                _settings.Save(_settings.Now with { ChatProtocol = nameof(Protocol.OpenAi), ChatBaseUrl = Provider.OpenAiApi, ChatModel = "gpt-mock" });
+                _chat.Connect(ChatProvider(), BackupProvider());
+                break;
             case "plantry": _chat.Plan.TryAgain(); break;  // the ChatGPT plan's next try comes now, not a quarter of an hour on
             case "attach": Hand([rest]); break;             // attach:path as if dropped on her (a picture, a PDF, a text file)
             case "pastepicture":                            // pastepicture:path as if that picture had been pasted (the clipboard is left alone)

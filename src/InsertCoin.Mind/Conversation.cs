@@ -513,8 +513,10 @@ public sealed class Conversation(MindStore store, string character, Persona pers
                 foreach (var content in update.Contents)
                     if (content is WebSearchToolCallContent search)
                     {
+                        var begun = searches.ContainsKey(search.CallId);    // OpenAI's comes twice: as it begins, then with its words
                         searches[search.CallId] = string.Join("; ", search.Queries ?? []);
-                        tools?.Hosted(BuiltIn.SearchName);
+                        if (!begun)
+                            tools?.Hosted(BuiltIn.SearchName);
                     }
                     else if (content is WebSearchToolResultContent found)
                     {
@@ -710,12 +712,13 @@ public sealed class Conversation(MindStore store, string character, Persona pers
 
     /// <summary>
     /// The line kept for a web search the provider ran: what for, and the pages it found (the sources, for the chat
-    /// history), like the line for one of her own tools.
+    /// history), like the line for one of her own tools. A provider that doesn't name them (the ChatGPT plan) leaves the
+    /// pages out.
     /// </summary>
     private static string Searched(string? query, WebSearchToolResultContent found)
     {
         var pages = (found.Outputs ?? []).OfType<UriContent>().Select(u => BuiltIn.Shown(u.Uri)).Distinct().Take(5).ToList();
-        var line = $"You searched the web for \"{query ?? "?"}\": " + (pages.Count == 0 ? "nothing came back." : $"found {string.Join(", ", pages)}.");
+        var line = $"You searched the web for \"{(string.IsNullOrEmpty(query) ? "?" : query)}\"" + (found.Outputs is null ? "." : pages.Count == 0 ? ": nothing came back." : $": found {string.Join(", ", pages)}.");
         return line.Length <= 300 ? line : line[..299] + "…";
     }
 

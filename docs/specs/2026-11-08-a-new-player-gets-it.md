@@ -234,6 +234,11 @@ stand out model providers like open ai DeepSeek Claude or any other we choose to
 
 Each search is billed to the player's own account, and AI model → What it has cost counts them.
 
+*Built (#266):* OpenAI with a key through the Responses API, unstored (its reasoning sent back encrypted, dropped for a
+model that turns that down), with its web search and the pages it found; the ChatGPT plan offered the same search,
+going on without it where the plan turns it down (the user's own sign-in still to try); every provider's own searches
+counted on What it has cost (Anthropic's too), outside the cost estimate.
+
 ## What was tried in the real app
 
 A spike on #255 built the arrival and the walk-up and light-up in the real app, with the real art and the two shipped

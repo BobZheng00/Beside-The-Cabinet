@@ -379,15 +379,15 @@ public sealed class Chat : IDisposable
 
     /// <summary>How she searches the web now, in a few words for the settings; null when she can't.</summary>
     public string? WebSearch => _searxng is { } searx ? $"through your SearXNG at {searx.Address.Authority}"
-                              : _provider?.Protocol == Protocol.Anthropic ? (Tools.HostedRefused ? null : "with your provider's own search (Anthropic's)")
+                              : _provider?.OwnSearch is { } own ? (Tools.HostedRefused ? null : $"with your provider's own search ({own})")
                               : null;
 
-    /// <summary>Her web search: the player's SearXNG when the add-on is on, else the provider's own (Anthropic's), else none.</summary>
+    /// <summary>Her web search: the player's SearXNG when the add-on is on, else the provider's own (Anthropic's, OpenAI's), else none.</summary>
     private void UseWebSearch()
     {
         if (_searxng is { } searx)
             Tools.Put(BuiltIn.WebSearch(searx.Search));
-        else if (_provider?.Protocol == Protocol.Anthropic)
+        else if (_provider?.OwnSearch is not null)
             Tools.Put(BuiltIn.ProviderSearch());
         else
             Tools.Take(BuiltIn.SearchName);

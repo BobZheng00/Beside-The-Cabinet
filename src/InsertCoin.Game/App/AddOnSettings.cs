@@ -48,7 +48,7 @@ public partial class AddOnSettings : VBoxContainer
         });
         AddChild(result);
         Form.ShowWhile(on, row);
-        var own = current?.Protocol == Protocol.Anthropic ? "your provider's own search" : "no search at all (your provider has none this app can use)";
+        var own = current?.OwnSearch is not null ? "your provider's own search" : "no search at all (your provider has none this app can use)";
         Form.Hint(this, $"SearXNG is a free, open-source search engine you run yourself, on this PC or one you trust: it asks the big search " +
                         $"engines for you, and nothing goes through anyone else. With it on, {name} searches through it; without it, {own}. " +
                         "To run it: Docker Desktop, then docker run -d -p 8888:8080 searxng/searxng, and in its settings.yml add json under " +

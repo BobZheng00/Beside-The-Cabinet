@@ -198,7 +198,7 @@ public class ChatGptPlanTests : IDisposable
     }
 
     [Fact]
-    public async Task A_request_on_the_plan_is_streamed_unstored_with_instructions_and_only_her_own_tools()
+    public async Task A_request_on_the_plan_is_streamed_unstored_with_instructions_her_own_tools_and_web_search()
     {
         var plan = Plan();
         await SignIn(plan);
@@ -224,7 +224,7 @@ public class ChatGptPlanTests : IDisposable
             Assert.Null(sent[refused]);
         var roles = sent["input"]!.AsArray().Select(i => (string?)i!["role"]).ToList();
         Assert.Equal(["user", "developer", "user"], roles);
-        Assert.Equal(["print_memo"], sent["tools"]!.AsArray().Select(t => (string?)t!["name"]));
+        Assert.Equal(["print_memo", "web_search"], sent["tools"]!.AsArray().Select(t => (string?)t!["name"] ?? (string?)t!["type"]));
     }
 
     [Fact]

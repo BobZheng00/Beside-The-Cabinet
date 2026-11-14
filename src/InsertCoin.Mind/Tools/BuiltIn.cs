@@ -206,7 +206,7 @@ public static class BuiltIn
     };
 
     /// <summary>
-    /// The provider's own web search (Anthropic's): run by the provider in the middle of her reply, its results seen by
+    /// The provider's own web search (Anthropic's or OpenAI's): run by the provider in the middle of her reply, its results seen by
     /// her alone. Offered in place of a function, so it is never asked about.
     /// </summary>
     public static Tool ProviderSearch() => new(

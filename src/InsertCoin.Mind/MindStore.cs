@@ -214,6 +214,10 @@ public sealed class MindStore : IDisposable
         using (var columns = Command("SELECT count(*) FROM pragma_table_info('lines') WHERE name = 'instruction'"))
             if ((long)columns.ExecuteScalar()! == 0)
                 Run("ALTER TABLE lines ADD COLUMN instruction INTEGER NOT NULL DEFAULT 0; PRAGMA user_version = 17;");
+        // the web searches the provider ran itself, counted with the rest of what requests used (see Metered)
+        using (var columns = Command("SELECT count(*) FROM pragma_table_info('usage') WHERE name = 'searches'"))
+            if ((long)columns.ExecuteScalar()! == 0)
+                Run("ALTER TABLE usage ADD COLUMN searches INTEGER NOT NULL DEFAULT 0");
         Run("""
             CREATE TABLE IF NOT EXISTS in_mind (line INTEGER NOT NULL, kind TEXT NOT NULL, id INTEGER NOT NULL, listed INTEGER NOT NULL, PRIMARY KEY (line, kind, id));
             CREATE INDEX IF NOT EXISTS in_mind_by_source ON in_mind (kind, id);
@@ -718,27 +722,28 @@ public sealed class MindStore : IDisposable
 
     // ---- Usage (see Metered) -----------------------------------------------------------------------------------------
 
-    public void AddUsage(DateOnly day, string model, string purpose, long input, long cached, long written, long output, long reasoning)
+    public void AddUsage(DateOnly day, string model, string purpose, long input, long cached, long written, long output, long reasoning, long searches = 0)
     {
         using var command = Command("""
-            INSERT INTO usage (day, model, purpose, requests, input, cached, written, output, reasoning) VALUES ($d, $m, $p, 1, $i, $c, $w, $o, $r)
+            INSERT INTO usage (day, model, purpose, requests, input, cached, written, output, reasoning, searches) VALUES ($d, $m, $p, 1, $i, $c, $w, $o, $r, $s)
             ON CONFLICT (day, model, purpose) DO UPDATE SET requests = requests + 1, input = input + $i, cached = cached + $c, written = written + $w,
-                output = output + $o, reasoning = reasoning + $r
+                output = output + $o, reasoning = reasoning + $r, searches = searches + $s
             """, ("$d", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)), ("$m", model), ("$p", purpose), ("$i", input), ("$c", cached),
-            ("$w", written), ("$o", output), ("$r", reasoning));
+            ("$w", written), ("$o", output), ("$r", reasoning), ("$s", searches));
         command.ExecuteNonQuery();
     }
 
     /// <summary>What requests used from <paramref name="from"/> on, by day.</summary>
     public IReadOnlyList<UsageRow> Usage(DateOnly from)
     {
-        using var command = Command("SELECT day, model, purpose, requests, input, cached, written, output, reasoning FROM usage WHERE day >= $d ORDER BY day, model, purpose",
+        using var command = Command("SELECT day, model, purpose, requests, input, cached, written, output, reasoning, searches FROM usage WHERE day >= $d ORDER BY day, model, purpose",
             ("$d", from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
         using var reader = command.ExecuteReader();
         var rows = new List<UsageRow>();
         while (reader.Read())
             rows.Add(new UsageRow(DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture), reader.GetString(1), reader.GetString(2),
-                                  reader.GetInt64(3), reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7), reader.GetInt64(8)));
+                                  reader.GetInt64(3), reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7), reader.GetInt64(8),
+                                  reader.GetInt64(9)));
         return rows;
     }
 
