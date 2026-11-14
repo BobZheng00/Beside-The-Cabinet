@@ -10,7 +10,7 @@ $cases = @(
   @{ files = "docs/README.md,tests/InsertCoin.Mind.Tests/RecallTests.cs"; want = "" },
   @{ files = "src/InsertCoin.Game/README.md,src/InsertCoin.Game/addons/vrm/README.ja.md"; want = "" },
   @{ files = "src/InsertCoin.Game/characters/shino/persona.md"; want = "boot" },
-  @{ files = "src/InsertCoin.Game/App/MemorySettings.cs"; want = "boot,settings,settingsnarrow,memorytabs,memorynarrow,memory,memory-stool,agendacancel" },
+  @{ files = "src/InsertCoin.Game/App/MemorySettings.cs"; want = "boot,settings,settingsnarrow,memorytabs,memorynarrow,memory,memory-stool,memory-stool-close,agendacancel" },
   @{ files = "src/InsertCoin.Game/App/VoiceSettings.cs,docs/README.md"; want = "boot,settings,settingsnarrow" },
   @{ files = "src/InsertCoin.Mind/MindStore.cs"; want = "boot,chat,memory,agendacancel,chathistory,chathistory-hidden,reminder" },
   @{ files = "src/InsertCoin.Adapters/LeetCodeSource.cs"; want = "boot" },
