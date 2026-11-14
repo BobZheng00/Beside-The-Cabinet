@@ -109,9 +109,9 @@ public sealed class Calendars(MindStore store, KeyStore keys)
                 _status[link.Name] = new CalendarStatus(now, events.Count, null);
                 GD.Print($"Calendars: {link.Name}: {events.Count} events in the next two weeks ({added} new, {changed} changed, {removed} gone)");
             }
-            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or FormatException or InvalidOperationException or UriFormatException)
+            catch (Exception e) when (IcsCalendar.Why(e) is { } why)
             {
-                _status[link.Name] = new CalendarStatus(now, 0, e.GetBaseException().Message);
+                _status[link.Name] = new CalendarStatus(now, 0, why);
                 GD.PrintErr($"Calendars: {link.Name} could not be read: {e.GetBaseException().Message}");   // never the address: it is a secret
             }
         }

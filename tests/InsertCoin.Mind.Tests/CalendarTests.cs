@@ -168,4 +168,27 @@ public class CalendarTests
         Assert.Equal(Agenda.MostAhead, block.Split("Meeting").Length - 1);
         Assert.Contains($"- and {20 - Agenda.MostAhead} more in the week", block);
     }
+    private sealed class FakeSite(Func<HttpResponseMessage> answer) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancel) => Task.FromResult(answer());
+    }
+
+    private static async Task<string?> WhyNot(Func<HttpResponseMessage> answer, string url = "https://calendar.test/basic.ics")
+    {
+        var calendar = new IcsCalendar(new HttpClient(new FakeSite(answer)), "Work", url);
+        var e = await Record.ExceptionAsync(() => calendar.Read(Monday, Monday.AddDays(14)));
+        return IcsCalendar.Why(e!);
+    }
+
+    [Fact]
+    public async Task A_calendar_that_cannot_be_read_says_why_in_the_apps_own_words()
+    {
+        Assert.Equal("that address isn't a calendar", await WhyNot(() => new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("<html><body>Hello</body></html>") }));
+        Assert.Equal("the calendar's site refused the link", await WhyNot(() => new HttpResponseMessage(System.Net.HttpStatusCode.Forbidden)));
+        Assert.Equal("the calendar's site refused the link", await WhyNot(() => new HttpResponseMessage(System.Net.HttpStatusCode.NotFound)));
+        Assert.Equal("the address can't be reached", await WhyNot(() => throw new HttpRequestException("由于目标计算机积极拒绝，无法连接。", new System.Net.Sockets.SocketException(10061))));
+        Assert.Equal("the address can't be reached", await WhyNot(() => throw new TaskCanceledException()));
+        Assert.Equal("that address isn't a calendar", await WhyNot(() => new HttpResponseMessage(System.Net.HttpStatusCode.OK), "not a link"));
+        Assert.Null(IcsCalendar.Why(new NullReferenceException()));   // a fault of the app's own is not passed off as the calendar's
+    }
 }
