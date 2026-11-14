@@ -78,7 +78,7 @@
       "script": "settings:balance@2,settingsdo:Your_own_activities@4,settingsdo:No_play_time@6,settingsdo:No_play_time@8",
       "shots": [5, 7, 12],
       "window": "Settings",
-      "expect": ["^Main: play time is earned by focus, activities$", "^Main: play time is earned by focus$", "^Crt: apps on the home screen focus, music, memos, agenda, settings$", "^Main: play time is earned by nothing$", "^Crt: apps on the home screen focus, done, music, memos, agenda, settings$"]
+      "expect": ["^Main: play time is earned by focus, activities$", "^Main: play time is earned by focus$", "^Crt: apps on the home screen focus, music, memos, agenda$", "^Main: play time is earned by nothing$", "^Crt: apps on the home screen focus, done, music, memos, agenda$"]
     },
     {
       "name": "noplaytime",
@@ -186,6 +186,28 @@
       "shots": [6.5, 8.5, 10.5, 12.5, 14.5, 18],
       "window": "Settings",
       "expect": ["^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: 1 of \\d+ pages measured$"],
+      "forbid": ["^Settings: \\S+ needs \\d+ px"]
+    },
+    {
+      "name": "connections",
+      "about": "Nothing connected yet, at Settings' narrowest default size (as on a 2560x1440 screen at 125%): Your phone, Calendars, Web search and AI model's Connection each lead with a panel saying so, with its one button (Set up Telegram shows the steps, Link a calendar, Use my SearXNG ticks it); General has Help (no browser in a test run) and About; the small buttons that point to other pages open them (General and Calendars to Reminders, Reminders to Your phone, Memory's Agenda to Reminders, Chat history to Memory at Forget); and no page is wider than the window.",
+      "covers": ["src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/PhoneSettings.cs", "src/InsertCoin.Game/App/CalendarSettings.cs", "src/InsertCoin.Game/App/AddOnSettings.cs", "src/InsertCoin.Game/App/MindSettings.cs", "src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/App/ReminderSettings.cs", "src/InsertCoin.Game/App/AbilitySettings.cs", "src/InsertCoin.Game/App/MemorySettings.cs", "src/InsertCoin.Game/App/ChatHistory.cs"],
+      "script": "memoryseed@1.5,settings:phone@2,settingsat:708x736@3,settingsdo:Set_up_Telegram@4,settings:calendars@5,settingsdo:Link_a_calendar@6,settings:addons@7,settingsdo:Use_my_SearXNG@8,settings:mind@9,settings:abilities@10,settings:privacy@11,settings:cabinet@12,settingsdo:About@13,settingswidths@14,settingsdo:Help@15,settingsdo:Reminders@16,settingsdo:Your_phone@17,settings:calendars@18,settingsdo:Reminders@19,memory:agenda@20,settingsdo:Reminders@21,chathistory@22,chathistorydo:Memory@23",
+      "shots": [6.5, 8.5, 10.5, 11.5, 16.5, 26.5],
+      "window": "Settings",
+      "expect": ["^Settings: Your phone: Not set up; Set up Telegram$", "^Settings: Your calendar: Not linked; Link a calendar$", "^Settings: Web search: Off; Use my SearXNG$", "^Settings: Web search: On; Test$", "^Settings: AI provider: Not connected; Test$", "^Settings: \"About\" pressed$", "^Settings: \\d+ of \\d+ pages measured$", "^Settings: a test run opens no browser: https://github.com/BobZheng00/Beside-The-Cabinet/blob/main/docs/README.md$", "^Settings: cabinet led to reminders$", "^Settings: reminders led to phone$", "^Settings: calendars led to reminders$", "^Settings: memory led to reminders$", "^Settings: opened at Memory, forget$"],
+      "forbid": ["^Settings: \\S+ needs \\d+ px", "^Settings: nothing called"]
+    },
+    {
+      "name": "connected",
+      "about": "Connected: with an AI (the mock) and ntfy ticked, AI model's Connection says Connected with Test, and Test answers on the panel; Your phone says Connected with Send a test (not pressed: it would reach ntfy.sh); Web search through the player's SearXNG says On with Test.",
+      "covers": ["src/InsertCoin.Game/App/Form.cs", "src/InsertCoin.Game/App/PhoneSettings.cs", "src/InsertCoin.Game/App/AddOnSettings.cs", "src/InsertCoin.Game/App/MindSettings.cs"],
+      "mind": true,
+      "settings": ", \"ReminderElsewhere\": {\"Ntfy\": true}, \"AddOns\": {\"SearXng\": true, \"SearXngAddress\": \"http://127.0.0.1:9\"}",
+      "script": "settings:mind@2,settingsat:708x736@3,settingsdo:Test@4,settings:phone@8,settings:addons@9,settingswidths@10",
+      "shots": [7, 10.5, 12.5],
+      "window": "Settings",
+      "expect": ["^Settings: AI provider: Connected; Test$", "^Settings: \"Test\" pressed$", "^Settings: Your phone: Connected; Send a test$", "^Settings: Web search: On; Test$"],
       "forbid": ["^Settings: \\S+ needs \\d+ px"]
     },
     {
@@ -444,9 +466,9 @@
     },
     {
       "name": "crtswitches",
-      "about": "The CRT's home screen has the switch row and the SETTINGS app: Voice flipped off from the row shows unlit there, and SETTINGS opens the Settings window while the screen stays home.",
-      "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/CrtApp.cs", "src/InsertCoin.Game/App/Crt/SettingsApp.cs"],
-      "script": "crt@2,crtclick:260:27@4,crt:settings@6",
+      "about": "The CRT's home screen has a cog and the switch row on its bar: Voice flipped off from the row shows unlit there, and the cog opens the Settings window while the screen stays home.",
+      "covers": ["src/InsertCoin.Game/App/Crt/CrtOs.cs", "src/InsertCoin.Game/App/Crt/CrtApp.cs"],
+      "script": "crt@2,crtclick:260:27@4,crtclick:160:27@6",
       "shots": [10],
       "window": "Settings",
       "expect": ["^Crt: VOICE off$", "^Crt: SETTINGS opens its window$"]

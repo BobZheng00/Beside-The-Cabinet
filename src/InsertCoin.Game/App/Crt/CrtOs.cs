@@ -10,7 +10,7 @@ namespace InsertCoin.Game.App;
 /// out of the cabinet to face the player, large enough to read at any cabinet size; a press anywhere away from it
 /// settles it back, the app closing into its icon. On a small or medium cabinet the home screen lifts out too, as the
 /// system opens, and stays lifted with an app open or not until the system closes (#149). The system closes by itself after a while untouched, or from the
-/// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, the quick switches
+/// power mark, and the readout unfolds again. Along the home screen's bar, beside the power mark, a cog that opens Settings and the quick switches
 /// (Mute sounds, Voice, Conversation): lit when on, a press flips one. The name of a switch or an app under the pointer
 /// lights up on the marquee, big enough to read on any cabinet (see Cabinet.MarqueeDisplay); while the home screen is
 /// lifted, over the marquee, a switch's name shows on the bar in place of the time (#154).
@@ -21,9 +21,22 @@ public partial class CrtOs : Node
 
     /// <summary>
     /// A quick switch on the home screen's bar: its name (lit on the marquee under the pointer), whether it is on,
-    /// flipping it, and its picture (drawn at a centre, given whether it is on and the colour).
+    /// flipping it, and its picture (drawn at a centre, given whether it is on and the colour). One that
+    /// <paramref name="Opens"/> a window (SETTINGS) is a button: never lit, a click opening it.
     /// </summary>
-    public sealed record Switch(string Name, Func<bool> On, Action<bool> Set, Action<CanvasItem, Vector2, bool, Color> Glyph);
+    public sealed record Switch(string Name, Func<bool> On, Action<bool> Set, Action<CanvasItem, Vector2, bool, Color> Glyph, bool Opens = false);
+
+    /// <summary>SETTINGS: a cog, eight teeth round a wheel, with its hole.</summary>
+    public static void Cog(CanvasItem on, Vector2 c, bool _, Color ink)
+    {
+        for (var i = 0; i < 8; i++)
+        {
+            var along = Vector2.Up.Rotated(i * Mathf.Tau / 8);
+            var side = along.Orthogonal() * 2.2f;
+            on.DrawColoredPolygon([c + along * 6 + side, c + along * 10.5f + side * 0.8f, c + along * 10.5f - side * 0.8f, c + along * 6 - side], ink);
+        }
+        on.DrawArc(c, 5.5f, 0, Mathf.Tau, 24, ink, 4, true);
+    }
 
     /// <summary>Mute sounds: a speaker, crossed out when muted, sounding when not.</summary>
     public static void Speaker(CanvasItem on, Vector2 c, bool muted, Color ink)
@@ -227,12 +240,6 @@ public partial class CrtOs : Node
     private void Launch(int index)
     {
         var app = _apps[index];
-        if (app.OpensWindow)
-        {
-            GD.Print($"Crt: {app.Label} opens its window");
-            app.Opened();
-            return;
-        }
         _state = State.Moving;
         _open = app;
         app.Opened();
@@ -355,7 +362,7 @@ public partial class CrtOs : Node
     {
         var flipped = _switches[index];
         flipped.Set(!flipped.On());
-        GD.Print($"Crt: {flipped.Name} {(flipped.On() ? "on" : "off")}");
+        GD.Print(flipped.Opens ? $"Crt: {flipped.Name} opens its window" : $"Crt: {flipped.Name} {(flipped.On() ? "on" : "off")}");
     }
 
     /// <summary>
@@ -715,7 +722,12 @@ public partial class CrtOs : Node
             else
             {
                 if (os._onBar is { } name)
-                    DrawString(Pixel, new Vector2(22, 34), name, HorizontalAlignment.Left, os.SwitchCentre(0).X - SwitchRadius - 30, 12, Accent);
+                {
+                    // smaller for a long name, so it never runs under the first switch
+                    var room = os.SwitchCentre(0).X - SwitchRadius - 30;
+                    var size = Math.Min(12, (int)(12 * room / Pixel.GetStringSize(name, HorizontalAlignment.Left, -1, 12).X));
+                    DrawString(Pixel, new Vector2(22, 34), name, HorizontalAlignment.Left, room, size, Accent);
+                }
                 else
                     DrawString(Pixel, new Vector2(30, 37), DateTime.Now.ToString("HH:mm"), HorizontalAlignment.Left, -1, 17, Ink);
                 for (var i = 0; i < os._switches.Count; i++)

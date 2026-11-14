@@ -41,6 +41,8 @@ public partial class MindSettings : VBoxContainer
     private Label _siteRow = null!;                         // hidden with the button: a grid closes up over what is hidden
     private string _name = "";
     private Label _hint = null!, _billed = null!, _now = null!, _result = null!;
+    private Standing? _standing;                            // the panel at the top, but on the first run's brief page
+    private bool _brief;
     private HBoxContainer _buttons = null!;
     private VBoxContainer _plan = null!;                    // the ChatGPT plan's part, shown in place of server, key and model
     private Label? _planSaid;
@@ -61,17 +63,22 @@ public partial class MindSettings : VBoxContainer
     /// <param name="brief">Only the provider (the first run): how she remembers can wait.</param>
     public void Build(Chat chat, Provider? current, Provider? backup, string name, string? search, int? window, bool brief = false)
     {
+        _brief = brief;
         _chat = chat;
         _saved = current;
         _name = name;
         if (brief)
             Form.Page(this, "Connect an AI");
         else
+        {
             Form.Page(this);
+            _standing = Form.Connection(this, "AI provider");
+        }
         _hint = Form.Hint(this, $"{name} answers through your own AI provider: pick it, get a key on its site and paste it, name a model, then Test and Save. " +
                                 "Your key stays on this PC, encrypted for your Windows account.");
         _billed = Form.Hint(this, "OpenAI bills API use apart from ChatGPT Plus. With Plus or Pro, pick ChatGPT plan instead.");
         _now = Form.Result(this);
+        _now.Visible = brief;
         ShowNow();
         chat.Plan.Changed += PlanChanged;
         chat.Backup.Allowing += PlanChanged;
@@ -94,7 +101,7 @@ public partial class MindSettings : VBoxContainer
         Backup(backup);
 
         _buttons = Form.Buttons(this);
-        Form.Button(_buttons, "Test", () => _ = Test());
+        Form.Button(_buttons, "Test", () => _ = TestFields(_result));
         Form.Button(_buttons, "Save", Save, quiet: false);
         _result = Form.Result(_buttons);
 
@@ -136,24 +143,32 @@ public partial class MindSettings : VBoxContainer
                         "while you are away. Providers cache it, so within a conversation reading it again costs about a tenth." + cached);
     }
 
-    /// <summary>The line at the top: which provider she answers through now, or that she can't talk yet.</summary>
+    /// <summary>
+    /// The line at the top, on the panel with its state in a word and Test (or Continue with ChatGPT, not yet connected to
+    /// the plan chosen): which provider she answers through now, or that she can't talk yet.
+    /// </summary>
     private void ShowNow()
     {
-        if (OnPlan && _chat.OnBackup && _chat.BackupProvider is { } backup)
-            Form.Say(_now, $"{_name} answers through {backup.Name}, with {backup.Model}, until your ChatGPT plan works again.", Paper.Good);
-        else if (OnPlan && _chat.Plan.Stopped is { } why)
-            Form.Say(_now, $"{_name} waits: " + why switch
-            {
-                PlanStop.Limit => "your ChatGPT plan's usage limit is reached.",
-                PlanStop.NotEligible => "this ChatGPT account can't share its plan with apps.",
-                _ => "signed out of ChatGPT.",
-            }, Paper.Bad);
-        else if (_saved is { } provider)
-            Form.Say(_now, $"{_name} answers through {provider.Through}, with {provider.Model}.", Paper.Good);
-        else if (_protocol == Protocol.ChatGpt)
-            Form.Say(_now, $"Not connected: {_name} can't talk with you until you continue with ChatGPT.", Paper.Bad);
+        var (state, works, said) = OnPlan && _chat.OnBackup && _chat.BackupProvider is { } backup
+                ? ("On backup", true, $"{_name} answers through {backup.Name}, with {backup.Model}, until your ChatGPT plan works again.")
+            : OnPlan && _chat.Plan.Stopped is { } why
+                ? ("Waiting", false, $"{_name} waits: " + why switch
+                {
+                    PlanStop.Limit => "your ChatGPT plan's usage limit is reached.",
+                    PlanStop.NotEligible => "this ChatGPT account can't share its plan with apps.",
+                    _ => "signed out of ChatGPT.",
+                })
+            : _saved is { } provider ? ("Connected", true, $"{_name} answers through {provider.Through}, with {provider.Model}.")
+            : _protocol == Protocol.ChatGpt ? ("Not connected", false, $"Not connected: {_name} can't talk with you until you continue with ChatGPT.")
+            : ("Not connected", false, $"Not connected: {_name} can't talk with you until this is filled in and saved.");
+        if (_standing is null)
+            Form.Say(_now, said, works ? Paper.Good : Paper.Bad);
+        else if (_saved is null && _protocol == Protocol.ChatGpt)
+            _standing.Show(state, works, said, "Continue with ChatGPT", () => _ = ContinueWithChatGpt());
         else
-            Form.Say(_now, $"Not connected: {_name} can't talk with you until this is filled in and saved.", Paper.Bad);
+            _standing.Show(state, works, said, "Test", () => _ = _saved is { } saved && !_unsaved
+                ? Test(saved, "", saved.Protocol == Protocol.ChatGpt ? null : _chat.Keys.Load(), _standing.Result, "", search: saved.Protocol != Protocol.ChatGpt)
+                : TestFields(_standing.Result));
     }
 
     private bool _acting;                                   // signing in or disconnecting here: this page says how it went
@@ -211,7 +226,9 @@ public partial class MindSettings : VBoxContainer
 
     private Provider? Chosen() => Provider.From(_protocol.ToString(), _url.Text, _model.Text);
 
-    private Task Test() => Test(Chosen(), Provider.Missing(_url.Text, _model.Text), Typed(_key) ?? _chat.Keys.Load(), _result, _unsaved ? " Save to use it." : "", search: true);
+    /// <summary>Tests the server, key and model as filled in, saying how it went on <paramref name="result"/>.</summary>
+    private Task TestFields(Label result) =>
+        Test(Chosen(), Provider.Missing(_url.Text, _model.Text), Typed(_key) ?? _chat.Keys.Load(), result, _unsaved ? " Save to use it." : "", search: true);
 
     private static string? Typed(LineEdit field) => field.Text.Trim() is { Length: > 0 } typed ? typed : null;
 
@@ -226,7 +243,7 @@ public partial class MindSettings : VBoxContainer
         Form.Say(result, "Asking…", Paper.Faint);
         try
         {
-            using var client = provider.Connect(key);
+            using var client = provider.Connect(key, _chat.Plan);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var reply = await client.GetResponseAsync("Say hello in at most five words.", new ChatOptions { MaxOutputTokens = 300 }, timeout.Token);
             var connected = $"Connected. The model says: {reply.Text.Trim()}" + unsaved;
@@ -241,20 +258,37 @@ public partial class MindSettings : VBoxContainer
             // whether she can search the web without the add-on, so the player knows before she has to say she can't
             using var searching = new CancellationTokenSource(TimeSpan.FromSeconds(90));       // the player's provider took 47 s to search
             var searches = await provider.SearchesItself(key, searching.Token);
-            if (IsInstanceValid(this))
-                Form.Say(result, connected + " " + (searches, provider.Protocol) switch
-                {
-                    (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
-                    (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
-                                 "Until it is, SearXNG (Connections, Web search) can give web search.",
-                    _ => "Web search: your provider has none for this model. SearXNG (Connections, Web search) can give web search.",
-                }, Paper.Good);
+            if (!IsInstanceValid(this))
+                return;
+            Form.Say(result, connected + " " + (searches, provider.Protocol) switch
+            {
+                (true, Protocol.Anthropic) => $"Web search: {_name} can use your provider's own.",
+                (true, _) => "Web search: your provider has one, but only through OpenAI's newer Responses API, not used here yet. " +
+                             "Until it is, your own SearXNG can give web search.",
+                _ => "Web search: your provider has none for this model. Your own SearXNG can give web search.",
+            }, Paper.Good);
+            if (!_brief && !(searches && provider.Protocol == Protocol.Anthropic))    // the first run has no Settings to go to
+                ToWebSearch(result);
         }
         catch (Exception e)
         {
             if (IsInstanceValid(this))
                 Form.Say(result, Trouble.Explain(e, provider, onPlan: _protocol == Protocol.ChatGpt), Paper.Bad);
         }
+    }
+
+    /// <summary>A button to Web search, just after <paramref name="result"/> (once), when the result points there.</summary>
+    private static void ToWebSearch(Label result)
+    {
+        var parent = result.GetParent<Container>();
+        if (parent.GetNodeOrNull("ToWebSearch") is not null)
+            return;
+        var link = Form.Link(parent, "Web search", "addons");
+        link.Name = "ToWebSearch";
+        // on the panel's wash a quiet button would vanish: a shade darker there
+        link.AddThemeStyleboxOverride("normal", Paper.Box(new Color("E2DAF7"), new Color("E2DAF7"), 0, 10, 10, 2));
+        link.AddThemeStyleboxOverride("hover", Paper.Box(new Color("D3C8F2"), new Color("D3C8F2"), 0, 10, 10, 2));
+        parent.MoveChild(link, result.GetIndex() + 1);
     }
 
     private void Save()

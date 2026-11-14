@@ -13,20 +13,44 @@ public partial class AddOnSettings : VBoxContainer
     /// <summary>The add-ons as set now.</summary>
     public event Action<AddOns>? Chosen;
 
-    public void Build(string name, Provider? current, AddOns addOns)
+    /// <param name="searching">How she searches the web now, in a few words (<see cref="Chat.WebSearch"/>), or null when she can't.</param>
+    public void Build(string name, Provider? current, AddOns addOns, Func<string?> searching)
     {
         Form.Page(this);
+        var standing = Form.Connection(this, "Web search");
         Form.Subheading(this, "Web search with SearXNG");
         LineEdit address = null!;
-        var on = Form.Tick(this, "Search the web through my SearXNG", addOns.SearXng,
-                           ticked => Chosen?.Invoke(addOns = addOns with { SearXng = ticked, SearXngAddress = address.Text.Trim() }));
+        CheckBox on = null!;
+        Label result = null!;
+        // on, with a test of the SearXNG when it is that; off, a way to the SearXNG below
+        void ShowStanding()
+        {
+            var how = searching();
+            var line = how is not null ? $"{name} searches the web {how}."
+                     : on.ButtonPressed ? $"{name} can't search the web until your SearXNG's address is filled in."
+                     : $"{name} can't search the web: your provider has no search this app can use. Your own SearXNG can give {name} one.";
+            standing.Show(how is null ? "Off" : "On", how is not null ? true : on.ButtonPressed ? false : null, line,
+                          on.ButtonPressed ? "Test" : "Use my SearXNG", on.ButtonPressed ? () => _ = Test() : UseIt);
+        }
+        void UseIt()
+        {
+            on.ButtonPressed = true;
+            Form.Bring(address);
+        }
+        void Changed(AddOns now)
+        {
+            Chosen?.Invoke(addOns = now);
+            ShowStanding();
+        }
+        on = Form.Tick(this, "Search the web through my SearXNG", addOns.SearXng,
+                       ticked => Changed(addOns with { SearXng = ticked, SearXngAddress = address.Text.Trim() }));
         var row = Form.Indented(this);
         row.AddChild(new Label { Text = "Address" });
         address = new LineEdit { Text = addOns.SearXngAddress, PlaceholderText = "http://localhost:8888", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        address.TextChanged += text => Chosen?.Invoke(addOns = addOns with { SearXngAddress = text.Trim() });
+        address.TextChanged += text => Changed(addOns with { SearXngAddress = text.Trim() });
         row.AddChild(address);
-        var result = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(300, 0), Visible = false };
-        Form.Button(row, "Test", async () =>
+        result = standing.Result;
+        async Task Test()
         {
             if (SearXng.Parse(address.Text) is not { } server)
             {
@@ -45,9 +69,9 @@ public partial class AddOnSettings : VBoxContainer
                 if (IsInstanceValid(this))
                     Form.Say(result, e.Message, Paper.Bad);
             }
-        });
-        AddChild(result);
+        }
         Form.ShowWhile(on, row);
+        ShowStanding();
         var own = current?.Protocol == Protocol.Anthropic ? "your provider's own search" : "no search at all (your provider has none this app can use)";
         Form.Hint(this, $"SearXNG is a free, open-source search engine you run yourself, on this PC or one you trust: it asks the big search " +
                         $"engines for you, and nothing goes through anyone else. With it on, {name} searches through it; without it, {own}. " +

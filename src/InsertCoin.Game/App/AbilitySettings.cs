@@ -37,12 +37,15 @@ public partial class AbilitySettings : VBoxContainer
         Form.Hint(this, $"Like an auto mode: where {name} would ask first, it just happens, and what's switched off stays off. " +
                         "Every use is in the chat history. Two exceptions: what's under What they may see, and the rest " +
                         "of a reply once a page or search results have been read, since a page could try to talk its reader into things.");
+        Form.Link(this, "What they may see", "privacy");
         Form.Subheading(this, "Built in");
         // her agenda is how she keeps the player's plans, as before it was a tool: not an ability to switch off
         AddChild(Choices(tools.All.Where(t => t.Source == Tool.BuiltIn && !t.Private && t.Name != BuiltIn.AgendaName)));
         Form.Hint(this, chat.WebSearch is { } searching
             ? $"{name} searches the web {searching}."
-            : $"{name} can't search the web: your provider has no search of its own that this app can use. Connections, Web search, can add one.");
+            : $"{name} can't search the web: your provider has no search of its own that this app can use. Your own SearXNG can add one.");
+        if (chat.WebSearch is null)
+            Form.Link(this, "Web search", "addons");
 
         var always = tools.Chosen.Where(c => c.Key.Contains(':')).Select(c => c.Key).Order().ToList();
         if (always.Count > 0)
@@ -88,15 +91,17 @@ public partial class AbilitySettings : VBoxContainer
         music = Form.Tick(this, "What's playing in your music app (track and artist)", privacy.Music, _ => Chosen());
         days = Form.Tick(this, "", privacy.Days, _ => Chosen());
         var always = Form.Hint(this, "");
+        Form.Link(this, "Web search", "addons");
         Form.Hint(this, $"Programs you add on Play time count as play while one is the window in front, and {name} is told which by its " +
                         "name. Only the program is known: no window title or browser tab is read for it.");
+        Form.Link(this, "Play time", "balance");
         void Known()                                       // as what earns play time changes on Play time
         {
             var playTime = settings.Now.Earning.Any;
             days.Text = "What your record of days shows: nights running late" + (playTime ? ", days without play" : "");
             always.Text = (playTime ? $"Your play time, focus and what you've done today {name} always knows: the cabinet runs on them."
                                     : $"What you've played, focused on and done today {name} always knows: the cabinet keeps them.") +
-                          $" Web searches go to your provider, or to your own SearXNG (Connections, Web search); pages {name} reads are fetched by this PC from their site.";
+                          $" Web searches go to your provider, or to your own SearXNG; pages {name} reads are fetched by this PC from their site.";
         }
         Known();
         settings.Changed += Known;

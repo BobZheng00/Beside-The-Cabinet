@@ -169,10 +169,11 @@ public partial class Main : Node2D
         AddChild(_crt);
         _musicApp = new MusicApp(_stool.Music, _stool.Focus, _settingsFile);
         _crt.Build(_cabinet.Screen, [new FocusApp(_stool.Focus), new DoneApp(_stool.Activities, name => _state.Today?.Activities.GetValueOrDefault(name) ?? 0, _stool.LogFromScreen),
-                                     _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda), new SettingsApp(() => OpenSettings(null))],
+                                     _musicApp, new MemosApp(_stool.Memos), new AgendaApp(_stool.Store, _stool.OpenAgenda)],
                    _settings.CrtApps, order => SaveSettings(_settings with { CrtApps = order }),
-                   // the tray's switches, read afresh as the bar draws: a change anywhere shows on it
-                   [new CrtOs.Switch("MUTE SOUNDS", () => _settings.Muted, SetMuted, CrtOs.Speaker),
+                   // a cog to Settings, then the tray's switches, read afresh as the bar draws: a change anywhere shows on it
+                   [new CrtOs.Switch("SETTINGS", () => false, _ => OpenSettings(null), CrtOs.Cog, Opens: true),
+                    new CrtOs.Switch("MUTE SOUNDS", () => _settings.Muted, SetMuted, CrtOs.Speaker),
                     new CrtOs.Switch("VOICE", () => _settings.Voice, _stool.SetVoice, CrtOs.Speech),
                     new CrtOs.Switch("CONVERSATION", () => _stool.Conversing, _stool.Converse, CrtOs.Microphone)],
                    () => _window.WindowScale, () => _settings.Size != "L", _cabinet.Skin.Canvas);     // the home screen lifts on S and M (#149)
@@ -1170,7 +1171,7 @@ public partial class Main : Node2D
     private Control CalendarsPage()
     {
         var page = new CalendarSettings();
-        page.Build(_calendars);
+        page.Build(_calendars, _stool.HerName());
         return page;
     }
 

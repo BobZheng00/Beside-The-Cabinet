@@ -36,7 +36,10 @@ public partial class PhoneSettings : VBoxContainer
     private ElsewhereSecrets _secrets = new();
     private CheckBox _ntfy = null!, _discord = null!, _webhook = null!;
     private LineEdit _ntfyServer = null!, _ntfyTopic = null!, _ntfyToken = null!, _discordUrl = null!, _webhookUrl = null!;
-    private Label _result = null!;
+    private Standing _standing = null!;
+    private VBoxContainer _telegram = null!;               // the Telegram part: shown once paired, or to set it up
+    private bool _paired;
+    private string _name = "";
 
     /// <param name="texting">The texting with her, to pair a new bot through.</param>
     /// <param name="name">Her name, which the bot is given.</param>
@@ -44,7 +47,11 @@ public partial class PhoneSettings : VBoxContainer
     {
         _elsewhere = elsewhere;
         _secrets = secrets;
+        _name = name;
+        _paired = elsewhere.Telegram && secrets.TelegramToken is not null && secrets.TelegramChat is not null;
         Form.Page(this);
+        _standing = Form.Connection(this, "Your phone");
+        BuildTelegram(texting, name, _paired);
         Form.Hint(this, $"At the PC {name} tells you in person. When you're away from it, what matters reaches you here instead, in {name}'s words: " +
                         "reminders, a focus session's turns, and asking how something went. What only makes sense at the PC waits for you.");
         Form.Slider(Form.Grid(this), "Away after", Reaching.FewestAwayMinutes, Reaching.MostAwayMinutes, awayMinutes,
@@ -60,8 +67,6 @@ public partial class PhoneSettings : VBoxContainer
         Form.Tick(this, "Also while I'm at the PC", alsoAtThePc, on => AtThePcChosen?.Invoke(on));
         Form.Hint(this, "Reminders reach your phone even when you're at the PC, as a plain line, as they used to.");
 
-        BuildTelegram(texting, name, paired: elsewhere.Telegram && secrets.TelegramToken is not null && secrets.TelegramChat is not null);
-
         Form.Subheading(this, "Notifications only");
         Form.Hint(this, $"{name}'s texts can also go where you can read but not answer. Tick where, and fill in what it asks. Addresses and tokens " +
                         "stay on this PC, encrypted.");
@@ -76,10 +81,23 @@ public partial class PhoneSettings : VBoxContainer
                            grid => _discordUrl = Form.Field(grid, "Webhook", secrets.DiscordWebhook, "https://discord.com/api/webhooks/…", secret: true, typed: _ => Changed()));
         _webhook = Channel("Webhook", elsewhere.Webhook, "Any address that takes a JSON POST: {\"app\", \"title\", \"message\"}. For Home Assistant, IFTTT, your own scripts…",
                            grid => _webhookUrl = Form.Field(grid, "Address", secrets.WebhookUrl, "https://…", secret: true, typed: _ => Changed()));
+        ShowStanding();
+    }
 
-        var test = Form.Buttons(this);
-        Form.Button(test, "Send a test", () => _ = Test());
-        _result = Form.Result(test);
+    /// <summary>The panel at the top: connected, by Telegram or the places ticked, with a test; or Set up Telegram.</summary>
+    private void ShowStanding()
+    {
+        var where = Where();
+        var places = new[] { (where.Ntfy, "ntfy"), (where.Discord, "Discord"), (where.Webhook, "a webhook") }.Where(p => p.Item1).Select(p => p.Item2).ToList();
+        if (_paired || places.Count > 0)
+            _standing.Show("Connected", true, _paired ? $"{_name} texts you on Telegram while you're away, and you can text back."
+                                                      : $"While you're away, {_name}'s texts reach you by {string.Join(", ", places)}.", "Send a test", () => _ = Test());
+        else
+            _standing.Show("Not set up", null, $"While you're away from the PC, {_name} can text you on Telegram, and you can text back.", "Set up Telegram", () =>
+            {
+                _telegram.Visible = true;
+                Form.Bring(_telegram);
+            });
     }
 
     /// <summary>
@@ -88,14 +106,15 @@ public partial class PhoneSettings : VBoxContainer
     /// </summary>
     private void BuildTelegram(Texting texting, string name, bool paired)
     {
-        Form.Subheading(this, $"Text with {name} on Telegram");
-        var done = Form.Buttons(this);
+        var part = _telegram = new VBoxContainer { Visible = paired };
+        part.AddThemeConstantOverride("separation", 10);
+        AddChild(part);
+        Form.Subheading(part, $"Text with {name} on Telegram");
+        var done = Form.Buttons(part);
         var steps = new VBoxContainer();
         steps.AddThemeConstantOverride("separation", 10);
         if (paired)
         {
-            var state = Form.Result(done);
-            Form.Say(state, "Paired: you can text each other there.", Paper.Good);
             Form.Button(done, "Pair again", () =>
             {
                 done.Visible = false;
@@ -105,13 +124,12 @@ public partial class PhoneSettings : VBoxContainer
         }
         done.Visible = paired;
         steps.Visible = !paired;
-        AddChild(steps);
+        part.AddChild(steps);
 
         Form.Hint(steps, $"A bot of your own, for {name} alone: about two minutes, all but the last step in Telegram.");
-        var first = Form.Buttons(steps);
-        first.AddChild(Form.Hint($"1. Open BotFather (Telegram in your browser; log in there once with your phone) and send /newbot. Give " +
-                                 $"it {name}'s name, then a username ending in \"bot\"."));
-        Form.Button(first, "Open BotFather", () => OS.ShellOpen(BotFather));
+        Form.Hint(steps, $"1. Open BotFather (Telegram in your browser; log in there once with your phone) and send /newbot. Give " +
+                         $"it {name}'s name, then a username ending in \"bot\".");
+        Form.Button(steps, "Open BotFather", () => Form.Browse(BotFather)).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;     // under it: beside it, too wide at 125%
         Form.Hint(steps, "2. Paste the token BotFather gives you, and Check it.");
         var token = Form.Field(Form.Grid(steps), "Bot token", paired ? _secrets.TelegramToken : null, "123456:ABC…", secret: true);
         var check = Form.Buttons(steps);
@@ -130,7 +148,7 @@ public partial class PhoneSettings : VBoxContainer
         var link = new LineEdit { Editable = false, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         open.AddChild(link);
         var web = "";
-        Form.Button(open, "Open it in this browser", () => OS.ShellOpen(web));
+        Form.Button(open, "Open it in this browser", () => Form.Browse(web));
         Form.Say(Form.Result(scan), "Waiting for you to press Start…", Paper.Faint);
         Form.Button(check, "Check", async () =>
         {
@@ -175,7 +193,7 @@ public partial class PhoneSettings : VBoxContainer
         }).SizeFlagsVertical = SizeFlags.ShrinkCenter;
         check.MoveChild(found, -1);
         Form.Hint(steps, "Each profile needs a bot of its own: the demo too.");
-        Form.Hint(this, "The chat goes through Telegram's servers and isn't end-to-end encrypted: bots can't use Telegram's secret chats. " +
+        Form.Hint(part, "The chat goes through Telegram's servers and isn't end-to-end encrypted: bots can't use Telegram's secret chats. " +
                         $"What {name} texts can include anything known about you: your agenda, how you've slept, what you've said.");
     }
 
@@ -201,7 +219,11 @@ public partial class PhoneSettings : VBoxContainer
         NtfyTopic = Value(_ntfyTopic), NtfyToken = Value(_ntfyToken), DiscordWebhook = Value(_discordUrl), WebhookUrl = Value(_webhookUrl),
     };
 
-    private void Changed() => Chosen?.Invoke(Where(), Secrets());
+    private void Changed()
+    {
+        Chosen?.Invoke(Where(), Secrets());
+        ShowStanding();
+    }
 
     /// <summary>A test reminder through each place on (Telegram too, once paired), saying how each went.</summary>
     private async Task Test()
@@ -213,10 +235,10 @@ public partial class PhoneSettings : VBoxContainer
         var parcels = Couriers.Parcels(where, Secrets(), notice).Count();
         if (ticked == 0)
         {
-            Form.Say(_result, "Pair Telegram or tick a place first.", Paper.Bad);
+            Form.Say(_standing.Result, "Pair Telegram or tick a place first.", Paper.Bad);
             return;
         }
-        Form.Say(_result, "Sending…", Paper.Faint);
+        Form.Say(_standing.Result, "Sending…", Paper.Faint);
         var results = parcels > 0 ? await Couriers.Send(Http, where, Secrets(), notice) : [];
         if (!IsInstanceValid(this))
             return;
@@ -224,7 +246,7 @@ public partial class PhoneSettings : VBoxContainer
         if (parcels < ticked)
             said.Add("fill in what each place you ticked asks for");
         var text = string.Join("; ", said);
-        Form.Say(_result, char.ToUpperInvariant(text[0]) + text[1..] + ".", results.Any(r => r.Error is not null) || parcels < ticked ? Paper.Bad : Paper.Good);
+        Form.Say(_standing.Result, char.ToUpperInvariant(text[0]) + text[1..] + ".", results.Any(r => r.Error is not null) || parcels < ticked ? Paper.Bad : Paper.Good);
     }
 
     private static string? Value(LineEdit field) => field.Text.Trim().Length > 0 ? field.Text.Trim() : null;

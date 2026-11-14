@@ -14,8 +14,9 @@ keeps you company… (Settings → Companion, to choose who sits on the stool), 
 memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
 Conversation). A
 click on the cabinet's screen opens its small system: apps on a home screen, four to a page (swipe between pages; hold
-one to move it), SETTINGS last (on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
-switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it), which opens Settings as the tray does; along its top bar the same three switches, lit
+one to move it; on a Small or Medium cabinet the screen lifts out to face you as it opens, so its
+switches and app names can be read, and stays out while you use its apps; a click away settles it back and closes it). Along its top bar
+a cog opens Settings as the tray does, and beside it the same three switches, lit
 when on, a click flipping one. The name of the switch or app under the pointer lights up on the marquee above the
 screen, which reads INSERT COIN the rest of the time, in a dot-matrix sign's 5×7 letters: its pink dots snap on and
 off, and a name flips on whole the moment the pointer rests on its button, as an LED sign turns to its next page (a
@@ -28,6 +29,12 @@ part has them as tabs inside it: Voice (Their voice, Talking to them), AI model 
 Notifications (Reminders, Check-ins, Bedtime and quiet hours), Connections (Your phone, Calendars, Web search) and
 Abilities and privacy (What they can do, Skills, What they may see). Memory has Notes, Agenda, Facts, Diary, Memos and
 Forget as tabs, and a button to Chat history. Each is saved as you change it; only the provider waits for its Save.
+Your phone, Calendars, Web search and AI model's Connection each start with a panel: what it is, how it stands in a
+word (Connected, Not set up, Linked, On, Off, Waiting…) and one button, the next thing to do: Send a test or Set up
+Telegram, Read them now or Link a calendar, Test or Use my SearXNG, Test or Continue with ChatGPT. The rules and
+options come below it. Where a page points to another ("Reminders ›", "Your phone ›", "Web search ›"), the small button
+opens it; Chat history's "Memory ›" opens Memory at Forget. General ends with Help, which opens this manual in your
+browser, and About: what the app is, its version and licence, and its project page.
 Settings and the app's other windows open above the cabinet and your companion and stay there while open, also when
 the cabinet rises for a moment or is kept on top ("Always on top" on General).
 
@@ -248,7 +255,7 @@ themselves. You're away after five minutes without the mouse or keys (Settings �
 at once with the screen locked, or when you tell them you're heading out or going to bed; asleep if that's in the
 quiet hours. Away, what matters reaches your phone as a text in their words, through [ntfy](https://ntfy.sh), a
 Discord webhook, a Telegram bot or any webhook (Settings → Connections → Your phone; addresses and tokens stored encrypted, "Send a
-test" to check): reminders, a focus session's turns, and asking how something went (a reminder never waits more than
+test" on its panel to check): reminders, a focus session's turns, and asking how something went (a reminder never waits more than
 30 seconds for their words: then the plain line goes). Asleep, only reminders. What only makes sense at the PC
 (bedtime words, a break from a long game) waits for you while it still matters; a suggestion to stand up is dropped.
 In between, when your companion isn't sure, they call you first, and text if you turn out to have gone. "Also while
@@ -262,7 +269,7 @@ bring it up in person.
 
 ## Texting
 
-On Telegram you can text your companion back, from anywhere (Settings → Connections → Your phone, "Text with … on Telegram": make
+On Telegram you can text your companion back, from anywhere (Settings → Connections → Your phone, Set up Telegram: make
 a bot with @BotFather, paste its token, scan the code and press Start; about two minutes). They answer by text,
 knowing you're out; their cards come as buttons, a memo as a message (it prints too), and photos and files you send
 reach them. What they put on your agenda, change or cancel comes as a plain line from the app under their message
