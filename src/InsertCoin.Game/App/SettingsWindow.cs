@@ -19,9 +19,9 @@ public sealed record SettingsPage(string Id, string Category, string Tab, Func<C
 /// </summary>
 public partial class SettingsWindow : Window
 {
-    public const string Start = "Getting started", General = "General", Companion = "Companion", Memory = "Memory", Voice = "Voice", AiModel = "AI model",
+    public const string Missions = "Missions", General = "General", Companion = "Companion", Memory = "Memory", Voice = "Voice", AiModel = "AI model",
         PlayTime = "Play time", Notifications = "Notifications", Connections = "Connections", Abilities = "Abilities and privacy";
-    private static readonly string[] Categories = [Start, General, Companion, Memory, Voice, AiModel, PlayTime, Notifications, Connections, Abilities];
+    private static readonly string[] Categories = [Missions, General, Companion, Memory, Voice, AiModel, PlayTime, Notifications, Connections, Abilities];
 
     private readonly Dictionary<string, SettingsPage> _pages = [];
     private readonly Dictionary<string, List<SettingsPage>> _parts = [];    // each category's pages, in the order given

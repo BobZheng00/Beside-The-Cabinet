@@ -16,7 +16,11 @@ public sealed class JsonFileStoreTests : IDisposable
         var result = new Ledger(rules).Step(LedgerState.New(now, rules),
             new TasksObserved([new SolvedTask("two-sum", "Two Sum", Difficulty.Hard, now)]), now);
         var today = result.State.Today! with { Bedtime = new TimeSpan(0, 30, 0), FirstActive = now.AddHours(-2), LastPlayed = now };
-        return result.State with { Username = "bob", Today = today, Days = [today with { Day = today.Day.AddDays(-1), FadedMs = 1_234 }] };
+        return result.State with
+        {
+            Username = "bob", Today = today, Days = [today with { Day = today.Day.AddDays(-1), FadedMs = 1_234 }],
+            Missions = new MissionProgress { Done = ["ai", "hello"], Paid = ["ai"] },
+        };
     }
 
     [Fact]
@@ -39,6 +43,21 @@ public sealed class JsonFileStoreTests : IDisposable
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(state.Today), System.Text.Json.JsonSerializer.Serialize(loaded.Today));
         Assert.Equal(System.Text.Json.JsonSerializer.Serialize(state.Days), System.Text.Json.JsonSerializer.Serialize(loaded.Days));
         Assert.Equal(["Two Sum (Hard)"], loaded.Today!.Solved);
+        Assert.Equal(["ai", "hello"], loaded.Missions!.Done);
+        Assert.Equal(["ai"], loaded.Missions.Paid);
+    }
+
+    [Fact]
+    public void A_state_saved_before_missions_loads_with_none()
+    {
+        var store = new JsonFileStore<LedgerState>(StatePath);
+        store.Save(SampleState() with { Missions = null });
+        File.WriteAllText(StatePath, System.Text.RegularExpressions.Regex.Replace(File.ReadAllText(StatePath), ",\\s*\"Missions\": null", ""));
+
+        var loaded = store.Load();
+
+        Assert.DoesNotContain("Missions", File.ReadAllText(StatePath));
+        Assert.Null(loaded!.Missions);
     }
 
     [Fact]
