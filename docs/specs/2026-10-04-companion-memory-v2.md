@@ -296,7 +296,8 @@ list's × stays one click); only Close is left.
   player's, and hers is kept too: a fact's as what it used to say (retired, "changed to: " the player's words), a
   note's or an agenda item's in the log (a note is the player's own and rarely changed by anyone else; a second agenda
   item would remind twice). A time that can't be read can't be saved: Close stops and says which, and a second Close
-  within a few seconds closes without that one change; the app quitting drops it with a log line naming it.
+  within a few seconds closes without that one change; someone else taking the stool keeps Memory as it was (it shows and
+  says which), until put right or Settings closes (#308); the app quitting drops it with a log line naming it.
 - **It follows her memory in place** every two seconds: agenda, threads, facts (new ones on top while it is open),
   retired facts, diary, memos and the two notes, except a field the player has changed and not left.
 - The line beside Close says what was saved last, and when, after how many changes wait for the player to choose.

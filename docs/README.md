@@ -600,7 +600,7 @@ changed that same thing meanwhile, the row shows theirs and asks which to keep. 
 yours (a fact of theirs written over is kept under "Retired by the review", as changed to yours). The other way
 round holds too: upkeep never writes over a fact or an agenda item you saved while it was thinking; yours stays, and
 a fact of theirs is kept the same way, as changed to yours (not one you forgot); nor does it add back what you forgot. A time that can't
-be read can't be saved: closing Settings says so first, and closing again leaves that one change out. The Forget tab's red buttons ask once more before they act: "Clear the chat" starts the conversation afresh and keeps what they remember;
+be read can't be saved: closing Settings says so first, and closing again leaves that one change out; someone else taking the stool meanwhile brings Memory back as it was, saying so, until it is put right or Settings closes. The Forget tab's red buttons ask once more before they act: "Clear the chat" starts the conversation afresh and keeps what they remember;
 "Forget all with …" clears the conversation and everything about the two of you; "Forget all about me" clears what
 every character knows about you, and your agenda, and leaves the conversations. It stays in the profile folder
 (`companion\memory.db`); the key and a ChatGPT sign-in are encrypted for your Windows account. Without a provider they keep to their canned

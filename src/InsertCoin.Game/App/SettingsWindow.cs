@@ -131,7 +131,8 @@ public partial class SettingsWindow : Window
     {
         if (!_pages.TryGetValue(id, out var page))
             return;
-        if ((page.Fresh || _stale.Contains(id)) && _showing != id && _made.Remove(id, out var stale))
+        // Memory with a time it can't read keeps what was typed until it is put right or Settings closes
+        if ((page.Fresh || _stale.Contains(id)) && _showing != id && PageOf(id) is not MemorySettings { CantSave: true } && _made.Remove(id, out var stale))
         {
             stale.QueueFree();
             _stale.Remove(id);
@@ -189,20 +190,30 @@ public partial class SettingsWindow : Window
     /// <summary>
     /// Someone else took the stool: every page made before, which may say the old name, is made again: the one showing
     /// at once, others when next shown. The one showing stays as it is when it is <paramref name="choosingOn"/> (the
-    /// player may be choosing on it), and is made again when next shown.
+    /// player may be choosing on it), and is made again when next shown. Memory with a time it can't read stays too, and
+    /// shows why, as closing Settings does.
     /// </summary>
     public void Rename(string companion, string choosingOn)
     {
         if (_companion == companion)
             return;
         _companion = companion;
-        foreach (var id in _made.Keys.Where(id => id != _showing).ToList())
+        var memory = PageOf("memory") as MemorySettings;
+        var held = memory?.CantSave == true ? "memory" : null;
+        foreach (var id in _made.Keys.Where(id => id != _showing && id != held).ToList())
             RefreshPage(id);
-        if (_showing == choosingOn)
-            _stale.Add(_showing);
+        var later = _showing == choosingOn || _showing == held;
+        if (later)
+            _stale.Add(_showing!);
         else if (_showing is not null)
             RefreshPage(_showing);
-        GD.Print($"Settings: the pages now name {companion}; {_showing} made again {(_showing == choosingOn ? "when next shown" : "now")}");
+        GD.Print($"Settings: the pages now name {companion}; {_showing} made again {(later ? "when next shown" : "now")}");
+        if (held is not null)
+        {
+            _stale.Add(held);
+            ShowPage(held);
+            memory!.Leave(closing: false);
+        }
     }
 
     /// <summary>The page made for <paramref name="id"/>, if it has been.</summary>
