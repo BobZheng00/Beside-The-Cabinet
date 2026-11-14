@@ -13,7 +13,8 @@ threads from the talk so far, without waiting for ten quiet minutes) · `Esc` qu
 
 ## Arguments
 
-Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds).
+Arguments after `--`: `--data=DIR`, `--no-steam`, `--script=hard@2,game@5,warp@5` (dev actions at given seconds),
+`--full-window` (the cabinet's window keeps the size Godot gave it, and the intro plays in it: `clip.ps1 -Resolution`).
 
 ## Dev actions
 
@@ -47,7 +48,12 @@ hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open 
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
 showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
 screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
-`welcome` (the first run's Welcome again), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
+`welcome` (the first run's Welcome again, on its own), `intro` (the first run's intro again, as General's "Replay the
+intro": nothing asked, no hello; a profile seeded with `"SetUp": false` plays it with the Welcome at its close-up, about
+11 s in), `coin` (a click on the intro's coin slots: any time, the coin goes in once the view has walked up),
+`introskip` (the intro's Skip; Esc does the same; the intro's window is `Beside the Cabinet intro`, for `-Window intro`;
+a test run compares it with the cabinet's at the handover and logs `Intro: the handover lines up` or `is out`, and the
+cabinet must be on the screen for it, `-Settings ', "WindowX": 300, "WindowY": 300'`), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode is a stand-in that finds every player,
 with nothing solved, except `nobody`, who isn't there, and `nolink`, for whom LeetCode doesn't answer, so
 `welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Play time page's Change… and the cabinet's
@@ -177,7 +183,10 @@ over. Godot's shader cache in that folder is still shared: it only ever holds th
 records only the cabinet's window, so their speech bubble, a window of its own, is mirrored into it for a clip (the log
 says `SpeechBubble: a clip: …`) and kept inside it: by a small cabinet its pages there are shorter than on the desktop
 and it may cover the marquee, and it looks grey for the frames it fades in and out. Judge its motion (the pop-in, a
-page turning) on a clip with `-Crop ""`, and its size and place on `shoot.ps1 -Desk` shots.
+page turning) on a clip with `-Crop ""`, and its size and place on `shoot.ps1 -Desk` shots. The first run's intro has
+a window of its own across the screen, so a clip of it makes the cabinet's window the size of a screen instead
+(`-Resolution 1920x1080 -Script "intro@1,coin@7" -Seconds 27`, through an `override.cfg` held while it runs, and the
+app's `--full-window`): the whole window, an MP4 only; `-KeepFrames` keeps its frames to read.
 
 What a hidden run guarantees (`shoot.ps1 -Hidden`, every smoke scenario, `clip.ps1`): nothing of it reaches the
 player's screen, taskbar or focus, from start to finish. No console, no window flashing up, no taskbar button, no

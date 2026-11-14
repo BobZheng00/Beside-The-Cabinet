@@ -100,6 +100,12 @@ SOUNDS = {
     "remind": seq(*[seq(mix(tone(NOTE["E6"], 0.3, "sine", 0.45, decay=3.5), tone(NOTE["E7"], 0.18, "triangle", 0.08, decay=6)),
                         mix(tone(NOTE["C6"], 0.55, "sine", 0.45, decay=3.0), tone(NOTE["C7"], 0.22, "triangle", 0.08, decay=6)),
                         silence(0.16)) for _ in range(2)]),
+    # the first run's intro: a soft footstep on the way up to the cabinet, and its tube striking on (a thunk, then the
+    # rising whine and crackle of a CRT warming)
+    "step": mix(noise(0.09, 0.5, 0.08, decay=7), tone(95, 0.1, "sine", 0.5, to=60, decay=6)),
+    "power_on": mix(seq(noise(0.05, 0.6, 0.3, decay=4), tone(70, 0.25, "sine", 0.55, to=45, decay=5)),
+                    seq(silence(0.06), tone(180, 0.7, "triangle", 0.16, to=820, attack=0.08, decay=2.5)),
+                    seq(silence(0.1), noise(0.6, 0.12, 0.9, decay=3))),
 }
 
 

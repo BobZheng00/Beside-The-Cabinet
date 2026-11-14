@@ -44,6 +44,16 @@ Skip keeps the answers given so far and takes the defaults for the rest: Shino, 
 General in Settings can replay the intro. A profile set up before Preview 3 skips it and the missions, with its play time
 unchanged.
 
+*Built (#269):* the intro, `App/Intro.cs` and the `intro_*` shaders, in a window of its own across the screen (less the
+taskbar: a window the screen's exact size can be taken for a full-screen game and lose its transparency) that shares
+the cabinet's picture; the cabinet's window never resizes, and a test run compares the two at the handover. It waits at
+the coin for a click on the slots, and at the close-up for today's Welcome, which opens beside the screen (over it on a
+narrow screen) while the screen names each of its pages; the arrival is #268's, and the hello comes once the cabinet
+has settled. Skip (or Esc) closes the Welcome with what was answered; General's "Replay the intro" asks nothing and
+says no hello. Its sounds (a footstep, the tube striking on) are made by `tools/sfx`. The dark is dithered by a step
+of the viewport's linear buffer, whose first steps up from black are 12 and 21 of 255 on screen. Not yet: the screen's
+picture drawn at the size it's shown up close (it's soft at 4K).
+
 **The setup on the screen**, in the words of an arcade:
 
 | Screen | Asks |
@@ -141,7 +151,7 @@ after the character. The memory book moves in as one page ("Moves into setting w
 
 The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the screen's home bar.
 
-*Built (#260):* the list of categories, each part as a tab, bedtime and the quiet hours together under Notifications. *Built (#70):* Memory's six tabs inside Settings (its page's own tab row, Chat history a button above them), reached from the right-click menu, the tray, the screen's AGENDA at Agenda and Reminders' Open the agenda; a filter on Facts and Diary; red Forget buttons, still asking twice. Not yet: replay the intro, Help and About, under General.
+*Built (#260):* the list of categories, each part as a tab, bedtime and the quiet hours together under Notifications. *Built (#70):* Memory's six tabs inside Settings (its page's own tab row, Chat history a button above them), reached from the right-click menu, the tray, the screen's AGENDA at Agenda and Reminders' Open the agenda; a filter on Facts and Diary; red Forget buttons, still asking twice. *Built (#269):* "Replay the intro" on General. Not yet: Help and About, under General.
 
 **The look** ("We will do A", 2026-11-07):
 - unticked boxes and unchosen radios drawn empty, on every window (built, #259);

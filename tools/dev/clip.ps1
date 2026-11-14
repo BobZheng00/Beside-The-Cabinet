@@ -15,9 +15,12 @@
 # -Settings extra JSON members for settings.json, starting with a comma
 # -Characters a folder copied in as the profile's characters folder (a model and its voice, say)
 # -KeepFrames leave the frames (PNG, with alpha) in <Out>\frames-<Tag>, to read them one by one (delete them afterwards)
+# -Resolution "1920x1080": the cabinet's window made the size of a whole screen, for the first run's intro, which then
+#           plays in it (the dev action "intro", then "coin"): the whole window kept, an MP4 only, at a higher quality
+#           (dark gradients). tools\dev\clip.ps1 -Resolution 1920x1080 -Script "intro@1,coin@7" -Seconds 30 -Tag intro
 # Output: <Out>\<Tag>.gif and <Tag>.mp4 (the frames are deleted), plus the app's log.
 param([string]$Script = "", [double]$Seconds = 6, [double]$From = 2, [string]$Tag = "clip", [string]$Settings = "", [string]$Characters = "",
-      [string]$Crop = "180:460:65:130", [double]$Scale = 1, [int]$Fps = 30, [string]$Bg = "#F2EFF7", [switch]$KeepFrames,
+      [string]$Crop = "180:460:65:130", [double]$Scale = 1, [string]$Resolution = "", [int]$Fps = 30, [string]$Bg = "#F2EFF7", [switch]$KeepFrames,
       [string]$Out = (Join-Path $env:TEMP "insert-coin-clips"),
       [string]$Godot = "",
       [string]$Ffmpeg = "ffmpeg")
@@ -44,6 +47,11 @@ if (Test-Path $frames) { Remove-Item $frames -Recurse -Force }
 New-Item -ItemType Directory $frames | Out-Null
 $userArgs = "--data=`"$profile`" --no-steam --offscreen --test-run"
 if ($Script -ne "") { $userArgs += " --script=$Script" }
+$override = Join-Path $repo "src\InsertCoin.Game\override.cfg"
+if ($Resolution -ne "") {                                              # a whole screen: the intro plays in the cabinet's own window
+  $userArgs += " --full-window"
+  if (-not $PSBoundParameters.ContainsKey("Crop")) { $Crop = "" }
+}
 $log = Join-Path $Out "run-$Tag.log"; $err = Join-Path $Out "run-$Tag.err"
 $count = [int]($Seconds * $Fps)
 # One test run at a time on this PC: smoke.ps1, shoot.ps1 and clip.ps1 take the same lock, so parallel agents take turns
@@ -54,11 +62,18 @@ catch [System.Threading.AbandonedMutexException] { }                 # a killed 
 & (Join-Path $PSScriptRoot "import.ps1") -Godot $Godot                 # the art again, if anything changed since the last import
 # on a Windows desktop of its own, as shoot.ps1 -Hidden runs it: nothing reaches the player's screen, taskbar or focus
 if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
+# the movie writer records at the project's window size, which only override.cfg changes (--resolution doesn't), held
+# under the lock so that no other test run of this checkout starts with it
+if ($Resolution -ne "") {
+  $wide, $high = $Resolution.Split('x')
+  "[display]`n`nwindow/size/window_width_override=$wide`nwindow/size/window_height_override=$high`n" | Out-File -Encoding ascii $override
+}
 $p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count --log-file `"$profile\godot.log`" -- $userArgs", $log, $err)
 $watch = New-Object Unseen $p.Id
 $p.WaitForExit()
 [Backstage]::EndAll()
 $watch.Stop()
+if ($Resolution -ne "") { Remove-Item $override -ErrorAction SilentlyContinue }
 $runLock.ReleaseMutex(); $runLock.Dispose()
 
 $first = [int]($From * $Fps)
@@ -66,9 +81,12 @@ $first = [int]($From * $Fps)
 $filter = "split[a][b];[a]format=rgb24,drawbox=x=0:y=0:w=iw:h=ih:color=$($Bg.Replace('#', '0x')):t=fill[bg];[bg][b]overlay"
 if ($Crop -ne "") { $w, $h, $x, $y = $Crop.Split(':'); $filter += ",crop=${w}:${h}:${x}:${y}" }
 $filter += ",scale=iw*${Scale}:-1:flags=lanczos"
-& $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" -filter_complex "$filter,format=yuv420p" -c:v libx264 -crf 18 (Join-Path $Out "$Tag.mp4")
-& $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" `
-  -filter_complex "$filter,split[c][d];[c]palettegen=stats_mode=diff[p];[d][p]paletteuse=dither=sierra2_4a" (Join-Path $Out "$Tag.gif")
+$quality = if ($Resolution -ne "") { "-crf", "14", "-preset", "slow", "-x264-params", "aq-mode=3:deblock=-2,-2" } else { "-crf", "18" }
+& $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" -filter_complex "$filter,format=yuv420p" -c:v libx264 @quality (Join-Path $Out "$Tag.mp4")
+if ($Resolution -eq "") {
+  & $Ffmpeg -y -loglevel error -framerate $Fps -start_number $first -i "$frames\f%08d.png" `
+    -filter_complex "$filter,split[c][d];[c]palettegen=stats_mode=diff[p];[d][p]paletteuse=dither=sierra2_4a" (Join-Path $Out "$Tag.gif")
+}
 if (-not $KeepFrames) { Remove-Item $frames -Recurse -Force }
 Get-Content $err -ErrorAction SilentlyContinue | Select-String -Pattern "ERROR|Exception" | Select-Object -First 15
-"$(Join-Path $Out "$Tag.gif")  ($([int](($Seconds - $From) * $Fps)) frames)"
+"$(Join-Path $Out $(if ($Resolution -ne '') { "$Tag.mp4" } else { "$Tag.gif" }))  ($([int](($Seconds - $From) * $Fps)) frames)"
