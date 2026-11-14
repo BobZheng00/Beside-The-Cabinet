@@ -61,9 +61,6 @@ public partial class Intro(CabinetView cabinet, Func<CompanionView?> her, AudioB
     private Control _skip = null!;
     private Motes _motes = null!;
 
-    /// <summary>The intro is showing (from the start until its window has gone).</summary>
-    public bool Playing => !_finished;
-
     public void Start()
     {
         var main = GetWindow();
@@ -317,6 +314,11 @@ public partial class Intro(CabinetView cabinet, Func<CompanionView?> her, AudioB
         _welcome = welcome;
         welcome.Paged += Page;
         welcome.Done += _ => Answered();
+        welcome.WindowInput += e =>                         // it has the keyboard at the close-up (the intro's own window never takes it)
+        {
+            if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+                Callable.From(Skip).CallDeferred();         // not while the Welcome is still handling the key
+        };
         Page(0);
         if (!Paper.OffScreen && _window is not null)       // beside the screen, or over it on a narrow one
             welcome.Position = _window.Position + new Vector2I(_aside > 0 ? (int)(_view.X - Margin * _ui) - welcome.Size.X : ((int)_view.X - welcome.Size.X) / 2,

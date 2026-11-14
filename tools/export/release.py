@@ -246,7 +246,9 @@ def main():
     if not found:
         sys.exit('usage: python tools/export/release.py <version>, such as 0.1.0-preview.1 or 0.1.0')
     version = sys.argv[1]
-    exe_version = f'{found[1]}.{found[2] or 0}'          # Windows wants four numbers: 0.1.0-preview.1 is 0.1.0.1
+    if (GAME / 'override.cfg').exists():                # a clip's (clip.ps1 -Resolution): Godot would export its window size
+        sys.exit('src/InsertCoin.Game/override.cfg is there (a clip running, or one that was killed): let it finish, or delete the file')
+    exe_version =f'{found[1]}.{found[2] or 0}'          # Windows wants four numbers: 0.1.0-preview.1 is 0.1.0.1
     preset = (GAME / 'export_presets.cfg').read_text(encoding='utf-8')
     if f'application/file_version="{exe_version}"' not in preset or f'application/product_version="{exe_version}"' not in preset:
         sys.exit(f'set application/file_version and application/product_version to "{exe_version}" in export_presets.cfg')

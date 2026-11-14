@@ -51,7 +51,7 @@ screen, "(on top)" on those above other apps: Settings and the rest belong above
 `welcome` (the first run's Welcome again, on its own), `intro` (the first run's intro again, as General's "Replay the
 intro": nothing asked, no hello; a profile seeded with `"SetUp": false` plays it with the Welcome at its close-up, about
 11 s in), `coin` (a click on the intro's coin slots: any time, the coin goes in once the view has walked up),
-`introskip` (the intro's Skip; Esc does the same; the intro's window is `Beside the Cabinet intro`, for `-Window intro`;
+`introskip` (the intro's Skip; Esc does the same while the Welcome or the cabinet has the keyboard; the intro's window is `Beside the Cabinet intro`, for `-Window intro`;
 a test run compares it with the cabinet's at the handover and logs `Intro: the handover lines up` or `is out`, and the
 cabinet must be on the screen for it, `-Settings ', "WindowX": 300, "WindowY": 300'`), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode is a stand-in that finds every player,

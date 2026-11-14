@@ -49,7 +49,7 @@ taskbar: a window the screen's exact size can be taken for a full-screen game an
 the cabinet's picture; the cabinet's window never resizes, and a test run compares the two at the handover. It waits at
 the coin for a click on the slots, and at the close-up for today's Welcome, which opens beside the screen (over it on a
 narrow screen) while the screen names each of its pages; the arrival is #268's, and the hello comes once the cabinet
-has settled. Skip (or Esc) closes the Welcome with what was answered; General's "Replay the intro" asks nothing and
+has settled. Skip (or Esc, where the app has the keyboard: the intro's window never takes it) closes the Welcome with what was answered; General's "Replay the intro" asks nothing and
 says no hello. Its sounds (a footstep, the tube striking on) are made by `tools/sfx`. The dark is dithered by a step
 of the viewport's linear buffer, whose first steps up from black are 12 and 21 of 255 on screen. Not yet: the screen's
 picture drawn at the size it's shown up close (it's soft at 4K).

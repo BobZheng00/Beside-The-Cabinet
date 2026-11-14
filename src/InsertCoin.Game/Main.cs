@@ -56,6 +56,7 @@ public partial class Main : Node2D
     private SettingsWindow? _settingsWindow;
     private Welcome? _welcome;
     private Intro? _intro;
+    private TimeSpan _introEnded = TimeSpan.FromHours(-1);
     private bool _recording;                                // a clip of a whole screen (clip.ps1 -Resolution): the cabinet's window is that size
     private Texting _texting = null!;
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
@@ -613,8 +614,9 @@ public partial class Main : Node2D
     private void SetPace()
     {
         // Lights and glows animate all the time, so without a cap the window redraws at the monitor's rate.
-        var slow = Gaming                                                           // a game is being played: stay out of its way
-                   || (_settings.EnergySaver && _clock.Elapsed > _livelyUntil);
+        var slow = !IsInstanceValid(_intro)                                         // the intro plays at full pace
+                   && (Gaming                                                       // a game is being played: stay out of its way
+                       || (_settings.EnergySaver && _clock.Elapsed > _livelyUntil));
         Engine.MaxFps = slow ? SlowPace : FullPace;
     }
 
@@ -668,9 +670,10 @@ public partial class Main : Node2D
         }
         if (e is not InputEventKey { Pressed: true, Echo: false } key)
             return;
-        if (key.Keycode == Key.Escape && IsInstanceValid(_intro) && _intro!.Playing)
+        // Esc skips the intro; pressed again as it ends (or soon after), it doesn't quit the app
+        if (key.Keycode == Key.Escape && (IsInstanceValid(_intro) || _clock.Elapsed - _introEnded < TimeSpan.FromSeconds(2)))
         {
-            _intro.Skip();
+            _intro?.Skip();
             GetViewport().SetInputAsHandled();
             return;
         }
@@ -1065,12 +1068,19 @@ public partial class Main : Node2D
         // where the cabinet's window is, or in a clip of a whole screen, where it would be at its size (above a taskbar)
         var size = _recording ? (Vector2I)(_cabinet.Skin.Canvas * (_settings.Size switch { "S" => 0.6f, "L" => 1.0f, _ => 0.8f })).Round() : DisplayServer.WindowGetSize();
         var resting = new Rect2I(_recording ? DisplayServer.WindowGetSize() - size - new Vector2I(40, 120) : DisplayServer.WindowGetPosition(), size);
+        _crt.Close();                                       // the screen's system (Settings opened from it, lifted out on S and M) back in the cabinet
         _intro = new Intro(_cabinet, () => _stool.Her, _audio, replay ? null : () => OpenWelcome(alone: false), _settings.Initials, resting, _recording);
         AddChild(_intro);
-        _window.SetTopmost(true);                           // with the intro's window over it, above other apps' windows
+        _window.KeptOnTop = true;                           // with the intro's window and the app's others over it, above other apps' windows
+        _window.SetTopmost(true);
+        SetPace();                                          // at full pace, even saving energy
         _intro.Landed += Welcomed;
         _intro.Done += () =>
         {
+            _intro = null;
+            _introEnded = _clock.Elapsed;
+            SetPace();
+            _window.KeptOnTop = false;
             _window.SetTopmost(_settings.AlwaysOnTop);
             if (replay)
                 return;
