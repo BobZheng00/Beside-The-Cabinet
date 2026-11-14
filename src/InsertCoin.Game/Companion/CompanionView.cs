@@ -30,6 +30,12 @@ public partial class CompanionView : Node2D
     private CabinetSkin _skin = null!;
     private Rig _rig = null!;
     private Node3D _character = null!;
+    /// <summary>
+    /// A plain GLB's skirt and coat tails. Through the arrival's jump they are held to the body's pose: left to the
+    /// springs, a skirt was left behind round the back of the legs, and the legs then kept it there until well
+    /// after the landing (#309). From the landing on they have their give again.
+    /// </summary>
+    private SpringBoneSimulator3D? _clothes;
     private Camera3D _camera = null!;
     private Puppet _puppet = null!;
     private Face _face = null!;
@@ -94,7 +100,7 @@ public partial class CompanionView : Node2D
             throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
         var fit = Fit(_character, skeleton, humanoid);
         _rig = new Rig(skeleton, humanoid, fit);
-        var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size) : [];
+        var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size, out _clothes) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _face = new Face(_character);
         _puppet = new Puppet(_rig, _face, footRestDrop)
@@ -569,8 +575,11 @@ public partial class CompanionView : Node2D
     /// solid to them, so a skirt lies over her thighs instead of passing through.
     /// </summary>
     /// <returns>Skirt panels and how far each should swing forward with the thigh below it (see Puppet.Followers).</returns>
-    private static List<(string Bone, string Side, float Follow)> LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid, Transform3D toCharacter, float size)
+    /// <param name="clothes">What simulates the clothes, if there are any (see <see cref="_clothes"/>).</param>
+    private static List<(string Bone, string Side, float Follow)> LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid, Transform3D toCharacter, float size,
+        out SpringBoneSimulator3D? clothes)
     {
+        clothes = null;
         var followers = new List<(string Bone, string Side, float Follow)>();
         string[] words = ["hair", "skirt", "piao", "tail", "ribbon", "cape", "cloth", "scarf", "dress", "bang", "ahoge"];
         var posed = humanoid.Values.ToHashSet();
@@ -607,19 +616,30 @@ public partial class CompanionView : Node2D
             followers.Add((name, from.X >= 0 ? "Left" : "Right", 0.78f * (Mathf.Cos(around) + 1) / 2));
         }
 
+        // Hair and clothes get a simulator each, so that clothes can be held to the body while hair still trails
+        // (see _clothes).
+        bool IsHair(int root) => new[] { "hair", "bang", "ahoge" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
         var perMetre = 1 / toCharacter.Basis.Scale.X;                   // the skeleton's own units in a metre
-        var springs = new SpringBoneSimulator3D();
-        skeleton.AddChild(springs);
-        springs.SettingCount = chains.Count;
-        for (var i = 0; i < chains.Count; i++)
+        SpringBoneSimulator3D? Simulator(List<(int Root, int End)> its)
         {
-            springs.SetRootBone(i, chains[i].Root);
-            springs.SetEndBone(i, chains[i].End);
-            springs.SetStiffness(i, 2.2f);
-            springs.SetDrag(i, 0.35f);
-            springs.SetGravity(i, 0);
-            springs.SetRadius(i, 0.02f * size * perMetre);
+            if (its.Count == 0)
+                return null;
+            var springs = new SpringBoneSimulator3D();
+            skeleton.AddChild(springs);
+            springs.SettingCount = its.Count;
+            for (var i = 0; i < its.Count; i++)
+            {
+                springs.SetRootBone(i, its[i].Root);
+                springs.SetEndBone(i, its[i].End);
+                springs.SetStiffness(i, 2.2f);
+                springs.SetDrag(i, 0.35f);
+                springs.SetGravity(i, 0);
+                springs.SetRadius(i, 0.02f * size * perMetre);
+            }
+            return springs;
         }
+        var hair = Simulator([.. chains.Where(c => IsHair(c.Root))]);
+        var worn = clothes = Simulator([.. chains.Where(c => !IsHair(c.Root))]);
 
         // What the loose bones must stay out of. Legs are solid to everything. Arms are solid to hair only:
         // clothes lie on the body they belong to, and being pushed off it pulls a sleeve or a collar out of place.
@@ -627,7 +647,6 @@ public partial class CompanionView : Node2D
         // parts the fringe) and the seat (it throws coat tails upwards).
         // Each capsule is shrunk until every joint of the resting hair or cloth it applies to is outside it, and
         // left out if that makes it too thin to matter: a shape that swallows part of a chain throws it about.
-        bool IsHair(int root) => new[] { "hair", "bang", "ahoge" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
         List<Vector3> Joints(bool hairOnly)
         {
             var joints = new List<Vector3>();
@@ -640,7 +659,6 @@ public partial class CompanionView : Node2D
         var everyJoint = Joints(hairOnly: false);
         var hairJoints = Joints(hairOnly: true);
         var clearance = 1.5f * 0.02f * size * perMetre;
-        var forHairOnly = new List<SpringBoneCollision3D>();
 
         void Limb(string from, string to, float radius, bool hairOnly)
         {
@@ -655,17 +673,20 @@ public partial class CompanionView : Node2D
             if (fitted < 0.35f * wanted)
                 return;
             var along = skeleton.GetBoneRest(child).Origin;             // the next joint, in this bone's own space
-            var capsule = new SpringBoneCollisionCapsule3D { Name = $"{from}Solid" };
-            springs.AddChild(capsule);
-            capsule.Bone = bone;
-            capsule.PositionOffset = along / 2;
-            capsule.RotationOffset = along.Normalized().Dot(Vector3.Up) > -0.999f
-                ? new Quaternion(Vector3.Up, along.Normalized())
-                : new Quaternion(Vector3.Right, Mathf.Pi);
-            capsule.Radius = fitted;
-            capsule.Height = along.Length() + 2 * fitted;
-            if (hairOnly)
-                forHairOnly.Add(capsule);
+            foreach (var springs in hairOnly ? [hair] : new[] { hair, worn })
+            {
+                if (springs is null)
+                    continue;
+                var capsule = new SpringBoneCollisionCapsule3D { Name = $"{from}Solid" };
+                springs.AddChild(capsule);
+                capsule.Bone = bone;
+                capsule.PositionOffset = along / 2;
+                capsule.RotationOffset = along.Normalized().Dot(Vector3.Up) > -0.999f
+                    ? new Quaternion(Vector3.Up, along.Normalized())
+                    : new Quaternion(Vector3.Right, Mathf.Pi);
+                capsule.Radius = fitted;
+                capsule.Height = along.Length() + 2 * fitted;
+            }
         }
         foreach (var side in new[] { "Left", "Right" })
         {
@@ -673,14 +694,6 @@ public partial class CompanionView : Node2D
             Limb(side + "LowerLeg", side + "Foot", 0.055f, hairOnly: false);
             Limb(side + "UpperArm", side + "LowerArm", 0.05f, hairOnly: true);
             Limb(side + "LowerArm", side + "Hand", 0.045f, hairOnly: true);
-        }
-        for (var i = 0; i < chains.Count; i++)
-        {
-            if (IsHair(chains[i].Root))
-                continue;
-            springs.SetExcludeCollisionCount(i, forHairOnly.Count);
-            for (var k = 0; k < forHairOnly.Count; k++)
-                springs.SetExcludeCollisionPath(i, k, springs.GetPathTo(forHairOnly[k]));
         }
         return followers;
     }
@@ -767,6 +780,8 @@ public partial class CompanionView : Node2D
         }
         _puppet.Pointer = PointerTarget(delta);
         _puppet.Update(delta);
+        if (_puppet.Jumping)
+            _clothes?.Reset();                              // the simulation starts afresh from the pose each frame: no lag to catch up on
         if (_unposed > 0 && --_unposed == 0)
         {
             _picture.Visible = true;

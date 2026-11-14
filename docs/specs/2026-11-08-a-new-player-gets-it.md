@@ -83,7 +83,7 @@ find them, wave, crouch, leap, and land seated with both feet on the ring. It pl
 switches character. The feet stay behind the cabinet until the jump, so no walk has to be faked. A character the arrival
 can't pose (an added model with bones missing or very odd proportions) appears on the stool under the light-up's flash.
 
-*Built on character switch (#268):* `Puppet.Arrival.cs`, the mask in `companion_layer.gdshader`, `ArrivalFit` for what it can pose. Anything that needs them before they land seats them at once under the same flash. The first run's arrival comes with the rest of the first run (#269, #270).
+*Built on character switch (#268):* `Puppet.Arrival.cs`, the mask in `companion_layer.gdshader`, `ArrivalFit` for what it can pose. Anything that needs them before they land seats them at once under the same flash. The first run's arrival comes with the rest of the first run (#269, #270). An added model's skirt and coat tails are held to the body's pose from the crouch until just after the landing, then given their springs back; its hair trails as before (#309).
 
 ### Missions
 
