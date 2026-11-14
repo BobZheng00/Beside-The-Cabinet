@@ -1,7 +1,7 @@
 @echo off
 rem A first run, as a new player sees it: a fresh profile every time (%APPDATA%\InsertCoin-firstrun, emptied at each
 rem start), Steam ignored. The welcome asks your name, who keeps you company and her mind: paste your own key there;
-rem it stays in this profile, encrypted, until the next start empties it. Getting started then has the rest.
+rem it stays in this profile, encrypted, until the next start empties it. The missions then have the rest.
 rem Only one copy runs at a time: quit the demo first (its tray icon, Quit). After a code change, build first.
 if exist "%~dp0private\local.cmd" call "%~dp0private\local.cmd"
 if not defined GODOT (
