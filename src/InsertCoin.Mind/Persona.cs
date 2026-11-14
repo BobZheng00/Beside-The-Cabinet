@@ -14,7 +14,7 @@ public sealed record Persona(string Name, string Description)
     /// (see <see cref="Prompt.Build"/>); null when the card has neither.
     /// </summary>
     public string? Steady { get; init; }
-    /// <summary>The name the player asked to be called by (Getting started), or null when they haven't given one.</summary>
+    /// <summary>The name the player asked to be called by (General, the first run), or null when they haven't given one.</summary>
     public string? Player { get; init; }
     /// <summary>
     /// The character's own cards in other languages (<c>persona.zh.md</c>), by <see cref="SpokenLanguage"/>'s codes: the

@@ -9,7 +9,7 @@ namespace InsertCoin.Game.App;
 /// The first run: four short pages before the cabinet is the player's: the name she calls them (their initials on the
 /// cabinet come from it), who keeps them company (seated on the stool as they choose), what earns their play time
 /// (focus, their own activities, LeetCode with their name, or no play time), and her mind, which she needs to talk.
-/// What can wait (her voice, talking aloud, the phone, a calendar) is left to Getting started. Closing it early keeps
+/// What can wait (her voice, talking aloud, the phone, a calendar) is left to Settings and the missions. Closing it early keeps
 /// what was chosen so far (spec 2026-10-10-settings-and-setup.md, "The first run"; 2026-10-27-what-earns-play-time.md).
 /// </summary>
 public partial class Welcome : Window

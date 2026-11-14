@@ -54,6 +54,11 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 cabinet.GetTree().CreateTimer(3.2).Timeout += () =>      // after the earning that made the day good
                     cabinet.Screen.Flash(Gain(s.Paid, "+1"), $"STREAK x{s.Streak} BONUS" + Capped(s.Paid), 3.0);
                 break;
+            case MissionPaid m:                             // its coin into the tray; what the screen says of it comes with MISSIONS (#273)
+                Drop(CoinKind.Bronze, m.Paid.Coins, star: false);
+                if (m.Paid.Coins == 0 && m.Paid.CreditedMs > 0)
+                    audio.Play("coin", pitch: 1.3f, delay: 0.25);
+                break;
             case CapReached r:
                 audio.Play("cashbox", delay: 0.6);
                 cabinet.GetTree().CreateTimer(3.2).Timeout += () => cabinet.Screen.Flash("CAP", $"TODAY'S PLAY EARNED\n{r.CapMs / 3_600_000}:{r.CapMs / 60_000 % 60:00}", 3.0);
