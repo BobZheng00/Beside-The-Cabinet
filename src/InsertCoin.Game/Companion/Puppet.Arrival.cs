@@ -72,6 +72,9 @@ internal sealed partial class Puppet
     /// <summary>Not on the stool yet: behind the cabinet or in the air.</summary>
     public bool Away => _arrival is not null && ArrivalNow < _arrival.Land;
 
+    /// <summary>From gathering for the jump until just after the landing: the body is on its keys, not on its springs.</summary>
+    public bool Jumping => _arrival is not null && _arrival.Direct.At(ArrivalNow).X >= 1;
+
     /// <summary>Seconds of the arrival still to come.</summary>
     public double ArrivalLeft => _arrival is null ? 0 : _arrival.End - ArrivalNow;
 
