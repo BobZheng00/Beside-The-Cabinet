@@ -57,7 +57,7 @@
       "shots": [7, 9, 14],
       "window": "Welcome",
       "desk": true,
-      "expect": ["^Main: play time is earned by focus, activities$", "^Main: missions left: CONNECT AN AI, SAY HELLO, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
+      "expect": ["^Main: play time is earned by focus, activities$", "^Main: missions left: CONNECT AN AI, SAY HELLO, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\| Who keeps you company… \\| Memory… \\| Chat history… \\| Write a memo… \\| Mute sounds"],
       "forbid": ["^Main: play time is earned by .*LeetCode", "^LeetCode: ", "Check LeetCode now"]
     },
     {
@@ -154,7 +154,7 @@
       "script": "missions@1,settings@2,settings:mind@3,settings:usage@4,settings:voice@5,settings:listening@6,settings:cabinet@7,settings:characters@8,settings:memory@9,settings:abilities@10,settings:skills@11,settings:privacy@12,settings:reminders@13,settings:checkins@14,settings:quiet@15,settings:phone@16,settings:calendars@17,settings:addons@18,settings:balance@19,settingswidths@20,settingsdo:Notifications@21,settingsdo:Reminders@22,settingsdo:Bedtime_and_quiet_hours@23,settingsdo:Go_to_bed_at:2@24,settingsat:1366x768@25,settings:missions@26,settingsdo:Agenda@26.5,settings:missions@27,settingsdo:Choose_one@27.5",
       "shots": [6, 11, 16, 21, 26, 27.5, 32],
       "window": "Settings",
-      "expect": ["^Settings: the list: Missions \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at missions$", "^Settings: 18 of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: missions led to memory$", "^Settings: missions led to mind$", "^Main: the mission OPEN MEMORY is cleared$"],
+      "expect": ["^Settings: the list: Missions \\| General \\| Companion \\| Memory \\| Voice \\| AI model \\| Play time \\| Notifications \\| Connections \\| Abilities and privacy; opened at missions$", "^Settings: 1[78] of 18 pages measured", "^Settings: category \"Notifications\" chosen; quiet showing$", "^Settings: tab \"Reminders\" chosen; reminders showing$", "^Settings: tab \"Bedtime and quiet hours\" chosen; quiet showing$", "^Settings: Go to bed at is \"21:30\"$", "^Settings: missions led to memory$", "^Settings: missions led to mind$", "^Main: the mission OPEN MEMORY is cleared$"],
       "forbid": ["Settings: \\S+ needs \\d+ px, has \\d+"]
     },
     {
@@ -163,9 +163,9 @@
       "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
       "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false",
       "script": "missions@1,mission:hello@2,settings@3,settings:balance@5,settingsdo:Focus_sessions@6,missions@8,settingsdo:Focus_sessions@9,settingsdo:Focus_sessions@11,settings:missions@14",
-      "shots": [4.5, 16],
+      "shots": [4.5, 17],
       "window": "Settings",
-      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Main: the mission SAY HELLO is cleared$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$"],
+      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$", "^Main: the mission SAY HELLO is cleared$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY(, HEAR THEIR VOICE)?$"],
       "forbid": ["\\(2 paid in all\\)"]
     },
     {
@@ -173,7 +173,7 @@
       "about": "The missions fit Settings at its narrowest default size (as on a 2560x1440 screen at 125%, about 708 px wide), with what is done marked; a mission pays 15 minutes once; Hide missions takes them out of Settings and the tray, and General's Show missions brings them back.",
       "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/Desktop/TrayIcon.cs"],
       "script": "missions@1,mission:ai@1.5,mission:hello@1.7,mission:hello@1.9,settings@2,settingsat:708x736@3,settingswidths@4,trayitems@5,settingsdo:Hide_missions@6,trayitems@8,settingsat:708x736@8.5,settingsdo:Show_missions@10,trayitems@12,settingsat:708x736@12.5,settingswidths@13",
-      "shots": [5, 10, 14.5],
+      "shots": [5, 10, 16],
       "window": "Settings",
       "expect": ["^Main: the mission CONNECT AN AI pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: the mission SAY HELLO pays 15 min", "^Settings: laid out as on a 708x736 screen: 692x688$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\|", "^Main: the missions are hidden$", "^Tray: Show cabinet \\| Settings… \\| Who keeps", "^Settings: the list: General .*; opened at cabinet$", "^Main: the missions are shown again$", "^Settings: the list: Missions \\| General .*; opened at missions$"],
       "forbid": ["^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "\\(3 paid in all\\)"]

@@ -50,7 +50,7 @@ public partial class MissionSettings : VBoxContainer
 
         AddChild(new HSeparator());
         Form.Button(Form.Buttons(this), "Hide missions", () => HideAsked?.Invoke());
-        Form.Hint(this, "General in Settings brings them back.");
+        Form.Hint(this, "Show missions on General brings them back.");
     }
 
     /// <summary>How a credit is earned, naming only the ways that earn now.</summary>
