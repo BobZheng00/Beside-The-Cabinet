@@ -36,8 +36,9 @@ off. The view walks up to it and its coin slots pulse until you click them. A co
 dust lifts and the marquee sputters into life, and the view leans in until the screen faces you, where the Welcome asks
 its questions (below). Then the view steps back, your companion arrives from behind the cabinet, every light comes on
 as they land, and the dark gives way to your desktop as the cabinet settles in its place, at its size. The intro has
-its own sounds, silent with Mute sounds. Skip, in the corner throughout (or Esc), goes straight to the desktop and
-keeps what you've answered, with the defaults for the rest. "Replay the intro" on General plays it again, without the
+its own sounds, silent with Mute sounds. Skip, in the corner throughout, goes straight to the desktop and keeps what
+you've answered, with the defaults for the rest; so does Esc while the Welcome or the cabinet has the keyboard (the
+intro never takes it from what you were doing). "Replay the intro" on General plays it again, without the
 questions. A profile set up before the intro existed never sees it unasked, and its play time is as it was.
 
 At first run a Welcome asks four things: your name (what your companion calls you; your initials on the cabinet

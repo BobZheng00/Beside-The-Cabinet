@@ -138,7 +138,13 @@ public partial class DesktopWindow : Node
 
     /// <summary>Keeps the window above others (or not) without activating it, so it never steals keyboard focus.</summary>
     public void SetTopmost(bool topmost) =>
-        Win32.SetWindowPos(_hwnd, topmost ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
+        Win32.SetWindowPos(_hwnd, topmost || KeptOnTop ? Win32.HwndTopmost : Win32.HwndNoTopmost, 0, 0, 0, 0, Win32.SwpNoMove | Win32.SwpNoSize | Win32.SwpNoActivate);
+
+    /// <summary>
+    /// Above other apps whatever else asks (the first run's intro, whose window and the app's others are kept just above
+    /// it): a rise ending meanwhile doesn't let it sink back.
+    /// </summary>
+    public bool KeptOnTop { get; set; }
 
     /// <summary>Raises the window above everything for a few seconds, then lets it sink back.</summary>
     public void Rise(double seconds, bool stayOnTop)

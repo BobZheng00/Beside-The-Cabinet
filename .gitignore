@@ -12,6 +12,8 @@ builds/
 __pycache__/
 /src/InsertCoin.Game/models/
 /src/InsertCoin.Game/models
+# a clip of a whole screen's window size (clip.ps1 -Resolution), there only while it runs
+/src/InsertCoin.Game/override.cfg
 
 # your own notes: never published (docs/publishing.md)
 /private/

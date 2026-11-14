@@ -63,18 +63,23 @@ catch [System.Threading.AbandonedMutexException] { }                 # a killed 
 # on a Windows desktop of its own, as shoot.ps1 -Hidden runs it: nothing reaches the player's screen, taskbar or focus
 if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
 # the movie writer records at the project's window size, which only override.cfg changes (--resolution doesn't), held
-# under the lock so that no other test run of this checkout starts with it
-if ($Resolution -ne "") {
-  $wide, $high = $Resolution.Split('x')
-  "[display]`n`nwindow/size/window_width_override=$wide`nwindow/size/window_height_override=$high`n" | Out-File -Encoding ascii $override
+# under the lock so that no other test run of this checkout starts with it, and removed however the clip ends (git
+# ignores it; tools/export/release.py refuses to export while it is there)
+try {
+  if ($Resolution -ne "") {
+    $wide, $high = $Resolution.Split('x')
+    "[display]`n`nwindow/size/window_width_override=$wide`nwindow/size/window_height_override=$high`n" | Out-File -Encoding ascii $override
+  }
+  $p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count --log-file `"$profile\godot.log`" -- $userArgs", $log, $err)
+  $watch = New-Object Unseen $p.Id
+  $p.WaitForExit()
 }
-$p = [Backstage]::Start("`"$Godot`" --path `"$repo\src\InsertCoin.Game`" --write-movie `"$frames\f.png`" --fixed-fps $Fps --quit-after $count --log-file `"$profile\godot.log`" -- $userArgs", $log, $err)
-$watch = New-Object Unseen $p.Id
-$p.WaitForExit()
-[Backstage]::EndAll()
-$watch.Stop()
-if ($Resolution -ne "") { Remove-Item $override -ErrorAction SilentlyContinue }
-$runLock.ReleaseMutex(); $runLock.Dispose()
+finally {
+  [Backstage]::EndAll()
+  if ($watch) { $watch.Stop() }
+  if ($Resolution -ne "") { Remove-Item $override -ErrorAction SilentlyContinue }
+  $runLock.ReleaseMutex(); $runLock.Dispose()
+}
 
 $first = [int]($From * $Fps)
 # the window is transparent: she is laid over a desktop colour, as she is usually seen
