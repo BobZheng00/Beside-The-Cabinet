@@ -100,7 +100,7 @@ public partial class PhoneSettings : VBoxContainer
                                                       : $"While you're away, {_name}'s texts reach you by {string.Join(", ", ready)}.", "Send a test", () => _ = Test());
         else
             _standing.Show("Not set up", empty.Count > 0 ? false : null,
-                           empty.Count > 0 ? $"{string.Join(" and ", empty)} {(empty.Count == 1 ? "needs" : "need")} filling in below before {_name}'s texts can reach you there."
+                           empty.Count > 0 ? $"Fill in what {string.Join(" and ", empty)} {(empty.Count == 1 ? "asks" : "ask")} for below, so {_name}'s texts can reach you there."
                                            : $"While you're away from the PC, {_name} can text you on Telegram, and you can text back.",
                            "Set up Telegram", () => Form.Bring(_telegram));
     }

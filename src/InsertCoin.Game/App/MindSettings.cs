@@ -159,7 +159,7 @@ public partial class MindSettings : VBoxContainer
                     _ => "signed out of ChatGPT.",
                 })
             : _saved is { } provider ? ("Connected", true, $"{_name} answers through {provider.Through}, with {provider.Model}.")
-            : _protocol == Protocol.ChatGpt ? ("Not connected", false, $"Not connected: {_name} can't talk with you until you continue with ChatGPT.")
+            : _protocol == Protocol.ChatGpt ? ("Not connected", false, $"Not connected: {_name} can't talk with you until you {(_chat.Plan.Connected ? "use your ChatGPT plan" : "continue with ChatGPT")}.")
             : ("Not connected", false, $"Not connected: {_name} can't talk with you until this is filled in and saved.");
         if (_standing is null)
             Form.Say(_now, said, works ? Paper.Good : Paper.Bad);
