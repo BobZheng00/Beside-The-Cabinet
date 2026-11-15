@@ -382,7 +382,10 @@ public partial class MindSettings : VBoxContainer
                                      if (OnPlan)                    // else kept for "Use your ChatGPT plan"
                                          Use(_models.ElementAtOrDefault(index).Slug);
                                  }, wide: true);
-        var row = Form.Buttons(_plan);
+        var row = new HFlowContainer();                     // wraps on a narrow window: four parts don't fit 384 px at 125%
+        row.AddThemeConstantOverride("h_separation", 10);
+        row.AddThemeConstantOverride("v_separation", 6);
+        _plan.AddChild(row);
         row.AddChild(new Label { Text = OnPlan ? "Using ChatGPT plan" : "Not in use yet", SizeFlagsVertical = SizeFlags.ShrinkCenter });
         Form.Button(row, "Manage usage", () => Chat.OpenPage(new Uri(ChatGptPlan.ManageUsage)));
         if (!OnPlan)
