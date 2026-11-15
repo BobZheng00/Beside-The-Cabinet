@@ -180,6 +180,8 @@ public partial class CompanionView : Node2D
         _unposed = FramesToPose;
         _flashing = true;
         SetFlash(1);
+        foreach (var springs in _character.FindChildren("*", nameof(SpringBoneSimulator3D), true, false).OfType<SpringBoneSimulator3D>())
+            springs.Reset();                                // hair and clothes start from where they are now, not swinging in from mid-air
     }
 
     private void SetFlash(float amount) => _layer.SetShaderParameter("flash", amount);
@@ -621,7 +623,7 @@ public partial class CompanionView : Node2D
 
         // Hair and clothes get a simulator each, so that clothes can be held to the body while hair still trails
         // (see _clothes).
-        bool IsHair(int root) => new[] { "hair", "bang", "ahoge" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
+        bool IsHair(int root) => new[] { "hair", "bang", "ahoge", "ponytail", "twintail" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
         var perMetre = 1 / toCharacter.Basis.Scale.X;                   // the skeleton's own units in a metre
         SpringBoneSimulator3D? Simulator(List<(int Root, int End)> its)
         {
