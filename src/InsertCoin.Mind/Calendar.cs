@@ -43,9 +43,11 @@ public sealed class IcsCalendar(HttpClient http, string name, string url) : ICal
     /// </summary>
     public static string? Why(Exception e) => e switch
     {
-        HttpRequestException { StatusCode: not null } => "the calendar's site refused the link",
-        HttpRequestException or TaskCanceledException => "the address can't be reached",
-        FormatException or InvalidOperationException => "that address isn't a calendar",   // UriFormatException is a FormatException
+        HttpRequestException { StatusCode: >= System.Net.HttpStatusCode.InternalServerError } => "the calendar's site isn't answering right now.",
+        HttpRequestException { StatusCode: not null } => "the calendar's site refused the link.",
+        HttpRequestException or TaskCanceledException => "the address can't be reached.",
+        // UriFormatException is a FormatException; no address at all is an InvalidOperationException, ftp:// and the like NotSupportedException
+        FormatException or InvalidOperationException or NotSupportedException => "that address isn't a calendar.",
         _ => null,
     };
 }

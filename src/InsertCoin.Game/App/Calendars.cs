@@ -100,19 +100,29 @@ public sealed class Calendars(MindStore store, KeyStore keys)
         {
             var now = DateTimeOffset.Now;
             var from = now.AddDays(-1);                     // yesterday's are kept as they were, for "how did it go" and "just past"
+            IReadOnlyList<CalendarEvent> events;
             try
             {
                 // a private link ("link"); signing in with Google or Microsoft would be another source, chosen by its kind
                 ICalendarSource source = new IcsCalendar(Http, link.Name, link.Url);
-                var events = await source.Read(from, now + CalendarSync.Ahead);
-                var (added, changed, removed) = CalendarSync.Apply(store, link.Name, events, from, now);
-                _status[link.Name] = new CalendarStatus(now, events.Count, null);
-                GD.Print($"Calendars: {link.Name}: {events.Count} events in the next two weeks ({added} new, {changed} changed, {removed} gone)");
+                events = await source.Read(from, now + CalendarSync.Ahead);
             }
             catch (Exception e) when (IcsCalendar.Why(e) is { } why)
             {
                 _status[link.Name] = new CalendarStatus(now, 0, why);
                 GD.PrintErr($"Calendars: {link.Name} could not be read: {e.GetBaseException().Message}");   // never the address: it is a secret
+                continue;
+            }
+            try
+            {
+                var (added, changed, removed) = CalendarSync.Apply(store, link.Name, events, from, now);
+                _status[link.Name] = new CalendarStatus(now, events.Count, null);
+                GD.Print($"Calendars: {link.Name}: {events.Count} events in the next two weeks ({added} new, {changed} changed, {removed} gone)");
+            }
+            catch (Exception e)                             // the app's own fault, not the address's: the rest are still read
+            {
+                _status[link.Name] = new CalendarStatus(now, 0, "something went wrong on this PC.");
+                GD.PrintErr($"Calendars: {link.Name} could not be put on the agenda: {e}");
             }
         }
     }

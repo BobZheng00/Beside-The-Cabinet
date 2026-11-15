@@ -223,8 +223,8 @@ They remember:
   you're away from the PC, it reaches your phone instead, as a text in their words (below). One that came due while
   the cabinet was closed goes off when it next starts, saying so. Settings → Connections → Calendars links your Google or Outlook
   calendar by its private address (read every 15 minutes, read-only, the address stored encrypted): its next two
-  weeks join the agenda, and one that can't be read says why (the address can't be reached, isn't a calendar, or
-  was refused);
+  weeks join the agenda (a `webcal://` address is read over https), and one that can't be read says why (the address
+  can't be reached, isn't a calendar, or was refused, or the site isn't answering);
 - they ask how things went: after something you told them about is over, once you are back at the PC and free (not
   in a call, which they tell from another app using the microphone or camera, not in a full-screen game or
   presentation, not outside 08:00–22:00), or by text while you're still out; once, and only if you have not talked
