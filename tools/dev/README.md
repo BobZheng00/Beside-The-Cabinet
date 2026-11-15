@@ -207,6 +207,12 @@ run (`--test-run`; `--offscreen` implies it): one whose settings.json still can'
 say) sets it aside and starts on a test run's defaults, muted, and says so in its log (`Main: settings.json couldn't be
 read…, sounds muted`); the player's own app and the demo start on the usual defaults.
 
+A release build keeps its models inside its package and unpacks each, the first time it's needed, into
+`%LOCALAPPDATA%\InsertCoin\models`, which the player's installed app shares. A test run (`--test-run` or
+`--offscreen`) unpacks them into its own profile instead (`<profile>\models`), so it never writes over the player's;
+`shoot.ps1 -Exe` deletes that folder when the run ends. Run from source, the app reads the project's own models (in a
+worktree, the main checkout's) and unpacks nothing.
+
 ## Benchmarks
 
 Two benchmarks run the companion's real prompt on a profile's own provider (the demo's by default, its key read encrypted where it
