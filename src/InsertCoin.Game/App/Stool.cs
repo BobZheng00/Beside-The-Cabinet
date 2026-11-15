@@ -2257,7 +2257,7 @@ public partial class Stool : Node2D
     private Control AddOnsPage()
     {
         var page = new AddOnSettings();
-        page.Build(HerName(), ChatProvider(), _settings.Now.AddOns);
+        page.Build(HerName(), ChatProvider(), _settings.Now.AddOns, () => _chat.WebSearch);
         page.Chosen += addOns =>
         {
             _settings.Save(_settings.Now with { AddOns = addOns });
@@ -2273,6 +2273,7 @@ public partial class Stool : Node2D
         {
             var nobody = Form.Page(new VBoxContainer());    // nobody on the stool, nothing of theirs to show
             Form.Hint(nobody, "Nobody's keeping you company yet. Choose someone under Companion.");
+            Form.Link(nobody, "Companion", "characters");
             return nobody;
         }
         _memory = new MemorySettings();
@@ -2312,7 +2313,7 @@ public partial class Stool : Node2D
             return;
         _history = new ChatHistory();
         AddChild(_history);
-        _history.Build(_chat.Store, character.Id, character.Name, _chat.Window);
+        _history.Build(_chat.Store, character.Id, character.Name, _chat.Window, () => OpenMemory("forget"));
         _history.Open();
     }
 
@@ -2497,7 +2498,7 @@ public partial class Stool : Node2D
             case "memory": OpenMemory(rest.Length > 0 ? rest : null); break;    // memory:agenda opens Settings' Memory at that tab (notes, agenda, facts, diary, memos, forget; retired)
             case "memoryfilter": if (IsInstanceValid(_memory)) _memory!.DevFilter(text); break;     // memoryfilter:words types in the filter showing, on Facts or Diary
             case "chathistory": OpenChatHistory(); break;
-            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Lines, Close
+            case "chathistorydo": if (IsInstanceValid(_history)) _history!.DevPress(text); break;     // chathistorydo:Reply[:words], Forget:words, Edit:words:new_words, Top, Below, Instructions, Lines, Memory, Close
             case "lineswap":                                // lineswap:words: the newest line taken back and the player's words kept under its number, at once
             case "lineclear":                               // lineclear:words: the chat cleared and the player's words kept, at once
                 if (OnStool() is not { } seated)

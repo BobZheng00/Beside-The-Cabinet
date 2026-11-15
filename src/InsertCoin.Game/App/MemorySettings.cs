@@ -122,11 +122,14 @@ public partial class MemorySettings : VBoxContainer
 
         var agenda = Tab("Agenda");
         var top = new HBoxContainer();
-        top.AddChild(new Label
+        var about = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        about.AddChild(new Label
         {
-            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in the speech bubble (see Notifications for more).",
+            Text = "Plans, dates and reminders. Every reminder shows on a ticket and in the speech bubble.",
             ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         });
+        Form.Link(about, "Reminders", "reminders");
+        top.AddChild(about);
         var add = new Button { Text = "+ Add", ThemeTypeVariation = "Quiet", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter, TooltipText = "Something on your agenda, or a reminder" };
         add.Pressed += () => AddPlanRow(null);
         top.AddChild(add);

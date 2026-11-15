@@ -141,7 +141,7 @@ after the character. The memory book moves in as one page ("Moves into setting w
 
 The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the screen's home bar.
 
-*Built (#260):* the list of categories, each part as a tab, bedtime and the quiet hours together under Notifications. *Built (#70):* Memory's six tabs inside Settings (its page's own tab row, Chat history a button above them), reached from the right-click menu, the tray, the screen's AGENDA at Agenda and Reminders' Open the agenda; a filter on Facts and Diary; red Forget buttons, still asking twice. Not yet: replay the intro, Help and About, under General.
+*Built (#260):* the list of categories, each part as a tab, bedtime and the quiet hours together under Notifications. *Built (#70):* Memory's six tabs inside Settings (its page's own tab row, Chat history a button above them), reached from the right-click menu, the tray, the screen's AGENDA at Agenda and Reminders' Open the agenda; a filter on Facts and Diary; red Forget buttons, still asking twice. *Built (#263):* Help (the manual, in the browser) and About (what the app is, its version and licence) at the end of General; SETTINGS a cog on the screen's home bar, left of the switches. Not yet: replay the intro, under General.
 
 **The look** ("We will do A", 2026-11-07):
 - unticked boxes and unchosen radios drawn empty, on every window (built, #259);
@@ -149,10 +149,10 @@ The menu and the screen's AGENDA open Memory there. SETTINGS is a cog on the scr
 - a pixel icon for each category, in the style of the screen's apps (built, #260);
 - character cards with a portrait rendered from their own model;
 - one short line per control, the longer explanation behind a small "?";
-- connections as cards with their state and one button;
+- connections as cards with their state and one button (built, #263: a panel on the same wash as the character cards, its state in a word on green, red or plain);
 - headings in the screen's pixel font, checked at 1366×768, and everything else in the windows' rounded font (built, #260).
 
-**Smaller fixes from the audit:** a pointer in a page ("see Reminders") is a button that opens it; one name for each thing;
+**Smaller fixes from the audit:** a pointer in a page ("see Reminders") is a button that opens it (built, #263: a small one named after the page, "Reminders ›"); one name for each thing;
 Forget looks destructive; a filter over Facts and Diary; Reminders offers the agenda; plainer words where the pages speak
 of servers, tokens and file formats.
 

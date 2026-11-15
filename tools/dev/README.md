@@ -39,8 +39,8 @@ answers a `<n>.want` dropped in the profile's `shots` folder by hand), `menupres
 (presses the entry of that menu, the tray's too, that starts with that text, as a click on it would:
 `menupress:Settings`, `menupress:Conversation`), `chat:some_text` (say something to them), `chatbox` (open the slip), `chattype:some_text` (type it into the slip, unsent), `settings`
 (Settings; `settings:voice` at that page or tab: `start`, `cabinet` (General), `characters` (Companion), `memory`, `voice`, `listening`, `mind`, `usage`, `balance` (Play time), `reminders`, `checkins`, `quiet`, `phone`, `calendars`, `addons` (Web search), `abilities`, `skills`, `privacy`;
-a test run logs its list as it opens, and the page it opened at), `settingsdo:Label` (chooses the category or tab with that exact name,
-as a click would (`settingsdo:Notifications`, `settingsdo:Bedtime_and_quiet_hours`); else presses the button or flips the tick with that text on the page showing, and logs `Settings: start led to quiet` when that opens another page; `settingsdo:Label:value` sets the choice after that label, by number
+a test run logs its list as it opens, and the page it opened at, and how each connection stands as its panel shows it: `Settings: Your phone: Not set up; Set up Telegram`, the state and the panel's button), `settingsdo:Label` (chooses the category or tab with that exact name,
+as a click would (`settingsdo:Notifications`, `settingsdo:Bedtime_and_quiet_hours`); else presses the button or flips the tick with that text on the page showing, and logs `Settings: start led to quiet` when that opens another page (a small button named after a page, `settingsdo:Reminders`, opens it), and `Tools: would open <address> (a test run opens nothing)` for one that would open the browser (Help, Open BotFather); `settingsdo:Label:value` sets the choice after that label, by number
 from 0 or by what it says (`settingsdo:Language:中文`), or types in its field), `settingsscroll:600` (scrolls the page showing), `settingsup` (on a page below a page, a skill's,
 presses its way back up, top left), `settingshover:Label` (rests a pretend pointer on that control, so its
 hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open window out as on a screen that size at 100%, to read its pixel headings there), `settingswidths` (logs any page wider
@@ -63,7 +63,7 @@ item with those words is cancelled under Memory while it shows, as upkeep might)
 (the showing ticket's Snooze; 1: OK), `chathistory`, `chathistorydo:Reply` (clicks the newest reply shown that kept
 something, opening or closing what they had in mind for it; `chathistorydo:Reply:words`, the newest with those words; `chathistorydo:Reply:2`, the second newest; `chathistorydo:Forget:words` and `chathistorydo:Edit:words:new_words` press Forget, or Edit, type and Save,
 on the memory showing with those words in it; `chathistorydo:Top` scrolls it to the top, as the player might;
-`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Lines` logs the lines it shows, in order, and whether the player is at the end (`Chat history shows, at the end: …`, each line's words between ` | `); `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
+`chathistorydo:Below` presses "New lines below"; `chathistorydo:Instructions` flips "Show what the app tells …"; `chathistorydo:Lines` logs the lines it shows, in order, and whether the player is at the end (`Chat history shows, at the end: …`, each line's words between ` | `); `chathistorydo:Memory` presses "Memory ›", opening Settings → Memory at Forget; `chathistorydo:Close` closes it), `lineswap:words` (the newest line of the talk taken back and the player's words kept under its number at once, as when a cabinet line goes unanswered), `lineclear:words` (the chat cleared and the player's words kept at once), `memoryseed` (a few notes, facts,
 agenda items, retired facts and a note to try it on), `skillseed` (skills to try Settings → Abilities and privacy → Skills and their skill
 tool on: tea-timer, with a file and a script, one with no description and a folder with no `SKILL.md`, in the profile's
 own skills folder, and journal and Daily Notes, a name the format doesn't allow, shown with a hint, in a vault's
@@ -86,7 +86,7 @@ locked; `dnd:off`, back to what Windows says; a hidden test run takes neither fr
 `dnd:owner`, as if this PC's owner played full screen, which a hidden run doesn't follow),
 `later:now` (their plan to reach the player comes due now), `whereabouts:away` (the player is away whatever the cabinet watches; `whereabouts:away:90`, away for 90 minutes already; `here`, `unsure`, `asleep`; `whereabouts:off` watches
 again; a test run takes the player as here, with no time since their last input whatever this PC's own user does, until `afk`), `telegramat:http://127.0.0.1:port` (a stand-in for Telegram's
-Bot API), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
+Bot API; on Settings → Connections → Your phone, `settingsdo:Bot_token:123:TEST` and `settingsdo:Check`), `paircode:CODE` (the next pairing code, for it to send back), `chatgptat:http://127.0.0.1:port` (a
 stand-in ChatGPT, `mock_chatgpt.py`, for signing in and the plan's requests: then on Settings → AI model,
 `settingsdo:Provider:1` and `settingsdo:Continue_with_ChatGPT`, and a test run visits the stand-in's sign-in itself,
 opening no browser; its backup, before signing in, with `settingsdo:Backup:6`, `settingsdo:Server:http://127.0.0.1:port/backup/v1`,
@@ -129,9 +129,10 @@ only logged, never opened. Memos: `memo:title:text` (they type one and send it, 
 the hanging memo; `memohover:0` the top one on the side, `memohover:off`), `memocarry:a:b` (the hanging memo carried
 by hand to that spot on the side; `memocarry` alone, off the cabinet), `memosheet:colour:mint`, `memosheet:sticker:cat`,
 `memosheet:write:title:text` and `memosheet:tell` (a sheet's paper, sticker, fields and tick), `crt` (the screen's
-system opens; `crt:memos` an app too; `crt:settings` opens Settings, as its icon does), `crtclick:x:y` (a click on the
-screen, in its own pixels; on the home screen's bar the switches are at 210, 260 and 310 across, 27 down: Mute sounds,
-Voice, Conversation, each flip logged as `Crt: VOICE off`), `crtmove:0:1` (an app
+system opens; `crt:memos` an app too), `crtclick:x:y` (a click on the
+screen, in its own pixels; on the home screen's bar the cog and the switches are at 160, 210, 260 and 310 across, 27 down:
+Settings (logged as `Crt: SETTINGS opens its window`), Mute sounds, Voice, Conversation, each flip logged as
+`Crt: VOICE off`), `crtmove:0:1` (an app
 moved, as holding and carrying it would), `crtaway` (a press away from the lifted screen), `crthover:x:y` (a pretend pointer resting on the screen there, in its
 own pixels: its button's name lights on the marquee, logged as `Marquee: VOICE`, and with the home screen lifted a switch's name on the bar too, logged as
 `Crt: bar shows VOICE`; `crthover:off`), `marquee:words` (the

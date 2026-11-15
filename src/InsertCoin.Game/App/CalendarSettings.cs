@@ -17,21 +17,26 @@ public partial class CalendarSettings : VBoxContainer
     private VBoxContainer _list = null!;
     private LineEdit _name = null!, _url = null!;
     private Label _result = null!;
+    private Standing _standing = null!;
+    private string _companion = "";
 
-    public void Build(Calendars calendars)
+    /// <param name="companion">Who is on the stool: the panel names them.</param>
+    public void Build(Calendars calendars, string companion)
     {
         _calendars = calendars;
+        _companion = companion;
         calendars.Changed += Refresh;
         TreeExiting += () => calendars.Changed -= Refresh;
 
         Form.Page(this);
+        _standing = Form.Connection(this, "Your calendar");
         Form.Hint(this, "Link your calendar and its next two weeks join your agenda, read again every 15 minutes: your companion knows what is coming up, " +
-                        "and your reminder before things on your agenda (see Notifications, Reminders) covers them too. It is only read, never changed.");
+                        "and your reminder before things on your agenda covers them too. It is only read, never changed.");
+        Form.Link(this, "Reminders", "reminders");
 
         _list = new VBoxContainer();
         _list.AddThemeConstantOverride("separation", 6);
         AddChild(_list);
-        Form.Button(this, "Read them now", () => _ = _calendars.Sync()).SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
 
         AddChild(new HSeparator());
         Form.Subheading(this, "Link a calendar");
@@ -99,5 +104,15 @@ public partial class CalendarSettings : VBoxContainer
         }
         if (_result.Text == "Reading it…")
             _result.Text = "";
+        var unread = links.Count(link => _calendars.Status(link.Name)?.Error is not null);
+        if (links.Count == 0)
+            _standing.Show("Not linked", null, $"Link your calendar and {_companion} knows what's coming up in the next two weeks.", "Link a calendar", () => Form.Bring(_name));
+        else if (unread > 0)
+            _standing.Show("Can't be read", false, links.Count == 1 ? "It couldn't be read last time: see below." : unread == links.Count ? "None of them could be read last time: see below."
+                               : $"{unread} of {links.Count} couldn't be read last time: see below.",
+                           "Read them now", () => _ = _calendars.Sync());
+        else
+            _standing.Show("Linked", true, $"{links.Count} linked: {_companion} knows what's on {(links.Count == 1 ? "it" : "them")}, read again every 15 minutes.",
+                           "Read them now", () => _ = _calendars.Sync());
     }
 }

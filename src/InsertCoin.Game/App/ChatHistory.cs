@@ -36,11 +36,13 @@ public partial class ChatHistory : Window
     private const string InstructionsMark = "chathistory.instructions";
     private bool _instructions;                         // the app's instructions to her shown (see Line.Instruction)
     private CheckBox _showInstructions = null!;
+    private Button _forget = null!;                     // "Memory ›": Settings → Memory, at Forget
     // every line shown: what it said when shown, its row, its words, and what she had in mind for it (hidden until clicked)
     private readonly Dictionary<long, (Line Line, Control Row, Label Words, Control? Mind)> _shown = [];
 
     /// <param name="window">Her window now, in tokens: how much of her log she sees (see <see cref="Log.Budget"/>).</param>
-    public void Build(MindStore store, string characterId, string characterName, int window)
+    /// <param name="forget">Opens Settings → Memory, at Forget.</param>
+    public void Build(MindStore store, string characterId, string characterName, int window, Action forget)
     {
         _store = store;
         _character = characterId;
@@ -111,7 +113,11 @@ public partial class ChatHistory : Window
         };
 
         var buttons = new HBoxContainer();
-        buttons.AddChild(Text("Everything said is kept on this PC. Clear it in Settings, Memory.", Paper.Faint, hint: true));
+        buttons.AddThemeConstantOverride("separation", 10);
+        buttons.AddChild(Text("Everything said is kept on this PC, and can be cleared in Memory.", Paper.Faint, hint: true));
+        _forget = new Button { Text = "Memory ›", ThemeTypeVariation = "QuietSmall", SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        _forget.Pressed += forget;
+        buttons.AddChild(_forget);
         var close = new Button { Text = "Close" };
         close.Pressed += QueueFree;
         buttons.AddChild(close);
@@ -564,6 +570,11 @@ public partial class ChatHistory : Window
         if (parts[0] == "Close")
         {
             QueueFree();
+            return;
+        }
+        if (parts[0] == "Memory")
+        {
+            _forget.EmitSignal(BaseButton.SignalName.Pressed);
             return;
         }
         if (parts[0] == "Instructions")

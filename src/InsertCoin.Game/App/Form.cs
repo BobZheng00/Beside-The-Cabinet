@@ -1,4 +1,5 @@
 using Godot;
+using InsertCoin.Game.Companion;
 
 namespace InsertCoin.Game.App;
 
@@ -183,6 +184,65 @@ public static class Form
         label.AddThemeColorOverride("font_color", colour);
     }
 
+    /// <summary>
+    /// A small button to another page of the settings, named as that page is: a pointer in a page ("see Reminders") is
+    /// one of these. It opens the page where it is pressed.
+    /// </summary>
+    public static Button Link(Container parent, string page, string id)
+    {
+        var button = Button(parent, $"{page} ›", () => (parent.GetWindow() as SettingsWindow)?.ShowPage(id));
+        button.ThemeTypeVariation = "QuietSmall";
+        button.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        return button;
+    }
+
+    /// <summary>
+    /// A connection's own panel, first on its page: what it is, how it stands in a word, a line on it and its one button
+    /// (its rules and options come after it). <see cref="Standing.Show"/> fills it in, and again as things change.
+    /// </summary>
+    public static Standing Connection(Container parent, string what)
+    {
+        var panel = new PanelContainer();
+        panel.AddThemeStyleboxOverride("panel", Paper.Box(Paper.Wash, Paper.Wash, 2, 10, 14, 12));
+        parent.AddChild(panel);
+        var column = new VBoxContainer();
+        column.AddThemeConstantOverride("separation", 6);
+        panel.AddChild(column);
+        var top = new HBoxContainer();
+        top.AddThemeConstantOverride("separation", 10);
+        column.AddChild(top);
+        top.AddChild(new Label { Text = what, ThemeTypeVariation = "Subheading", SizeFlagsHorizontal = Control.SizeFlags.ExpandFill });
+        var state = new Label { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        state.AddThemeFontSizeOverride("font_size", 13);
+        top.AddChild(state);
+        var row = new HBoxContainer();
+        row.AddThemeConstantOverride("separation", 12);
+        column.AddChild(row);
+        var line = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, CustomMinimumSize = new Vector2(130, 0) };     // beside Continue with ChatGPT, at 125%
+        row.AddChild(line);
+        var button = new Button { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        row.AddChild(button);
+        var result = Result(column);
+        result.Visible = false;
+        return new Standing(what, state, line, button, result);
+    }
+
+    /// <summary>Scrolls the page to <paramref name="control"/> once it is laid out, and gives it the keys if it takes them (a field).</summary>
+    public static async void Bring(Control control)
+    {
+        await control.ToSignal(control.GetTree(), SceneTree.SignalName.ProcessFrame);     // what was just shown is laid out by then
+        if (!GodotObject.IsInstanceValid(control))
+            return;
+        for (var up = control.GetParent(); up is not null; up = up.GetParent())
+            if (up is ScrollContainer scroll)
+            {
+                scroll.EnsureControlVisible(control);
+                break;
+            }
+        if (control.FocusMode != Control.FocusModeEnum.None)
+            control.GrabFocus();
+    }
+
     /// <summary>The tick and the fields that belong to it: the fields only show while it is ticked.</summary>
     public static void ShowWhile(CheckBox tick, params Control[] fields)
     {
@@ -193,5 +253,40 @@ public static class Form
         }
         tick.Toggled += _ => Show();
         Show();
+    }
+}
+
+/// <summary>
+/// A connection's panel (see <see cref="Form.Connection"/>): its state in a word, on green when it works, red when it
+/// doesn't and plain when it isn't set up; its line; its one button; and what came of pressing it.
+/// </summary>
+public sealed class Standing
+{
+    private readonly string _what;
+    private readonly Label _state, _line;
+    private readonly Button _button;
+    private Action _pressed = () => { };
+
+    public Standing(string what, Label state, Label line, Button button, Label result)
+    {
+        (_what, _state, _line, _button, Result) = (what, state, line, button, result);
+        button.Pressed += () => _pressed();
+    }
+
+    /// <summary>Where what came of the button is said (<see cref="Form.Say"/>).</summary>
+    public Label Result { get; }
+
+    /// <param name="works">True: it works; false: it should and doesn't; null: not set up.</param>
+    public void Show(string state, bool? works, string line, string button, Action pressed)
+    {
+        var (fill, ink) = works switch { true => (Paper.Good, Colors.White), false => (Paper.Bad, Colors.White), null => (new Color("E2DAF7"), Paper.Letters) };
+        _state.Text = state;
+        _state.AddThemeStyleboxOverride("normal", Paper.Box(fill, fill, 0, 8, 8, 2));
+        _state.AddThemeColorOverride("font_color", ink);
+        _line.Text = line;
+        _button.Text = button;
+        _pressed = pressed;
+        if (Paper.OffScreen)                                // a test run logs how each connection stands
+            GD.Print($"Settings: {_what}: {state}; {button}");
     }
 }
