@@ -359,8 +359,8 @@
       "about": "The ChatGPT plan's part of Settings → AI model fits Settings at its narrowest default size (as on a 2560x1440 screen at 125%, 692 px wide) in every state: signed out, signed in and in use, signed in but not in use (another provider saved, with Use your ChatGPT plan on the row, pressed once measured to show it was there), and signed out again after Disconnect; a row too long for the window wraps, nothing cut.",
       "covers": ["src/InsertCoin.Game/App/MindSettings.cs", "tools/dev/mock_chatgpt.py"],
       "mind": "chatgpt",
-      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsat:708x736@2.5,settingsdo:Provider:1@3,settingswidths@3.5,settingsdo:Continue_with_ChatGPT@5,settingswidths@8,settingsdo:Provider:6@10,settingsdo:Model:llama3@10.5,settingsdo:Save@11,settingsdo:Provider:1@12,settingswidths@13,settingsdo:Use_your_ChatGPT_plan@15,settingsdo:Disconnect@16.5,settingswidths@18",
-      "shots": [6, 11, 16, 21.5],
+      "script": "nocall@1,chatgptat:{mind}@1.5,settings:mind@2,settingsat:708x736@2.5,settingsdo:Provider:1@3,settingswidths@3.5,settingsdo:Continue_with_ChatGPT@7.5,settingswidths@11,settingsdo:Provider:6@15,settingsdo:Model:llama3@15.5,settingsdo:Save@16,settingsdo:Provider:1@17,settingswidths@18,settingsdo:Use_your_ChatGPT_plan@23,settingsdo:Disconnect@24.5,settingswidths@26",
+      "shots": [5.5, 13, 21, 29],
       "window": "Settings",
       "expect": [
         "^Settings: laid out as on a 708x736 screen: 692x688$",
