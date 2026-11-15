@@ -106,6 +106,8 @@ public partial class Main : Node2D
         }
         // --test-run (every test script passes it, hidden or not): a test copy, whose defaults keep it muted
         var testRun = Paper.OffScreen || args.ContainsKey("test-run");
+        if (testRun)
+            ModelFiles.Cache = Path.Combine(dataDir, "models");    // a release build unpacks its models into the test's profile, never the player's cache
         _settingsFile = new SettingsFile(new JsonFileStore<AppSettings>(Path.Combine(dataDir, "settings.json")), testRun);
         if (_settingsFile.Unreadable)
             GD.Print($"Main: settings.json couldn't be read, so it was set aside and {(testRun ? "a test run's" : "the")} defaults used, sounds {(_settingsFile.Now.Muted ? "muted" : "on")}");

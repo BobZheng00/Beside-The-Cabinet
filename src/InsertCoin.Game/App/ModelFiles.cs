@@ -5,13 +5,20 @@ namespace InsertCoin.Game.App;
 /// <summary>The local models packed into the app (under <c>res://models</c>): her memory search, her ears.</summary>
 public static class ModelFiles
 {
+    /// <summary>
+    /// Where the built app unpacks its models: the local cache (%LOCALAPPDATA%\InsertCoin\models), which the player's
+    /// installed app uses, or a test run's own folder in its profile, so a test never writes over the player's copies.
+    /// </summary>
+    public static string Cache { get; set; } =
+        Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "InsertCoin", "models");
+
     /// <summary>Whether this build carries <paramref name="resource"/>.</summary>
     public static bool Present(string resource) => Godot.FileAccess.FileExists(resource) || Borrowed(resource) is not null;
 
     /// <summary>
     /// A real file for a model packed into the app: run from source it is the project's own file (or the main
-    /// checkout's, in a worktree that has none); in the built app, which keeps it inside its package, a copy in the
-    /// local cache (%LOCALAPPDATA%\InsertCoin\models), made once.
+    /// checkout's, in a worktree that has none); in the built app, which keeps it inside its package, a copy in
+    /// <see cref="Cache"/>, made once.
     /// </summary>
     public static string OnDisk(string resource, string name)
     {
@@ -20,8 +27,7 @@ public static class ModelFiles
             return project;
         if (Borrowed(resource) is { } borrowed)
             return borrowed;
-        var cached = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "InsertCoin", "models", name,
-                                  Path.GetFileName(resource));
+        var cached = Path.Combine(Cache, name, Path.GetFileName(resource));
         using var source = Godot.FileAccess.Open(resource, Godot.FileAccess.ModeFlags.Read)
                            ?? throw new FileNotFoundException($"{resource} is not in this build");
         if (File.Exists(cached) && new FileInfo(cached).Length == (long)source.GetLength())

@@ -294,6 +294,7 @@ if ($form) { $form.Close() }
 $runLock.ReleaseMutex(); $runLock.Dispose()
 Start-Sleep -Milliseconds 500
 if ($KeyFrom -ne "") { Remove-Item (Join-Path $profile "companion\key.bin") -Force -ErrorAction SilentlyContinue }
+if ($Exe -ne "") { Remove-Item (Join-Path $profile "models") -Recurse -Force -ErrorAction SilentlyContinue }   # the models a release build unpacked for this run: hundreds of MB
 if ($Exe -eq "") {
   Get-Content $err -ErrorAction SilentlyContinue | Select-Object -First 25
   Get-Content $log -ErrorAction SilentlyContinue | Select-String -Pattern "ERROR|Exception|Companion '" | Select-Object -First 25
