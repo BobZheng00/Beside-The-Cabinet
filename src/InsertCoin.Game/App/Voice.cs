@@ -338,6 +338,7 @@ public partial class Voice : Node
         }
         catch (Exception e)
         {
+            GD.PrintErr($"Voice: {(e.InnerException ?? e).Message}");     // the engine's own words, for the log
             if (refresh == _refreshes)
             {
                 if (IsQwen)

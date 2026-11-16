@@ -744,6 +744,101 @@ public class VoiceTests
         Assert.Equal("tts failed: ref_audio_path not exists", error.Message);
     }
 
+    /// <summary>A line coming from the server: its first part at once, the rest when <see cref="Finish"/> is called; its end goes in the log.</summary>
+    private sealed class LineBeingMade(byte[] wav, int firstPart, List<string> log) : Stream
+    {
+        private readonly TaskCompletionSource _rest = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _at;
+
+        public void Finish() => _rest.TrySetResult();
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_at >= firstPart)
+                await _rest.Task.WaitAsync(cancellationToken);
+            var end = _at < firstPart ? firstPart : wav.Length;
+            var count = Math.Min(buffer.Length, end - _at);
+            wav.AsMemory(_at, count).CopyTo(buffer);
+            _at += count;
+            if (count == 0)
+                lock (log)
+                    log.Add("line finished");
+            return count;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer.AsMemory(offset, count)).AsTask().GetAwaiter().GetResult();
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => _at; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task Choosing_another_model_while_they_speak_switches_only_once_the_line_being_made_has_finished()
+    {
+        using var home = new TempFolder();
+        home.File("clips/5.wav", Silence(5));
+        var clip = new VoiceClip("clips/5.wav", "はい。", "ja");
+        var voice = new VoiceProfile { Language = "ja", CloneWith = "v2ProPlus", Clips = [clip] };
+        var log = new List<string>();
+        var wav = WavBytes([.. Enumerable.Range(0, 32000).Select(i => (short)(i % 2 == 0 ? 8000 : -8000))], 32000, 0);
+        var line = new LineBeingMade(wav, wav.Length / 2, log);
+        var server = new FakeServer(request =>
+        {
+            lock (log)
+                log.Add(request.RequestUri!.AbsolutePath);
+            return request.RequestUri!.AbsolutePath == "/tts"
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(line) }
+                : new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+        await engine.Load(voice, home.Path);
+
+        // a long line starts, the player chooses v5 fast on the Voice page: what is being said stops, and the voice is loaded again
+        using var stop = new CancellationTokenSource();
+        var saying = Task.Run(async () =>
+        {
+            await foreach (var _ in engine.Speak("ずっと話してるね。", voice, home.Path, clip, stop.Token))
+                stop.Cancel();                                      // cut off as soon as it is heard
+        });
+        while (!stop.IsCancellationRequested && !saying.IsCompleted)
+            await Task.Delay(10);
+        var switching = engine.Load(voice with { CloneWith = "v5turbo" }, home.Path);
+        await Task.Delay(200);
+        lock (log)
+            Assert.DoesNotContain("/set_gpt_weights", log.Skip(4));     // nothing reaches the server while it makes the line
+        line.Finish();
+        await switching;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => saying);
+
+        Assert.Equal(["/set_gpt_weights", "/set_sovits_weights", "/set_refer_audio", "/tts", "line finished", "/set_gpt_weights", "/set_sovits_weights"], log);
+    }
+
+    [Fact]
+    public async Task A_switch_the_server_turns_down_is_asked_for_once_more_then_said_in_plain_words()
+    {
+        var turnedDown = 1;
+        var server = new FakeServer(request => request.RequestUri!.AbsolutePath == "/set_gpt_weights" && turnedDown-- > 0
+            ? new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("""{"message": "change gpt weight failed", "Exception": "attached to a different loop"}""") }
+            : new HttpResponseMessage(HttpStatusCode.OK));
+        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") }) { RetryAfter = TimeSpan.Zero };
+
+        await engine.Load(new VoiceProfile { CloneWith = "v5turbo" }, @"C:\voices\hana.voice");
+        Assert.Equal(["/set_gpt_weights", "/set_gpt_weights", "/set_sovits_weights"], server.Asked.Select(a => a[..a.IndexOf('?')]));
+
+        turnedDown = 2;
+        server.Asked.Clear();
+        var error = await Assert.ThrowsAsync<VoiceException>(() => engine.Load(new VoiceProfile { CloneWith = "v2ProPlus" }, @"C:\voices\hana.voice"));
+        Assert.Equal(["/set_gpt_weights", "/set_gpt_weights"], server.Asked.Select(a => a[..a.IndexOf('?')]));
+        Assert.Equal("the voice didn't load. Switch it off and on above to try again.", error.Message);
+        Assert.Equal("change gpt weight failed: attached to a different loop", error.InnerException!.Message);   // for the log
+    }
+
     [Fact]
     public async Task GPT_SoVITS_loads_a_trained_voice_from_its_folder_and_a_clone_with_its_base_model()
     {

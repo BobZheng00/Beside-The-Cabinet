@@ -223,6 +223,9 @@ the voices by ear (2026-11-09, #278: "the default 6 listen good"). The numbers a
   is connected: `04a44eb` took it out of `TTS.py`, and `api_v2.py` still accepts `gpt_streaming` and silently makes whole segments.
   It runs on the standard package's Python from a folder of its own in the engine, linked to the package's models, and that server
   also runs v2ProPlus and the voices already trained. The RTX 50 build has its own Python and torch, and couldn't be tried.
+  That server turns down any request that comes while it is making a line (its lock was made on another event loop under
+  the package's Python 3.9), so the app asks it one thing at a time: a line cut off is read to its end before weights
+  change, and a switch turned down is asked for once more, then said in plain words on the Voice page.
 - **A voice stays in the language it was recorded in.** GPT-SoVITS sounds right only when the recording and the speech are in the
   same language.
 - Tests drive the recorder with recorded clips, never the real microphone. Recording with a real microphone is a manual
