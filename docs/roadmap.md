@@ -38,6 +38,11 @@ cabinet from a dark room, the companion as Player 2, missions, Settings in nine 
 voices that work on every PC, in steps with a recorder, and each provider's own web search. The finish line is someone who has never seen the
 app getting it on their own. The issues are in the milestone "Preview 3: a new player gets it".
 
+**Then: talking in the room** (the user, 2026-11-15: "we want to act like we are speaking to a person in the same
+room/house"). Spec `docs/specs/2026-11-16-talking-in-the-room.md`, from the design session on #343: their name,
+opt-in, listened for while the player is home; talking over them with Windows' Voice Clarity; stronger local ears.
+Measured first (#346), then the microphone in communications mode (#347), the chosen ears (#348) and their name (#349).
+
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner
 to the card, the agenda result handed back as known so she reacts rather than reports, and a manner check that
