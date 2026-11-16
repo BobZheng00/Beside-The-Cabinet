@@ -61,7 +61,8 @@ try { if (-not $runLock.WaitOne([TimeSpan]::FromMinutes(30))) { throw "Another t
 catch [System.Threading.AbandonedMutexException] { }                 # a killed run's lock: ours now
 & (Join-Path $PSScriptRoot "import.ps1") -Godot $Godot                 # the art again, if anything changed since the last import
 # on a Windows desktop of its own, as shoot.ps1 -Hidden runs it: nothing reaches the player's screen, taskbar or focus
-if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
+. (Join-Path $PSScriptRoot "compile.ps1")                              # compiled in the checkout, never %TEMP% (#353)
+if (-not ("Backstage" -as [type])) { Compile-InCheckout { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") } }
 # the movie writer records at the project's window size, which only override.cfg changes (--resolution doesn't), held
 # under the lock so that no other test run of this checkout starts with it, and removed however the clip ends (git
 # ignores it; tools/export/release.py refuses to export while it is there)

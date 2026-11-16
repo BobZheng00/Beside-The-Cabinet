@@ -82,7 +82,8 @@ $seed | Out-File -Encoding ascii (Join-Path $profile "settings.json")
 Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot "flat.ps1")
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type @"
+. (Join-Path $PSScriptRoot "compile.ps1")                            # compiled in the checkout, never %TEMP% (#353)
+Compile-InCheckout { Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class Shoot { [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr ctx);
@@ -101,8 +102,8 @@ public static class Shoot { [StructLayout(LayoutKind.Sequential)] public struct 
     EnumWindows((h, p) => { uint owner; GetWindowThreadProcessId(h, out owner); if (owner == pid && IsWindowVisible(h)) all.Add(h); return true; }, IntPtr.Zero);
     return all; } }
 "@
+  if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") } }
 [Shoot]::SetThreadDpiAwarenessContext([IntPtr](-4)) | Out-Null       # true pixels on every monitor
-if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
 
 $form = $null
 if ($Bg -ne "none") {

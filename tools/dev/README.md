@@ -199,7 +199,8 @@ What a hidden run guarantees (`shoot.ps1 -Hidden`, every smoke scenario, `clip.p
 player's screen, taskbar or focus, from start to finish. No console, no window flashing up, no taskbar button, no
 tray icon or Windows notice, and the window in front stays theirs. The app runs on a Windows desktop of its own
 (`tools/dev/hidden.cs`), the only way to keep Godot from showing its window and asking for the focus before any of the
-app's code runs. Windows draws nothing on a desktop no one looks at, so the app pictures its own windows there (`--shots`):
+app's code runs. The scripts compile their C# in the checkout's `.qa\compile` (`tools/dev/compile.ps1`), never in
+%TEMP%, which a clean-up tool may empty halfway (#353). Windows draws nothing on a desktop no one looks at, so the app pictures its own windows there (`--shots`):
 the screenshots are the same as before, except that a window's title bar isn't in its picture. Meanwhile the run watches
 the player's desktop: a window of the run's on any monitor or on the taskbar, or in front, is said in a
 `seen by the player:` line, which fails a smoke scenario. The app and everything it starts live in a job that ends
@@ -314,7 +315,10 @@ What a commit must pass before its pull request is marked ready, run the same wa
   branch's changes need, recorded against the commit in `<main checkout>\.qa\results\<sha>.checks.json` with which
   scenarios ran and why each other one didn't. `-All` runs every scenario, `-NoSmoke` none for a quick pass,
   `-Status` says what is recorded for HEAD, `-Verdict PASS|FAIL -Because "..."` records QA's verdict on it. The pm
-  plugin's gate wants both before a pull request is marked ready.
+  plugin's gate wants both before a pull request is marked ready. The smoke step passes, or is blocked, only on the
+  smoke report its own run wrote for this commit, with a result for every scenario asked for: a smoke run that stops
+  on an error, or ends without that report, is a FAIL (#353). A scenario the run never reached is a FAIL in the report
+  too. `check.ps1 -SelfCheck` (run by `pick-check.ps1`) tries made-up smoke steps that stop early.
 - `tools\dev\smoke.ps1`: every scenario in `tools/dev/smoke/scenarios.json`, each a hidden test run through
   `shoot.ps1`, judged PASS, FAIL or BLOCKED from its screenshots and log. A shot whose window (or the scenario's
   named one) isn't there yet, or is one flat colour (nothing drawn yet), waits for it, up to 10 s, and the report's
@@ -338,7 +342,8 @@ What a commit must pass before its pull request is marked ready, run the same wa
   when git can't say what changed, or nothing did. The others are reported as SKIPPED, with the reason, and
   `check.ps1` prints each scenario's result and reason.
   `-Changed -Explain` says what a change would run without running it (`-Files a,b` for a list of your own), and
-  `tools\dev\smoke\pick-check.ps1`, which `check.ps1` runs first, checks the rule on a few lists. Main's baseline
+  `tools\dev\smoke\pick-check.ps1`, which `check.ps1` runs first, checks the rule on a few lists (and the harness's
+  own checks: `smoke.ps1 -SelfCheck`, `check.ps1 -SelfCheck`, and its C# compiling with %TEMP% gone). Main's baseline
   (`smoke.ps1` with no options) runs everything.
 - `tools\dev\mock_mind.py <port>`: an OpenAI-compatible stand-in for the companion's mind with a fixed reply, logging
   each request. A profile points at it with `"ChatProtocol": "OpenAi", "ChatBaseUrl": "http://127.0.0.1:<port>/v1",
