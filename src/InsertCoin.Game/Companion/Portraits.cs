@@ -4,9 +4,10 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
-/// Each character's portrait: their head, face on, from the neck to the top of their hair, from their own model, in the cabinet's shading on a clear
-/// ground. Made once, one at a time, and kept in the profile (<see cref="PortraitFile"/>): made again when their model
-/// changes. A model that can't be read, or isn't a person's shape, gets a silhouette instead.
+/// Each character's portrait: their head, face on, from the neck to the top of their hair, from their own model,
+/// in the cabinet's shading on a clear ground. Made once, one at a time, and kept in the profile
+/// (<see cref="PortraitFile"/>): made again when their model changes. A model that can't be read, or isn't a
+/// person's shape, gets a silhouette instead.
 /// </summary>
 public partial class Portraits : Node
 {
@@ -22,7 +23,7 @@ public partial class Portraits : Node
 
     private static Texture2D? _silhouette;
 
-    /// <summary>A head and shoulders in the paper's lines' colour, for someone without a portrait (yet).</summary>
+    /// <summary>A head and neck in the paper's lines' colour, as large as a portrait's, for someone without one (yet).</summary>
     public static Texture2D Silhouette => _silhouette ??= ImageTexture.CreateFromImage(SilhouetteImage());
 
     /// <summary>
@@ -174,9 +175,9 @@ public partial class Portraits : Node
             for (var x = 0; x < Size; x++)
             {
                 var p = new Vector2(x, y) / Size;
-                var head = p.DistanceTo(new Vector2(0.5f, 0.4f)) < 0.17f;
-                var shoulders = p.Y > 0.6f && ((p - new Vector2(0.5f, 1.02f)) / 0.4f).Length() < 1;
-                if (head || shoulders)
+                var head = ((p - new Vector2(0.5f, 0.45f)) / new Vector2(0.32f, 0.4f)).Length() < 1;  // framed as a portrait is: neck to the top
+                var neck = p.Y > 0.75f && Mathf.Abs(p.X - 0.5f) < 0.11f;
+                if (head || neck)
                     image.SetPixel(x, y, colour);
             }
         return image;
