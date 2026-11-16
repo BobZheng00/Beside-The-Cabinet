@@ -748,14 +748,21 @@ public class VoiceTests
     private sealed class LineBeingMade(byte[] wav, int firstPart, List<string> log) : Stream
     {
         private readonly TaskCompletionSource _rest = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _waiting = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _at;
 
         public void Finish() => _rest.TrySetResult();
 
+        /// <summary>Done once a read is waiting for the rest of the line.</summary>
+        public Task Waiting => _waiting.Task;
+
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (_at >= firstPart)
+            {
+                _waiting.TrySetResult();
                 await _rest.Task.WaitAsync(cancellationToken);
+            }
             var end = _at < firstPart ? firstPart : wav.Length;
             var count = Math.Min(buffer.Length, end - _at);
             wav.AsMemory(_at, count).CopyTo(buffer);
@@ -778,10 +785,13 @@ public class VoiceTests
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
-    [Fact]
-    public async Task Choosing_another_model_while_they_speak_switches_only_once_the_line_being_made_has_finished()
+    /// <summary>
+    /// A long line starts and is cut off as soon as it is heard, as when the player chooses another model on the Voice
+    /// page: the switch to another model is asked for straight after. The line's second half waits for <see cref="LineBeingMade.Finish"/>.
+    /// </summary>
+    private static async Task<(LineBeingMade Line, List<string> Log, Task Saying, Task Switching)> SwitchMidLine(
+        TempFolder home, Func<HttpClient, GptSoVits> make)
     {
-        using var home = new TempFolder();
         home.File("clips/5.wav", Silence(5));
         var clip = new VoiceClip("clips/5.wav", "はい。", "ja");
         var voice = new VoiceProfile { Language = "ja", CloneWith = "v2ProPlus", Clips = [clip] };
@@ -796,19 +806,28 @@ public class VoiceTests
                 ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(line) }
                 : new HttpResponseMessage(HttpStatusCode.OK);
         });
-        var engine = new GptSoVits(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
+        var engine = make(new HttpClient(server) { BaseAddress = new Uri("http://127.0.0.1:9880/") });
         await engine.Load(voice, home.Path);
 
-        // a long line starts, the player chooses v5 fast on the Voice page: what is being said stops, and the voice is loaded again
-        using var stop = new CancellationTokenSource();
+        var stop = new CancellationTokenSource();
         var saying = Task.Run(async () =>
         {
             await foreach (var _ in engine.Speak("ずっと話してるね。", voice, home.Path, clip, stop.Token))
-                stop.Cancel();                                      // cut off as soon as it is heard
+            {
+            }
         });
-        while (!stop.IsCancellationRequested && !saying.IsCompleted)
-            await Task.Delay(10);
-        var switching = engine.Load(voice with { CloneWith = "v5turbo" }, home.Path);
+        await line.Waiting.WaitAsync(TimeSpan.FromSeconds(10));
+        stop.Cancel();                                              // cut off while waiting for the server's next piece
+        // its own trained model: a switch on any engine (v5 fast, without v5's files, would be v2ProPlus again and no switch at all)
+        return (line, log, saying, engine.Load(voice with { CloneWith = null, Gpt = "a.ckpt", Sovits = "b.pth" }, home.Path));
+    }
+
+    [Fact]
+    public async Task Choosing_another_model_while_they_speak_switches_only_once_the_line_being_made_has_finished()
+    {
+        using var home = new TempFolder();
+        var (line, log, saying, switching) = await SwitchMidLine(home, http => new GptSoVits(http));
+
         await Task.Delay(200);
         lock (log)
             Assert.DoesNotContain("/set_gpt_weights", log.Skip(4));     // nothing reaches the server while it makes the line
@@ -817,6 +836,32 @@ public class VoiceTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => saying);
 
         Assert.Equal(["/set_gpt_weights", "/set_sovits_weights", "/set_refer_audio", "/tts", "line finished", "/set_gpt_weights", "/set_sovits_weights"], log);
+    }
+
+    [Fact]
+    public async Task A_line_cut_off_that_the_server_never_finishes_holds_the_switch_up_only_so_long()
+    {
+        using var home = new TempFolder();
+        var (_, log, saying, switching) = await SwitchMidLine(home, http => new GptSoVits(http) { FinishLimit = TimeSpan.FromMilliseconds(300) });
+
+        await Task.Delay(100);
+        lock (log)
+            Assert.DoesNotContain("/set_gpt_weights", log.Skip(4));
+        await switching.WaitAsync(TimeSpan.FromSeconds(10));            // the line never finishes: given up on after the limit
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => saying.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(["/set_gpt_weights", "/set_sovits_weights", "/set_refer_audio", "/tts", "/set_gpt_weights", "/set_sovits_weights"], log);
+    }
+
+    [Fact]
+    public async Task On_the_packages_own_server_a_line_cut_off_ends_at_once()
+    {
+        using var home = new TempFolder();
+        // its server can take the next request while it finishes a line: nothing is waited for, however long the limit
+        var (_, log, saying, switching) = await SwitchMidLine(home, http => new GptSoVits(http, hasV5: false) { FinishLimit = TimeSpan.FromHours(1) });
+
+        await switching.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => saying.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal(["/set_gpt_weights", "/set_sovits_weights", "/set_refer_audio", "/tts", "/set_gpt_weights", "/set_sovits_weights"], log);
     }
 
     [Fact]
