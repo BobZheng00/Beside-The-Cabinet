@@ -7,8 +7,8 @@ namespace InsertCoin.Mind;
 /// <summary>A piece of her voice: mono samples (-1..1) at a sample rate (32 kHz for v2 models, 48 kHz for v4).</summary>
 public readonly record struct VoiceAudio(int SampleRate, float[] Samples);
 
-/// <summary>The voice engine could not do what was asked; the message says why, in its words.</summary>
-public sealed class VoiceException(string message) : Exception(message)
+/// <summary>The voice engine could not do what was asked; the message says why, in its words (or in the player's, with the engine's inside).</summary>
+public sealed class VoiceException(string message, Exception? inner = null) : Exception(message, inner)
 {
     /// <summary>The server's own explanation from its JSON error ({"message": …, "Exception": …}), or the body as it is.</summary>
     public static VoiceException From(string body)
@@ -66,8 +66,18 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
     /// </summary>
     public const int BlendClips = 4;
 
+    /// <summary>
+    /// How long a line cut off is still read to its end, so the server has finished it before it is asked anything
+    /// else: v5 fast's server turns down whatever comes while it is making a line ("attached to a different loop").
+    /// </summary>
+    private static readonly TimeSpan FinishLimit = TimeSpan.FromSeconds(20);
+
     private (string Gpt, string Sovits)? _loaded;
     private bool _stale;
+    private readonly SemaphoreSlim _free = new(1, 1);      // one request at a time: a line being made, or a switch of weights
+
+    /// <summary>The pause before a switch the server turned down is asked for again.</summary>
+    public TimeSpan RetryAfter { get; init; } = TimeSpan.FromSeconds(2);
 
     /// <summary>The quiet dropped from the start of the last line said (see <see cref="QuietStart"/>).</summary>
     public TimeSpan LastTrimmed { get; private set; }
@@ -96,16 +106,50 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
         return Load(gpt, sovits, cancel);
     }
 
-    /// <summary>Loads a voice's weights, unless they are the ones loaded already (switching takes a few seconds).</summary>
+    /// <summary>
+    /// Loads a voice's weights, unless they are the ones loaded already (switching takes a few seconds), once the line
+    /// being made has finished. A switch the server turns down is asked for once more; if it is turned down again,
+    /// the exception says so in the player's words, with the server's reason inside.
+    /// </summary>
     public async Task Load(string gpt, string sovits, CancellationToken cancel = default)
     {
         if (_loaded == (gpt, sovits))
             return;
-        _loaded = null;
-        await Call($"set_gpt_weights?weights_path={Uri.EscapeDataString(gpt)}", cancel);
-        await Call($"set_sovits_weights?weights_path={Uri.EscapeDataString(sovits)}", cancel);
-        _loaded = (gpt, sovits);
-        _stale = true;                  // the server keeps the clip it prepared for the old weights: prepare it again
+        await _free.WaitAsync(cancel);
+        try
+        {
+            _loaded = null;
+            await Switch($"set_gpt_weights?weights_path={Uri.EscapeDataString(gpt)}");
+            cancel.ThrowIfCancellationRequested();
+            await Switch($"set_sovits_weights?weights_path={Uri.EscapeDataString(sovits)}");
+            _loaded = (gpt, sovits);
+            _stale = true;                  // the server keeps the clip it prepared for the old weights: prepare it again
+        }
+        finally
+        {
+            _free.Release();
+        }
+    }
+
+    /// <summary>One switch, never cut off halfway (the server would go on loading and turn the next request down), asked for twice if need be.</summary>
+    private async Task Switch(string path)
+    {
+        try
+        {
+            await Call(path, CancellationToken.None);
+        }
+        catch (VoiceException)
+        {
+            await Task.Delay(RetryAfter);
+            try
+            {
+                await Call(path, CancellationToken.None);
+            }
+            catch (VoiceException e)
+            {
+                throw new VoiceException("the voice didn't load. Switch it off and on above to try again.", e);
+            }
+        }
     }
 
     /// <summary>The server was restarted: whatever it had loaded is gone.</summary>
@@ -122,56 +166,110 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
     {
         profile = Fitted(profile);
         var clipPath = Path.GetFullPath(Path.Combine(folder, clip.File));
-        if (_stale)
-        {
-            await Call($"set_refer_audio?refer_audio_path={Uri.EscapeDataString(clipPath)}", cancel);
-            _stale = false;
-        }
-        // her first few, whichever is speaking: the same set whatever the mood, so the server prepares them only once
-        var blended = Blends(profile.Runs)
-            ? profile.Clips.Select(c => Path.GetFullPath(Path.Combine(folder, c.File))).Where(File.Exists).Take(BlendClips).ToArray()
-            : [];
-        var body = new Dictionary<string, object>
-        {
-            ["text"] = text,
-            ["text_lang"] = profile.Language,
-            ["ref_audio_path"] = clipPath,
-            ["aux_ref_audio_paths"] = blended,
-            ["prompt_text"] = clip.Text,
-            ["prompt_lang"] = clip.Language.Length > 0 ? clip.Language : profile.Language,
-            ["text_split_method"] = "cut5",
-            ["batch_size"] = 1,
-            ["media_type"] = "wav",
-            ["streaming_mode"] = 2,             // starts sooner than a whole sentence at once, at no cost heard (measured 2026-10-02)
-            ["parallel_infer"] = false,
-        };
-        if (profile.Runs != V5Fast.Version)
-            body["sample_steps"] = profile.Steps;       // only v3 and v4 use it; v5 fast's own default is 4, and 16 would be four times the work
-        else if (card)
-        {
-            body["gpt_streaming"] = true;
-            body["streaming_chunk_seconds"] = 1.0;
-            body["gpt_streaming_lookahead_seconds"] = 0.3;
-        }
-        using var request = new HttpRequestMessage(HttpMethod.Post, "tts") { Content = JsonContent.Create(body) };
-        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
-        if (!response.IsSuccessStatusCode)
-            throw VoiceException.From(await response.Content.ReadAsStringAsync(cancel));
-        await using var stream = await response.Content.ReadAsStreamAsync(cancel);
-        var wav = new Wav();
-        QuietStart? quiet = null;
-        LastTrimmed = TimeSpan.Zero;
+        await _free.WaitAsync(cancel);
+        // cut off, the line is still read to its end (up to FinishLimit), so the server has finished it before it is asked anything else
+        using var finish = new CancellationTokenSource();
+        HttpResponseMessage? response = null;
+        Stream? stream = null;
+        var ended = false;
         var buffer = new byte[16384];
-        int read;
-        while ((read = await stream.ReadAsync(buffer, cancel)) > 0)
-            if (wav.Feed(buffer.AsSpan(0, read)) is { Length: > 0 } samples)
+        try
+        {
+            if (_stale)
             {
-                quiet ??= new QuietStart(wav.SampleRate, leadIn);
-                var heard = quiet.Feed(samples);
-                LastTrimmed = quiet.DroppedTime;
-                if (heard.Length > 0)
-                    yield return new VoiceAudio(wav.SampleRate, heard);
+                await Call($"set_refer_audio?refer_audio_path={Uri.EscapeDataString(clipPath)}", CancellationToken.None);
+                _stale = false;
             }
+            cancel.ThrowIfCancellationRequested();
+            // her first few, whichever is speaking: the same set whatever the mood, so the server prepares them only once
+            var blended = Blends(profile.Runs)
+                ? profile.Clips.Select(c => Path.GetFullPath(Path.Combine(folder, c.File))).Where(File.Exists).Take(BlendClips).ToArray()
+                : [];
+            var body = new Dictionary<string, object>
+            {
+                ["text"] = text,
+                ["text_lang"] = profile.Language,
+                ["ref_audio_path"] = clipPath,
+                ["aux_ref_audio_paths"] = blended,
+                ["prompt_text"] = clip.Text,
+                ["prompt_lang"] = clip.Language.Length > 0 ? clip.Language : profile.Language,
+                ["text_split_method"] = "cut5",
+                ["batch_size"] = 1,
+                ["media_type"] = "wav",
+                ["streaming_mode"] = 2,             // starts sooner than a whole sentence at once, at no cost heard (measured 2026-10-02)
+                ["parallel_infer"] = false,
+            };
+            if (profile.Runs != V5Fast.Version)
+                body["sample_steps"] = profile.Steps;       // only v3 and v4 use it; v5 fast's own default is 4, and 16 would be four times the work
+            else if (card)
+            {
+                body["gpt_streaming"] = true;
+                body["streaming_chunk_seconds"] = 1.0;
+                body["gpt_streaming_lookahead_seconds"] = 0.3;
+            }
+            using var request = new HttpRequestMessage(HttpMethod.Post, "tts") { Content = JsonContent.Create(body) };
+            response = await Uncut(http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, finish.Token), cancel);
+            if (!response.IsSuccessStatusCode)
+            {
+                ended = true;
+                throw VoiceException.From(await response.Content.ReadAsStringAsync(CancellationToken.None));
+            }
+            stream = await Uncut(response.Content.ReadAsStreamAsync(finish.Token), cancel);
+            var wav = new Wav();
+            QuietStart? quiet = null;
+            LastTrimmed = TimeSpan.Zero;
+            while (!cancel.IsCancellationRequested)
+            {
+                var read = await Uncut(stream.ReadAsync(buffer, finish.Token).AsTask(), cancel);
+                if (read == 0)
+                {
+                    ended = true;
+                    break;
+                }
+                if (wav.Feed(buffer.AsSpan(0, read)) is { Length: > 0 } samples)
+                {
+                    quiet ??= new QuietStart(wav.SampleRate, leadIn);
+                    var heard = quiet.Feed(samples);
+                    LastTrimmed = quiet.DroppedTime;
+                    if (heard.Length > 0)
+                        yield return new VoiceAudio(wav.SampleRate, heard);
+                }
+            }
+            cancel.ThrowIfCancellationRequested();
+        }
+        finally
+        {
+            if (stream is not null && !ended)
+            {
+                finish.CancelAfter(FinishLimit);
+                try
+                {
+                    while (await stream.ReadAsync(buffer, finish.Token) > 0)
+                    {
+                    }
+                }
+                catch (Exception)
+                {
+                    // the server went, or took too long: nothing more to wait for
+                }
+            }
+            stream?.Dispose();
+            response?.Dispose();
+            _free.Release();
+        }
+    }
+
+    /// <summary>A line cut off whose server then went (stopped for a game, say) ends as cut off, not as a fault.</summary>
+    private static async Task<T> Uncut<T>(Task<T> task, CancellationToken cancel)
+    {
+        try
+        {
+            return await task;
+        }
+        catch (Exception e) when (cancel.IsCancellationRequested && e is not OperationCanceledException)
+        {
+            throw new OperationCanceledException(cancel);
+        }
     }
 
     private async Task Call(string path, CancellationToken cancel)

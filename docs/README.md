@@ -367,7 +367,8 @@ hana/
 Without a model your companion speaks as a clone: GPT-SoVITS's base model copies the tone of their speaking clip (the
 one nearest 6 seconds, or the one chosen and listened to on the Voice page). The base model is v5 fast (it starts in
 under a second and sounds closest to the recording, but it's newer and less stable) or v2ProPlus (steadier), which also
-blends in the tone of their first four clips for about 0.1 s more per sentence. A GPT-SoVITS without v5 fast's files (one
+blends in the tone of their first four clips for about 0.1 s more per sentence. Choosing the other one while they're
+speaking lets the sentence being made finish, then switches. A GPT-SoVITS without v5 fast's files (one
 installed before them, the RTX 50 build, or any folder you pointed it at) speaks with v2ProPlus, and the Voice page says
 so; on the package this installs, "Get v5 fast" there fetches them (0.8 GB), only when pressed, carrying on if cut short
 and checking each file before it's used. During a first install the voice already works once the package is unpacked, and
