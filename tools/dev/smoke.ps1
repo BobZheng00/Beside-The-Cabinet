@@ -265,8 +265,9 @@ function Get-Copies {
 # keeps to one copy at a time as theirs does, on a throwaway profile, watched as test runs are. Its lock is one of its
 # own (--lock, honoured only on a profile that isn't the player's), so the player's own app can always start meanwhile.
 $standInLock = "InsertCoin.Cabinet.beside"
+. (Join-Path $PSScriptRoot "compile.ps1")                              # hidden.cs compiled in the checkout, never %TEMP% (#353)
 function Start-StandIn([string]$name) {
-  if (-not ("Backstage" -as [type])) { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") }
+  if (-not ("Backstage" -as [type])) { Compile-InCheckout { Add-Type -Path (Join-Path $PSScriptRoot "hidden.cs") } }
   $profile = Join-Path $Out "profile-$name"
   if (Test-Path $profile) { Remove-Item $profile -Recurse -Force }
   New-Item -ItemType Directory $profile | Out-Null
@@ -287,6 +288,7 @@ $held = $false
 try { $held = $lock.WaitOne([TimeSpan]::FromMinutes($Wait)) } catch [System.Threading.AbandonedMutexException] { $held = $true }
 if (-not $held) { Block-All "another smoke run held the lock for $Wait minutes" }
 
+$stopped = ""
 try {
   # Holding the lock, no test run of ours is going: a copy started --offscreen is left over from a killed one.
   foreach ($orphan in @(Get-Copies | Where-Object { $_.CommandLine -match "--offscreen" })) {
@@ -422,9 +424,18 @@ try {
     Add-Result $s $result $problems $allShots $bad ((Get-Date) - $t0).TotalSeconds $besideNotes
     "  $result"
   }
+} catch {
+  $stopped = "$($_.Exception.Message)"
+  "The smoke run stopped: $stopped"
 } finally {
   if ($held) { $lock.ReleaseMutex() }
   $lock.Dispose()
+}
+# a scenario the run never reached fails: the run once stopped before any, and that was taken for a pass (#353)
+foreach ($s in $scenarios) {
+  if (-not ($results | Where-Object { $_.name -eq $s.name -and $_.result -ne "SKIPPED" })) {
+    Add-Result $s "FAIL" @("the smoke run stopped before this scenario$(if ($stopped) { ': ' + $stopped })") @() @() 0
+  }
 }
 
 $code = 0

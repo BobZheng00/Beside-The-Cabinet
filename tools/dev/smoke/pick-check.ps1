@@ -1,6 +1,7 @@
 # Checks how smoke.ps1 -Changed picks scenarios, on a few lists of changed files, and how the beside scenario judges
-# whose the player's lock is (smoke.ps1 -SelfCheck), and that shoot.ps1 and clip.ps1 refuse settings the app couldn't
-# read. check.ps1 runs it; by hand:
+# whose the player's lock is (smoke.ps1 -SelfCheck), that shoot.ps1 and clip.ps1 refuse settings the app couldn't
+# read, that the harness's C# compiles with %TEMP% gone, and that check.ps1 never passes a smoke step that stops early
+# (check.ps1 -SelfCheck). check.ps1 runs it; by hand:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\dev\smoke\pick-check.ps1
 # Exit code: 0 every case picked what it should, 1 otherwise.
 $smoke = Join-Path (Split-Path $PSScriptRoot) "smoke.ps1"
@@ -60,6 +61,18 @@ foreach ($tool in @("shoot.ps1", "clip.ps1")) {
 }
 & $smoke -SelfCheck                                                   # the beside scenario's verdict on the player's lock
 if ($LASTEXITCODE -ne 0) { $failed++ }
-if ($failed) { "$failed case(s) picked the wrong scenarios, judged the lock wrongly or let unreadable settings through"; exit 1 }
+# The C# the harness compiles (hidden.cs, shoot.ps1's) needs nothing in %TEMP%: here %TEMP% is gone altogether (#353)
+. (Join-Path (Split-Path $PSScriptRoot) "compile.ps1")
+$tmp, $temp = $env:TMP, $env:TEMP
+$env:TMP = $env:TEMP = Join-Path (Split-Path $PSScriptRoot) "no-such-temp"
+$type = "CompileCheck" + [guid]::NewGuid().ToString("N")
+$compiled = try { Compile-InCheckout { Add-Type -TypeDefinition "public static class $type { public static int One() { return 1; } }" }; "" } catch { $_.Exception.Message }
+$kept = $env:TMP -eq $env:TEMP -and $env:TEMP.EndsWith("no-such-temp")
+$env:TMP, $env:TEMP = $tmp, $temp
+if ($compiled -eq "" -and ($type -as [type]) -and $kept) { "ok    C# compiles with %TEMP% gone, and %TEMP% is as it was after" }
+else { $failed++; "WRONG compiling with %TEMP% gone: '$compiled', %TEMP% kept: $kept" }
+& (Join-Path (Split-Path $PSScriptRoot) "check.ps1") -SelfCheck       # a smoke step that stops early is never a PASS
+if ($LASTEXITCODE -ne 0) { $failed++ }
+if ($failed) { "$failed case(s) picked the wrong scenarios, judged the lock or a smoke step wrongly, let unreadable settings through or compiled in %TEMP%"; exit 1 }
 "Every case picked what it should."
 exit 0
