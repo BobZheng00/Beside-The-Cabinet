@@ -28,8 +28,8 @@ stay on the PC and are not committed.*
 - **Voice Clarity is there** on this PC for both USB microphones, once the app opens them for communications: echo
   cancelling, noise suppression, gain control and deep noise suppression. Today the app gets only plain noise
   suppression. The laptop's built-in microphone has its maker's processing instead.
-- **Catching the name from the ears' text doesn't work well enough**: 10% of names said first were caught from
-  SenseVoice's words, 36% from Qwen3-ASR's with hints, which then also "heard" a name 4 times an hour in other speech.
+- **Catching the name from the ears' text doesn't work well enough**: 11% of names said first were caught from
+  SenseVoice's words, 40% from Qwen3-ASR's with hints, which then also "heard" a name 5 times an hour in other speech.
   The streaming model keeps 4 threads busy a third of the time, all the time. A keyword spotter is the thing to try next; it is
   a download too.
 
@@ -157,8 +157,8 @@ With the names given as hints, on the clips that hold a name, all rooms together
 - Hints help Qwen3-ASR 0.6B in English and Japanese and leave the rest of the line as good or better. They don't help
   in Chinese: 诗乃 is still heard as 师奶 or 吃奶, the same sounds.
 - With hints, both Qwen3-ASR models sometimes answer with the hint list itself in broken characters ("Shino ʫ nota͘
-  Hana ʫ…"): the 1.7B export on a third of the English lines, k2-fsa's 0.6B export on 5 stretches of an hour of other
-  speech. The app would have to throw such answers away.
+  Hana ʫ…"): the 1.7B export on a third of the English lines, k2-fsa's 0.6B export on 5 or 6 stretches of an hour of
+  other speech. The app would have to throw such answers away.
 - How the names went wrong, first words of the lines that start with Shino (clean and near): SenseVoice "She" 19
   times, 师奶 or 师乃, 死の, "Sheino", "Sino"; Qwen3-ASR 0.6B "She", "Chino", 市の; with hints "Shino" 28 times out of
   about 40, しの.
@@ -239,8 +239,9 @@ With Qwen3-ASR 0.6B on the processor, the words come 0.9 to 4.4 s later than tha
 
 Two ways, on the processor, with the names Shino, Hana and Fumiriya (in their spellings in the three languages)
 listened for at once:
-- **The ears on each stretch of speech**: Silero finds where speech starts, the first 2 s of it are heard whole, and
-  the name counts when the words start with it;
+- **The ears on each stretch of speech**: Silero finds where speech starts (a stretch ends at 0.6 s of quiet, so the
+  comma after a name doesn't), the first 2 s of it are heard whole, and the name counts when the words start with it
+  (with a stretch ending at 0.25 s of quiet, as for a turn's pauses, the catches were about the same);
 - **The streaming model on the stream**: Nemotron runs all the time, and the name counts when an utterance's words
   start with it.
 
@@ -250,14 +251,14 @@ voices in the near room (a TV or another person; 20 minutes of it for the stream
 
 | Way | Said first: caught | Not first: caught | Other speech: false starts | Per hour | Processor per second of sound |
 |---|---|---|---|---|---|
-| SenseVoice on each stretch | 27 / 270 (10%) | 0 / 51 | 0 in 73 min | 0 | 0.02 s |
-| SenseVoice, across the room | 12 / 90 | 0 / 17 | 0 in 73 min | 0 | 0.03 s |
-| Qwen3-ASR 0.6B on each stretch | 25 / 270 (9%) | 0 / 51 | 0 in 73 min | 0 | 0.08 s |
-| Qwen3-ASR 0.6B, names as hints | 97 / 270 (36%) | 1 / 51 | 5 in 73 min | 4.1 | 0.10 s |
+| SenseVoice on each stretch | 31 / 270 (11%) | 0 / 51 | 0 in 73 min | 0 | 0.02 s |
+| SenseVoice, across the room (clean clips; other speech far) | 14 / 90 | 0 / 17 | 0 in 73 min | 0 | 0.02 s |
+| Qwen3-ASR 0.6B on each stretch | 34 / 270 (13%) | 0 / 51 | 0 in 73 min | 0 | 0.06 s |
+| Qwen3-ASR 0.6B, names as hints | 107 / 270 (40%) | 0 / 51 | 6 in 73 min | 4.9 | 0.07 s |
 | Nemotron 560 ms, streaming | 31 / 270 (11%) | 0 / 51 | 0 in 22 min | 0 | 0.31 s |
 
 - **None is good enough.** The ears hear the rest of the line and lose the name, which is the one word that matters
-  here. With hints, Qwen3-ASR catches English names about half the time (33 of 72) and Chinese ones hardly at all
+  here. With hints, Qwen3-ASR catches English names about half the time (34 of 72) and Chinese ones hardly at all
   (8 of 48), and its false starts were all the garbled hint list described above.
 - **False starts are rare** when nothing is hinted: no sentence of other speech came out starting with a name, even
   though some had a name later in them.
@@ -307,7 +308,7 @@ voices in the near room (a TV or another person; 20 minutes of it for the stream
   wrong, mostly small); at a distance and with accents, names are what goes wrong, which the hints address.
 
 **#349, how the name is caught.** A keyword spotter first (a download to ask for). Reading it from the ears' words
-catches 10 to 36% here. The turn must also not end at the pause after the name.
+catches 11 to 40% here. The turn must also not end at the pause after the name.
 
 **#347, the microphone in communications mode.** Voice Clarity is there on the owner's USB microphones; the owner's
 recording with `hear_voice_clarity.cs` will say how much it does in their room.
