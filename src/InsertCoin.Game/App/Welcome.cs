@@ -131,8 +131,8 @@ public partial class Welcome : Window
         _mindPage = new VBoxContainer();
         fourth.AddChild(_mindPage);
         fourth.AddChild(new HSeparator());
-        Form.Hint(fourth, "The rest can wait for whenever you like: a voice, talking aloud, your phone and a calendar are in Getting " +
-                          "started, in the tray and at the top of Settings.");
+        Form.Hint(fourth, "The rest can wait for whenever you like: a voice, talking aloud, your phone and a calendar are in " +
+                          "Settings, with the missions at the top of it and in the tray.");
         _pages.Add(fourth);
 
         foreach (var page in _pages)
