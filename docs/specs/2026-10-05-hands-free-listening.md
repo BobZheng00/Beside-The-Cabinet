@@ -20,7 +20,7 @@ How the player talks to her without holding the talk key. Decided with the user 
 - **In a conversation** she listens after everything she says.
 - **It ends** after 30 s without the player saying anything, or by the switch or the key again.
 
-**A wake word** (D): not now. It would need the microphone open all the time, with a keyword model listening; that is a privacy and battery cost on every PC, false triggers happen, and the small model that runs on a CPU covers Chinese and English only. Revisit if players ask.
+**A wake word** (D): not now. It would need the microphone open all the time, with a keyword model listening; that is a privacy and battery cost on every PC, false triggers happen, and the small model that runs on a CPU covers Chinese and English only. Revisit if players ask. *Changed 2026-11-16:* their name, opt-in, listened for while the player is home: see `2026-11-16-talking-in-the-room.md`.
 
 **Where she never listens on her own**, unless the player allows each:
 - in a call (another app has the microphone or camera);
@@ -29,7 +29,7 @@ How the player talks to her without holding the talk key. Decided with the user 
 
 **Shown on the cabinet:** while the microphone is open, for any reason, the CRT shows "MIC" in its top right corner, with a dot that blinks like a recording light.
 
-**Never while she speaks.** Her own voice would come back through the microphone. So she listens only once she has finished, and talking over her still needs the key or a click. Talking over her by voice waits for the echo-cancellation spike.
+**Never while she speaks.** Her own voice would come back through the microphone. So she listens only once she has finished, and talking over her still needs the key or a click. Talking over her by voice waits for the echo-cancellation spike. *Changed 2026-11-16:* Windows' Voice Clarity instead, in `2026-11-16-talking-in-the-room.md` (#347).
 
 ## How a turn is heard
 
