@@ -66,18 +66,19 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
     /// </summary>
     public const int BlendClips = 4;
 
-    /// <summary>
-    /// How long a line cut off is still read to its end, so the server has finished it before it is asked anything
-    /// else: v5 fast's server turns down whatever comes while it is making a line ("attached to a different loop").
-    /// </summary>
-    private static readonly TimeSpan FinishLimit = TimeSpan.FromSeconds(20);
-
     private (string Gpt, string Sovits)? _loaded;
     private bool _stale;
     private readonly SemaphoreSlim _free = new(1, 1);      // one request at a time: a line being made, or a switch of weights
 
     /// <summary>The pause before a switch the server turned down is asked for again.</summary>
     public TimeSpan RetryAfter { get; init; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// How long a line cut off is still read to its end on v5 fast's server, so it has finished the line before it is
+    /// asked anything else: that server turns down whatever comes while it is making one ("attached to a different
+    /// loop"). The package's own server has no such trouble, and a line cut off there ends at once.
+    /// </summary>
+    public TimeSpan FinishLimit { get; init; } = TimeSpan.FromSeconds(20);
 
     /// <summary>The quiet dropped from the start of the last line said (see <see cref="QuietStart"/>).</summary>
     public TimeSpan LastTrimmed { get; private set; }
@@ -167,8 +168,16 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
         profile = Fitted(profile);
         var clipPath = Path.GetFullPath(Path.Combine(folder, clip.File));
         await _free.WaitAsync(cancel);
-        // cut off, the line is still read to its end (up to FinishLimit), so the server has finished it before it is asked anything else
+        // cut off, a line on v5 fast's server is still read to its end (up to FinishLimit), so the server has finished it
+        // before it is asked anything else; on the package's own server it ends at once
         using var finish = new CancellationTokenSource();
+        using var cutOff = cancel.Register(() =>
+        {
+            if (hasV5)
+                finish.CancelAfter(FinishLimit);
+            else
+                finish.Cancel();
+        });
         HttpResponseMessage? response = null;
         Stream? stream = null;
         var ended = false;
@@ -239,9 +248,10 @@ public sealed class GptSoVits(HttpClient http, bool hasV5 = true, bool card = tr
         }
         finally
         {
-            if (stream is not null && !ended)
+            if (stream is not null && !ended && hasV5)
             {
-                finish.CancelAfter(FinishLimit);
+                if (!cancel.IsCancellationRequested)
+                    finish.CancelAfter(FinishLimit);        // left before its end without being cut off: the same limit from now
                 try
                 {
                     while (await stream.ReadAsync(buffer, finish.Token) > 0)
