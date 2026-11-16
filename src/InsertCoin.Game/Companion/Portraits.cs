@@ -4,13 +4,14 @@ using InsertCoin.Mind;
 namespace InsertCoin.Game.Companion;
 
 /// <summary>
-/// Each character's portrait: their head and shoulders, from their own model, in the cabinet's shading on a clear
+/// Each character's portrait: their head, face on, from the neck to the top of their hair, from their own model, in the cabinet's shading on a clear
 /// ground. Made once, one at a time, and kept in the profile (<see cref="PortraitFile"/>): made again when their model
 /// changes. A model that can't be read, or isn't a person's shape, gets a silhouette instead.
 /// </summary>
 public partial class Portraits : Node
 {
     private const int Size = 256;                           // pixels square
+    private const string Framing = "front, neck to hair";   // a change here has every portrait made again
 
     /// <summary>The profile's portraits folder.</summary>
     public string Folder { get; init; } = "";
@@ -60,7 +61,7 @@ public partial class Portraits : Node
     /// <summary>Their portrait's file: a built-in character's is made again with each new build of the app.</summary>
     private string FileOf(Character character) =>
         PortraitFile.For(Folder, character.Id, ProjectSettings.GlobalizePath(character.Path),
-                         character.BuiltIn ? File.GetLastWriteTimeUtc(OS.GetExecutablePath()).Ticks.ToString() : "");
+                         Framing + (character.BuiltIn ? File.GetLastWriteTimeUtc(OS.GetExecutablePath()).Ticks.ToString() : ""));
 
     private async void Next()
     {
@@ -96,7 +97,7 @@ public partial class Portraits : Node
         _making = false;
     }
 
-    /// <summary>Their head and shoulders, arms down from where they stand at rest, or null when the model can't give them.</summary>
+    /// <summary>Their head, face on, arms down from where they stand at rest, or null when the model can't give them.</summary>
     private async Task<Image?> Take(Character character)
     {
         if (!character.BuiltIn && !ModelFile.LooksWhole(character.Path))
@@ -125,17 +126,39 @@ public partial class Portraits : Node
             rig.Rotate("RightUpperArm", Rig.Euler(0, 0, 70));
             new ToonMaterials().Apply(model, CompanionView.LightDirection, new Vector3(1, 1, 1), 1);
 
-            // framed by their shoulders' width, which a face's size follows more closely than their height does
-            var shoulders = rig.RestOffset("RightUpperArm", "LeftUpperArm").Length();
-            var target = rig.PositionOf("Head") + new Vector3(0, 0.3f * shoulders, 0);
-            const float fov = 24;
-            var camera = new Camera3D { Fov = fov, Near = 0.02f, Far = 20, Current = true };
+            // framed on their own head, from the neck to the top of the hair (or hat, or ears) as drawn, so heads come out
+            // the same size whatever their build: a first look finds the top and the sides at head height, widening
+            // until nothing is cut off; buns or a bow wider than that height widen the frame
+            var head = rig.PositionOf("Head");
+            var camera = new Camera3D { Projection = Camera3D.ProjectionType.Orthogonal, Near = 0.02f, Far = 20, Current = true };
             viewport.AddChild(camera);
-            camera.Position = target + new Basis(Vector3.Up, Mathf.DegToRad(16)) * new Vector3(0, 0, shoulders / Mathf.Tan(Mathf.DegToRad(fov / 2)));
-            camera.LookAt(target);
-            for (var frame = 0; frame < 3; frame++)
-                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            return viewport.GetTexture().GetImage();
+            async Task<Image> Look(float bottom, float top)
+            {
+                camera.Size = top - bottom;
+                camera.Position = new Vector3(head.X, (top + bottom) / 2, head.Z + 5);
+                for (var frame = 0; frame < 3; frame++)
+                    await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                return viewport.GetTexture().GetImage();
+            }
+            var reach = rig.RestOffset("RightUpperArm", "LeftUpperArm").Length();
+            Rect2I drawn, sides;
+            for (var tries = 0; ; tries++, reach *= 2)
+            {
+                var look = await Look(head.Y - reach, head.Y + 2 * reach);
+                drawn = look.GetUsedRect();
+                if (drawn.Size.Y == 0)
+                    return null;
+                // the sides of the head's upper part (buns, a bow, ears), not hair hanging beside the face
+                sides = look.GetRegion(new Rect2I(0, drawn.Position.Y, Size, Math.Max(1, (Size * 2 / 3 - drawn.Position.Y) * 3 / 5))).GetUsedRect();
+                if ((drawn.Position.Y > 0 && sides.Position.X > 0 && sides.End.X < Size) || tries == 3)
+                    break;
+            }
+            var pixel = 3 * reach / Size;
+            var hair = head.Y + 2 * reach - pixel * drawn.Position.Y;
+            var half = pixel * Math.Max(Size / 2 - sides.Position.X, sides.End.X - Size / 2);     // the head's middle to its farther side
+            var neck = rig.Has("Neck") ? rig.PositionOf("Neck").Y : head.Y - 0.35f * (hair - head.Y);
+            var top = hair + 0.06f * (hair - neck);
+            return await Look(top - Math.Max(top - neck, 2.12f * half), top);
         }
         finally
         {
