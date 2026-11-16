@@ -52,7 +52,7 @@ internal sealed partial class Puppet
         public Track Pelvis = null!;
         public readonly Dictionary<string, Track> Body = [], Ankle = [], Pitch = [], Hand = [], Fingers = [], Palms = [], Knee = [];
         public readonly Dictionary<string, Quaternion> Seated = [];
-        public Track Seating = null!, Waving = null!, Resting = null!, Direct = null!;
+        public Track Seating = null!, Waving = null!, Resting = null!, Direct = null!, Freed = null!;
         public Hand Wave;
     }
 
@@ -74,6 +74,13 @@ internal sealed partial class Puppet
 
     /// <summary>From gathering for the jump until just after the landing: the body is on its keys, not on its springs.</summary>
     public bool Jumping => _arrival is not null && _arrival.Direct.At(ArrivalNow).X >= 1;
+
+    /// <summary>
+    /// How much a plain GLB's hair hangs by its own weight, 0..1: fully from behind the cabinet to the landing, where
+    /// the body leans, crouches and jumps far from the upright pose the hair was made in, then less and less as they
+    /// settle on the stool.
+    /// </summary>
+    public float HairFreed => _arrival is null ? 0 : _arrival.Freed.At(ArrivalNow).X;
 
     /// <summary>Seconds of the arrival still to come.</summary>
     public double ArrivalLeft => _arrival is null ? 0 : _arrival.End - ArrivalNow;
@@ -157,6 +164,8 @@ internal sealed partial class Puppet
         plan.Body["Head"] = new Track(Keyed(V(-2, 0, 0), V(-3, 0, -10), V(-3, 0, -6), V(-12, 0, -2), V(-4, 0, -5), V(-3, 0, -1), V(-6, 0, 1), V(-9, 0, 0), Sat("Head")));
         // through the jump the body follows its keys exactly: springs would leave the head behind
         plan.Direct = new Track((0, Vector3.Zero), (crouch - 0.05f, Vector3.Zero), (crouch + 0.12f, Vector3.One), (land + 0.1f, Vector3.One), (land + 0.4f, Vector3.Zero));
+        // the hair hangs and swings until they land, and is back in its seated shape as they settle
+        plan.Freed = new Track((0, Vector3.One), (land, Vector3.One), (still, Vector3.Zero));
 
         // they land with both feet on the ring, however their legs were before; letting one down comes later, once settled
         foreach (var side in Sides)

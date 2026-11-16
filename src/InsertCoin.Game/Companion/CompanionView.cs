@@ -36,6 +36,20 @@ public partial class CompanionView : Node2D
     /// after the landing (#309). From the landing on they have their give again.
     /// </summary>
     private SpringBoneSimulator3D? _clothes;
+    /// <summary>
+    /// A plain GLB's hair on the stool: the shape it was made in, with a little give, and solid arms. Off through the
+    /// arrival: the arms coming down from the jump caught the hair on them, splayed out sideways long after they sat
+    /// down (#309). Started afresh once they are settled, as when they were already sitting there.
+    /// </summary>
+    private SpringBoneSimulator3D? _hair;
+    /// <summary>
+    /// A plain GLB's hair through the arrival, where the body leans, crouches and jumps far from the upright pose the
+    /// hair was made in: it hangs by its own weight and swings with them, arms not solid to it. Laid over
+    /// <see cref="_hair"/>, it fades out within a second of the landing (Puppet.HairFreed): what is left is the hair
+    /// as it sits, never having been pulled where this one hung. Simulators of their own, as changing a simulator's
+    /// settings starts its simulation afresh.
+    /// </summary>
+    private SpringBoneSimulator3D? _hairWeight;
     private Camera3D _camera = null!;
     private Puppet _puppet = null!;
     private Face _face = null!;
@@ -100,7 +114,7 @@ public partial class CompanionView : Node2D
             throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
         var fit = Fit(_character, skeleton, humanoid);
         _rig = new Rig(skeleton, humanoid, fit);
-        var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size, out _clothes) : [];
+        var followers = humanoid is not null ? LetLooseBonesSway(skeleton, humanoid, fit, _rig.Size, out _hair, out _hairWeight, out _clothes) : [];
         var footRestDrop = (world.Seat.Y - world.FootRest) / world.UnitsPerMetre;
         _face = new Face(_character);
         _puppet = new Puppet(_rig, _face, footRestDrop)
@@ -177,8 +191,6 @@ public partial class CompanionView : Node2D
         _unposed = FramesToPose;
         _flashing = true;
         SetFlash(1);
-        foreach (var springs in _character.FindChildren("*", nameof(SpringBoneSimulator3D), true, false).OfType<SpringBoneSimulator3D>())
-            springs.Reset();                                // hair and clothes start from where they are now, not swinging in from mid-air
     }
 
     private void SetFlash(float amount) => _layer.SetShaderParameter("flash", amount);
@@ -573,15 +585,18 @@ public partial class CompanionView : Node2D
     /// <summary>
     /// A plain GLB has no physics, but game characters often carry chains of bones for hair, skirts and coat tails
     /// that the game would have simulated. Found by name, they get Godot's spring bones: no gravity (their rest
-    /// shape already hangs right), just give, so they trail and settle when she moves. Her legs and the seat are
+    /// shape already hangs right on the stool), just give, so they trail and settle when she moves; hair is given its
+    /// weight through the arrival only (see _hairWeight). Her legs and the seat are
     /// solid to them, so a skirt lies over her thighs instead of passing through.
     /// </summary>
     /// <returns>Skirt panels and how far each should swing forward with the thigh below it (see Puppet.Followers).</returns>
+    /// <param name="hair">What simulates the hair on the stool, if there is any (see <see cref="_hair"/>).</param>
+    /// <param name="hairWeight">What hangs the hair through the arrival, if there is any (see <see cref="_hairWeight"/>).</param>
     /// <param name="clothes">What simulates the clothes, if there are any (see <see cref="_clothes"/>).</param>
     private static List<(string Bone, string Side, float Follow)> LetLooseBonesSway(Skeleton3D skeleton, IReadOnlyDictionary<string, int> humanoid, Transform3D toCharacter, float size,
-        out SpringBoneSimulator3D? clothes)
+        out SpringBoneSimulator3D? hair, out SpringBoneSimulator3D? hairWeight, out SpringBoneSimulator3D? clothes)
     {
-        clothes = null;
+        hair = hairWeight = clothes = null;
         var followers = new List<(string Bone, string Side, float Follow)>();
         string[] words = ["hair", "skirt", "piao", "tail", "ribbon", "cape", "cloth", "scarf", "dress", "bang", "ahoge"];
         var posed = humanoid.Values.ToHashSet();
@@ -622,7 +637,7 @@ public partial class CompanionView : Node2D
         // (see _clothes).
         bool IsHair(int root) => new[] { "hair", "bang", "ahoge", "ponytail", "twintail" }.Any(skeleton.GetBoneName(root).ToLowerInvariant().Contains);
         var perMetre = 1 / toCharacter.Basis.Scale.X;                   // the skeleton's own units in a metre
-        SpringBoneSimulator3D? Simulator(List<(int Root, int End)> its)
+        SpringBoneSimulator3D? Simulator(List<(int Root, int End)> its, float stiffness = 2.2f, float drag = 0.35f, float gravity = 0)
         {
             if (its.Count == 0)
                 return null;
@@ -633,17 +648,21 @@ public partial class CompanionView : Node2D
             {
                 springs.SetRootBone(i, its[i].Root);
                 springs.SetEndBone(i, its[i].End);
-                springs.SetStiffness(i, 2.2f);
-                springs.SetDrag(i, 0.35f);
-                springs.SetGravity(i, 0);
+                springs.SetStiffness(i, stiffness);
+                springs.SetDrag(i, drag);
+                springs.SetGravity(i, gravity);
                 springs.SetRadius(i, 0.02f * size * perMetre);
             }
             return springs;
         }
-        var hair = Simulator([.. chains.Where(c => IsHair(c.Root))]);
+        // the hair as it sits first, then its weight laid over it
+        var locks = hair = Simulator([.. chains.Where(c => IsHair(c.Root))]);
+        var weight = hairWeight = Simulator([.. chains.Where(c => IsHair(c.Root))], stiffness: 0.5f, drag: 0.1f, gravity: 1.0f);
+        if (weight is not null)
+            weight.Active = false;                                      // until an arrival
         var worn = clothes = Simulator([.. chains.Where(c => !IsHair(c.Root))]);
 
-        // What the loose bones must stay out of. Legs are solid to everything. Arms are solid to hair only:
+        // What the loose bones must stay out of. Legs are solid to everything. Arms are solid to the hair as it sits only:
         // clothes lie on the body they belong to, and being pushed off it pulls a sleeve or a collar out of place.
         // Tried and dropped: the torso (it sweeps hair worn over the shoulders round to the back), the head (it
         // parts the fringe) and the seat (it throws coat tails upwards).
@@ -675,7 +694,7 @@ public partial class CompanionView : Node2D
             if (fitted < 0.35f * wanted)
                 return;
             var along = skeleton.GetBoneRest(child).Origin;             // the next joint, in this bone's own space
-            foreach (var springs in hairOnly ? [hair] : new[] { hair, worn })
+            foreach (var springs in hairOnly ? [locks] : new[] { weight, locks, worn })
             {
                 if (springs is null)
                     continue;
@@ -784,6 +803,18 @@ public partial class CompanionView : Node2D
         _puppet.Update(delta);
         if (_puppet.Jumping)
             _clothes?.Reset();                              // the simulation starts afresh from the pose each frame: no lag to catch up on
+        if (_hair is not null && _hairWeight is not null)
+        {
+            var freed = _puppet.HairFreed;
+            _hairWeight.Influence = freed;
+            _hairWeight.Active = freed > 0;                 // each started afresh from the pose when it comes on
+            _hair.Active = !_puppet.Arriving;              // until then the hair keeps its shape under the weight, so nothing jumps
+        }
+        // Until they are drawn as they should be (loaded, an arrival's start, the flash), hair and clothes start afresh
+        // from the pose they will be seen in, not dragged from where they were (#309).
+        if (_unposed > 0)
+            foreach (var springs in _character.FindChildren("*", nameof(SpringBoneSimulator3D), true, false).OfType<SpringBoneSimulator3D>())
+                springs.Reset();
         if (_unposed > 0 && --_unposed == 0)
         {
             _picture.Visible = true;
