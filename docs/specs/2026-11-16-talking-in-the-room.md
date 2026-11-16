@@ -6,7 +6,7 @@ order is at the end.*
 
 ## Why
 
-The owner, 2026-11-15, after talking to the companion in the real app: "the STT is not very good even if i switched to
+The user, 2026-11-15, after talking to the companion in the real app: "the STT is not very good even if i switched to
 the correct input device. i have to get very close to the microphone and speak carefully without accent." And what
 they want instead: "a siri like experience (but please try to be better than siri in terms of we want to act like we
 are speaking to a person in the same room/house)".
@@ -27,7 +27,8 @@ Settings doesn't say which microphone they hear you on (#342).
 
 - Opt-in, in Settings → Listening: "Answer to <their name>". Off until ticked.
 - While it's on, the microphone listens for their name whenever the PC is awake and unlocked, across the room too. It
-  never listens in a call, while a game runs, in full screen or in quiet hours: the rules hands-free listening keeps.
+  never listens in a call, while a game runs, in full screen, while presenting or in quiet hours: the rules hands-free
+  listening keeps.
 - Only speech that starts with their name reaches them. The rest is heard on this PC and let go at once, never kept
   or sent.
 - The name is the character's own, from their card, in English, Chinese or Japanese, with no "Hey".
@@ -40,7 +41,7 @@ Settings doesn't say which microphone they hear you on (#342).
 
 Every assistant that answers to a word keeps a microphone open; what differs is what gates it and where the sound is
 heard. Siri, Alexa and Google listen with a small model on the device and keep nothing until the word. Google's Look
-and Talk needs no word: a camera sees the owner look at the screen from within five feet. Ours is gated by the rules
+and Talk needs no word: a camera sees its owner look at the screen from within five feet. Ours is gated by the rules
 above, heard only on this PC, and a false start is in character.
 
 ### Talking over them
@@ -48,6 +49,9 @@ above, heard only on this PC, and a false start is in character.
 - The app opens the microphone in Windows' communications mode, so Windows 11's Voice Clarity takes out their voice,
   background noise and the room's echo before the app hears anything. This needs the app's own microphone capture in
   place of Godot's.
+- The stream opts out of Windows' ducking, so music, videos and calls in other apps keep their volume while the
+  microphone is open. Left to its default, Windows turns other sounds down by 80% while a communications stream is
+  open.
 - With that, they hear you while they speak. If you talk over them, they stop where they are and listen, as a person
   would. What they didn't get to say isn't kept as said.
 - Where Voice Clarity isn't there, they keep today's rule: no listening while they speak.
@@ -60,9 +64,9 @@ above, heard only on this PC, and a false start is in character.
 - Names are given to it as hints: theirs, the player's, and what's on the agenda today.
 - Their mind is told the words were heard aloud, so it allows for a slip.
 - The candidates, all run on this PC, are measured first: Qwen3-ASR 0.6B and 1.7B (Apache-2.0; 30 languages and 22
-  Chinese dialects), Fun-ASR-Nano (Chinese, English and Japanese), and NVIDIA's Nemotron 3.5 ASR Streaming 0.6B (40
-  locales; words appear while you talk; its licence is checked before anything ships). sherpa-onnx, which runs
-  SenseVoice today, runs the first three.
+  Chinese dialects), Fun-ASR-Nano (Chinese, English and Japanese), and NVIDIA's Nemotron 3.5 ASR Streaming 0.6B (19
+  locales ready, English and Japanese among them; words appear while you talk; OpenMDW-1.1). sherpa-onnx, which
+  runs SenseVoice today, runs all four.
 - Speech services on the player's own key (OpenAI's transcription and others) come later, as a choice.
 
 ### The whole loop, measured
@@ -104,18 +108,36 @@ above, heard only on this PC, and a false start is in character.
 
 ## Open
 
-- Which ears: the owner judges from the measurement, on accuracy at a distance and with an accent, and on speed.
+- Which ears: the user judges from the measurement, on accuracy at a distance and with an accent, and on speed.
 - Whether to tidy what was heard before their mind sees it, from those ears' quality.
 - The speed bar, from the measurement.
 - How their name is caught: a keyword model, or the ears on a stream.
 - Which speech services, and when.
 - What a PC without Voice Clarity gets beyond today's rule.
+- Whether the player's exceptions to hands-free's rules (listening while a game runs, say) reach their name too.
+- What listening for their name all day costs the processor, and so a laptop's battery: measured with the name
+  catcher (#346).
 
 ## Order
 
-1. **Measure** (#346, a spike): the four candidates against SenseVoice-Small on the owner's laptop graphics card (8 GB)
+1. **Measure** (#346, a spike): the four candidates against SenseVoice-Small on the user's laptop graphics card (8 GB)
    beside their voice, and on the processor; accuracy in English, Chinese and Japanese, clean, at a distance and
    accented; the whole loop's timings; whether Voice Clarity applies on this PC; how a name would be caught.
 2. **The microphone in communications mode, and talking over them** (#347), with the microphone choice (#342) on it.
 3. **The chosen ears** (#348), with names as hints and each turn's timings logged.
 4. **Their name** (#349).
+
+## Sources
+
+- [Look and Talk to Google on Nest Hub Max](https://support.google.com/googlenest/answer/11410414): within 5 feet,
+  looking at the camera.
+- [Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B) and
+  [Qwen3-ASR-1.7B](https://huggingface.co/Qwen/Qwen3-ASR-1.7B):
+  Apache-2.0, 30 languages and 22 Chinese dialects.
+- [Fun-ASR-Nano](https://huggingface.co/FunAudioLLM/Fun-ASR-Nano-2512).
+- [Nemotron 3.5 ASR Streaming 0.6B](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b): its locales and
+  licence.
+- [sherpa-onnx v1.13.8](https://github.com/k2-fsa/sherpa-onnx/releases/tag/v1.13.8).
+- [Windows' default ducking](https://learn.microsoft.com/en-us/windows/win32/coreaudio/stream-attenuation) and
+  [opting out of it](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessioncontrol2-setduckingpreference).
+- The measurements: `docs/research/2026-11-16-speech-models.md` (#358).
