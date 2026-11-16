@@ -1,0 +1,52 @@
+{
+  "about": "What the synthesised test speech says (#346). Lengths: s about 2 s, m about 6 s, l about 15 s. names: the names in it and the spellings an ear may fairly give for each (the first is the one in the text).",
+  "names": {
+    "Shino": ["Shino", "诗乃", "シノ", "しの", "詩乃"],
+    "Hana": ["Hana", "花", "ハナ", "はな"],
+    "Fumiriya": ["Fumiriya", "フミリヤ"],
+    "Alex": ["Alex"],
+    "林晓": ["林晓"],
+    "健太": ["健太", "けんた", "ケンタ"]
+  },
+  "lines": [
+    {"id": "en-s1", "lang": "en", "len": "s", "names": ["Shino"], "text": "Shino, what's on today?"},
+    {"id": "en-s2", "lang": "en", "len": "s", "names": [], "text": "Remind me at nine."},
+    {"id": "en-s3", "lang": "en", "len": "s", "names": ["Hana"], "text": "Hana, are you still there?"},
+    {"id": "en-s4", "lang": "en", "len": "s", "names": [], "text": "Turn the music down a bit."},
+    {"id": "en-m1", "lang": "en", "len": "m", "names": ["Fumiriya"], "text": "Fumiriya, can you remind me to call my sister after dinner tonight, around eight?"},
+    {"id": "en-m2", "lang": "en", "len": "m", "names": [], "text": "I just finished the second chapter, and honestly the ending was better than I expected."},
+    {"id": "en-m3", "lang": "en", "len": "m", "names": ["Alex"], "text": "Hey, it's Alex. Could you put the dentist on Thursday at half past three?"},
+    {"id": "en-m4", "lang": "en", "len": "m", "names": ["Shino"], "text": "Shino, I think I'll play one more round and then go to bed, okay?"},
+    {"id": "en-l1", "lang": "en", "len": "l", "names": [], "text": "So today was kind of a mess. The meeting ran over by an hour, I missed lunch, and then the train was late on the way home, so I'm just going to have something quick and maybe play a game for a bit before I sleep."},
+    {"id": "en-l2", "lang": "en", "len": "l", "names": ["Hana", "Alex"], "text": "Hana, I need to plan the weekend. On Saturday morning I've got the gym at ten, then lunch with Alex, and on Sunday I want to finish the drawing I started last week, so can you remind me on Sunday afternoon?"},
+    {"id": "en-l3", "lang": "en", "len": "l", "names": ["Fumiriya"], "text": "Fumiriya, do you remember the puzzle game we talked about? I finally got past the level with the mirrors, but now there's a room with four switches and I can't work out which order they go in."},
+    {"id": "zh-s1", "lang": "zh", "len": "s", "names": ["Shino"], "text": "诗乃，今天有什么安排？"},
+    {"id": "zh-s2", "lang": "zh", "len": "s", "names": [], "text": "九点提醒我一下。"},
+    {"id": "zh-s3", "lang": "zh", "len": "s", "names": ["Hana"], "text": "花，你还在吗？"},
+    {"id": "zh-s4", "lang": "zh", "len": "s", "names": [], "text": "把音乐关小一点。"},
+    {"id": "zh-m1", "lang": "zh", "len": "m", "names": ["Shino"], "text": "诗乃，帮我记一下，明天下午三点要去牙医那里看牙。"},
+    {"id": "zh-m2", "lang": "zh", "len": "m", "names": [], "text": "我刚把第二章看完了，说实话结局比我想的要好很多。"},
+    {"id": "zh-m3", "lang": "zh", "len": "m", "names": ["林晓"], "text": "我是林晓，周四晚上七点和朋友吃饭，帮我加到日程里。"},
+    {"id": "zh-m4", "lang": "zh", "len": "m", "names": [], "text": "我再打一局就去睡觉了，你别催我了好不好。"},
+    {"id": "zh-l1", "lang": "zh", "len": "l", "names": [], "text": "今天真的有点乱，会开了一个多小时才结束，午饭也没吃上，回家的地铁还晚点了，所以我打算随便吃点东西，再玩一会儿游戏就睡觉。"},
+    {"id": "zh-l2", "lang": "zh", "len": "l", "names": ["Shino", "林晓"], "text": "诗乃，帮我安排一下周末吧，周六上午十点去健身房，中午和林晓吃饭，周日我想把上周开始画的那张画画完，周日下午提醒我一下。"},
+    {"id": "zh-l3", "lang": "zh", "len": "l", "names": [], "text": "你还记得我们说过的那个解谜游戏吗？我终于过了那个有镜子的关卡，但是现在有一个房间里有四个开关，我怎么也想不出该按什么顺序。"},
+    {"id": "ja-s1", "lang": "ja", "len": "s", "names": ["Shino"], "text": "シノ、今日の予定は？"},
+    {"id": "ja-s2", "lang": "ja", "len": "s", "names": [], "text": "九時に教えて。"},
+    {"id": "ja-s3", "lang": "ja", "len": "s", "names": ["Hana"], "text": "ハナ、まだいる？"},
+    {"id": "ja-s4", "lang": "ja", "len": "s", "names": [], "text": "音楽を少し小さくして。"},
+    {"id": "ja-m1", "lang": "ja", "len": "m", "names": ["Fumiriya"], "text": "フミリヤ、今夜八時ごろに姉に電話するのを思い出させてくれる？"},
+    {"id": "ja-m2", "lang": "ja", "len": "m", "names": [], "text": "第二章を読み終わったんだけど、正直、思ったより結末がよかった。"},
+    {"id": "ja-m3", "lang": "ja", "len": "m", "names": ["健太"], "text": "健太だけど、木曜日の三時半に歯医者の予約を入れておいて。"},
+    {"id": "ja-m4", "lang": "ja", "len": "m", "names": ["Shino"], "text": "シノ、もう一回だけやったら寝るから、いいでしょ？"},
+    {"id": "ja-l1", "lang": "ja", "len": "l", "names": [], "text": "今日はちょっとばたばただったよ。会議が一時間も延びて、お昼も食べられなかったし、帰りの電車も遅れたから、何か簡単に食べて、少しゲームしてから寝るつもり。"},
+    {"id": "ja-l2", "lang": "ja", "len": "l", "names": ["Hana", "健太"], "text": "ハナ、週末の予定を立てたいんだけど、土曜の朝十時にジム、それから健太とお昼、日曜は先週描き始めた絵を仕上げたいから、日曜の午後に声をかけてくれる？"},
+    {"id": "ja-l3", "lang": "ja", "len": "l", "names": [], "text": "前に話したパズルゲーム覚えてる？やっと鏡のステージをクリアしたんだけど、今度はスイッチが四つある部屋で、どの順番で押せばいいのか全然わからない。"}
+  ],
+  "voices": {
+    "en": [["qwen", "Ryan"], ["qwen", "Aiden"], ["sapi", "Microsoft Zira"], ["sapi", "Microsoft Mark"]],
+    "zh": [["qwen", "Vivian"], ["qwen", "Uncle_Fu"], ["sapi", "Microsoft Huihui"], ["sapi", "Microsoft Kangkang"]],
+    "ja": [["qwen", "Ono_Anna"], ["sapi", "Microsoft Haruka"], ["sapi", "Microsoft Ichiro"], ["sapi", "Microsoft Ayumi"]],
+    "accented": [["qwen", "Vivian"], ["qwen", "Ono_Anna"], ["qwen", "Sohee"], ["sapi", "Microsoft Huihui"], ["sapi", "Microsoft Haruka"]]
+  }
+}
