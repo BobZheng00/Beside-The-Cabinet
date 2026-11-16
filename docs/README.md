@@ -109,10 +109,11 @@ by a large one, so on a small one it reaches past the cabinet's edge, beside the
 to think and back to answer, nod in your pauses as you talk, and their head follows what their voice stresses. Click
 them and they wave, and the slip to type on opens (as large by a small cabinet as by a large one).
 
-Settings → Companion shows everyone who can sit on the stool as a card, with a portrait of their head and shoulders made
-from their own model, and the one on the stool ringed; click another card and they take the stool.
+Settings → Companion shows everyone who can sit on the stool as a card, with a portrait of their head, face on, made
+from their own model, from the neck to the top of the hair, so heads come out the same size on every card; the one on
+the stool is ringed, and clicking another card seats them.
 A portrait is made the first time a card shows and kept in the profile (`portraits`); a model that changes gets a new one,
-and so does each new version of the app's own characters. A model that can't be read, or has no head and shoulders to
+and so does each new version of the app's own characters. A model that can't be read, or has no head and arms to
 frame, shows a plain silhouette. Under the cards: how they sit, adding a character (a model file dropped on the cabinet
 adds one too), and switches to leave the stool empty or silence the bubbles. Each character sits one of two ways, whoever they are: neat (knees together, hands in the lap, head tilts) or relaxed (knees a little
 apart, often a foot down off the ring, a hand on each thigh, one nearer the hip, fewer tilts, the legs still, a nod
