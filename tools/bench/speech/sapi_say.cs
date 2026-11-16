@@ -9,6 +9,7 @@
 using Windows.Media.SpeechSynthesis;
 using Windows.Storage.Streams;
 
+Console.InputEncoding = System.Text.Encoding.UTF8;     // a Chinese Windows reads standard input as GBK otherwise
 var voices = SpeechSynthesizer.AllVoices;
 using var synthesiser = new SpeechSynthesizer();
 string? line;

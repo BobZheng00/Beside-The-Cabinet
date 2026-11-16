@@ -5,6 +5,8 @@
 //         [--provider cpu|cuda] [--threads 4] [--hints "Shino,Hana,..."] [--rooms clean,near,far]
 //         [--timing <n>]   also hear each of n clips per length 5 times, for the median and spread
 //         [--limit <n>]    only the first n clips
+//         [--only-names 1] only the clips with a name in them
+//         [--accuracy 0]   only the timings
 //
 // Models (folders under --models, E:/Tools/speech-trial/models by default; SenseVoice from --sense-voice):
 //   sense-voice      today's ears (Hearing.cs's settings)
@@ -44,6 +46,7 @@ var limit = int.Parse(Option("limit", "100000"));
 var clips = File.ReadLines(Option("manifest", "E:/Tools/speech-trial/audio/manifest.jsonl"))
     .Select(l => JsonNode.Parse(l)!.AsObject())
     .Where(c => rooms.Contains((string)c["room"]!))
+    .Where(c => Option("only-names", "0") == "0" || ((JsonArray)c["names"]!).Count > 0)
     .Take(limit).ToList();
 using var output = new StreamWriter(Option("out", $"E:/Tools/speech-trial/runs/{name}.jsonl"), append: false);
 void Write(object o) { output.WriteLine(JsonSerializer.Serialize(o)); output.Flush(); }
@@ -83,7 +86,7 @@ if (Option("mode", "asr") == "names")
     return;
 }
 
-foreach (var clip in clips)
+foreach (var clip in Option("accuracy", "1") == "1" ? clips : [])
 {
     var samples = Samples((string)clip["path"]!);
     var lang = (string)clip["lang"]!;
@@ -316,15 +319,12 @@ void Names()
 
     foreach (var clip in clips.Where(c => ((JsonArray)c["names"]!).Count > 0))
     {
-        var first = (string)c0(clip)!;
-        var startsWith = ((string)clip["text"]!).StartsWith(first) || first == "Hana" && ((string)clip["text"]!).StartsWith("花")
-                         || first == "Shino" && ((string)clip["text"]!).StartsWith("诗乃");
+        var startsWith = StartsWithName((string)clip["text"]!);
         var lang = (string)clip["lang"]!;
         var samples = Samples((string)clip["path"]!).Concat(new float[Hearing.SampleRate]).ToArray();
         var caught = Catch(samples, lang);
         Write(new { clip = (string)clip["clip"]!, room = (string)clip["room"]!, starts_with_name = startsWith, caught = caught.Count > 0, at = caught.Count > 0 ? caught[0].At : (double?)null, words = caught.Count > 0 ? caught[0].Words : null });
     }
-    static string? c0(JsonObject clip) => (string?)((JsonArray)clip["names"]!)[0];
     var clipsCompute = computeTotal / Math.Max(soundTotal, 1);
 
     computeTotal = soundTotal = 0;

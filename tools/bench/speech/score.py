@@ -1,6 +1,6 @@
 """Scores ears.cs's runs (#346): word error rate for English, character error rate for Chinese and Japanese, whether
 each name was heard (any fair spelling of it counts), and the timings. A line whose clean recording no model hears
-within 35% is left out everywhere, as the synthesiser's slip rather than the ears'; how many is printed.
+within 35% (its names aside) is left out everywhere, as the synthesiser's slip rather than the ears'; how many is printed.
 
     python score.py --audio E:/Tools/speech-trial/audio --runs E:/Tools/speech-trial/runs [--md out.md]
 """
@@ -34,6 +34,7 @@ def units(text, lang):
     text = canon_names(text)
     if lang == "en":
         text = text.lower().replace("o'clock", "")
+        text = re.sub(r"(?<=[a-z])(?=\d)|(?<=\d)(?=[a-z])", " ", text)        # "at9"
         text = re.sub(r"\b(\d{1,2}):(\d{2})\b", lambda m: f"{m.group(1)} {m.group(2)}", text)
         text = re.sub(r"\b\d{1,2}\b", lambda m: WORDS[int(m.group())] if int(m.group()) < len(WORDS) else m.group(), text)
         text = re.sub(r"[^\w' ]", " ", text)
@@ -62,6 +63,8 @@ def main():
     ap.add_argument("--audio", default="E:/Tools/speech-trial/audio")
     ap.add_argument("--runs", default="E:/Tools/speech-trial/runs")
     ap.add_argument("--md")
+    ap.add_argument("--names", help="the folder of run_names.sh's runs")
+    ap.add_argument("--loop", help="a jsonl of ears.cs --mode loop")
     a = ap.parse_args()
     manifest = {}
     for line in open(os.path.join(a.audio, "manifest.jsonl"), encoding="utf-8"):
@@ -73,9 +76,11 @@ def main():
         if rows and "model" in rows[0]:
             runs[os.path.basename(path)[:-6]] = rows
 
-    def err(m, text):
+    def err(m, text, names=True):
         lang = m["lang"]
         ref, hyp = units(m["text"], lang), units(text, lang)
+        if not names:
+            ref, hyp = [u for u in ref if not re.fullmatch(r"[nN]\d", u)], [u for u in hyp if not re.fullmatch(r"[nN]\d", u)]
         return distance(ref, hyp), len(ref)
 
     # lines the synthesiser got wrong: no model hears the clean clip within 35%
@@ -83,7 +88,7 @@ def main():
     for rows in runs.values():
         for r in rows:
             if r.get("room") == "clean" and (r["clip"], "clean") in manifest:
-                e, n = err(manifest[(r["clip"], "clean")], r["text"])
+                e, n = err(manifest[(r["clip"], "clean")], r["text"], names=False)   # a misheard name is the ears' doing
                 best[r["clip"]] = min(best[r["clip"]], e / max(n, 1))
     dropped = {c for c, b in best.items() if b > 0.35}
 
@@ -138,20 +143,66 @@ def main():
 
     streams = {n: rows for n, rows in runs.items() if any("first_word_s" in r for r in rows)}
     if streams:
-        p("\nStreaming: when the first words showed (s into the clip), and the last landed after the clip ended (s), median [lowest, highest]:\n")
+        p("\nStreaming, clean clips: when the first words showed (s from the start of speech), and when the last landed (s after the end of the words), median [lowest, highest]:\n")
         p("| run | first words | last word | compute per second of speech |")
         p("|---|---|---|---|")
         for name, rows in streams.items():
             rs = [r for r in rows if "first_word_s" in r and r["room"] == "clean"]
-            fw = [r["first_word_s"] for r in rs if r["first_word_s"] is not None]
-            lw = [r["ms"] / 1000 for r in rs]
+            fw = [r["first_word_s"] - 0.25 for r in rs if r["first_word_s"] is not None]   # make_audio.py's lead-in
+            lw = [r["ms"] / 1000 + 0.3 for r in rs]                                           # and its quiet after
             per = [r["compute_ms"] / 1000 / manifest[(r["clip"], "clean")]["seconds"] for r in rs]
             p(f"| {name} | {statistics.median(fw):.2f} [{min(fw):.2f}, {max(fw):.2f}] | "
               f"{statistics.median(lw):.2f} [{min(lw):.2f}, {max(lw):.2f}] | {statistics.median(per):.3f} |")
+    if a.names:
+        names_part(a.names, manifest, p)
+    if a.loop:
+        loop_part(a.loop, p)
     text = "\n".join(out)
     print(text)
     if a.md:
         open(a.md, "w", encoding="utf-8").write(text)
+
+
+def names_part(folder, manifest, p):
+    p("\nCatching their name: said first (caught / said), said later or not said (caught / clips), other speech (false starts, minutes, per hour), processor time per second of sound\n")
+    p("| run | said first: caught | not first: caught | false starts | other speech, min | per hour | processor per s of sound |")
+    p("|---|---|---|---|---|---|---|")
+    for path in sorted(glob.glob(os.path.join(folder, "*.jsonl"))):
+        rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+        clips = [r for r in rows if "starts_with_name" in r]
+        first = [r for r in clips if r["starts_with_name"]]
+        later = [r for r in clips if not r["starts_with_name"]]
+        false = [r for r in rows if "false_start_at" in r]
+        summary = next((r for r in rows if r.get("summary")), None)
+        if not summary:
+            continue
+        minutes = summary["streams_minutes"]
+        p(f"| {os.path.basename(path)[:-6]} | {sum(r['caught'] for r in first)} / {len(first)} | "
+          f"{sum(r['caught'] for r in later)} / {len(later)} | {len(false)} | {minutes} | "
+          f"{len(false) / minutes * 60 if minutes else 0:.1f} | {summary['streams_compute_per_second']:.3f} |")
+
+
+def loop_part(path, p):
+    rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip() and '"loop"' in l]
+    whole = [r for r in rows if r["turn_over_s"] > -0.3]
+    cut = len(rows) - len(whole)
+    p(f"\nThe whole loop, s after the end of the player's words: median [lowest, highest] ({len(whole)} turns; {cut} more were judged over at a pause in the middle)\n")
+    p("| room, length | turn judged over | words heard | mind's first words | first sentence | voice's first sound |")
+    p("|---|---|---|---|---|---|")
+    keys = ["turn_over_s", "words_s", "mind_first_s", "first_sentence_s", "voice_first_s"]
+    for room in ("clean", "near", "far"):
+        for length in "sml":
+            rs = [r for r in whole if r["room"] == room and r["len"] == length]
+            if not rs:
+                continue
+            cells = []
+            for k in keys:
+                v = [r[k] for r in rs if r.get(k) is not None]
+                cells.append(f"{statistics.median(v):.2f} [{min(v):.2f}, {max(v):.2f}]" if v else "-")
+            p(f"| {room}, {dict(s='~2 s', m='~6 s', l='~15 s')[length]} | " + " | ".join(cells) + " |")
+    ended = [r for r in whole if r["by_smart_turn"]]
+    p(f"\nSmart Turn ended {len(ended)} of {len(whole)} turns; the rest waited for 2 s of quiet. Its time per ask: median "
+      f"{statistics.median([t for r in rows for t in r['smart_turn_ms']]):.0f} ms.")
 
 
 if __name__ == "__main__":

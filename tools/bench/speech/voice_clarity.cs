@@ -31,7 +31,7 @@ foreach (var device in devices)
 {
     var marks = (device.Id == console ? " [default]" : "") + (device.Id == communications ? " [default for calls]" : "");
     Console.WriteLine($"\n{device.Name}{marks}");
-    foreach (var category in new[] { MediaCategory.Communications, MediaCategory.Speech, MediaCategory.Other })
+    foreach (var category in new[] { MediaCategory.Communications, MediaCategory.Speech, MediaCategory.GameChat, MediaCategory.Other })
         foreach (var processing in new[] { AudioProcessing.Default, AudioProcessing.Raw })
         {
             try
