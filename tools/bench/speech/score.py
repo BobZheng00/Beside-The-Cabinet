@@ -40,6 +40,7 @@ def units(text, lang):
         text = re.sub(r"[^\w' ]", " ", text)
         return text.split()
     text = re.sub(r"\d+", lambda m: cn_number(m.group()), text)
+    text = "".join(chr(ord(c) + 0x60) if "ぁ" <= c <= "ゖ" else c for c in text)  # ばたばた, バタバタ alike
     tokens = re.findall(r"N\d|\w", text)
     return [t for t in tokens if t.strip()]
 
@@ -104,16 +105,18 @@ def main():
     groups = ["en", "accented", "zh", "ja"]
     rooms = ["clean", "near", "far"]
     p("\nError rate, % (WER for English and accented English, CER for Chinese and Japanese):\n")
-    p("| run | " + " | ".join(f"{g} {r}" for g in groups for r in rooms) + " |")
-    p("|---|" + "---|" * (len(groups) * len(rooms)))
+    p("| run | " + " | ".join(f"{g} {r}" for g in groups for r in rooms) + " | ran on |")
+    p("|---|" + "---|" * (len(groups) * len(rooms) + 1))
     names = defaultdict(lambda: [0, 0])
-    for name, rows in runs.items():
+    for name, rows in ((n, r) for n, r in runs.items() if not n.endswith("+hints")):   # those are on the names only: below
         tally = defaultdict(lambda: [0, 0])
+        ran_on = 0
         for r in rows[1:]:
             if "clip" not in r or r["clip"] in dropped:
                 continue
             m = manifest[(r["clip"], r["room"])]
             e, n = err(m, r["text"])
+            ran_on += bool(re.search(r"(.{1,6}?)\1{7,}", r["text"]))     # a decoder that repeats itself
             tally[(m["group"], m["room"])][0] += e
             tally[(m["group"], m["room"])][1] += n
             for nm in m["names"]:
@@ -121,15 +124,39 @@ def main():
                 names[k][0] += name_hit(nm, r["text"])
                 names[k][1] += 1
         p(f"| {name} | " + " | ".join(
-            f"{100 * tally[(g, r)][0] / tally[(g, r)][1]:.1f}" if tally[(g, r)][1] else "-" for g in groups for r in rooms) + " |")
+            f"{100 * tally[(g, r)][0] / tally[(g, r)][1]:.1f}" if tally[(g, r)][1] else "-" for g in groups for r in rooms) + f" | {ran_on} |")
 
     p("\nNames heard, % of names said (any fair spelling):\n")
     p("| run | " + " | ".join(f"{g} {r}" for g in groups for r in rooms) + " |")
     p("|---|" + "---|" * (len(groups) * len(rooms)))
-    for name in runs:
+    for name in (n for n in runs if not n.endswith("+hints")):
         p(f"| {name} | " + " | ".join(
             f"{100 * names[(name, g, r)][0] / names[(name, g, r)][1]:.0f}" if names[(name, g, r)][1] else "-"
             for g in groups for r in rooms) + " |")
+
+    hinted = [n for n in runs if n.endswith("+hints") and n[:-6] in runs]
+    if hinted:
+        p("\nWith the names as hints, on the clips that hold a name, all rooms: names heard %, and the error rate % (names heard / error):\n")
+        p("| model | " + " | ".join(f"{g} without | {g} with" for g in groups) + " |")
+        p("|---|" + "---|" * (2 * len(groups)))
+        for h in hinted:
+            clips = {(r["clip"], r["room"]) for r in runs[h][1:] if "clip" in r}
+            cells = []
+            for g in groups:
+                for name in (h[:-6], h):
+                    said = heard = e = n = 0
+                    for r in runs[name][1:]:
+                        if "clip" not in r or (r["clip"], r["room"]) not in clips or r["clip"] in dropped:
+                            continue
+                        m = manifest[(r["clip"], r["room"])]
+                        if m["group"] != g:
+                            continue
+                        de, dn = err(m, r["text"])
+                        e, n = e + de, n + dn
+                        said += len(m["names"])
+                        heard += sum(name_hit(nm, r["text"]) for nm in m["names"])
+                    cells.append(f"{100 * heard / said:.0f} / {100 * e / n:.1f}" if n else "-")
+            p(f"| {h[:-6]} | " + " | ".join(cells) + " |")
 
     p("\nFrom the end of the turn to the words, s: median [lowest, highest] of 5 tries on each clip of that length\n")
     p("| run | ~2 s | ~6 s | ~15 s |")

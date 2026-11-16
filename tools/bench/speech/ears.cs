@@ -284,7 +284,7 @@ void Names()
         var config = new VadModelConfig();
         config.SileroVad.Model = vadModel;
         config.SileroVad.Threshold = 0.5f;
-        config.SileroVad.MinSilenceDuration = 0.25f;
+        config.SileroVad.MinSilenceDuration = float.Parse(Option("vad-silence", "0.6"));   // a comma after the name is shorter
         config.SileroVad.MinSpeechDuration = 0.25f;
         config.SileroVad.MaxSpeechDuration = 30;
         config.SileroVad.WindowSize = 512;
