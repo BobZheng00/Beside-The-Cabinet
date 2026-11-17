@@ -59,8 +59,9 @@ time: five minutes of focus in a day, an activity logged, a solve), ASK FOR A RE
 on the agenda), OPEN MEMORY (Settings → Memory) and HEAR THEIR VOICE (your companion answers aloud). They're listed
 at the top of Settings, and as Missions… in the tray, until they're done, each with how it stands and a way to do it.
 Each pays 15 minutes of play time as it clears, once, on top of the day's limit, and a debt is paid from it first, as
-from any earning: the screen flashes what it paid with its name (+15 MIN, SAY HELLO; several in turn), or under no play
-time, CLEARED and its name. With no play time there is no EARN A CREDIT and the others pay nothing; tick a way to earn on Play
+from any earning: the screen flashes what it paid with its name (+15 MIN, SAY HELLO; several in turn, after
+the flash of the earning that cleared one), or under no play time, CLEARED and its name; switching play time on or
+off drops those still to come. With no play time there is no EARN A CREDIT and the others pay nothing; tick a way to earn on Play
 time and EARN A CREDIT is back, and what was cleared meanwhile is paid then, once. Switching play time off again takes
 nothing away: what was paid stays in the balance, out of sight with the rest of it. Where their voice takes a
 download (Chinese and Japanese), HEAR THEIR VOICE is an extra: it pays if done, and the list is done without it. A
@@ -70,10 +71,10 @@ After the first run, a small chalkboard sign stands on the desk beside the cabin
 (beyond the stool when the cabinet is against the screen's edge), and moves with it. It chalks the missions left with
 the minutes each pays (EXTRA for HEAR THEIR VOICE where it's an extra; no minutes with no play time), and a tick with the
 minutes it paid as each clears. Click a mission on it to go and do it: CONNECT AN AI opens AI model, SAY HELLO the slip
-to type on, EARN A CREDIT Play time, ASK FOR A REMINDER the agenda, OPEN MEMORY Memory, HEAR THEIR VOICE Voice. Slide it
+to type on (AI model while no AI is connected), EARN A CREDIT Play time, ASK FOR A REMINDER the agenda, OPEN MEMORY Memory, HEAR THEIR VOICE Voice. Slide it
 along the bottom, nearer the cabinet or further off, and it stays there. Lift it off the desk (drag it up), or
 right-click it → Put away, and it stays away until the tray's Missions… brings it back. It folds away by itself a few
-seconds after the last mission is ticked, and switching what earns your play time stands it up with what's left there
+seconds after the last mission is ticked, once the screen has shown what they paid, and switching what earns your play time stands it up with what's left there
 (EARN A CREDIT comes back under play time) or folds it if nothing is. A profile that had hidden its missions starts
 with the sign put away.
 

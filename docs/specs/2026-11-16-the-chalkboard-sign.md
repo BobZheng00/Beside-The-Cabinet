@@ -92,7 +92,10 @@ time, and how much, is written only on Settings → Play time and on the first r
   blank: the words are chalked live, in Fredoka with the system's fonts for Chinese and Japanese). Main says what it
   shows and whether it stands (`UpdateSign`). It's drawn at the cabinet's size, but never smaller than 0.85 (a Small
   cabinet is 0.6), so the chalk reads; the missions sit under MISSIONS with a MIN column, each line shrinking to fit.
-- Once the last mission ticks, it stays up five seconds for the tick to be seen, then folds (the price list is #362).
+- Once the last mission ticks, it stays up five seconds for the tick to be seen, and until the screen has shown what
+  the missions paid, then folds (the price list is #362). A sign already folded doesn't stand again for a late one.
+- A mission's flash waits for the earning's flash that cleared it; switching the mode drops the mission flashes still
+  to come (CLEARED, or +15 MIN), and what the switch pays follows. SAY HELLO with no AI connected opens AI model.
 - Put away is kept as `SignPutAway`, under the old key `MissionsHidden`, so a profile that hid its missions starts with
   it put away; where it was slid is `SignSlide`. Memo sheets and windows that open beside the cabinet (Welcome, a
   Meet sheet) open beyond the sign; Settings and other windows open in the middle of the screen as before.

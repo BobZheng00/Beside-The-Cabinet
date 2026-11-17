@@ -57,13 +57,13 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
             // a mission's name on the screen and what it paid, several in turn (switching to CREDITS pays those cleared meanwhile);
             // under FREE PLAY only that it cleared; the chalkboard sign ticks it meanwhile
             case MissionCleared c when !rules().Earns.Any:
-                cabinet.Screen.Flash("CLEARED", c.Mission.Title, 3.0, waits: true);
+                cabinet.Screen.Flash("CLEARED", c.Mission.Title, 3.0, waits: true, kind: "mission");
                 break;
             case MissionPaid m:
                 Drop(CoinKind.Bronze, m.Paid.Coins, star: false);
                 if (m.Paid.Coins == 0 && m.Paid.CreditedMs > 0)
                     audio.Play("coin", pitch: 1.3f, delay: 0.25);
-                cabinet.Screen.Flash($"+{m.Paid.EarnedMs / 60_000} MIN", m.Mission.Title, 3.0, waits: true);
+                cabinet.Screen.Flash($"+{m.Paid.EarnedMs / 60_000} MIN", m.Mission.Title, 3.0, waits: true, kind: "mission");
                 break;
             case CapReached r:
                 audio.Play("cashbox", delay: 0.6);

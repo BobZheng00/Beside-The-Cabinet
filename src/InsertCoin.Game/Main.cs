@@ -270,6 +270,7 @@ public partial class Main : Node2D
         AddChild(_sign);
         _sign.Build(_cabinet.Skin.Canvas, () => _settings.SignSlide, slide => SaveSettings(_settings with { SignSlide = slide }));
         _sign.Opened += OpenMission;
+        _cabinet.Screen.WaitedOut += UpdateSign;            // the last missions' flashes shown: it may fold
         _sign.PutAway += _ =>
         {
             SaveSettings(_settings with { SignPutAway = true });
@@ -284,6 +285,8 @@ public partial class Main : Node2D
             _tray.Sync(_settings.Muted, _settings.Voice);   // flipped in Settings too
             if (_settings.Earning != _rules.Earns)
             {
+                if (_settings.Earning.Any != _rules.Earns.Any)
+                    _cabinet.Screen.DropWaiting("mission");     // CLEARED or +15 MIN still to come no longer fits the mode; what it pays now follows
                 var was = _rules.Earns.Any;
                 UseEarning();
                 if (_rules.Earns.Any && !was)
@@ -549,7 +552,7 @@ public partial class Main : Node2D
         }
         if (result.Events.Any(e => e is MissionCleared or MissionPaid))
         {
-            if (!MissionsLeft())
+            if (!MissionsLeft() && _sign.Up)                // a sign already folded isn't stood up again for a late one
             {
                 _signLingers = _clock.Elapsed + SignLinger;
                 GetTree().CreateTimer(SignLinger.TotalSeconds + 0.1).Timeout += UpdateSign;
@@ -1204,7 +1207,9 @@ public partial class Main : Node2D
     {
         if (_sign is null)
             return;                                         // settings saved before it's built
-        var up = _settings.SetUp && !IsInstanceValid(_intro) && !_settings.SignPutAway && (MissionsLeft() || _clock.Elapsed < _signLingers);
+        // the last ticked: it stays up a beat, and until the screen has shown what the missions paid
+        var up = _settings.SetUp && !IsInstanceValid(_intro) && !_settings.SignPutAway
+                 && (MissionsLeft() || _sign.Up && (_clock.Elapsed < _signLingers || _cabinet.Screen.Waits("mission")));
         if (!up || _state.Missions is not { } progress)
         {
             _sign.Fold();
@@ -1220,12 +1225,23 @@ public partial class Main : Node2D
     /// <summary>A mission clicked on the sign: where to do it, as the Settings list's buttons go.</summary>
     private void OpenMission(string mission)
     {
-        switch (mission)
+        // SAY HELLO without an AI to answer yet goes where one is connected, as CONNECT AN AI does
+        var to = mission switch
         {
-            case Missions.SayHello: _stool.Clicked(); break;            // as a click on them: the slip to type on
-            case Missions.AskForAReminder: _stool.OpenAgenda(); break;
-            default: OpenSettings(mission switch { Missions.ConnectAnAi => "mind", Missions.EarnACredit => "balance", Missions.OpenMemory => "memory", _ => "voice" }); break;
-        }
+            Missions.SayHello => _stool.CanAnswer ? "the slip" : "mind",
+            Missions.AskForAReminder => "the agenda",
+            Missions.ConnectAnAi => "mind",
+            Missions.EarnACredit => "balance",
+            Missions.OpenMemory => "memory",
+            _ => "voice",
+        };
+        GD.Print($"Main: {mission} opens {to}");
+        if (to == "the slip")
+            _stool.Clicked();                               // as a click on them
+        else if (to == "the agenda")
+            _stool.OpenAgenda();
+        else
+            OpenSettings(to);
     }
 
     private Control MissionsPage()
