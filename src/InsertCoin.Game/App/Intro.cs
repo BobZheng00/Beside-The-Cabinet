@@ -156,7 +156,6 @@ public partial class Intro(CabinetView cabinet, Func<CompanionView?> her, AudioB
         cabinet.Screen.Visible = cabinet.Lights.Visible = cabinet.Marquee.Visible = false;
         Aim(_far, Vector2.Zero, 0);
 
-        Cue(CoinAt, DropCoin);
         Cue(CoinIn, () =>
         {
             cabinet.FlashSlot();
@@ -270,6 +269,7 @@ public partial class Intro(CabinetView cabinet, Func<CompanionView?> her, AudioB
         if (_coined || _finished)
             return;
         _coined = true;
+        Cue(CoinAt, DropCoin);                      // the clock holds at CoinAt until now: it flies at once, or once the view is there
         GD.Print("Intro: a coin goes in");
     }
 
@@ -454,10 +454,15 @@ public partial class Intro(CabinetView cabinet, Func<CompanionView?> her, AudioB
             Modulate = new Color(0.82f, 0.78f, 0.72f),
         };
         cabinet.AddChild(coin);
+        // it comes up turning upright in front of the slot, then goes in edge first: the slots take a coin standing up
+        const float Turn = 0.36f;
         var go = cabinet.CreateTween().SetParallel();
-        go.TweenProperty(coin, "position", at, CoinIn - CoinAt).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
-        go.TweenProperty(coin, "scale", new Vector2(0.16f, 0.52f), CoinIn - CoinAt).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
-        go.TweenProperty(coin, "rotation", 0f, CoinIn - CoinAt);
+        go.TweenProperty(coin, "position", at + new Vector2(3, 3), Turn).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        go.TweenProperty(coin, "rotation", -Mathf.Pi / 2, Turn).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.InOut);
+        go.TweenProperty(coin, "scale", new Vector2(0.42f, 0.3f), Turn).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        go.Chain().TweenProperty(coin, "position", at, CoinIn - CoinAt - Turn).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
+        go.TweenProperty(coin, "scale", new Vector2(0.34f, 0.06f), CoinIn - CoinAt - Turn).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
+        go.TweenProperty(coin, "modulate", new Color(0.3f, 0.27f, 0.25f), CoinIn - CoinAt - Turn).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In);
         go.Chain().TweenProperty(coin, "modulate:a", 0f, 0.05);
         go.Chain().TweenCallback(Callable.From(coin.QueueFree));
     }
