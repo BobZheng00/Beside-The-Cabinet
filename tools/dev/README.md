@@ -48,7 +48,9 @@ hover tip shows; capture it with `-Desk`), `settingsat:1366x768` (lays the open 
 `settingsat:1080x1920x175` as on one at 175%, where Settings is drawn smaller so its pages still get 692 px; it logs the size, and at a scale other than 100% its pages' size), `settingswidths` (logs any page wider
 than its room, which would run off the window's right edge, then how many of the pages it measured and any page below a page
 showing in one, a skill's), `trayitems` (logs the tray menu's entries, as `menu` does, without opening it), `windoworder` (logs the app's windows top first, as they are stacked on
-screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet),
+screen, "(on top)" on those above other apps: Settings and the rest belong above the cabinet), `windoworder:dialog` (the
+same once a file dialog the app opened is showing, however long a busy PC takes to open it; after 5 s without one,
+`Windows: no file dialog showed within 5 s`),
 `welcome` (the first run's Welcome again, on its own), `intro` (the first run's intro again, as General's "Replay the
 intro": nothing asked, no hello; a profile seeded with `"SetUp": false` plays it with the Welcome at its close-up, about
 11 s in), `coin` (a click on the intro's coin slots: any time, the coin goes in once the view has walked up),

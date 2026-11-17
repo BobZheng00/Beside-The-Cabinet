@@ -249,6 +249,15 @@ public partial class DesktopWindow : Node
         return string.Join(", ", names);
     }
 
+    /// <summary>Dev: whether a file dialog the app opened is showing yet.</summary>
+    public static bool DevDialogShowing()
+    {
+        for (var w = Win32.GetTopWindow(0); w != 0; w = Win32.GetWindow(w, Win32.GwHwndNext))
+            if (FileDialog(w))
+                return true;
+        return false;
+    }
+
     private static bool Topmost(nint window) => (Win32.GetWindowLongPtr(window, Win32.GwlExStyle) & Win32.WsExTopmost) != 0;
 
     private void SetClickThrough(bool clickThrough)
