@@ -28,16 +28,18 @@ stay on the PC and are not committed.*
 - **Voice Clarity is there** on this PC for both USB microphones, once the app opens them for communications: echo
   cancelling, noise suppression, gain control and deep noise suppression. Today the app gets only plain noise
   suppression. The laptop's built-in microphone has its maker's processing instead.
-- **Catching the name from the ears' text doesn't work well enough**: 11% of names said first were caught from
-  SenseVoice's words, 40% from Qwen3-ASR's with hints, which then also "heard" a name 5 times an hour in other speech.
-  The streaming model keeps 4 threads busy a third of the time, all the time. A keyword spotter is the thing to try next; it is
-  a download too.
+- **Catching their name isn't solved by any one way tried.** From the ears' words: 11% of names said first with
+  SenseVoice, 40% with Qwen3-ASR given the names as hints (but 5 false starts an hour, all the hint list garbled). The
+  keyword spotter (round 2): 33%, best in Chinese and the clean room, nearly nothing across the room or in Japanese,
+  3 false starts an hour, for about 3% of one core all day. The streaming model costs a third of 4 threads all the
+  time for 11%.
 
 **Recommendation.** For #348: Qwen3-ASR 0.6B on the graphics card (Apache-2.0, k2-fsa's own export, hints that help),
 with SenseVoice-Small kept on the processor for when the card is busy, if its time on the card turns out well under
 half a second (to measure, once the CUDA build is allowed). Not the 1.7B until there is an export that holds up (the
-one tried here broke with hints), and not Nemotron. For #349: try sherpa-onnx's keyword spotter first; reading the
-name from the ears' words is a fallback that needs matching by sound, not spelling.
+one tried here broke with hints), and not Nemotron. For #349: the keyword spotter as a cheap gate that runs all day,
+with the ears confirming what it flags, and the microphone in communications mode (#347) first, since distance defeats
+every way tried but the hinted ears; matching the ears' first word by sound, not spelling.
 
 ## What was measured, and how
 
@@ -334,8 +336,11 @@ The two best, by room and by language (names said first, caught):
 - Tidying what was heard before their mind sees it: not needed for SenseVoice's or Qwen's clean-room output (3 to 10%
   wrong, mostly small); at a distance and with accents, names are what goes wrong, which the hints address.
 
-**#349, how the name is caught.** A keyword spotter first (a download to ask for). Reading it from the ears' words
-catches 11 to 40% here. The turn must also not end at the pause after the name.
+**#349, how the name is caught.** No single way is good enough on these recordings (best: 33 to 40% of names said
+first, 2.5 to 5 false starts an hour). The cheapest to run all day is the keyword spotter (3% of one core, 47 MB);
+the ears with hints catch more across the room and in Japanese, the spotter more in Chinese. A spotter to gate and the
+ears to confirm, after #347 brings Voice Clarity in, is the shape to build and measure; a Japanese keyword model, or
+one trained on the character's name, would help the most. The turn must also not end at the pause after the name.
 
 **#347, the microphone in communications mode.** Voice Clarity is there on the owner's USB microphones; the owner's
 recording with `hear_voice_clarity.cs` will say how much it does in their room.
@@ -343,7 +348,6 @@ recording with `hear_voice_clarity.cs` will say how much it does in their room.
 **Still to do.**
 - On the graphics card: each model's time and memory beside the voice. Needs k2-fsa's CUDA build of sherpa-onnx
   1.13.8 (567 MB) in the trial folder, with the CUDA 12.5 and cuDNN 9.5 already on this PC.
-- The keyword spotter: its catches, false starts and cost on the same recordings.
 - Real voices: the owner's own, from across the room, once, with their microphone (the script above records it; the
   same recordings could go through `ears.cs`).
 
