@@ -1305,13 +1305,16 @@ public partial class Main : Node2D
         return page;
     }
 
-    /// <summary>The LeetCode name, as LeetCode knows it: the screen greets the player and the cabinet reads their solves; null drops it.</summary>
+    /// <summary>
+    /// The LeetCode name, as LeetCode knows it: with LeetCode on, the screen greets the player and the cabinet reads their
+    /// solves; null drops it. A name never turns LeetCode on by itself.
+    /// </summary>
     private void NamePlayer(string? username)
     {
-        SaveSettings(_settings with { Username = username, LeetCodeEarns = username is null ? _settings.LeetCodeEarns : true });
+        SaveSettings(_settings with { Username = username });
         GD.Print($"Main: the LeetCode name is {username ?? "none"}");
-        if (username is null)
-            return;                                         // none: LeetCode earns nothing, and nothing names it
+        if (!_settings.Earning.LeetCode)
+            return;                                         // no name, or LeetCode off: it earns nothing, and nothing names it
         _cabinet.Screen.Flash($"HI {_settings.Initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
         _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
         _audio.Play("hello");

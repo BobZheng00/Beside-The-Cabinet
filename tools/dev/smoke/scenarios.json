@@ -119,14 +119,14 @@
     },
     {
       "name": "leetcode-name",
-      "about": "Settings → Play time takes the LeetCode name on the page: ticking LeetCode with no name puts the cursor in its field; a name LeetCode (a test run's stand-in, never leetcode.com) has no player for is said so on the page and isn't kept; a profile link is asked, becomes the name in the field, saved, and the cabinet reads that profile. The page fits at Settings' usual size and narrow.",
+      "about": "Settings → Play time takes the LeetCode name on the page: ticking LeetCode with no name puts the cursor in its field; a name LeetCode (a test run's stand-in, never leetcode.com) has no player for is said so on the page and isn't kept, and said again when typed again; a profile link is asked, becomes the name in the field, saved, and the cabinet reads that profile. A name typed just before LeetCode is unticked (while LeetCode is still being asked) is neither saved nor turns LeetCode back on. The page fits at Settings' usual size and narrow.",
       "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Adapters/LeetCodeProfile.cs"],
       "settings": ", \"LeetCodeEarns\": false",
-      "script": "settings:balance@2,settingsdo:LeetCode_problems@3,settingsdo:LeetCode_name:nobody@4,settingsdo:LeetCode_name:https://leetcode.com/u/BobSmith/@9,settingswidths@10.5,settingsat:708x736@12,settingswidths@14",
-      "shots": [7, 13, 17],
+      "script": "settings:balance@2,settingsdo:LeetCode_problems@3,settingsdo:LeetCode_name:nobody@4,settingsdo:LeetCode_name:nobody@6,settingsdo:LeetCode_name:https://leetcode.com/u/BobSmith/@10,settingswidths@11.5,settingsat:708x736@13,settingswidths@15,settingsdo:LeetCode_name:Carol@16,settingsdo:LeetCode_problems@16.1",
+      "shots": [9, 14, 18, 21],
       "window": "Settings",
-      "expect": ["^Settings: \"LeetCode problems\" ticked$", "^Settings: keyboard focus in the field \"your name or profile link on LeetCode\"$", "^LeetCode: a test run's stand-in asked for nobody$", "^Main: the LeetCode name is BobSmith$", "^LeetCode: BobSmith's profile read, 0 recent solves$", "^Main: play time is earned by focus, activities, LeetCode$", "^Settings: laid out as on a 708x736 screen: 692x688$"],
-      "forbid": ["^Main: the LeetCode name is nobody", "^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "^Settings: no choice or field"]
+      "expect": ["^Settings: \"LeetCode problems\" ticked$", "^Settings: keyboard focus in the field \"your name or profile link on LeetCode\"$", "^LeetCode: a test run's stand-in asked for nobody$", "^Main: the LeetCode name is BobSmith$", "^LeetCode: BobSmith's profile read, 0 recent solves$", "^Main: play time is earned by focus, activities, LeetCode$", "^Settings: laid out as on a 708x736 screen: 692x688$", "^Settings: \"LeetCode problems\" unticked$", "^LeetCode: a test run's stand-in asked for Carol$"],
+      "forbid": ["^Main: the LeetCode name is nobody", "^Main: the LeetCode name is Carol", "^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "^Settings: no choice or field"]
     },
     {
       "name": "noplaytime",

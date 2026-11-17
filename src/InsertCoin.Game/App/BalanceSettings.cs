@@ -52,17 +52,26 @@ public partial class BalanceSettings : VBoxContainer
         found = Form.Result(player);
         found.Visible = false;
         Form.Hint(player, "Your solved problems are read from your public LeetCode profile.");
-        var asked = settings.Username ?? "";                // what was last saved or asked of LeetCode: not asked again
+        var ticked = settings.Earning.LeetCode;
+        var saved = settings.Username ?? "";
+        var asked = saved;                                  // what was last saved or asked of LeetCode: not asked again
+        string? refused = null;                             // what LeetCode said of the name last asked, if it wasn't one
         // Enter, or leaving the field: saved once LeetCode knows the name; one it doesn't know leaves the old name
         async void Keep()
         {
             var typed = name.Text.Trim();
             if (typed == asked)
+            {
+                if (refused is not null)
+                    Form.Say(found, refused, Paper.Bad);    // the same name again: still not one
                 return;
+            }
             asked = typed;
+            refused = null;
             if (typed.Length == 0)
             {
                 Named?.Invoke(null);
+                saved = "";
                 return;
             }
             Form.Say(found, "Asking LeetCode…", Paper.Faint);
@@ -70,18 +79,28 @@ public partial class BalanceSettings : VBoxContainer
             var open = IsInstanceValid(name);
             if (open && name.Text.Trim() != typed)
                 return;                                     // typed on meanwhile: that is asked in its turn
+            if (!ticked)
+            {
+                // LeetCode unticked while it was asked: nothing kept, and asked afresh if it's ticked again
+                asked = saved;
+                if (open)
+                    found.Visible = false;
+                return;
+            }
             if (there != false)
             {
                 Named?.Invoke(username);
+                saved = asked = username!;
                 if (open)
-                    name.Text = asked = username!;          // a profile link becomes the name in it
+                    name.Text = username!;                  // a profile link becomes the name in it
             }
+            else
+                refused = said;
             if (open)
                 Form.Say(found, said, colour);
         }
         name.TextSubmitted += _ => Keep();
         name.FocusExited += Keep;
-        var ticked = settings.Earning.LeetCode;
         void Shown(bool playTime)
         {
             foreach (var part in balance)
