@@ -61,8 +61,8 @@ public partial class Listening : Node
     public bool HeldToTalk { get; private set; }
 
     /// <summary>
-    /// Windows cancels echo on the microphone she hears through (Voice Clarity), so she can hear the player over her own
-    /// voice: hands-free, she listens while she speaks. A test run is told so with the dev action <c>clarity</c>.
+    /// Windows cancels echo on the microphone she hears through (Voice Clarity) and hears her voice to cancel it (see
+    /// <see cref="TalkingOver"/>), so she can hear the player over it: hands-free, she listens while she speaks. A test run is told so with the dev action <c>clarity</c>.
     /// </summary>
     public bool HearsOverHer => _overHer;
 
@@ -87,10 +87,8 @@ public partial class Listening : Node
             GD.Print("Listening: a test run: the talk key is never read, and only recordings reach her ears");
         else
         {
-            _overHer = Microphone.CancelsEcho();
-            Microphone.Changed(() => _overHer = Microphone.CancelsEcho());
-            GD.Print(_overHer ? "Listening: Windows takes her voice out of the microphone: she hears the player over it"
-                              : "Listening: the microphone keeps her voice in: she listens only once she has finished");
+            OverHer();
+            Microphone.Changed(OverHer);
         }
         _ears.Full += () =>
         {
@@ -404,6 +402,15 @@ public partial class Listening : Node
         _turn = null;
         CloseMicrophone();
         _chatBox.SetListening(false);
+    }
+
+    /// <summary>Asks Windows whether she can hear the player over her own voice (see <see cref="HearsOverHer"/>), and says so in the log.</summary>
+    private void OverHer()
+    {
+        var whyNot = Microphone.WhyNotOverHer();
+        _overHer = whyNot is null;
+        GD.Print(whyNot is null ? "Listening: Windows takes her voice out of the microphone: she hears the player over it"
+                                : $"Listening: she listens only once she has finished: {whyNot}");
     }
 
     /// <summary>She is saying something (her card or her call waiting quietly on an answer isn't).</summary>

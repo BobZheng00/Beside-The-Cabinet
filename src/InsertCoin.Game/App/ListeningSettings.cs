@@ -53,8 +53,8 @@ public partial class ListeningSettings : VBoxContainer
         _afterQuestions = Form.Tick(Form.Indented(this), "after a question of their own", h.AfterQuestions, _ => Chosen());
         _afterRemarks = Form.Tick(Form.Indented(this), "after anything else they say on their own", h.AfterRemarks, _ => Chosen());
         Form.Hint(this, "If you start talking within those seconds, it counts as your answer; if not, the microphone closes. " +
-                        (overHer ? $"You can start while {name} is still speaking: {name} stops and listens."
-                                 : $"This microphone doesn't take out {name}'s voice, so {name} doesn't listen while speaking: talk over {name} with the key or a click."));
+                        (overHer ? $"You can talk over {name} too: they stop and listen."
+                                 : $"{name} listens once they've finished speaking: to talk over them, use the key or a click."));
 
         AddChild(new Label { Text = $"{name} may listen without being asked…" });
         _inCalls = Form.Tick(Form.Indented(this), "during a call", h.InCalls, _ => Chosen());

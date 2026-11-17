@@ -434,7 +434,8 @@ and if you start talking they hear it as your answer. A conversation (the tray's
 of the talk key) has them listen after everything they say, until you've been quiet for 30 seconds. They notice you
 start and finish by themselves (Silero's voice detector and Pipecat's Smart Turn, on the processor). They never
 listen on their own in a call, in full screen or quiet time, or while a game runs, unless you allow it. Where the
-microphone cancels echo (Voice Clarity), they listen while they speak too, and the seconds count from when they've
+microphone cancels echo (Voice Clarity) and Windows' default output for calls is also its default output (where
+their voice plays, so Windows can take it out), they listen while they speak too, and the seconds count from when they've
 finished: start talking over them and they stop where they are and listen, keeping only what you heard of their line,
 as when you click them. Elsewhere their own voice would come back through the microphone, so they listen only once
 they've finished, and Settings says so. The CRT shows MIC whenever the microphone is open.

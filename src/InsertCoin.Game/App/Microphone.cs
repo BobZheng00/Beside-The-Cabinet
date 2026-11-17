@@ -21,43 +21,44 @@ public sealed class Microphone : IDisposable
     private IAudioSessionControl2? _session;
 
     /// <summary>
-    /// Whether Windows cancels echo on this microphone for calls (Voice Clarity, or the maker's own), so she can hear
-    /// the player over her own voice. It reads Windows' list of the microphone's effects: nothing is opened.
+    /// Why she can't hear the player over her own voice, or null when she can (see <see cref="TalkingOver"/>). It reads
+    /// Windows' list of the microphone's effects and its default outputs: nothing is opened.
     /// </summary>
-    public static bool CancelsEcho()
+    public static string? WhyNotOverHer()
     {
         try
         {
             var id = MediaDevice.GetDefaultAudioCaptureId(AudioDeviceRole.Communications);
-            return !string.IsNullOrEmpty(id)
+            var cancelsEcho = !string.IsNullOrEmpty(id)
                 && AudioEffectsManager.CreateAudioCaptureEffectsManager(id, MediaCategory.Communications, AudioProcessing.Default)
                     .GetAudioCaptureEffects().Any(e => e.AudioEffectType == AudioEffectType.AcousticEchoCancellation);
+            return TalkingOver.WhyNot(cancelsEcho, MediaDevice.GetDefaultAudioRenderId(AudioDeviceRole.Communications),
+                                      MediaDevice.GetDefaultAudioRenderId(AudioDeviceRole.Default));    // where Godot plays her voice
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            return false;                                   // no microphone, or Windows can't say: as if none
+            return $"Windows couldn't say ({e.GetType().Name})";      // no microphone, say: as if no echo cancelling
         }
     }
 
     /// <summary>
-    /// Calls <paramref name="then"/> (on another thread) whenever Windows' default microphone for calls changes.
+    /// Calls <paramref name="then"/> (on another thread) whenever Windows' default microphone or output changes.
     /// shortcut: never unsubscribed, as she listens for the app's whole run; return a handle if that changes.
     /// </summary>
-    public static void Changed(Action then) =>
-        MediaDevice.DefaultAudioCaptureDeviceChanged += (_, e) =>
-        {
-            if (e.Role == AudioDeviceRole.Communications)
-                then();
-        };
+    public static void Changed(Action then)
+    {
+        MediaDevice.DefaultAudioCaptureDeviceChanged += (_, _) => then();
+        MediaDevice.DefaultAudioRenderDeviceChanged += (_, _) => then();
+    }
 
     /// <summary>Opens the microphone; throws when it can't (none, or not allowed).</summary>
     public Microphone()
     {
         try
         {
-            _client = Client();
+            var client = _client = Client();
             var properties = new AudioClientProperties { Size = (uint)Marshal.SizeOf<AudioClientProperties>(), Category = CategoryCommunications };
-            _client.SetClientProperties(ref properties);    // before Initialize: what makes it a call's stream
+            Try("open it as a call's microphone", () => client.SetClientProperties(ref properties));    // before Initialize
             var format = new WaveFormat
             {
                 Tag = 3, Channels = 1, Rate = Hearing.SampleRate, BytesPerSecond = Hearing.SampleRate * 4,
@@ -67,16 +68,32 @@ public sealed class Microphone : IDisposable
             var captureId = typeof(IAudioCaptureClient).GUID;
             _client.GetService(ref captureId, out var capture);
             _capture = (IAudioCaptureClient)capture;
-            var sessionId = new Guid("F4B1A599-7266-4319-A8CA-E70ACB11E8CD");     // IAudioSessionControl
-            _client.GetService(ref sessionId, out var session);
-            _session = (IAudioSessionControl2)session;
-            _session.SetDuckingPreference(true);           // before it starts: other apps keep their volume
+            Try("leave other apps' volume alone", () =>        // before it starts
+            {
+                var sessionId = new Guid("F4B1A599-7266-4319-A8CA-E70ACB11E8CD");     // IAudioSessionControl
+                client.GetService(ref sessionId, out var session);
+                _session = (IAudioSessionControl2)session;
+                _session.SetDuckingPreference(true);
+            });
             _client.Start();
         }
         catch
         {
             Dispose();
             throw;
+        }
+    }
+
+    /// <summary>A step that only makes the microphone better: if Windows refuses it, the microphone opens anyway.</summary>
+    private static void Try(string what, Action step)
+    {
+        try
+        {
+            step();
+        }
+        catch (Exception e)
+        {
+            Godot.GD.PrintErr($"Ears: Windows wouldn't {what} ({e.GetType().Name}: {e.Message.ReplaceLineEndings(" ")}); the microphone opens anyway");
         }
     }
 

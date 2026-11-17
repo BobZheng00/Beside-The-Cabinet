@@ -61,7 +61,9 @@ above, heard only on this PC, and a false start is in character.
 the communications category, 16 kHz mono float converted by Windows), opts its session out of ducking before it
 starts, and is what `Ears` records; Godot's own audio input is off. "Voice Clarity applies" is read from Windows' list
 of the microphone's effects for a call (echo cancelling present), as `tools/bench/speech/voice_clarity.cs` does, and
-again when the default microphone for calls changes. Where it applies, a hands-free window opens as soon as her line
+Windows' default output for calls being its default output, where her voice plays (echo cancelling listens to the
+output for calls; `TalkingOver` in Mind), read again when a default microphone or output changes. Steps that only
+make it better (the call's category, opting out of ducking) are logged and skipped if Windows refuses them. Where it applies, a hands-free window opens as soon as her line
 is out rather than after it, its seconds count only once she has finished, and the player starting to talk cuts her
 off as a click does (`Chat.Interrupt`). The talk key already stopped her on its press, with or without it. Settings →
 Talking to them says which in one line. The window opens once her reply is written, so talking over the start of a
