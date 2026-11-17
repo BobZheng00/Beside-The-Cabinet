@@ -92,6 +92,40 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_say_in_another_language_than_the_voices_is_left_unsaid_and_its_sentences_go_unheard()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("say", "겨울에는 스케이트를 타러 가자.");
+        speech.Text("Let's go skating in winter. ");
+        speech.Direction("say", "Or the hot springs!");
+        speech.Text("Or the hot springs! ");
+        speech.Direction("say", "Samさん、温泉もいいね。");
+        speech.Text("Sam, the hot springs are nice too.");
+        speech.Finish();
+
+        Assert.Equal(["Samさん、温泉もいいね。"], spoken);              // a name in Latin letters keeps it Japanese
+        Assert.Equal([("겨울에는 스케이트를 타러 가자.", "ko"), ("Or the hot springs!", "en")], speech.Unsaid);
+        Assert.Equal(2, speech.Unheard);
+        Assert.False(speech.Silent);
+    }
+
+    [Fact]
+    public void A_say_in_chinese_is_spoken_by_a_chinese_voice_and_one_with_no_letters_by_any()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("zh", spoken.Add);
+        speech.Direction("say", "冬天去滑冰吧。");
+        speech.Text("Let's go skating in winter. ");
+        speech.Direction("say", "3:15…");
+        speech.Text("3:15…");
+        speech.Finish();
+
+        Assert.Equal(["冬天去滑冰吧。", "3:15…"], spoken);
+        Assert.Empty(speech.Unsaid);
+    }
+
+    [Fact]
     public async Task Her_reply_tells_the_voice_what_to_say_and_the_bubble_what_to_show()
     {
         using var temp = new TempStore();

@@ -39,6 +39,17 @@ public class CutOffTests
     }
 
     [Fact]
+    public void A_say_left_unsaid_for_its_language_is_no_part_of_what_was_heard()
+    {
+        var (speech, shown, spoken) = Stream("ja", "[say: おかえり！] Welcome back! [say: 오늘도 잘했어.] You did well today. [say: ゆっくり休んでね。] Get some rest.");
+
+        Assert.Equal(["おかえり！", "ゆっくり休んでね。"], spoken);
+        Assert.Equal("Welcome back!", shown[..speech.CutAt(0, 1)!.Value].Trim());                 // the first line ends before the Korean one's subtitle
+        Assert.InRange(speech.CutAt(0, 0.5)!.Value, 1, shown.IndexOf("back", StringComparison.Ordinal) + 4);
+        Assert.Equal("Welcome back! You did well today.", shown[..speech.CutAt(1, 0)!.Value].Trim());  // passed by, unsaid
+    }
+
+    [Fact]
     public void Where_her_voice_stopped_is_found_in_the_sentences_she_spoke_as_written()
     {
         var (speech, shown, spoken) = Stream("ja", "おかえり！今日も頑張ったね。ゆっくり休んでね。");
