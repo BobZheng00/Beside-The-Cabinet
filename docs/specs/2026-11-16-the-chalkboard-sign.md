@@ -47,13 +47,16 @@ time, and how much, is written only on Settings → Play time and on the first r
   Settings → Play time as it changes. The rates are read from the rules in Core, by the sign and by Settings → Play
   time alike, so they're written once.
 - Clicking a line opens Settings → Play time.
-- Under FREE PLAY there's no price list: once the missions are done the sign folds away. With them done, switching to
-  CREDITS stands it up as the price list, and switching back to FREE PLAY folds it.
+- Under FREE PLAY there's no price list: once the missions are done the sign folds away. Switching to CREDITS stands it
+  up with what's left there (EARN A CREDIT, which FREE PLAY can't tick, comes back if it isn't done), then the price
+  list once that's ticked, or straight as the price list if nothing is left. Switching to FREE PLAY shows the missions
+  left there without minutes, or folds the sign if none are.
 
 ### Putting it away
 
-- Right-click → put away. The tray stands it up again (Missions… while there are missions, then an entry named for the
-  price list). With the sign already up, Missions… opens the full list in Settings, as today.
+- Right-click → put away, or lift it off the desk (drag it up, where sliding it along the bottom moves it), as a memo
+  is pulled off the cabinet. The tray stands it up again (Missions… while there are missions, then an entry named for
+  the price list). With the sign already up, Missions… opens the full list in Settings, as today.
 - Putting it away wins. The app folds the sign and stands it up (the missions done, a mode switched) only while the
   player hasn't put it away. Put away, it stays away, whatever it would show, until the tray brings it back. That's
   kept in the profile in place of today's hidden missions, and a profile that had hidden them starts with the sign put
