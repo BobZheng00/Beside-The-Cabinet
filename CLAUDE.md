@@ -49,6 +49,8 @@ The README is the front page for strangers; the manual is in READMEs beside what
   - `2026-11-16-talking-in-the-room.md`: talking with the companion like someone in the room: their name, opt-in,
     listened for while the player is home; talking over them with Windows' Voice Clarity; stronger local ears,
     measured first.
+  - `2026-11-16-the-chalkboard-sign.md`: the missions on a chalkboard sign beside the cabinet, ticked as they pay;
+    then the sign shows what earns play time, like a café's board.
 - `docs/publishing.md`: publishing on GitHub, then Steam: the license, the name, the personal-information review and its rewrite of the history, what Steam needs (a checklist the user comes back to).
 - `private/` (git-ignored, never published): the user's own notes; `personal-review.md` lists what of theirs is in the repository and its history, and what replaces it.
 - `docs/research`: research notes; `2026-10-11-memory-benchmark.md` is how her memory measures up (benchmarks chosen, results, why no vector database); `2026-10-27-natural-reactions.md` is what makes her replies read like a friend's rather than a counsellor's (the research, and the habits the manner check could count).

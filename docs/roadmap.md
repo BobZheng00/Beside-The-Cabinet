@@ -36,7 +36,9 @@ preview: this one is the first run, Settings and setup, and Preview 4 is the mem
 `docs/specs/2026-11-08-a-new-player-gets-it.md`, from the audit and the design session on #255: the first run on the
 cabinet from a dark room, the companion as Player 2, missions, Settings in nine plain categories with Memory inside, the
 voices that work on every PC, in steps with a recorder, and each provider's own web search. The finish line is someone who has never seen the
-app getting it on their own. The issues are in the milestone "Preview 3: a new player gets it".
+app getting it on their own. The issues are in the milestone "Preview 3: a new player gets it". Where the missions
+show was designed again on 2026-11-16, after the user tried them (#273): a chalkboard sign beside the cabinet, then
+a price list on it (`docs/specs/2026-11-16-the-chalkboard-sign.md`).
 
 **Talking in the room**, in no preview yet (the user, 2026-11-15: "we want to act like we are speaking to a person in the same
 room/house"). Spec `docs/specs/2026-11-16-talking-in-the-room.md`, from the design session on #343: their name,
