@@ -107,7 +107,7 @@ public partial class Welcome : Window
                           "they sit, or add a character of your own at any time: Settings → Companion, or drop a 3D model on the cabinet.");
         _pages.Add(second);
 
-        // what earns their play time: LeetCode with a name, checked as Balance's Change… checks it
+        // what earns their play time: LeetCode with a name, checked as Settings → Play time checks it
         var third = Form.Page(new VBoxContainer(), "What earns your play time?");
         Form.Hint(third, "Good work earns time to play. Tick what counts for you; you can change it at any time in Settings → Play time.");
         _leetCode = new VBoxContainer();
@@ -203,7 +203,7 @@ public partial class Welcome : Window
             return true;
         if (!LeetCodeProfile.TryParse(_leetCodeName.Text, out var username, out var error))
         {
-            Form.Say(_found, Sentence(error!), Paper.Bad);
+            Form.Say(_found, BalanceSettings.Sentence(error!), Paper.Bad);
             return false;
         }
         if (username == _nobody)
@@ -218,43 +218,18 @@ public partial class Welcome : Window
     /// <summary>Check: LeetCode is asked whether the player is there. If it doesn't answer, the name is kept and checked later.</summary>
     private async Task Ask()
     {
-        if (!LeetCodeProfile.TryParse(_leetCodeName.Text, out var username, out var error))
-        {
-            Form.Say(_found, Sentence(error!), Paper.Bad);
-            return;
-        }
         Form.Say(_found, "Asking LeetCode…", Paper.Faint);
-        string said;
-        Color colour;
-        try
-        {
-            var there = await _tasks.PlayerExistsAsync(username!, CancellationToken.None);
-            if (!IsInstanceValid(_leetCode) || !_leetCode.Visible)
-                return;                                     // closed, or LeetCode unticked, while LeetCode was asked
-            if (there)
-                Keep(username!);
-            else
-                _nobody = username;
-            (said, colour) = there ? ($"Found: {username}.", Paper.Good) : ($"LeetCode has no player called {username}.", Paper.Bad);
-        }
-        catch (TaskSourceUnavailableException)
-        {
-            if (!IsInstanceValid(_leetCode) || !_leetCode.Visible)
-                return;
+        var (username, there, said, colour) = await BalanceSettings.AskLeetCode(_tasks, _leetCodeName.Text);
+        if (!IsInstanceValid(_leetCode) || !_leetCode.Visible)
+            return;                                         // closed, or LeetCode unticked, while LeetCode was asked
+        if (there == false)
+            _nobody = username;
+        else
             Keep(username!);
-            (said, colour) = ("LeetCode didn't answer, so the name is kept and checked later.", Paper.Faint);
-        }
         Form.Say(_found, said, colour);
     }
 
     private void Keep(string username) => _settings.Save(_settings.Now with { Username = username, LeetCodeEarns = true });
-
-    /// <summary>What the cabinet's screen says of a name ("NOT A LEETCODE LINK"), as a sentence for the page.</summary>
-    private static string Sentence(string screen)
-    {
-        var said = screen.ToLowerInvariant().Replace("leetcode", "LeetCode");
-        return $"{char.ToUpperInvariant(said[0])}{said[1..]}.";
-    }
 
     private void Finish()
     {

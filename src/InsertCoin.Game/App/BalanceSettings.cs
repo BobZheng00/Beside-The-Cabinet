@@ -1,11 +1,13 @@
 using Godot;
+using InsertCoin.Adapters;
 using InsertCoin.Core;
+using InsertCoin.Game.Companion;
 
 namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → Play time: what earns play time (the first run's choices, to change them: focus, the player's own
-/// activities, LeetCode with their name, or no play time); the programs that count as play besides Steam games, picked
+/// activities, LeetCode with their name, typed here and asked of LeetCode, or no play time); the programs that count as play besides Steam games, picked
 /// from those running or by their file; and how much play a day can earn, Monday to Thursday, on Friday and at the
 /// weekend. What earns counts at once; a cap is saved at once but counts from the next day, so it can't be raised in
 /// the moment (spec 2026-10-07-balance.md, 2026-10-27-what-earns-play-time.md). With no play time only the ticks show.
@@ -18,8 +20,8 @@ public partial class BalanceSettings : VBoxContainer
     public event Action<int, int, int>? Chosen;
     /// <summary>What earns play time, as ticked now: focus, activities, LeetCode.</summary>
     public event Action<bool, bool, bool>? Earning;
-    /// <summary>"Change…" by the LeetCode name, or LeetCode ticked without one: the cabinet's screen asks for it.</summary>
-    public event Action? ChangePlayer;
+    /// <summary>The LeetCode name, once LeetCode knows it (or didn't answer, to be checked later); null when the field is emptied.</summary>
+    public event Action<string?>? Named;
     /// <summary>The programs that count as play, as they are after each change.</summary>
     public event Action<PlayProgram[]>? Programs;
     /// <summary>"Add by its file…": the cabinet asks for a program's file, and hands it back through <see cref="Add"/>.</summary>
@@ -34,7 +36,8 @@ public partial class BalanceSettings : VBoxContainer
 
     /// <param name="today">What holds today, which a change doesn't touch.</param>
     /// <param name="running">The programs running now, to pick from as play.</param>
-    public void Build(AppSettings settings, string today, IReadOnlyList<PlayProgram> running)
+    /// <param name="tasks">LeetCode, asked whether a name typed is a player's.</param>
+    public void Build(AppSettings settings, string today, IReadOnlyList<PlayProgram> running, ITaskSource tasks)
     {
         Form.Page(this);
         Form.Hint(this, "Nothing ever closes or blocks a game.");
@@ -44,13 +47,60 @@ public partial class BalanceSettings : VBoxContainer
 
         Form.Subheading(this, "What earns your play time");
         var player = new VBoxContainer();
-        var name = new HBoxContainer();
-        name.AddThemeConstantOverride("separation", 10);
-        name.AddChild(new Label { Text = settings.Username ?? "none yet", SizeFlagsVertical = SizeFlags.ShrinkCenter });
-        Form.Button(name, "Change…", () => ChangePlayer?.Invoke());
-        Form.Row(Form.Grid(player), "LeetCode name", name);
-        Form.Hint(player, "Your solved problems are read from your public LeetCode profile. Change… asks for the name on the cabinet's screen.");
+        Label found = null!;
+        var name = Form.Field(Form.Grid(player), "LeetCode name", settings.Username, "your name or profile link on LeetCode", typed: _ => found.Visible = false);
+        found = Form.Result(player);
+        found.Visible = false;
+        Form.Hint(player, "Your solved problems are read from your public LeetCode profile.");
         var ticked = settings.Earning.LeetCode;
+        var saved = settings.Username ?? "";
+        var asked = saved;                                  // what was last saved or asked of LeetCode: not asked again
+        string? refused = null;                             // what LeetCode said of the name last asked, if it wasn't one
+        // Enter, or leaving the field: saved once LeetCode knows the name; one it doesn't know leaves the old name
+        async void Keep()
+        {
+            var typed = name.Text.Trim();
+            if (typed == asked)
+            {
+                if (refused is not null)
+                    Form.Say(found, refused, Paper.Bad);    // the same name again: still not one
+                return;
+            }
+            asked = typed;
+            refused = null;
+            if (typed.Length == 0)
+            {
+                Named?.Invoke(null);
+                saved = "";
+                return;
+            }
+            Form.Say(found, "Asking LeetCode…", Paper.Faint);
+            var (username, there, said, colour) = await AskLeetCode(tasks, typed);
+            var open = IsInstanceValid(name);
+            if (open && name.Text.Trim() != typed)
+                return;                                     // typed on meanwhile: that is asked in its turn
+            if (!ticked)
+            {
+                // LeetCode unticked while it was asked: nothing kept, and asked afresh if it's ticked again
+                asked = saved;
+                if (open)
+                    found.Visible = false;
+                return;
+            }
+            if (there != false)
+            {
+                Named?.Invoke(username);
+                saved = asked = username!;
+                if (open)
+                    name.Text = username!;                  // a profile link becomes the name in it
+            }
+            else
+                refused = said;
+            if (open)
+                Form.Say(found, said, colour);
+        }
+        name.TextSubmitted += _ => Keep();
+        name.FocusExited += Keep;
         void Shown(bool playTime)
         {
             foreach (var part in balance)
@@ -59,8 +109,8 @@ public partial class BalanceSettings : VBoxContainer
         Sources(this, settings, player, (focus, activities, leetCode) =>
         {
             Earning?.Invoke(focus, activities, leetCode);
-            if (leetCode && !ticked && string.IsNullOrWhiteSpace(settings.Username))
-                ChangePlayer?.Invoke();                     // ticked with no name: the screen asks for one
+            if (leetCode && !ticked && name.Text.Trim().Length == 0)
+                name.CallDeferred(Control.MethodName.GrabFocus);    // ticked with no name: the cursor in its field
             ticked = leetCode;
             Shown(focus || activities || leetCode);
         });
@@ -137,6 +187,34 @@ public partial class BalanceSettings : VBoxContainer
             Changed();
         };
         leetCode.Visible = now.LeetCode;
+    }
+
+    /// <summary>
+    /// Asks LeetCode whether the name typed (a name or a profile link) is a player's, here and on the first run: the
+    /// username (null for text that isn't one), whether LeetCode knows it (null when it didn't answer, for the name to be
+    /// kept and checked later), and a line saying so for the page.
+    /// </summary>
+    public static async Task<(string? Username, bool? There, string Said, Color Colour)> AskLeetCode(ITaskSource tasks, string typed)
+    {
+        if (!LeetCodeProfile.TryParse(typed, out var username, out var error))
+            return (null, false, Sentence(error!), Paper.Bad);
+        try
+        {
+            return await tasks.PlayerExistsAsync(username!, CancellationToken.None)
+                ? (username, true, $"Found: {username}.", Paper.Good)
+                : (username, false, $"LeetCode has no player called {username}.", Paper.Bad);
+        }
+        catch (TaskSourceUnavailableException)
+        {
+            return (username, null, "LeetCode didn't answer, so the name is kept and checked later.", Paper.Faint);
+        }
+    }
+
+    /// <summary>What the cabinet's screen says of a name ("NOT A LEETCODE LINK"), as a sentence for the page.</summary>
+    public static string Sentence(string screen)
+    {
+        var said = screen.ToLowerInvariant().Replace("leetcode", "LeetCode");
+        return $"{char.ToUpperInvariant(said[0])}{said[1..]}.";
     }
 
     /// <summary>Adds a program to those that count as play; one there already stays as it is.</summary>

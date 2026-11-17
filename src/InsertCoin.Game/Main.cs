@@ -307,16 +307,9 @@ public partial class Main : Node2D
         _onboarding = new Onboarding(_cabinet.Screen, _tasks, _audio);
         _onboarding.Completed += username =>
         {
-            SaveSettings(_settings with { Username = username, LeetCodeEarns = username is null ? _settings.LeetCodeEarns : true });
+            NamePlayer(username);
             if (IsInstanceValid(_settingsWindow))
                 _settingsWindow!.RefreshPage("balance");     // the LeetCode name shown there
-            if (username is null)
-                return;                                     // none: LeetCode earns nothing, and nothing names it
-            _cabinet.Screen.Flash($"HI {_settings.Initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
-            _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
-            _audio.Play("hello");
-            _backoffSeconds = 60;
-            Poll();
         };
         _onboarding.Cancelled += () =>
         {
@@ -435,6 +428,8 @@ public partial class Main : Node2D
             var recent = await _tasks.FetchRecentAsync(user, CancellationToken.None);
             if (Stale())
                 return;
+            if (_state.Username != user)
+                GD.Print($"LeetCode: {user}'s profile read, {recent.Count} recent solves");
             Apply(_state.Username == user ? new TasksObserved(recent) : new PlayerSet(user, recent));
             _linkDown = false;
             _backoffSeconds = 60;
@@ -1288,7 +1283,7 @@ public partial class Main : Node2D
     {
         var page = new BalanceSettings();
         var today = _state.Today is { } t ? $"Today: {t.EarnedMs / 60_000} of {t.CapMs / 60_000} minutes earned." : "";
-        page.Build(_settings, today, [.. OpenWindows.RunningPrograms().Select(file => new PlayProgram(file, OpenWindows.ProgramName(file)))]);
+        page.Build(_settings, today, [.. OpenWindows.RunningPrograms().Select(file => new PlayProgram(file, OpenWindows.ProgramName(file)))], _tasks);
         page.Programs += programs =>
         {
             SaveSettings(_settings with { PlayPrograms = programs });
@@ -1306,14 +1301,25 @@ public partial class Main : Node2D
             UseRules();
         };
         page.Earning += (focus, activities, leetCode) => SaveSettings(_settings with { FocusEarns = focus, ActivitiesEarn = activities, LeetCodeEarns = leetCode });
-        page.ChangePlayer += () =>
-        {
-            // the cabinet's screen asks for the LeetCode name
-            _window.Rise(4, _settings.AlwaysOnTop);
-            DisplayServer.WindowMoveToForeground();
-            _onboarding.Start();
-        };
+        page.Named += NamePlayer;
         return page;
+    }
+
+    /// <summary>
+    /// The LeetCode name, as LeetCode knows it: with LeetCode on, the screen greets the player and the cabinet reads their
+    /// solves; null drops it. A name never turns LeetCode on by itself.
+    /// </summary>
+    private void NamePlayer(string? username)
+    {
+        SaveSettings(_settings with { Username = username });
+        GD.Print($"Main: the LeetCode name is {username ?? "none"}");
+        if (!_settings.Earning.LeetCode)
+            return;                                         // no name, or LeetCode off: it earns nothing, and nothing names it
+        _cabinet.Screen.Flash($"HI {_settings.Initials}", $"PLAYER {username}".ToUpperInvariant(), 3.0);
+        _cabinet.Lights.Burst(LightMode.Celebrate, 2.0);
+        _audio.Play("hello");
+        _backoffSeconds = 60;
+        Poll();
     }
 
     private Control CabinetPage()

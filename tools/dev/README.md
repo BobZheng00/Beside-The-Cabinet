@@ -57,8 +57,9 @@ a test run compares it with the cabinet's at the handover and logs `Intro: the h
 cabinet must be on the screen for it, `-Settings ', "WindowX": 300, "WindowY": 300'`), `welcomedo:Label[:value]` and `meetdo:Label[:value]` (as `settingsdo`, on
 the Welcome and on "Meet …"; a test run never asks leetcode.com: its LeetCode is a stand-in that finds every player,
 with nothing solved, except `nobody`, who isn't there, and `nolink`, for whom LeetCode doesn't answer, so
-`welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Play time page's Change… and the cabinet's
-polls see the same),
+`welcomedo:LeetCode_name:BobSmith` then `welcomedo:Check` is found, and the Play time page's LeetCode name
+(`settingsdo:LeetCode_name:BobSmith`, saved once found) and the cabinet's polls see the same; a tick that puts the
+cursor in a field logs `Settings: keyboard focus in the field "…"`),
 `memory` (Settings, Memory; `memory:agenda` at that tab: notes, agenda, facts, diary, memos, forget, or retired), `memorydo:Keep_yours`
 (presses that button on it, `+_Add` and `×` too: a × then says `Forget?`, or `Take_off?` on the agenda, the
 second click to press), `memoryfilter:words` (types in the filter on the tab showing, Facts or Diary, and logs how many show; `memoryfilter:` clears it),

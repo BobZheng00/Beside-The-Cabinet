@@ -76,7 +76,8 @@ sessions, which pay by the minute as each part ends, however short: 15 minutes o
 an hour adds 7:30 at once; the fuel bar fills, and a coin drops when it completes one); your own activities, which
 your companion logs when you tell them or the screen's DONE app logs, paid by their size once a day; and LeetCode
 problems (Easy 1 coin, Medium 2, Hard 4; a coin is 15 minutes), read from your public profile once its name is set
-(Change… on Play time asks for it on the cabinet's screen). A source that's off pays nothing and isn't brought up: with
+(typed on Play time: your name or your profile's link, saved as you press Enter or move on, once LeetCode knows it; a
+name it doesn't know leaves the old one). A source that's off pays nothing and isn't brought up: with
 LeetCode off the cabinet never checks your LeetCode profile and doesn't bring it up (the attract screen, an IOU
 ticket, your companion's words), though your companion can still look a problem up when you want help with one; with
 activities off the DONE app leaves the screen and your companion has no tools for them; with
