@@ -640,7 +640,7 @@
     {
       "name": "voice-program-missing",
       "about": "Run from source, the program that speaks Chinese and Japanese is looked for in the checkout's builds\\qwen-tts (a worktree without one borrows the main checkout's: CheckoutTests). Pointed at a folder without it, Settings → Voice, with the companion speaking Chinese, says it isn't built and the command that builds it (the shot at 6 s).",
-      "covers": ["src/InsertCoin.Game/App/Voice.cs", "src/InsertCoin.Game/App/VoiceSettings.cs", "src/InsertCoin.Game/App/ModelFiles.cs", "src/InsertCoin.Mind/Checkout.cs"],
+      "covers": ["src/InsertCoin.Game/App/Voice.cs", "src/InsertCoin.Game/App/ModelFiles.cs", "src/InsertCoin.Mind/Checkout.cs"],
       "settings": ", \"Language\": \"zh\"",
       "script": "qwenat:nowhere|nowhere@1,settings:voice@2",
       "shots": [6],
