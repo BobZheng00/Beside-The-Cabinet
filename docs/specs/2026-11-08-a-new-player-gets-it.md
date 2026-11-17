@@ -135,7 +135,7 @@ change which is not very sustainable?").
 `MissionPaid`; EARN A CREDIT by the ledger itself), kept in `state.json` (`LedgerState.Missions`: none for a profile set up
 when this version first opens it), the list at the top of Settings and as Missions… in the tray (`MissionSettings.cs`, which
 takes Getting started's place: that page is gone), Hide and General's Show missions. The five minutes of focus count across
-the day. Showing them on the screen and the companion's mentions are #273.*
+the day. Showing them and the companion's mentions are #361, #362 and #273 (`2026-11-16-the-chalkboard-sign.md`).*
 
 ### Settings
 
@@ -339,7 +339,7 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
   good", "for japanese Qwen TTS: Ono Anna sounds great", "i think Aiden is fine for both japanese and chinese", and on the
   compressed weights the app would use, "the default 6 listen good".
 - **The defaults** the user took without changing them (2026-11-08): six missions at 15 minutes each; the name typed in full;
-  sounds made by the app; Skip keeping the answers; the rotation starting on MISSIONS; Help and About in General; a cog for
+  sounds made by the app; Skip keeping the answers; the rotation starting on MISSIONS (*changed 2026-11-16:* no MISSIONS page; the sign instead); Help and About in General; a cog for
   SETTINGS; the audit's fixes; #70, #92, #208 and #243 in the milestone.
 
 ## Not built, and why
@@ -365,7 +365,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 - **To settle with the builds in hand** (the user, 2026-11-08: "for the last two points i would need to see the final
   builds. so note them down so we remember to resolve later"): whether missions can be hidden, and what SELECT PLAYER 2 says
   about each character (the first sentence of their card, or short lines as in the mockup). Both are built as this spec
-  says until then (#277).
+  says until then (#277). *Changed 2026-11-16:* the first is settled: the sign is put away by hand, and Hide and Show
+  missions go (`2026-11-16-the-chalkboard-sign.md`).
 - Sign in with ChatGPT needs OpenAI's approval before a Steam build (`2026-10-18-chatgpt-plan.md`): a Steam build hides it,
   and the card leads with an API key or a model on this PC.
 
@@ -381,7 +382,8 @@ version. looks good to me." The code is on the local branch `spike-255-arrival` 
 5. **Web search:** OpenAI's Responses API and the ChatGPT plan (#266), then the other providers (#267).
 6. **The arrival** (#268), then **the intro** (#269), then **the setup on the screen** (#270) with **Connect an AI** (#92),
    then **SELECT PLAYER 2's peeks** (#271).
-7. **Missions** (#272), then **showing them** (#273).
+7. **Missions** (#272), then **showing them** on the chalkboard sign (#361, #362; `2026-11-16-the-chalkboard-sign.md`)
+   and the companion's mention (#273).
 8. **The finish line:** the agent dry run (#274), then a friend (#275).
 
 Also in the milestone: the LeetCode tool's words (#208), the screen's flash read from a seat (#243), and what to settle with

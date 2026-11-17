@@ -14,15 +14,16 @@ by hide?)".
 
 Today the missions are a list at the top of Settings and Missions… in the tray, with Hide and Show buttons. The plan was
 a MISSIONS page among the screen's rotating pages, which is easy to miss while the screen shows the time. What earns play
-time, and how much, is written only on Settings → Play time.
+time, and how much, is written only on Settings → Play time and on the first run's page that asks it.
 
 ## What it does
 
 ### The sign
 
 - A small A-frame chalkboard stands on the desk beside the cabinet, on its other side from the companion's stool, so
-  neither covers the other. It's a window of its own, like a memo sheet, and never takes the keyboard. The player can
-  drag it along the bottom.
+  neither covers the other. It's a window of its own, like a memo sheet, and never takes the keyboard. It moves with
+  the cabinet, and the player can slide it along the bottom, nearer to the cabinet or further off. With no room on its
+  side (the cabinet against the screen's edge), it stands on the stool's side, beyond the stool.
 - It's drawn in the cabinet's style (`tools/art`), with the words in chalk in the app's language, and reads at every
   cabinet size.
 - It stands up after the first run. A profile set up before Preview 3 gets it on its first start on this version, as a
@@ -31,25 +32,32 @@ time, and how much, is written only on Settings → Play time.
 ### Missions on it
 
 - Each mission not yet done is chalked on it with the minutes it pays. Under FREE PLAY, no minutes and no EARN A CREDIT.
+  HEAR THEIR VOICE, an extra where the voice takes a download, is chalked as EXTRA, and the list is done without it.
 - As one pays, the screen flashes its name and what it paid ("SAY HELLO +15 MIN"; under FREE PLAY only that it
-  cleared), and the sign gets a chalk tick with the minutes beside it. Earnings outside the missions keep today's
-  flashes.
-- Clicking a mission opens where to do it, as the Settings list's buttons do (the AI page, Memory and so on).
+  cleared), and the sign gets a chalk tick with the minutes beside it. Several paying at once (switching to CREDITS)
+  flash one after another. Earnings outside the missions keep today's flashes.
+- Clicking a mission opens where to do it, as the Settings list's buttons do (the AI page, Memory and so on); SAY HELLO
+  opens the chat slip, and EARN A CREDIT opens Settings → Play time.
 - The list at the top of Settings stays until they're done, with how to do each.
 
 ### Then, the price list
 
 - With CREDITS, once the last mission is ticked, the board is wiped and shows what earns play time and how much, like a
   café's board: only what's on (focus, activities, LeetCode), at the rates the app pays, and today's limit. It follows
-  Settings → Play time as it changes.
+  Settings → Play time as it changes. The rates are read from the rules in Core, by the sign and by Settings → Play
+  time alike, so they're written once.
 - Clicking a line opens Settings → Play time.
-- Under FREE PLAY there's no price list: once the missions are done the sign folds away. Switching to CREDITS stands it
-  up again; switching to FREE PLAY folds it.
+- Under FREE PLAY there's no price list: once the missions are done the sign folds away. With them done, switching to
+  CREDITS stands it up as the price list, and switching back to FREE PLAY folds it.
 
 ### Putting it away
 
-- Right-click → put away, or drag it off like a memo. The tray brings it back (Missions… while there are missions, then
-  an entry named for the price list).
+- Right-click → put away. The tray stands it up again (Missions… while there are missions, then an entry named for the
+  price list). With the sign already up, Missions… opens the full list in Settings, as today.
+- Putting it away wins. The app folds the sign and stands it up (the missions done, a mode switched) only while the
+  player hasn't put it away. Put away, it stays away, whatever it would show, until the tray brings it back. That's
+  kept in the profile in place of today's hidden missions, and a profile that had hidden them starts with the sign put
+  away.
 - That replaces the Hide missions and Show missions buttons, which go. Put away, the missions leave the companion's
   mentions too.
 
@@ -79,6 +87,8 @@ time, and how much, is written only on Settings → Play time.
 
 - The board's size at each cabinet size, and how many lines it holds before a price list is cut short: settled with
   the art in hand.
+- How memo sheets and Settings, which open beside the cabinet, sit with the sign there: settled with the build, so
+  neither opens over it.
 
 ## Order
 
