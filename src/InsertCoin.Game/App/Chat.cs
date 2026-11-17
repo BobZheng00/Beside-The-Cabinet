@@ -766,13 +766,13 @@ public sealed class Chat : IDisposable
             if (Here())
             {
                 speech?.Finish();
-                foreach (var (line, language) in speech?.Unsaid ?? [])
-                    GD.Print($"Voice: left unsaid a [say: …] in {SpokenLanguage.Name(language)}, not her voice's {SpokenLanguage.Name(speech!.Language)}: \"{line}\"");
+                foreach (var (line, script) in speech?.Unsaid ?? [])
+                    GD.Print($"Voice: left unsaid a [say: …] her {SpokenLanguage.Name(speech!.Language)} voice can't read ({script}): \"{line}\"");
                 if (speech is { Silent: true, Unsaid.Count: 0 } && text.Length > 0)
                     GD.Print($"Voice: nothing to say aloud: her reply had no [say: …] and isn't in her voice's language ({speech.Language})");
                 else if (speech is { Unheard: > 0 } partly)
                     GD.Print($"Voice: about {partly.Unheard} of her reply's sentences went unheard: the model gave them no [say: …] of their own" +
-                             (partly.Unsaid.Count > 0 ? ", or one in another language" : ""));
+                             (partly.Unsaid.Count > 0 ? ", or one her voice can't read" : ""));
                 Replied = text.Length > 0 ? text : null;
                 if (Replied is not null)
                     Answered?.Invoke();

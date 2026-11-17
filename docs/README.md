@@ -384,9 +384,9 @@ language (Japanese, English or Chinese): when you write in another, your compani
 your language, like a subtitled anime (the model writes `[say: …]` before each sentence, told the two must say the
 same and reminded at the end of each turn; a Japanese voice gets names in katakana, since it reads Latin letters as
 English, and calls you by name with さん unless the character or you say otherwise). A sentence left without a `[say]`
-is silent, and the log counts them ("went unheard"); so is a `[say]` the model wrote in another language than the
-voice's, which it would read out broken (the log names it: "left unsaid"), though a Japanese voice still says one
-in kanji alone ("大丈夫。"). While a game runs the voice rests: the server is stopped so the
+is silent, and the log counts them ("went unheard"); so is a `[say]` in a script the voice can't read, which it would
+read out broken: Hangul, or only Latin letters, for a Japanese voice; kana or Hangul for a Chinese one (the log names
+it: "left unsaid"). A game's title in Latin letters inside a Japanese or Chinese line is fine. While a game runs the voice rests: the server is stopped so the
 game has the graphics card, and started again after. The tray's Voice (or "… speaks aloud" in Settings) switches it
 off; "Mute sounds" mutes it too. Clicking your companion stops them mid-sentence, and so does talking over them with
 the talk key or asking something new; while they are still thinking, before any of their reply is out, a click only

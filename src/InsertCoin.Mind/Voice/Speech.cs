@@ -7,8 +7,9 @@ namespace InsertCoin.Mind;
 /// language. When the player writes in another, the model puts each sentence's spoken version in front of it as
 /// <c>[say: …]</c> and those are spoken while the bubble shows the rest as a subtitle. When the player writes in
 /// her voice's language, the written sentences themselves are spoken. A written sentence in another language with
-/// no <c>[say]</c> stays silent: better than reading the subtitle out in the wrong language. So does a <c>[say]</c> the
-/// model wrote in another language than the voice's (Korean for a Japanese voice): read out, it comes out broken. One in kanji alone still goes to a Japanese voice.
+/// no <c>[say]</c> stays silent: better than reading the subtitle out in the wrong language. So does a <c>[say]</c> in a
+/// script the voice can't read (Hangul for a Japanese voice; see <see cref="SpokenLanguage.Unreadable"/>): read out, it
+/// comes out broken.
 /// </summary>
 /// <remarks>
 /// It also keeps where in the shown text each spoken line belongs, so that when the player cuts her off, what they
@@ -19,13 +20,13 @@ public sealed class Speech(string language, Action<string> speak)
     private readonly Sentences _sentences = new();
     private readonly StringBuilder _shown = new();
     private readonly List<(int Start, int? End)> _lines = [];  // each spoken line's part of the shown text (a [say]'s ends where the next begins)
-    private readonly List<(string Line, string Language)> _unsaid = [];
+    private readonly List<(string Line, string Script)> _unsaid = [];
     private int _searchFrom, _written, _given;          // sentences shown and sentences given to her voice (see Unheard)
     private bool _subtitled, _finished;
 
     public string Language => language;
 
-    /// <summary>Nothing of the reply was given to the voice (no [say] in its language, and nothing written in it).</summary>
+    /// <summary>Nothing of the reply was given to the voice (no [say] it can read, and nothing written in its language).</summary>
     public bool Silent => _lines.Count == 0;
 
     /// <summary>Her voice says [say] lines and the bubble is their subtitle: the player reads it to understand her.</summary>
@@ -33,12 +34,12 @@ public sealed class Speech(string language, Action<string> speak)
 
     /// <summary>
     /// About how many sentences of the reply were shown with nothing for her voice to say: the model gave several
-    /// sentences one [say], none, or one in another language (see <see cref="Unsaid"/>). Counted over the whole reply, since a translation keeps to its sentences.
+    /// sentences one [say], none, or one it can't read (see <see cref="Unsaid"/>). Counted over the whole reply, since a translation keeps to its sentences.
     /// </summary>
     public int Unheard => Math.Max(0, _written - _given);
 
-    /// <summary>The [say] lines left unsaid because they came in another language than the voice's, and the language of each.</summary>
-    public IReadOnlyList<(string Line, string Language)> Unsaid => _unsaid;
+    /// <summary>The [say] lines left unsaid because the voice can't read them, and the script in each that it can't (see <see cref="SpokenLanguage.Unreadable"/>).</summary>
+    public IReadOnlyList<(string Line, string Script)> Unsaid => _unsaid;
 
     /// <summary>Pieces of the reply's text that have come in: while it stays the same, she is still thinking (see <see cref="Thinking"/>).</summary>
     public int Pieces { get; private set; }
@@ -65,10 +66,9 @@ public sealed class Speech(string language, Action<string> speak)
         _subtitled = true;
         if (_lines.Count > 0 && _lines[^1].End is null)
             _lines[^1] = (_lines[^1].Start, _shown.Length);
-        // a line asked for in Japanese may be all kanji ("大丈夫。"), which reads as Chinese
-        if (SpokenLanguage.Of(spoken) is { } other && other != language && !(language == "ja" && other == "zh"))
+        if (SpokenLanguage.Unreadable(language, spoken) is { } script)
         {
-            _unsaid.Add((spoken, other));                   // its subtitle goes unheard, and is no part of the line before
+            _unsaid.Add((spoken, script));                  // its subtitle goes unheard, and is no part of the line before
             return;
         }
         _lines.Add((_shown.Length, null));                  // its subtitle is what is shown from here to the next [say]
