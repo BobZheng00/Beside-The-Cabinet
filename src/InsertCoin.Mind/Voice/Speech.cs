@@ -8,7 +8,7 @@ namespace InsertCoin.Mind;
 /// <c>[say: …]</c> and those are spoken while the bubble shows the rest as a subtitle. When the player writes in
 /// her voice's language, the written sentences themselves are spoken. A written sentence in another language with
 /// no <c>[say]</c> stays silent: better than reading the subtitle out in the wrong language. So does a <c>[say]</c> the
-/// model wrote in another language than the voice's (Korean for a Japanese voice): read out, it comes out broken.
+/// model wrote in another language than the voice's (Korean for a Japanese voice): read out, it comes out broken. One in kanji alone still goes to a Japanese voice.
 /// </summary>
 /// <remarks>
 /// It also keeps where in the shown text each spoken line belongs, so that when the player cuts her off, what they
@@ -65,7 +65,8 @@ public sealed class Speech(string language, Action<string> speak)
         _subtitled = true;
         if (_lines.Count > 0 && _lines[^1].End is null)
             _lines[^1] = (_lines[^1].Start, _shown.Length);
-        if (SpokenLanguage.Of(spoken) is { } other && other != language)
+        // a line asked for in Japanese may be all kanji ("大丈夫。"), which reads as Chinese
+        if (SpokenLanguage.Of(spoken) is { } other && other != language && !(language == "ja" && other == "zh"))
         {
             _unsaid.Add((spoken, other));                   // its subtitle goes unheard, and is no part of the line before
             return;

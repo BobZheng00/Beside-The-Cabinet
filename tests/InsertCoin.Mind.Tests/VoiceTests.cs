@@ -111,6 +111,39 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_japanese_say_all_in_kanji_is_spoken_but_a_written_sentence_in_kanji_stays_silent_as_before()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("say", "大丈夫。");
+        speech.Text("It's fine. ");
+        speech.Direction("say", "了解！");
+        speech.Text("Got it.");
+        speech.Finish();
+        Assert.Equal(["大丈夫。", "了解！"], spoken);
+        Assert.Empty(speech.Unsaid);
+
+        spoken.Clear();
+        var written = new Speech("ja", spoken.Add);
+        written.Text("没问题。");                             // the player wrote in Chinese: the reply isn't read out by a Japanese voice
+        written.Finish();
+        Assert.Empty(spoken);
+    }
+
+    [Fact]
+    public void A_say_with_kana_stays_unsaid_for_a_chinese_voice()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("zh", spoken.Add);
+        speech.Direction("say", "大丈夫だよ。");
+        speech.Text("It's fine.");
+        speech.Finish();
+
+        Assert.Empty(spoken);
+        Assert.Equal([("大丈夫だよ。", "ja")], speech.Unsaid);
+    }
+
+    [Fact]
     public void A_say_in_chinese_is_spoken_by_a_chinese_voice_and_one_with_no_letters_by_any()
     {
         var spoken = new List<string>();
