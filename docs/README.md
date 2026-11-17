@@ -334,7 +334,7 @@ where it got to if stopped. It needs about 4 GB of free memory while they speak.
 The server starts the first time there's something to say, rests while a game runs and stops with the app. Where the
 PC falls behind speech, each line is held back just long enough to play without a gap (a 5-second line waits about 2
 seconds at 1.4 seconds of work per second of speech). If the program or its files are missing, or the server stops,
-they stay in text and the page says why in a line.
+they stay in text and the page says why in a line (for a missing program: download the app again).
 
 **A voice of your own,** in any of the three languages, speaks with GPT-SoVITS running on this PC (its official Windows package; a
 laptop graphics card starts each sentence in about a second). Settings → Voice: point it at the GPT-SoVITS folder,

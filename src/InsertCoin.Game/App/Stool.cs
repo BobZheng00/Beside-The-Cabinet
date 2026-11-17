@@ -270,8 +270,9 @@ public partial class Stool : Node2D
         _voice.Build(Path.Combine(dataDir, "companion", "voice-server.log"), () => Her);
         _voice.SaidAloud += () => MissionDone?.Invoke(Missions.HearTheirVoice);
         // a release carries the engine beside the app; run from source it is what tools/export/build_qwen_tts.py built
+        // (in a worktree without one, the main checkout's)
         var besideApp = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath())!, "qwen-tts");
-        _voice.UseQwen(File.Exists(Path.Combine(besideApp, "tts-server.exe")) ? besideApp : ProjectSettings.GlobalizePath("res://../../builds/qwen-tts"),
+        _voice.UseQwen(File.Exists(Path.Combine(besideApp, "tts-server.exe")) ? besideApp : ModelFiles.FromSource("res://../../builds/qwen-tts"),
                        Path.Combine(dataDir, "qwen-tts"));
         // a test copy speaks English only when its script asks (the dev action pocket): its scenarios are of a companion in text
         if (Paper.OffScreen || OS.GetCmdlineUserArgs().Contains("--test-run"))

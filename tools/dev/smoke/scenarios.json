@@ -636,6 +636,16 @@
       "window": "Settings",
       "expect": ["^Settings: Size is \"Small\"$", "^Settings: Size is \"Large\"$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.8, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 0\\.6, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$", "^Menu: shown \\d+x\\d+ at -?\\d+,-?\\d+ by a cabinet at 1\\.0, on a \\d+ dpi screen: at scale [\\d.]+ \\(0\\.80 per 96 dpi\\)$"],
       "forbid": ["^Menu: shown (?!.*\\(0\\.80 per 96 dpi\\)$)"]
+    },
+    {
+      "name": "voice-program-missing",
+      "about": "Run from source, the program that speaks Chinese and Japanese is looked for in the checkout's builds\\qwen-tts (a worktree without one borrows the main checkout's: CheckoutTests). Pointed at a folder without it, Settings → Voice, with the companion speaking Chinese, says it isn't built and the command that builds it (the shot at 6 s).",
+      "covers": ["src/InsertCoin.Game/App/Voice.cs", "src/InsertCoin.Game/App/VoiceSettings.cs", "src/InsertCoin.Game/App/ModelFiles.cs", "src/InsertCoin.Mind/Checkout.cs"],
+      "settings": ", \"Language\": \"zh\"",
+      "script": "qwenat:nowhere|nowhere@1,settings:voice@2",
+      "shots": [6],
+      "window": "Settings",
+      "expect": ["^Voice: (Qwen TTS's program is in|no Qwen TTS program in) .*[\\\\/]builds[\\\\/]qwen-tts(: |$)", "^Voice: no Qwen TTS program in nowhere: The program that speaks Chinese and Japanese isn't built yet: run python tools/export/build_qwen_tts\\.py\\.$"]
     }
   ]
 }

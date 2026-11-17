@@ -189,6 +189,7 @@ public partial class Voice : Node
         _qwenServer?.Dispose();
         _qwenServer = null;
         (_qwenProgram, _qwenWeights, _qwenProblem) = (program, weights, null);
+        GD.Print(File.Exists(Path.Combine(program, "tts-server.exe")) ? $"Voice: Qwen TTS's program is in {program}" : $"Voice: no Qwen TTS program in {program}: {ProgramMissing}");
         Download.Folder = weights;
         Refresh();
         Changed?.Invoke();                              // the phase may be the same with another reason for it
@@ -258,9 +259,14 @@ public partial class Voice : Node
 
     /// <summary>What Qwen TTS is still missing here, in a line for the player, or null when it can run.</summary>
     public string? QwenMissing =>
-        !File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) ? "The program that speaks Chinese and Japanese is missing from the app's folder."
+        !File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) ? ProgramMissing
         : !QwenWeights.Present(_qwenWeights ?? "") ? "Needs its download first."
         : null;
+
+    /// <summary>Qwen TTS's program isn't there, and what gets it back: run from source, the command that builds it.</summary>
+    private static string ProgramMissing => OS.HasFeature("editor")
+        ? "The program that speaks Chinese and Japanese isn't built yet: run python tools/export/build_qwen_tts.py."
+        : "The program that speaks Chinese and Japanese is missing: download the app again to get it back.";
 
     /// <summary>The program is here and only its weights are missing: the download is worth offering.</summary>
     public bool QwenWantsDownload => File.Exists(Path.Combine(_qwenProgram ?? "", "tts-server.exe")) && !QwenWeights.Present(_qwenWeights ?? "");
