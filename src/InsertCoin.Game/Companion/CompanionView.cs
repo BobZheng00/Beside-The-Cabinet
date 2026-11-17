@@ -110,6 +110,8 @@ public partial class CompanionView : Node2D
         var skeleton = _character.FindChildren("*", nameof(Skeleton3D), true, false).OfType<Skeleton3D>().FirstOrDefault()
                        ?? throw new InvalidOperationException("the model has no skeleton, so it cannot be posed");
         var humanoid = HumanoidMap.Guess(skeleton);
+        if (humanoid is not null)
+            GD.Print($"Companion: bones worked out from their names: {string.Join(", ", humanoid.OrderBy(pair => pair.Value).Select(pair => $"{pair.Key}={skeleton.GetBoneName(pair.Value)}"))}");
         if (humanoid is not null && HumanoidMap.Required.FirstOrDefault(bone => !humanoid.ContainsKey(bone)) is { } missing)
             throw new InvalidOperationException($"the skeleton is not one this app recognises as a person (no {missing} found)");
         var fit = Fit(_character, skeleton, humanoid);

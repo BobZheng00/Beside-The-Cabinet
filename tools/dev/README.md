@@ -31,7 +31,9 @@ bubble clicked), `bubblewait` (the bubble showing shows those answers, with no c
 `Beside the Cabinet bubble`, so `-Desk` shows it beside the cabinet), `nocall` (another app's microphone doesn't count as a call), `saver`
 (toggle the energy saver), `legs:left|right|both|ring` (which feet hang off the stool's ring), `hum` (a tune in their
 head now: a sway, or a nod when relaxed), `add:C:\path\model.glb`
-(as if the file were dropped on the window), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
+(as if the file were dropped on the window; `python tools/dev/mmd_model.py <out.glb> [--plain]` writes a small model with
+MikuMikuDance's Japanese bone names to add, and the log's `Companion: bones worked out from their names:` line says which
+bone each part of a plain GLB was taken to be), `pick` (the "Add a character…" dialog), `menu` (as if the cabinet or the companion
 were right-clicked at the window's middle: the menu with the tray's entries; a test run never shows it, as it would take focus,
 and logs `Menu: at x,y:` and its entries instead, a switch with `[x]` when on and `[ ]` when off), `menuopen` (as `menu`,
 and shows it too, for `windoworder` to list it as "a popup", logging `Menu: shown WxH at x,y by a cabinet at 0.8, on a 120 dpi

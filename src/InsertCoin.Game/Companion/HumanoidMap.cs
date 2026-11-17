@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Godot;
 
@@ -5,7 +6,7 @@ namespace InsertCoin.Game.Companion;
 
 /// <summary>
 /// Works out which bone is which in a skeleton that does not say (a plain glTF/GLB instead of a VRM), from the
-/// usual naming habits (Mixamo, Unreal, Blender, 3ds Max Biped, Daz) and the skeleton's shape.
+/// usual naming habits (Mixamo, Unreal, Blender, 3ds Max Biped, Daz, VRoid, MikuMikuDance) and the skeleton's shape.
 /// The result maps VRM humanoid names ("LeftUpperArm") to bone indices.
 /// </summary>
 internal static partial class HumanoidMap
@@ -29,13 +30,13 @@ internal static partial class HumanoidMap
         if (skeleton.FindBone("Hips") >= 0 && skeleton.FindBone("LeftUpperArm") >= 0)
             return null;
 
-        var bones = Enumerable.Range(0, skeleton.GetBoneCount()).Select(i => new Bone(i, skeleton.GetBoneName(i))).ToList();
+        var bones = Enumerable.Range(0, skeleton.GetBoneCount()).Select(i => new Bone(i, skeleton.GetBoneName(i).Normalize(NormalizationForm.FormKC))).ToList();
         var map = new Dictionary<string, int>();
         int Parent(int bone)
         {
-            // twist and roll helpers sit between the real joints in some rigs
+            // twist, roll and cancel helpers sit between the real joints in some rigs
             var parent = skeleton.GetBoneParent(bone);
-            while (parent >= 0 && (bones[parent].Core.Contains("twist") || bones[parent].Core.Contains("roll")))
+            while (parent >= 0 && new[] { "twist", "roll", "cancel" }.Any(bones[parent].Core.Contains))
                 parent = skeleton.GetBoneParent(parent);
             return parent;
         }
@@ -77,8 +78,15 @@ internal static partial class HumanoidMap
         // Hips: by name, else whatever the legs hang from.
         if (Find(null, "hips", "hip", "pelvis") is { } hips)
             map["Hips"] = hips.Index;
-        else if (map.TryGetValue("LeftUpperLeg", out var leg) && Parent(leg) >= 0)
-            map["Hips"] = Parent(leg);
+        else if (map.TryGetValue("LeftUpperLeg", out var leg) && map.TryGetValue("Head", out var above))
+        {
+            // where the legs and the spine meet: some rigs hang the legs from a lower body beside the spine (MMD's 下半身)
+            var meet = Parent(leg);
+            while (meet >= 0 && !Holds(skeleton, meet, above))
+                meet = skeleton.GetBoneParent(meet);
+            if (meet >= 0)
+                map["Hips"] = meet;
+        }
 
         // The spine is whatever lies between hips and head, however many bones and whatever they are called.
         if (map.TryGetValue("Hips", out var bottom) && map.TryGetValue("Head", out var top))
@@ -95,6 +103,13 @@ internal static partial class HumanoidMap
                 map[name] = bone;
         }
         return map;
+    }
+
+    private static bool Holds(Skeleton3D skeleton, int bone, int below)
+    {
+        while (below >= 0 && below != bone)
+            below = skeleton.GetBoneParent(below);
+        return below == bone;
     }
 
     /// <summary>
@@ -140,6 +155,8 @@ internal static partial class HumanoidMap
             var plain = Prefix().Replace(name, "");
             plain = LeftWord().Replace(plain, " ");
             plain = RightWord().Replace(plain, " ");
+            plain = CentreWord().Replace(plain, " ");
+            plain = MmdName().Replace(plain, m => MmdWords[m.Groups[1].Value]);
             return NotLetter().Replace(plain, "").ToLowerInvariant();
         }
     }
@@ -149,6 +166,28 @@ internal static partial class HumanoidMap
     private static partial Regex LeftWord();
     [GeneratedRegex(@"(?i:right)|(?<![A-Za-z])[Rr](?![a-z])|(?<=[a-z0-9])R(?![a-z])|(?<![A-Za-z])r(?=[A-Z])")]
     private static partial Regex RightWord();
+    // VRoid's centre mark, a lone C between separators ("J_Bip_C_Spine"), not one inside a word ("Clavicle", "肩C")
+    [GeneratedRegex(@"(?<![^\s_.:|-])C(?=[\s_.:|-])")]
+    private static partial Regex CentreWord();
+
+    /// <summary>
+    /// MikuMikuDance's standard Japanese names, as Blender's MMD Tools keeps them, read only as a whole name with its
+    /// side and number ("頭", "左手首", "人指1.L"). Where a model has the legs' D bones, those are what the skin
+    /// follows, so they take the plain name and the plain bones a longer one, found only when there are no D bones.
+    /// The rest (腕, ひじ, 足 and ひざ, found as the parents of hands and feet; IK bones; MMD Tools' _dummy_ and
+    /// _shadow_ helpers) is left as it is, which matches nothing.
+    /// </summary>
+    private static readonly Dictionary<string, string> MmdWords = new()
+    {
+        ["頭"] = "head", ["首"] = "neck", ["腰"] = "hips", ["目"] = "eye", ["手首"] = "hand",
+        ["手捩"] = "handtwist", ["腕捩"] = "armtwist", ["肩C"] = "shouldercancel", ["腰キャンセル"] = "hipcancel",
+        ["足首D"] = "foot", ["足首"] = "footplain", ["足先EX"] = "toe", ["つま先"] = "toe",
+        ["親指"] = "thumb", ["人指"] = "index", ["中指"] = "middle", ["薬指"] = "ring", ["小指"] = "little",
+    };
+    // longer names first, so that 手首 is not read as 首
+    [GeneratedRegex(@"^[左右]?(腰キャンセル|足首D|足先EX|つま先|手首|手捩|腕捩|肩C|足首|親指|人指|中指|薬指|小指|頭|首|腰|目)(?=[\d\s._-]*$)")]
+    private static partial Regex MmdName();
+
     [GeneratedRegex(@"(?i)^(mixamorig\d*|bip\d+|valvebiped|bip|def|armature|j_bip|j_adj|j_sec)[\s:_\.\-|]*")]
     private static partial Regex Prefix();
     [GeneratedRegex(@"[^A-Za-z0-9]")]
