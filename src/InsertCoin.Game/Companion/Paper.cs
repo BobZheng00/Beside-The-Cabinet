@@ -242,8 +242,8 @@ public static class Paper
 
     private static Vector2I Beside(Vector2I size, Rect2I screen)
     {
-        var cabinet = new Rect2I(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize());
-        var top = Math.Clamp(cabinet.Position.Y + 40, screen.Position.Y + 32, Math.Max(screen.Position.Y + 32, screen.End.Y - size.Y));   // the title bar above it
+        var cabinet = App.ChalkboardSign.WithCabinet(new Rect2I(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize()));     // beyond the sign too
+        var top =Math.Clamp(cabinet.Position.Y + 40, screen.Position.Y + 32, Math.Max(screen.Position.Y + 32, screen.End.Y - size.Y));   // the title bar above it
         return cabinet.Position.X - size.X - 12 >= screen.Position.X ? new Vector2I(cabinet.Position.X - size.X - 12, top)
              : cabinet.End.X + 12 + size.X <= screen.End.X ? new Vector2I(cabinet.End.X + 12, top)
              : screen.Position + (screen.Size - size) / 2;

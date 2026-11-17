@@ -1,7 +1,7 @@
 # The chalkboard sign: missions in sight, then what earns play time
 
-*Decided with the user in one design session, 2026-11-16 (#273), after they tried the missions (#344). Nothing is built
-yet. It changes where the missions show in `2026-11-08-a-new-player-gets-it.md` ("Where they show"). The order is at
+*Decided with the user in one design session, 2026-11-16 (#273), after they tried the missions (#344). Step 1, the
+sign with the missions, is built (#361; see "Built"); the price list and the companion pointing it out are not. It changes where the missions show in `2026-11-08-a-new-player-gets-it.md` ("Where they show"). The order is at
 the end.*
 
 ## Why
@@ -85,6 +85,17 @@ time, and how much, is written only on Settings → Play time and on the first r
 - **A line from the companion at each payout:** the flash and the tick say it without talking over them. They still
   point the sign out once after the hello (#273).
 - **New missions or other amounts:** not this session's question.
+
+## Built (#361)
+
+- The sign is `App/ChalkboardSign.cs`, its picture `tools/art/chalkboard_sign.py` (`skins/cozy/sign.png`, the board
+  blank: the words are chalked live, in Fredoka with the system's fonts for Chinese and Japanese). Main says what it
+  shows and whether it stands (`UpdateSign`). It's drawn at the cabinet's size, but never smaller than 0.85 (a Small
+  cabinet is 0.6), so the chalk reads; the missions sit under MISSIONS with a MIN column, each line shrinking to fit.
+- Once the last mission ticks, it stays up five seconds for the tick to be seen, then folds (the price list is #362).
+- Put away is kept as `SignPutAway`, under the old key `MissionsHidden`, so a profile that hid its missions starts with
+  it put away; where it was slid is `SignSlide`. Memo sheets and windows that open beside the cabinet (Welcome, a
+  Meet sheet) open beyond the sign; Settings and other windows open in the middle of the screen as before.
 
 ## Open
 

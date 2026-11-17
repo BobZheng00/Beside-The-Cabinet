@@ -314,6 +314,7 @@ public partial class ScreenView : Node2D
         if (_showingWaited || _folded || !_waiting.TryDequeue(out var next))
             return;
         _showingWaited = true;
+        GD.Print($"Screen: in turn, {next.Big}: {next.Caption.Replace('\n', ' ')}");
         Flash(next.Big, next.Caption, next.Seconds);
         GetTree().CreateTimer(next.Seconds).Timeout += () =>
         {

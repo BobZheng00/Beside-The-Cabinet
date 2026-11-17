@@ -59,6 +59,8 @@ public partial class Main : Node2D
     private TimeSpan _introEnded = TimeSpan.FromHours(-1);
     private bool _recording;                                // a clip of a whole screen (clip.ps1 -Resolution): the cabinet's window is that size
     private Texting _texting = null!;
+    private ChalkboardSign _sign = null!;
+    private TimeSpan _signLingers;                          // the last mission ticked: the sign stands until then, for its tick to be seen
     private static readonly System.Net.Http.HttpClient Couriered = new() { Timeout = TimeSpan.FromSeconds(15) };
     private System.Threading.Mutex? _singleInstance;
 
@@ -264,6 +266,15 @@ public partial class Main : Node2D
             ApplySize();
         PlaceWindow();
         _window.SetTopmost(_settings.AlwaysOnTop);
+        _sign = new ChalkboardSign();
+        AddChild(_sign);
+        _sign.Build(_cabinet.Skin.Canvas, () => _settings.SignSlide, slide => SaveSettings(_settings with { SignSlide = slide }));
+        _sign.Opened += OpenMission;
+        _sign.PutAway += _ =>
+        {
+            SaveSettings(_settings with { SignPutAway = true });
+            GD.Print("Main: the sign is put away, until the tray brings it back");
+        };
 
         _tray = new TrayIcon();
         AddChild(_tray);
@@ -278,7 +289,8 @@ public partial class Main : Node2D
                 if (_rules.Earns.Any && !was)
                     Tick();                                 // play time back: missions cleared without it are paid now, not at the next check
             }
-            _tray.ShowMissions(MissionsShown());            // hidden or brought back, EARN A CREDIT back with play time
+            _tray.ShowMissions(MissionsLeft());             // EARN A CREDIT back with play time
+            UpdateSign();                                   // put away, or a mode switched
         };
         UseEarning();
         _tray.MutedChanged += SetMuted;
@@ -287,7 +299,17 @@ public partial class Main : Node2D
         _stool.ConversingChanged += _tray.SetConversation;
         _stool.MicChanged += on => _cabinet.Screen.Mic = on;
         _tray.Settings += () => OpenSettings(null);
-        _tray.Missions += () => OpenSettings("missions");
+        // the sign put away stands up again; already up, the full list opens in Settings
+        _tray.Missions += () =>
+        {
+            if (!_settings.SignPutAway)
+            {
+                OpenSettings("missions");
+                return;
+            }
+            SaveSettings(_settings with { SignPutAway = false });
+            GD.Print("Main: the sign stands again, from the tray");
+        };
         _tray.Characters += () => OpenSettings("characters");
         _stool.OpenSettings += OpenSettings;
         _stool.SettingsChanged += page =>
@@ -393,7 +415,8 @@ public partial class Main : Node2D
             GD.Print("Main: the session is held, its program behind another window");
         else if (held && _state.Session is not null && !_state.Held)
             GD.Print("Main: the session goes on, its program in front");
-        _tray.ShowMissions(MissionsShown());                // a mission cleared, their voice changed: not settings
+        _tray.ShowMissions(MissionsLeft());                 // a mission cleared, their voice changed: not settings
+        UpdateSign();                                       // and the first run over
         // while playing every minute; otherwise every ten, for the day's record (when the player was about)
         if (DateTimeOffset.Now - _lastSave > TimeSpan.FromMinutes(_state.Session is not null ? 1 : 10))
             Save();
@@ -524,8 +547,17 @@ public partial class Main : Node2D
                 GD.Print($"Main: {session}");
             _director.Play(e);
         }
-        if (result.Events.Any(e => e is MissionCleared or MissionPaid) && IsInstanceValid(_settingsWindow))
-            Callable.From(() => _settingsWindow?.RefreshPage("missions")).CallDeferred();     // not while a page is being made (Memory's, say)
+        if (result.Events.Any(e => e is MissionCleared or MissionPaid))
+        {
+            if (!MissionsLeft())
+            {
+                _signLingers = _clock.Elapsed + SignLinger;
+                GetTree().CreateTimer(SignLinger.TotalSeconds + 0.1).Timeout += UpdateSign;
+            }
+            UpdateSign();
+            if (IsInstanceValid(_settingsWindow))
+                Callable.From(() => _settingsWindow?.RefreshPage("missions")).CallDeferred();     // not while a page is being made (Memory's, say)
+        }
         _stool.Witness(result.Events, _rules);
         _stool.Record(_state);
         if (Lines.Remark(result.Events, _state, _rules, _random, DateTimeOffset.Now) is { } remark)
@@ -870,7 +902,8 @@ public partial class Main : Node2D
         {
             _state = _state with { Missions = _state.Missions ?? new MissionProgress() };
             Save();
-            _tray.ShowMissions(MissionsShown());
+            _tray.ShowMissions(MissionsLeft());
+            UpdateSign();
             GD.Print($"Main: missions left: {string.Join(", ", Missions.Left(_state.Missions, _rules.Earns, _stool.VoiceExtra).Select(m => m.Title))}");
             return;
         }
@@ -878,6 +911,17 @@ public partial class Main : Node2D
         {
             Apply(new MissionDone(action["mission:".Length..]));
             return;
+        }
+        // the chalkboard sign: sign logs it, signclick:credit clicks a mission's line, signaway puts it away from its menu,
+        // signlift lifts it off the desk, signslide:120 slides it that many pixels (less is nearer), signwords:zh (or ja) chalks test lines
+        switch (action.Split(':', 2) is [var sign, var rest] ? (sign, rest) : (action, ""))
+        {
+            case ("sign", _): _sign.DevLog(); return;
+            case ("signclick", var mission): _sign.DevClick(mission); return;
+            case ("signaway", _): _sign.DevMenu(); return;
+            case ("signlift", _): _sign.DevDrag(new Vector2I(0, -240)); return;
+            case ("signslide", var by): _sign.DevDrag(new Vector2I(int.Parse(by), 0)); return;
+            case ("signwords", var language): _sign.DevWords(language); return;
         }
         if (action.StartsWith("focuspaid:"))
         {
@@ -1054,27 +1098,12 @@ public partial class Main : Node2D
     }
 
     /// <summary>
-    /// Settings made again at <paramref name="page"/>, as its list changed (the missions hidden or brought back); what
-    /// Memory can't yet save keeps it open as it is.
-    /// </summary>
-    private void ReopenSettings(string page) => Callable.From(() =>
-    {
-        if (!IsInstanceValid(_settingsWindow))
-            return;
-        _settingsWindow!.EmitSignal(Window.SignalName.CloseRequested);
-        if (!_settingsWindow.IsQueuedForDeletion())
-            return;
-        _settingsWindow = null;
-        OpenSettings(page);
-    }).CallDeferred();                                      // not while one of its buttons is telling of its press
-
-    /// <summary>
     /// The cabinet's pages of the settings: the missions while any are left and not hidden, the cabinet itself, play
     /// time, notifications, and their phone and calendars.
     /// </summary>
     private IEnumerable<SettingsPage> SettingsPages() =>
     [
-        .. MissionsShown() ? [new SettingsPage("missions", SettingsWindow.Missions, "", MissionsPage, Fresh: true)] : Array.Empty<SettingsPage>(),
+        .. MissionsLeft() ? [new SettingsPage("missions", SettingsWindow.Missions, "", MissionsPage, Fresh: true)] : Array.Empty<SettingsPage>(),
         new("cabinet", SettingsWindow.General, "", CabinetPage),
         new("balance", SettingsWindow.PlayTime, "", BalancePage),
         new("reminders", SettingsWindow.Notifications, "Reminders", RemindersPage),
@@ -1165,8 +1194,39 @@ public partial class Main : Node2D
     /// <summary>Whether any mission is left on the list, as play time is earned now (none for a profile without missions).</summary>
     private bool MissionsLeft() => Missions.Left(_state.Missions, _rules.Earns, _stool.VoiceExtra).Any();
 
-    /// <summary>The missions are listed first in Settings and in the tray: some are left, and they aren't hidden.</summary>
-    private bool MissionsShown() => !_settings.MissionsHidden && MissionsLeft();
+    private static readonly TimeSpan SignLinger = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The chalkboard sign stands after the first run while missions are left, each chalked with what it pays (none under
+    /// FREE PLAY), ticked once done; put away, it stays away whatever it would show (spec 2026-11-16-the-chalkboard-sign.md).
+    /// </summary>
+    private void UpdateSign()
+    {
+        if (_sign is null)
+            return;                                         // settings saved before it's built
+        var up = _settings.SetUp && !IsInstanceValid(_intro) && !_settings.SignPutAway && (MissionsLeft() || _clock.Elapsed < _signLingers);
+        if (!up || _state.Missions is not { } progress)
+        {
+            _sign.Fold();
+            return;
+        }
+        var earns = _rules.Earns.Any;
+        var minutes = _rules.MissionMs / 60_000;
+        _sign.Stand("MISSIONS", earns ? "MIN" : "", [.. Missions.Listed(_rules.Earns).Select(m => progress.Done.Contains(m.Id)
+            ? new ChalkboardSign.Line(m.Title, earns && progress.Paid.Contains(m.Id) ? $"+{minutes}" : "", true, null)
+            : new ChalkboardSign.Line(m.Title, _stool.VoiceExtra && m.Id == Missions.HearTheirVoice ? "EXTRA" : earns ? $"{minutes}" : "", false, m.Id))]);
+    }
+
+    /// <summary>A mission clicked on the sign: where to do it, as the Settings list's buttons go.</summary>
+    private void OpenMission(string mission)
+    {
+        switch (mission)
+        {
+            case Missions.SayHello: _stool.Clicked(); break;            // as a click on them: the slip to type on
+            case Missions.AskForAReminder: _stool.OpenAgenda(); break;
+            default: OpenSettings(mission switch { Missions.ConnectAnAi => "mind", Missions.EarnACredit => "balance", Missions.OpenMemory => "memory", _ => "voice" }); break;
+        }
+    }
 
     private Control MissionsPage()
     {
@@ -1178,12 +1238,6 @@ public partial class Main : Node2D
                 _stool.OpenAgenda();
             else
                 _settingsWindow?.ShowPage(id);
-        };
-        page.HideAsked += () =>
-        {
-            SaveSettings(_settings with { MissionsHidden = true });
-            GD.Print("Main: the missions are hidden");
-            ReopenSettings("cabinet");                      // where they can be brought back
         };
         return page;
     }
@@ -1329,23 +1383,6 @@ public partial class Main : Node2D
         page.Named += _stool.CallMe;
         page.LanguageChosen += _stool.SetLanguage;
         page.Replay += () => PlayIntro(replay: true);
-        if (_settings.MissionsHidden && MissionsLeft())     // the way back for missions hidden from their list
-        {
-            Control[] back =
-            [
-                Form.Subheading(page, "Missions"),
-                Form.Buttons(page),
-                Form.Hint(page, "Back at the top of Settings until they're done."),
-            ];
-            Form.Button((Container)back[1], "Show missions", () =>
-            {
-                SaveSettings(_settings with { MissionsHidden = false });
-                GD.Print("Main: the missions are shown again");
-                ReopenSettings("missions");
-            });
-            for (var i = 0; i < back.Length; i++)
-                page.MoveChild(back[i], i);                 // at the top, in sight as General opens after Hide missions
-        }
         return page;
     }
 

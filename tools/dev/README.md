@@ -175,7 +175,12 @@ Balance: `focuspaid:30` (pays as a 30-minute focus part would), `bedtime:2330` (
 
 Missions: `missions` (gives the profile missions, as a new one has: a test profile is set up already, so has none;
 logs those left), `mission:hello` (as if the player did what one asks: `ai`, `hello`, `credit`, `reminder`, `memory`,
-`voice`; it ticks once, and pays while play time is earned).
+`voice`; it ticks once, and pays while play time is earned; a payout's flash logs `Screen: in turn, +15 MIN: SAY HELLO`).
+The chalkboard sign: `sign` (logs where it stands and what's chalked on it, or `Sign: away`), `signclick:credit` (as a
+click on that mission's line), `signaway` (as a right click on it, then Put away: a test run logs the menu rather than
+showing it), `signlift` (dragged up off the desk: put away), `signslide:120` (dragged that many pixels along the
+bottom; less than 0 is nearer the cabinet), `signwords:zh` (or `ja`: chalks test lines in Chinese or Japanese, to see
+they fit). The sign logs `Sign: stands: …` and `Sign: chalked: …` with its lines, a tick as `[x]`.
 
 ## Test runs
 

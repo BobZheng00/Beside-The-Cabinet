@@ -73,16 +73,17 @@ public partial class Memos : Node
     public Vector2I Home(MemoSheet sheet, Vector2I size)
     {
         var cabinet = new Rect2I(DisplayServer.WindowGetPosition(), DisplayServer.WindowGetSize());
+        var beside = ChalkboardSign.WithCabinet(cabinet);   // and beyond the chalkboard sign, not over it
         var before = _sheets.Count(s => s != sheet && !s.Leaving);
         var top = cabinet.Position.Y + cabinet.Size.Y / 10;
         var step = size.X + 6;
         if (Paper.OffScreen)
-            return new Vector2I(cabinet.Position.X - step * (before + 1), top);    // a test run: off every screen, with the cabinet
+            return new Vector2I(beside.Position.X - step * (before + 1), top);     // a test run: off every screen, with the cabinet
         var screen = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
-        var left = Math.Max(0, (cabinet.Position.X - screen.Position.X) / step);
-        var right = Math.Max(0, (screen.End.X - cabinet.End.X) / step);
-        var at = before < left ? new Vector2I(cabinet.Position.X - step * (before + 1), top)
-               : before < left + right ? new Vector2I(cabinet.End.X + 6 + step * (before - left), top)
+        var left = Math.Max(0, (beside.Position.X - screen.Position.X) / step);
+        var right = Math.Max(0, (screen.End.X - beside.End.X) / step);
+        var at = before < left ? new Vector2I(beside.Position.X - step * (before + 1), top)
+               : before < left + right ? new Vector2I(beside.End.X + 6 + step * (before - left), top)
                : new Vector2I(cabinet.Position.X + (cabinet.Size.X - size.X) / 2, top) + Vector2I.One * 28 * (before - left - right);
         return at.Clamp(screen.Position, screen.End - size);
     }

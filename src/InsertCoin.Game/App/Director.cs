@@ -14,7 +14,7 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
     public void Play(LedgerEvent e)
     {
         var companion = companionNow();
-        if (!rules().Earns.Any && e is not (Paused or Resumed))
+        if (!rules().Earns.Any && e is not (Paused or Resumed or MissionCleared))
             return;                                         // no play time: a game is only noticed, and the cabinet shows nothing of it or of a balance
         switch (e)
         {
@@ -54,10 +54,16 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 cabinet.GetTree().CreateTimer(3.2).Timeout += () =>      // after the earning that made the day good
                     cabinet.Screen.Flash(Gain(s.Paid, "+1"), $"STREAK x{s.Streak} BONUS" + Capped(s.Paid), 3.0);
                 break;
-            case MissionPaid m:                             // its coin into the tray; what the screen says of it comes with MISSIONS (#273)
+            // a mission's name on the screen and what it paid, several in turn (switching to CREDITS pays those cleared meanwhile);
+            // under FREE PLAY only that it cleared; the chalkboard sign ticks it meanwhile
+            case MissionCleared c when !rules().Earns.Any:
+                cabinet.Screen.Flash("CLEARED", c.Mission.Title, 3.0, waits: true);
+                break;
+            case MissionPaid m:
                 Drop(CoinKind.Bronze, m.Paid.Coins, star: false);
                 if (m.Paid.Coins == 0 && m.Paid.CreditedMs > 0)
                     audio.Play("coin", pitch: 1.3f, delay: 0.25);
+                cabinet.Screen.Flash($"+{m.Paid.EarnedMs / 60_000} MIN", m.Mission.Title, 3.0, waits: true);
                 break;
             case CapReached r:
                 audio.Play("cashbox", delay: 0.6);
