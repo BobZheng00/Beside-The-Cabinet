@@ -15,6 +15,9 @@
 //   fun-asr-nano     Fun-ASR-Nano, int8
 //   nemotron-560     Nemotron 3.5 ASR Streaming 0.6B, 560 ms chunks, int8; streamed as if live (see Stream)
 //   nemotron-160     the same at 160 ms chunks
+//   kws              sherpa-onnx's keyword spotter (zipformer zh-en 3M, int8; --kws <folder>), names mode only: listens
+//                    for their names all the time, a name counting when it comes within 1.5 s of speech starting
+//                    (--kws-threshold, 0.25 by default as sherpa-onnx's)
 // Each line of --out is one clip: the words heard and how long hearing took after the turn ended. The first line is
 // the model: load time and memory. Streaming models also give when words first appeared and when the last landed.
 
@@ -54,16 +57,20 @@ void Write(object o) { output.WriteLine(JsonSerializer.Serialize(o)); output.Flu
 var gpuBefore = GpuUsed();
 var clock = Stopwatch.StartNew();
 var streaming = name.StartsWith("nemotron");
+var spotting = name == "kws";
 OfflineRecognizer? offline = null;
 OnlineRecognizer? online = null;
-if (streaming)
+KeywordSpotter? spotter = null;
+if (spotting)
+    spotter = new KeywordSpotter(SpotterConfig());
+else if (streaming)
     online = new OnlineRecognizer(OnlineConfig());
 else
     offline = new OfflineRecognizer(OfflineConfig());
 var loaded = clock.Elapsed.TotalMilliseconds;
 // a first turn warms it up, as the app's would; it is not counted
 var warm = Samples((string)clips[0]["path"]!);
-var firstMs = streaming ? Stream(warm, (string)clips[0]["lang"]!).LastMs : Time(() => Hear(warm, (string)clips[0]["lang"]!));
+var firstMs = spotting ? 0 : streaming ? Stream(warm, (string)clips[0]["lang"]!).LastMs : Time(() => Hear(warm, (string)clips[0]["lang"]!));
 using (var self = Process.GetCurrentProcess())
 {
     self.Refresh();
@@ -246,6 +253,7 @@ void Names()
     }
     var vadModel = Path.Combine(Option("turns", "D:/CS Projects/insert-coin/src/InsertCoin.Game/models/turn-taking"), VoiceDetector.ModelFile);
     var computeTotal = 0.0;
+    var late = new List<(double At, string Words)>();     // the spotter's names that didn't start an utterance
     var soundTotal = 0.0;
     var watch = new Stopwatch();
 
@@ -254,6 +262,55 @@ void Names()
     {
         var caught = new List<(double, string)>();
         soundTotal += samples.Length / (double)Hearing.SampleRate;
+        if (spotting)
+        {
+            // the spotter hears everything; Silero says where speech starts after a quiet, and only a name that comes
+            // within 1.5 s of such a start counts (a name later in a sentence is not a call)
+            using var stream = spotter!.CreateStream();
+            var silero = new VadModelConfig();
+            silero.SileroVad.Model = vadModel;
+            silero.SileroVad.Threshold = 0.5f;
+            silero.SileroVad.MinSilenceDuration = 0.6f;
+            silero.SileroVad.MinSpeechDuration = 0.1f;
+            silero.SileroVad.WindowSize = 512;
+            silero.SampleRate = Hearing.SampleRate;
+            silero.NumThreads = 1;
+            using var onsets = new VoiceActivityDetector(silero, 60);
+            var speaking = false;
+            var start = double.NegativeInfinity;
+            for (var at = 0; at + 512 <= samples.Length; at += 512)
+            {
+                var piece = samples[at..(at + 512)];
+                var now = (at + 512) / (double)Hearing.SampleRate;
+                watch.Restart();
+                onsets.AcceptWaveform(piece);
+                var speech = onsets.IsSpeechDetected();
+                while (!onsets.IsEmpty())
+                    onsets.Pop();
+                stream.AcceptWaveform(Hearing.SampleRate, piece);
+                var heard = "";
+                while (spotter.IsReady(stream))
+                {
+                    spotter.Decode(stream);
+                    var keyword = spotter.GetResult(stream).Keyword;
+                    if (keyword != "")
+                    {
+                        heard = keyword;
+                        spotter.Reset(stream);
+                    }
+                }
+                computeTotal += watch.Elapsed.TotalSeconds;
+                if (speech && !speaking)
+                    start = now - 0.35;                 // Silero says so a little after the first sound
+                speaking = speech;
+                if (heard != "")
+                    if (now - start <= 1.5 + 0.6)       // the spotter says so a little after the word
+                        caught.Add((Math.Round(now, 2), heard));
+                    else
+                        late.Add((Math.Round(now, 2), heard));
+            }
+            return caught;
+        }
         if (streaming)
         {
             using var stream = online!.CreateStream();
@@ -323,7 +380,8 @@ void Names()
         var lang = (string)clip["lang"]!;
         var samples = Samples((string)clip["path"]!).Concat(new float[Hearing.SampleRate]).ToArray();
         var caught = Catch(samples, lang);
-        Write(new { clip = (string)clip["clip"]!, room = (string)clip["room"]!, starts_with_name = startsWith, caught = caught.Count > 0, at = caught.Count > 0 ? caught[0].At : (double?)null, words = caught.Count > 0 ? caught[0].Words : null });
+        late.Clear();
+        Write(new { clip = (string)clip["clip"]!, room = (string)clip["room"]!, starts_with_name = startsWith, caught = caught.Count > 0, at = caught.Count > 0 ? caught[0].At : (double?)null, words = caught.Count > 0 ? caught[0].Words : null, later = late.Count });
     }
     var clipsCompute = computeTotal / Math.Max(soundTotal, 1);
 
@@ -332,9 +390,12 @@ void Names()
     if (streams != "")
         foreach (var file in Directory.GetFiles(streams, "*.wav").Order())
         {
+            late.Clear();
             var caught = Catch(Samples(file), "en");
             foreach (var (at, words) in caught)
                 Write(new { stream = Path.GetFileName(file), false_start_at = at, words });
+            foreach (var (at, words) in late)
+                Write(new { stream = Path.GetFileName(file), name_later_at = at, words });
         }
     Write(new { summary = true, clips_compute_per_second = Math.Round(clipsCompute, 4), streams_minutes = Math.Round(soundTotal / 60, 1), streams_compute_per_second = soundTotal > 0 ? Math.Round(computeTotal / soundTotal, 4) : 0 });
 }
@@ -431,6 +492,27 @@ OfflineRecognizerConfig OfflineConfig()
             throw new ArgumentException($"no model {name}");
     }
     config.ModelConfig = m;              // sherpa-onnx's configs are structs: m was a copy
+    return config;
+}
+
+KeywordSpotterConfig SpotterConfig()
+{
+    var folder = Option("kws", "E:/Tools/speech-trial/downloads/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20");
+    var config = new KeywordSpotterConfig();
+    var m = config.ModelConfig;
+    m.Transducer.Encoder = Path.Combine(folder, "encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
+    m.Transducer.Decoder = Path.Combine(folder, "decoder-epoch-13-avg-2-chunk-16-left-64.onnx");
+    m.Transducer.Joiner = Path.Combine(folder, "joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
+    m.Tokens = Path.Combine(folder, "tokens.txt");
+    m.NumThreads = threads;
+    m.Provider = provider;
+    config.ModelConfig = m;
+    config.KeywordsThreshold = float.Parse(Option("kws-threshold", "0.25"));
+    config.KeywordsScore = 1.0f;
+    // their names as the model's units: English phones (which also cover the Japanese シノ, ハナ, フミリヤ) and pinyin
+    config.KeywordsFile = Option("keywords", "tools/bench/speech/keywords.txt");
+    if (!File.Exists(config.KeywordsFile))
+        throw new FileNotFoundException("no keywords file", config.KeywordsFile);   // the spotter would hear nothing, quietly
     return config;
 }
 

@@ -237,13 +237,18 @@ With Qwen3-ASR 0.6B on the processor, the words come 0.9 to 4.4 s later than tha
 
 ## Catching their name
 
-Two ways, on the processor, with the names Shino, Hana and Fumiriya (in their spellings in the three languages)
+Three ways, on the processor, with the names Shino, Hana and Fumiriya (in their spellings in the three languages)
 listened for at once:
 - **The ears on each stretch of speech**: Silero finds where speech starts (a stretch ends at 0.6 s of quiet, so the
   comma after a name doesn't), the first 2 s of it are heard whole, and the name counts when the words start with it
   (with a stretch ending at 0.25 s of quiet, as for a turn's pauses, the catches were about the same);
 - **The streaming model on the stream**: Nemotron runs all the time, and the name counts when an utterance's words
-  start with it.
+  start with it;
+- **A keyword spotter** (round 2, the owner allowed the download): sherpa-onnx's own, already in the library the app
+  ships, with k2-fsa's 3M-parameter Chinese and English model (int8, 31 MB download, Apache-2.0), on one thread, all
+  the time. The names are written in its units by hand (`keywords.txt`: English phones, which also stand for the
+  Japanese シノ, ハナ and フミリヤ, and pinyin for 诗乃 and 花); `keywords-more.txt` adds a few more ways of saying
+  them. Silero runs beside it, and a name counts only when it comes within 1.5 s of speech starting after a quiet.
 
 On the clips whose line starts with a name (caught / said), on the clips with a name later or none (should not be
 caught), and on other speech, an hour and 13 minutes of sentences from this repository's docs said by Windows' English
@@ -256,18 +261,40 @@ voices in the near room (a TV or another person; 20 minutes of it for the stream
 | Qwen3-ASR 0.6B on each stretch | 34 / 270 (13%) | 0 / 51 | 0 in 73 min | 0 | 0.06 s |
 | Qwen3-ASR 0.6B, names as hints | 107 / 270 (40%) | 0 / 51 | 6 in 73 min | 4.9 | 0.07 s |
 | Nemotron 560 ms, streaming | 31 / 270 (11%) | 0 / 51 | 0 in 22 min | 0 | 0.31 s |
+| Keyword spotter, 1 thread | 83 / 270 (31%) | 0 / 51 | 3 in 73 min | 2.5 | 0.027 s |
+| Keyword spotter, more ways of saying them | 90 / 270 (33%) | 0 / 51 | 4 in 73 min | 3.3 | 0.027 s |
+| Keyword spotter, a lower threshold (0.15) | 96 / 270 (36%) | 0 / 51 | 3 in 73 min | 2.5 | 0.034 s |
+| Keyword spotter, other speech across the room (far clips) | 7 / 90 | 0 / 17 | 4 in 73 min | 3.3 | 0.032 s |
 
-- **None is good enough.** The ears hear the rest of the line and lose the name, which is the one word that matters
-  here. With hints, Qwen3-ASR catches English names about half the time (34 of 72) and Chinese ones hardly at all
-  (8 of 48), and its false starts were all the garbled hint list described above.
-- **False starts are rare** when nothing is hinted: no sentence of other speech came out starting with a name, even
+The two best, by room and by language (names said first, caught):
+
+| Way | clean | near | far | English | accented | Chinese | Japanese |
+|---|---|---|---|---|---|---|---|
+| Qwen3-ASR 0.6B with hints | 41 / 90 | 38 / 90 | 28 / 90 | 34 / 72 | 43 / 90 | 8 / 48 | 22 / 60 |
+| Keyword spotter, more ways | 49 / 90 | 34 / 90 | 7 / 90 | 24 / 72 | 27 / 90 | 34 / 48 | 5 / 60 |
+| SenseVoice on each stretch | 14 / 90 | 13 / 90 | 4 / 90 | 6 / 72 | 9 / 90 | 7 / 48 | 9 / 60 |
+
+- **None is good enough yet.** The ears hear the rest of the line and lose the name, which is the one word that
+  matters here. With hints, Qwen3-ASR catches English names about half the time (34 of 72) and Chinese ones hardly at
+  all (8 of 48), and its false starts were all the garbled hint list described above.
+- **The keyword spotter is the mirror image**: the best in Chinese (34 of 48: 诗乃 is in its own units) and in the
+  clean room, but it misses nearly every name across the room (7 of 90) and nearly every Japanese one (5 of 60: there
+  is no Japanese model, and English phones fit Japanese speech poorly). Its false starts were all "Shino" or 花 heard
+  in English sentences, 2.5 to 3.3 an hour; 花 (huā), one syllable, is too short a keyword. No name that came later
+  in a sentence was taken for a call (the 1.5 s rule).
+- **What listening all day costs**: the keyword spotter and Silero together take 0.027 s of one core per second of
+  sound, about 3% of one core, around the clock, and 47 MB of memory. Spread over this laptop processor's 32 threads, about
+  0.1% of it. SenseVoice on each stretch of speech is about the same while people talk and nothing in quiet, but
+  needs Silero all the time (well under 1%). Battery use wasn't measured: a core never quite idle keeps a laptop from
+  its deepest sleep states, which matters more on battery than the 3% does.
+- **From the ears' words, false starts are rare** when nothing is hinted: no sentence of other speech came out starting with a name, even
   though some had a name later in them.
-- **Cost**: listening on each stretch of speech with SenseVoice takes about 2% of 4 threads while people talk, and
-  nothing in quiet. Nemotron on the stream takes 31% all the time.
-- **Next**: a keyword spotter, made for exactly this. sherpa-onnx ships one in the library the app has already, and
-  k2-fsa publishes small models for it (English, Chinese, and a 3M-parameter one for both, 31 MB, Apache-2.0; none for
-  Japanese). Downloading one is the owner's call. Failing that, matching the ears' first word by sound (师奶, 吃奶 and
-  诗乃 are all "shī nǎi"; "She know" and "Shino" are close) would catch far more than spelling does.
+- **Nemotron on the stream** takes 31% of 4 threads all the time, for 11%: not a way to listen all day.
+- **What would do better**: the spotter as the cheap gate in the clean and near room, and the ears to confirm (only
+  the first 2 s of a stretch it flags, so the cost stays small); matching the ears' first word by sound rather than
+  spelling (师奶, 吃奶 and 诗乃 are all "shī nǎi"; "She know" and "Shino" are close); a keyword model with Japanese, or
+  one trained on the character's name. Distance is the open problem for every way here, which is where Voice
+  Clarity's noise suppression and gain control come in (#347) before anything else is tried.
 - These are synthesised voices and other speech from one kind of source: the real false start rate needs real rooms,
   the owner's TV or their friends.
 
