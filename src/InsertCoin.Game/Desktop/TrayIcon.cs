@@ -6,7 +6,7 @@ public enum TrayMood { Fine, Low, Debt }
 
 /// <summary>
 /// System tray icon: a coin tinted by state, a tooltip with the readout, and the app menu: the cabinet, Settings…,
-/// Missions… while any are left (and not hidden), who keeps the player company, her books, a memo, a check of LeetCode, the switches flipped often
+/// Missions… while any are left (it stands the chalkboard sign up again), who keeps the player company, her books, a memo, a check of LeetCode, the switches flipped often
 /// (sounds, her voice, a conversation), and Quit.
 /// Everything else is in Settings (see <see cref="App.SettingsWindow"/>).
 /// </summary>
@@ -105,7 +105,7 @@ public partial class TrayIcon : Node
         Check(VoiceId, voice);
     }
 
-    /// <summary>Shows "Missions…" under Settings… while any are left and not hidden, and takes it away once none is.</summary>
+    /// <summary>Shows "Missions…" under Settings… while any are left, and takes it away once none is.</summary>
     public void ShowMissions(bool shown) => Show(MissionsId, "Missions…", SettingsId, shown);
 
     /// <summary>Shows "Check LeetCode now" under "Write a memo…" while LeetCode earns play time, and takes it away while it doesn't.</summary>

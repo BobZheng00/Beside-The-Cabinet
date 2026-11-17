@@ -207,23 +207,120 @@
     {
       "name": "missions-free-play",
       "about": "With no play time (every way to earn unticked) the missions have no EARN A CREDIT, and one cleared pays nothing; ticking focus sessions on Play time brings EARN A CREDIT back and pays the one cleared, once; unticking and ticking it again pays nothing more.",
-      "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/BalanceSettings.cs"],
+      "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/App/ChalkboardSign.cs", "src/InsertCoin.Game/App/Director.cs"],
       "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false, \"Language\": \"en\"",
       "script": "missions@1,mission:hello@2,settings@3,settings:balance@5,settingsdo:Focus_sessions@6,missions@8,settingsdo:Focus_sessions@9,settingsdo:Focus_sessions@11,settings:missions@14",
       "shots": [4.5, 17],
       "window": "Settings",
-      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Main: the mission SAY HELLO is cleared$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$"],
-      "forbid": ["\\(2 paid in all\\)"]
+      "expect": ["^Main: missions left: CONNECT AN AI, SAY HELLO, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$", "^Sign: stands: MISSIONS: CONNECT AN AI \\| SAY HELLO \\| ASK FOR A REMINDER \\| OPEN MEMORY \\| HEAR THEIR VOICE$", "^Main: the mission SAY HELLO is cleared$", "^Screen: in turn, CLEARED: SAY HELLO$", "^Sign: chalked: MISSIONS: CONNECT AN AI \\| \\[x\\] SAY HELLO \\| ASK", "^Sign: chalked: MISSIONS \\(MIN\\): CONNECT AN AI 15 \\| \\[x\\] SAY HELLO \\+15 \\| EARN A CREDIT 15 \\| ", "^Screen: in turn, \\+15 MIN: SAY HELLO$", "^Settings: the list: Missions \\| General", "^Main: the mission SAY HELLO pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: missions left: CONNECT AN AI, EARN A CREDIT, ASK FOR A REMINDER, OPEN MEMORY, HEAR THEIR VOICE$"],
+      "forbid": ["\\(2 paid in all\\)", "^Screen: in turn, \\+15 MIN: (?!SAY HELLO)"]
     },
     {
       "name": "missions",
-      "about": "The missions fit Settings at its narrowest default size (as on a 2560x1440 screen at 125%, about 708 px wide), with what is done marked; a mission pays 15 minutes once; Hide missions takes them out of Settings and the tray, and General's Show missions brings them back.",
-      "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/Desktop/TrayIcon.cs"],
-      "script": "missions@1,mission:ai@1.5,mission:hello@1.7,mission:hello@1.9,settings@2,settingsat:708x736@3,settingswidths@4,trayitems@5,settingsdo:Hide_missions@6,trayitems@8,settingsat:708x736@8.5,settingsdo:Show_missions@10,trayitems@12,settingsat:708x736@12.5,settingswidths@13",
+      "about": "The missions fit Settings at its narrowest default size (as on a 2560x1440 screen at 125%, about 708 px wide), with what is done marked; a mission pays 15 minutes once; the chalkboard sign put away leaves them in Settings and the tray, whose Missions… stands it up again, then opens the list in Settings.",
+      "covers": ["src/InsertCoin.Game/App/MissionSettings.cs", "src/InsertCoin.Game/App/SettingsWindow.cs", "src/InsertCoin.Game/App/CabinetSettings.cs", "src/InsertCoin.Game/Desktop/TrayIcon.cs", "src/InsertCoin.Game/App/ChalkboardSign.cs"],
+      "script": "missions@1,mission:ai@1.5,mission:hello@1.7,mission:hello@1.9,settings@2,settingsat:708x736@3,settingswidths@4,trayitems@5,signaway@6,trayitems@8,settingsat:708x736@8.5,menupress:Missions@10,sign@11,menupress:Missions@12,settingsat:708x736@12.5,settingswidths@13",
       "shots": [5, 10, 16],
       "window": "Settings",
-      "expect": ["^Main: the mission CONNECT AN AI pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: the mission SAY HELLO pays 15 min", "^Settings: laid out as on a 708x736 screen: 692x688$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\|", "^Main: the missions are hidden$", "^Tray: Show cabinet \\| Settings… \\| Who keeps", "^Settings: the list: General .*; opened at cabinet$", "^Main: the missions are shown again$", "^Settings: the list: Missions \\| General .*; opened at missions$"],
+      "expect": ["^Main: the mission CONNECT AN AI pays 15 min, 0 of it to a debt \\(1 paid in all\\)$", "^Main: the mission SAY HELLO pays 15 min", "^Settings: laid out as on a 708x736 screen: 692x688$", "^Tray: Show cabinet \\| Settings… \\| Missions… \\|", "^Main: the sign is put away, until the tray brings it back$", "^Main: the sign stands again, from the tray$", "^Sign: stands at .*: \\[x\\] CONNECT AN AI \\+15 \\| \\[x\\] SAY HELLO \\+15 \\| EARN A CREDIT 15", "^Settings: the list: Missions \\| General .*; opened at missions$"],
       "forbid": ["^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "\\(3 paid in all\\)"]
+    },
+    {
+      "name": "sign",
+      "about": "The chalkboard sign stands beside the cabinet with the missions and what each pays; two paying at once flash on the screen one after the other, and the sign ticks each with its minutes; clicking SAY HELLO with no AI connected opens Settings at AI model, and EARN A CREDIT Play time; slid along the bottom it stays where it's put; right-click → Put away puts it away, the tray's Missions… stands it up again, and lifting it off the desk puts it away again; Chinese and Japanese lines fit on it.",
+      "covers": [
+        "src/InsertCoin.Game/App/ChalkboardSign.cs",
+        "src/InsertCoin.Game/App/Director.cs",
+        "src/InsertCoin.Game/skins/cozy/sign.png",
+        "src/InsertCoin.Game/Cabinet/ScreenView.cs",
+        "src/InsertCoin.Game/App/Memos.cs"
+      ],
+      "settings": ", \"Language\": \"en\"",
+      "script": "missions@1,sign@2.5,signclick:hello@3,mission:hello@3.5,mission:ai@3.6,sign@6,signclick:credit@9,signslide:60@10,sign@11.5,signaway@12,trayitems@13,sign@13.5,menupress:Missions@14,sign@16,signlift@16.5,sign@18.5,menupress:Missions@19,signwords:zh@20,signwords:ja@22",
+      "shots": [5, 7.5, 10.5, 13, 18, 19.5, 23.5, 26],
+      "desk": true,
+      "expect": [
+        "^Sign: stands: MISSIONS \\(MIN\\): CONNECT AN AI 15 \\| SAY HELLO 15 \\| EARN A CREDIT 15 \\| ASK FOR A REMINDER 15 \\| OPEN MEMORY 15 \\| HEAR THEIR VOICE 15$",
+        "^Sign: at -?\\d+,-?\\d+, \\d+x\\d+, beside the cabinet$",
+        "^Screen: in turn, \\+15 MIN: SAY HELLO$",
+        "^Screen: in turn, \\+15 MIN: CONNECT AN AI$",
+        "^Sign: chalked: MISSIONS \\(MIN\\): \\[x\\] CONNECT AN AI \\+15 \\| \\[x\\] SAY HELLO \\+15 \\| EARN A CREDIT 15",
+        "^Main: hello opens mind$",
+        "^Settings: the list: Missions \\| .*; opened at mind$",
+        "^Settings: shows mind$",
+        "^Sign: EARN A CREDIT clicked$",
+        "^Main: credit opens balance$",
+        "^Settings: shows balance$",
+        "^Sign: slid to \\d+ along the desk$",
+        "^Sign: stands at .*slid [1-9]\\d*:",
+        "^Sign: its menu at -?\\d+,-?\\d+: Put away$",
+        "^Sign: put away, from its menu$",
+        "^Main: the sign is put away, until the tray brings it back$",
+        "^Sign: folds away$",
+        "^Tray: Show cabinet \\| Settings… \\| Missions… \\|",
+        "^Sign: away$",
+        "^Main: the sign stands again, from the tray$",
+        "^Sign: put away, lifted off the desk$",
+        "^Sign: chalked: 任务 \\(分钟\\): ",
+        "^Sign: chalked: ミッション \\(分\\): "
+      ],
+      "forbid": [
+        "^Settings: nothing called",
+        "\\(3 paid in all\\)"
+      ]
+    },
+    {
+      "name": "sign-earning",
+      "about": "The earning that clears EARN A CREDIT keeps its own flash, and the mission's +15 MIN follows it rather than replacing it; with an AI connected, SAY HELLO on the chalkboard sign opens the slip to type on.",
+      "covers": [
+        "src/InsertCoin.Game/App/ChalkboardSign.cs",
+        "src/InsertCoin.Game/App/Director.cs",
+        "src/InsertCoin.Game/Cabinet/ScreenView.cs"
+      ],
+      "mind": true,
+      "settings": ", \"Language\": \"en\"",
+      "script": "nocall@0.5,missions@1,focuspaid:5@2,signclick:hello@7",
+      "shots": [
+        4.5,
+        7.5,
+        10.5
+      ],
+      "desk": true,
+      "expect": [
+        "^Screen: \\+\\d+:\\d\\d: FOCUS 5M",
+        "^Screen: in turn, \\+15 MIN: EARN A CREDIT$",
+        "^Sign: chalked: MISSIONS \\(MIN\\): CONNECT AN AI 15 \\| SAY HELLO 15 \\| \\[x\\] EARN A CREDIT \\+15",
+        "^Main: hello opens the slip$",
+        "^Slip: \\d+ px wide"
+      ],
+      "forbid": [
+        "^Screen: cut short: "
+      ]
+    },
+    {
+      "name": "sign-switch",
+      "about": "Missions cleared under FREE PLAY flash CLEARED in turn; switching to CREDITS drops the CLEARED still to come, and what the switch pays follows as +15 MIN.",
+      "covers": [
+        "src/InsertCoin.Game/App/Director.cs",
+        "src/InsertCoin.Game/Cabinet/ScreenView.cs"
+      ],
+      "settings": ", \"FocusEarns\": false, \"ActivitiesEarn\": false, \"LeetCodeEarns\": false, \"Language\": \"en\"",
+      "script": "missions@1,mission:hello@2,mission:memory@2.1,mission:voice@2.2,settings:balance@2.6,settingsdo:Focus_sessions@4",
+      "shots": [
+        7,
+        15
+      ],
+      "desk": true,
+      "expect": [
+        "^Screen: in turn, CLEARED: SAY HELLO$",
+        "^Main: the mission OPEN MEMORY pays 15 min",
+        "^Screen: in turn, \\+15 MIN: SAY HELLO$",
+        "^Screen: in turn, \\+15 MIN: OPEN MEMORY$",
+        "^Screen: in turn, \\+15 MIN: HEAR THEIR VOICE$"
+      ],
+      "forbid": [
+        "^Screen: in turn, CLEARED: (OPEN MEMORY|HEAR THEIR VOICE)$"
+      ]
     },
     {
       "name": "memorytabs",

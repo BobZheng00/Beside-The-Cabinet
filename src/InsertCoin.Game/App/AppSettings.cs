@@ -8,7 +8,10 @@ public sealed record AppSettings
 {
     public string? Username { get; init; }
     public string? CallMe { get; init; }                // the name she calls the player by (General); unset: none, not the LeetCode name
-    public bool MissionsHidden { get; init; }           // the missions hidden from their list: out of Settings and the tray, until General brings them back
+    // the chalkboard sign put away by the player, until the tray's Missions… brings it back; kept under the name hidden
+    // missions had, so a profile that hid them starts with it put away
+    [JsonPropertyName("MissionsHidden")] public bool SignPutAway { get; init; }
+    public float SignSlide { get; init; }               // how far the player slid the sign from where it first stands, in the cabinet's canvas units
     public string Initials { get; init; } = "AAA";
     public string Skin { get; init; } = "cozy";
     public string[] IgnoredSteamAppIds { get; init; } = ["431960"];   // Wallpaper Engine

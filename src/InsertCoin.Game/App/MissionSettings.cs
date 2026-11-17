@@ -6,14 +6,13 @@ namespace InsertCoin.Game.App;
 
 /// <summary>
 /// Settings → Missions, at the top of the list until they're done (in Getting started's old place): each mission with
-/// how it stands and a way to do it, what they pay while play time is earned, and Hide, which General undoes (spec
-/// 2026-11-08-a-new-player-gets-it.md, "Missions").
+/// how it stands and a way to do it, and what they pay while play time is earned (spec 2026-11-08-a-new-player-gets-it.md,
+/// "Missions"). The chalkboard sign by the cabinet chalks them too, and is put away by hand (see <see cref="ChalkboardSign"/>).
 /// </summary>
 public partial class MissionSettings : VBoxContainer
 {
     /// <summary>A mission's button: the page that does it ("mind", "memory", "voice"), or "agenda" (Memory's Agenda tab).</summary>
     public event Action<string>? Open;
-    public event Action? HideAsked;
 
     /// <param name="voiceExtra">Their voice takes a download (Chinese and Japanese): hearing it is an extra.</param>
     public void Build(string her, MissionProgress progress, Earning earns, bool voiceExtra, long rewardMs)
@@ -47,10 +46,6 @@ public partial class MissionSettings : VBoxContainer
                 Form.Button(row, button, () => Open?.Invoke(page!));
             Form.Hint(this, how);
         }
-
-        AddChild(new HSeparator());
-        Form.Button(Form.Buttons(this), "Hide missions", () => HideAsked?.Invoke());
-        Form.Hint(this, "Show missions on General brings them back.");
     }
 
     /// <summary>How a credit is earned, naming only the ways that earn now.</summary>

@@ -75,9 +75,9 @@ public partial class ScreenView : Node2D
     private ShaderMaterial _material = null!;
     private ScreenState _state = new();
     private (string Big, string Caption)? _flash;
-    private readonly Queue<(string Big, string Caption, double Seconds)> _waiting = new();    // flashes waiting for the readout to unfold
+    private Queue<(string Big, string Caption, double Seconds, string? Kind)> _waiting = new();    // flashes waiting their turn
     private bool _folded;                               // the readout is folded away, or folding
-    private bool _showingWaited;                        // one of the waiting flashes has the screen for its time
+    private string? _waitedKind;                        // what the waiting flash showing now is of (see Flash's kind), or null
     private (string Big, string Caption, string Status)? _prompt;
     private (string Big, string Caption, float Done)? _focus;
     private int _attractPage, _flashId;
@@ -163,17 +163,28 @@ public partial class ScreenView : Node2D
     /// <summary>Takes over the screen for a moment, e.g. "+2" or "CONTINUE?".</summary>
     /// <param name="waits">
     /// It takes its turn after the others that wait, each shown for its time (what she put on the agenda); while the
-    /// screen's system has the readout folded away (an app open on it), they wait for it to unfold rather than passing unseen.
+    /// screen's system has the readout folded away (an app open on it), they wait for it to unfold rather than passing unseen,
+    /// and while another flash has the screen (the earning that cleared a mission), they wait for it to end.
     /// </param>
-    public void Flash(string big, string caption, double seconds, bool waits = false)
+    /// <param name="kind">What a waiting flash is of (a "mission"), for <see cref="Waits"/> and <see cref="DropWaiting"/>.</param>
+    public void Flash(string big, string caption, double seconds, bool waits = false, string? kind = null)
     {
         if (waits)
         {
-            _waiting.Enqueue((big, caption, seconds));
+            _waiting.Enqueue((big, caption, seconds, kind));
             Waited();
             return;
         }
+        GD.Print($"Screen: {big}: {caption.Replace('\n', ' ')}");
+        Show(big, caption, seconds, null);
+    }
+
+    private void Show(string big, string caption, double seconds, string? waitedKind)
+    {
+        if (_flash is { } showing)
+            GD.Print($"Screen: cut short: {showing.Big}: {showing.Caption.Replace('\n', ' ')}");
         _flash = (big, caption);
+        _waitedKind = waitedKind;
         var id = ++_flashId;
         Redraw();
         GetTree().CreateTimer(seconds).Timeout += () =>
@@ -181,9 +192,22 @@ public partial class ScreenView : Node2D
             if (id != _flashId)
                 return;             // a newer flash owns the screen
             _flash = null;
+            _waitedKind = null;
             Redraw();
+            Waited();               // the next to wait its turn
+            if (waitedKind is not null)
+                WaitedOut?.Invoke();
         };
     }
+
+    /// <summary>A waiting flash of some kind has had its time.</summary>
+    public event Action? WaitedOut;
+
+    /// <summary>Flashes of this kind are waiting their turn, or one is showing.</summary>
+    public bool Waits(string kind) => _waitedKind == kind || _waiting.Any(w => w.Kind == kind);
+
+    /// <summary>Drops the flashes of this kind still waiting their turn (one showing has its time).</summary>
+    public void DropWaiting(string kind) => _waiting = new(_waiting.Where(w => w.Kind != kind));
 
     /// <summary>A <see cref="Flash"/> whose big number counts from one time to another, as the overnight fade takes play time off.</summary>
     public void FlashCount(long fromMs, long toMs, string caption, double seconds)
@@ -306,20 +330,15 @@ public partial class ScreenView : Node2D
     }
 
     /// <summary>
-    /// The flashes that wait their turn, one after another in a single chain, while the readout is unfolded (any left
-    /// wait for the next time it unfolds).
+    /// The flashes that wait their turn, one after another, while the readout is unfolded and no other flash has the
+    /// screen (any left wait for the next time it unfolds, or for that flash to end).
     /// </summary>
     private void Waited()
     {
-        if (_showingWaited || _folded || !_waiting.TryDequeue(out var next))
+        if (_flash is not null || _folded || !_waiting.TryDequeue(out var next))
             return;
-        _showingWaited = true;
-        Flash(next.Big, next.Caption, next.Seconds);
-        GetTree().CreateTimer(next.Seconds).Timeout += () =>
-        {
-            _showingWaited = false;
-            Waited();
-        };
+        GD.Print($"Screen: in turn, {next.Big}: {next.Caption.Replace('\n', ' ')}");
+        Show(next.Big, next.Caption, next.Seconds, next.Kind ?? "");
     }
 
     /// <summary>

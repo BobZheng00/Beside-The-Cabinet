@@ -9,7 +9,7 @@ marquee keeps it too, in lit pixels). Building, running and testing it: [src/REA
 
 Drag the cabinet by its body. The big gold button asks LeetCode right away, when LeetCode earns your play time. The
 tray icon has the menu, and a right-click on the cabinet or on your companion opens one just like it where you click
-(and they go on talking and moving while it is open): the cabinet, Settings…, Missions… (until they're done), Who
+(and they go on talking and moving while it is open): the cabinet, Settings…, Missions… (until they're done: it stands the chalkboard sign up again, or with the sign up, opens the list in Settings), Who
 keeps you company… (Settings → Companion, to choose who sits on the stool), what they remember (Memory) and chat history, a
 memo of your own, a LeetCode check (when LeetCode earns), and the switches flipped often (Mute sounds, Voice,
 Conversation). A
@@ -22,7 +22,7 @@ off, and a name flips on whole the moment the pointer rests on its button, as an
 name too long for it scrolls through, a column at a time); INSERT COIN comes back drawn in a column at a time. While
 the screen is lifted out it covers the marquee, so a switch's name also shows on the screen's top bar, in place of
 the time, while the pointer is on it. Settings is one window with plain
-categories down its left side, each with a pixel icon: Missions (until they're done or hidden), General, Companion,
+categories down its left side, each with a pixel icon: Missions (until they're done), General, Companion,
 Memory, Voice, AI model, Play time, Notifications, Connections, and Abilities and privacy. A category with more than one
 part has them as tabs inside it: Voice (Their voice, Talking to them), AI model (Connection, What it has cost),
 Notifications (Reminders, Check-ins, Bedtime and quiet hours), Connections (Your phone, Calendars, Web search) and
@@ -59,12 +59,24 @@ time: five minutes of focus in a day, an activity logged, a solve), ASK FOR A RE
 on the agenda), OPEN MEMORY (Settings → Memory) and HEAR THEIR VOICE (your companion answers aloud). They're listed
 at the top of Settings, and as Missions… in the tray, until they're done, each with how it stands and a way to do it.
 Each pays 15 minutes of play time as it clears, once, on top of the day's limit, and a debt is paid from it first, as
-from any earning. With no play time there is no EARN A CREDIT and the others pay nothing; tick a way to earn on Play
+from any earning: the screen flashes what it paid with its name (+15 MIN, SAY HELLO; several in turn, after
+the flash of the earning that cleared one), or under no play time, CLEARED and its name; switching play time on or
+off drops those still to come. With no play time there is no EARN A CREDIT and the others pay nothing; tick a way to earn on Play
 time and EARN A CREDIT is back, and what was cleared meanwhile is paid then, once. Switching play time off again takes
 nothing away: what was paid stays in the balance, out of sight with the rest of it. Where their voice takes a
-download (Chinese and Japanese), HEAR THEIR VOICE is an extra: it pays if done, and the list is done without it. Hide
-missions takes them out of Settings and the tray, and Show missions on General brings them back. A profile set up
-before missions came has none, and its play time is as it was.
+download (Chinese and Japanese), HEAR THEIR VOICE is an extra: it pays if done, and the list is done without it. A
+profile set up before missions came has none, and its play time is as it was.
+
+After the first run, a small chalkboard sign stands on the desk beside the cabinet, on the other side from the stool
+(beyond the stool when the cabinet is against the screen's edge), and moves with it. It chalks the missions left with
+the minutes each pays (EXTRA for HEAR THEIR VOICE where it's an extra; no minutes with no play time), and a tick with the
+minutes it paid as each clears. Click a mission on it to go and do it: CONNECT AN AI opens AI model, SAY HELLO the slip
+to type on (AI model while no AI is connected), EARN A CREDIT Play time, ASK FOR A REMINDER the agenda, OPEN MEMORY Memory, HEAR THEIR VOICE Voice. Slide it
+along the bottom, nearer the cabinet or further off, and it stays there. Lift it off the desk (drag it up), or
+right-click it → Put away, and it stays away until the tray's Missions… brings it back. It folds away by itself a few
+seconds after the last mission is ticked, once the screen has shown what they paid, and switching what earns your play time stands it up with what's left there
+(EARN A CREDIT comes back under play time) or folds it if nothing is. A profile that had hidden its missions starts
+with the sign put away.
 
 The window draws at 60 frames a second, and at 15 while a game runs or with "Energy saver" ticked (moments
 worth watching still get a few seconds at full pace).

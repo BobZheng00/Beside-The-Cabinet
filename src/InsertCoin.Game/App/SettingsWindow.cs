@@ -166,6 +166,8 @@ public partial class SettingsWindow : Window
         _entries[page.Category].ButtonPressed = true;
         _heading.Text = page.Category.ToUpperInvariant();
         ShowTabs(page);
+        if (Paper.OffScreen)
+            GD.Print($"Settings: shows {id}");              // a test run logs the page showing, however it was reached
     }
 
     /// <summary>The tabs of the page's category, with the page's own chosen; none when the category is a page alone.</summary>
