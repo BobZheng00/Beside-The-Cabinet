@@ -14,8 +14,9 @@ namespace InsertCoin.Game.App;
 /// listens, and the cabinet's screen shows MIC meanwhile.
 /// </summary>
 /// <remarks>
-/// She never listens hands-free while she speaks: her own voice would come back through the microphone. Talking over
-/// her by voice waits for echo cancellation (the agent spike).
+/// Hands-free, she listens while she speaks only where Windows takes her own voice out of the microphone (Voice
+/// Clarity: see <see cref="HearsOverHer"/>); then talking over her stops her where she is. Elsewhere her own voice would
+/// come back through the microphone, so she listens once she has finished.
 /// </remarks>
 [SupportedOSPlatform("windows")]
 public partial class Listening : Node
@@ -40,6 +41,7 @@ public partial class Listening : Node
     private HandsFree.Said? _after;                         // what she is saying now, to listen after once she has finished
     private Backchannel _nods = new();                      // when she nods as the player talks
     private bool _understanding, _pretend;                  // _pretend (dev): she hears recordings, never the microphone
+    private volatile bool _overHer;                         // see HearsOverHer
     private (float[] Samples, int At)? _recording;          // dev: a recording played into her ears as if said now
     private bool _pressedOnHer, _keyUsed, _keyWithOthers;
     private double _pressedFor, _keyFor, _clock, _lastTap = -10, _checked, _starved;
@@ -57,6 +59,13 @@ public partial class Listening : Node
 
     /// <summary>The press on her was a hold: the release is the end of talking, not a click.</summary>
     public bool HeldToTalk { get; private set; }
+
+    /// <summary>
+    /// Windows cancels echo on the microphone she hears through (Voice Clarity) and hears her voice to cancel it (see
+    /// <see cref="TalkingOver"/>), so she can hear the player over it: hands-free, she listens while she speaks. A test run is told so with the dev action <c>clarity</c>.
+    /// </summary>
+    public bool HearsOverHer => _overHer;
+
 
     /// <summary>Whether she has ears in this build (SenseVoice, fetched by tools/models/fetch.py).</summary>
     public static bool HasEars => ModelFiles.Present(EarsModel + Hearing.ModelFile);
@@ -76,6 +85,11 @@ public partial class Listening : Node
         AddChild(_ears);
         if (Paper.OffScreen)
             GD.Print("Listening: a test run: the talk key is never read, and only recordings reach her ears");
+        else
+        {
+            OverHer();
+            Microphone.Changed(OverHer);
+        }
         _ears.Full += () =>
         {
             if (_talking != Talk.Open)                      // hands-free turns end themselves at the same length
@@ -180,7 +194,7 @@ public partial class Listening : Node
         _clock += delta;
         Held(delta);
         Key(delta);
-        if (_after is { } after && _talking == Talk.None && !_understanding && (!_stool.Replying || _stool.Waits && !_stool.Speaking))
+        if (_after is { } after && _talking == Talk.None && !_understanding && (!SheSpeaks || HearsOverHer))
         {
             _after = null;
             if (_settings.Now.HandsFree.After(after, Conversing) is { } seconds && MayListen(out _))
@@ -390,6 +404,18 @@ public partial class Listening : Node
         _chatBox.SetListening(false);
     }
 
+    /// <summary>Asks Windows whether she can hear the player over her own voice (see <see cref="HearsOverHer"/>), and says so in the log.</summary>
+    private void OverHer()
+    {
+        var whyNot = Microphone.WhyNotOverHer();
+        _overHer = whyNot is null;
+        GD.Print(whyNot is null ? "Listening: Windows takes her voice out of the microphone: she hears the player over it"
+                                : $"Listening: she listens only once she has finished: {whyNot}");
+    }
+
+    /// <summary>She is saying something (her card or her call waiting quietly on an answer isn't).</summary>
+    private bool SheSpeaks => _stool.Replying && !(_stool.Waits && !_stool.Speaking);
+
     /// <summary>What the voice detector makes of the sound since the last frame, and what that means for the turn.</summary>
     private void HandsFreeTurn()
     {
@@ -399,7 +425,7 @@ public partial class Listening : Node
         // at once a second): not now. Her card or her call, waiting quietly on this answer, isn't her speaking.
         if (!turn.Talking)
         {
-            var stop = _stool.Replying && !(_stool.Waits && !_stool.Speaking);
+            var stop = SheSpeaks && !HearsOverHer;
             if ((_checked += GetProcessDeltaTime()) > 1)
             {
                 _checked = 0;
@@ -429,13 +455,21 @@ public partial class Listening : Node
         _starved = 0;
         if (_turns is not { IsCompletedSuccessfully: true, Result: { } models })
             return;                                         // still loading: the time it takes is not heard
-        var heard = turn.Hear(models.Detector.Hear(fresh), fresh.Length / (double)Hearing.SampleRate);
+        var heard = turn.Hear(models.Detector.Hear(fresh), fresh.Length / (double)Hearing.SampleRate, SheSpeaks);
         if (!turn.Talking && heard != TurnTaking.Heard.Finished)
             _ears.Keep(0.6);                                // only the moment before they start is kept
         switch (heard)
         {
             case TurnTaking.Heard.Started:
                 GD.Print("Listening: the player started talking");
+                if (SheSpeaks)
+                {
+                    GD.Print("Listening: the player talked over her");
+                    if (_stool.Waits)
+                        _stool.Hush();                      // her card or her call: she stops talking, the question stands
+                    else
+                        _ = _stool.Interrupt();             // she stops where she is; the rest isn't kept as said
+                }
                 _nods = new Backchannel();
                 _stool.Lively(Ears.Longest + 10);
                 _stool.Her?.Play(Moment.Listen);
@@ -545,6 +579,7 @@ public partial class Listening : Node
             case "fakemic": _pretend = true; break;         // from now on, hands-free listening hears only recordings (mictalk), never the microphone
             case "mictalk": Play(rest, Talk.Open); break;   // mictalk:path.wav said into the open hands-free microphone (after fakemic)
             case "converse": Converse(rest switch { "on" => true, "off" => false, _ => !Conversing }); break;
+            case "clarity": _overHer = rest != "off"; break; // clarity:on, as if Windows took her voice out of the microphone
             case "mic": _chatBox.DevMic(); break;           // clicks the slip's microphone (opens the real microphone)
             case "listen": Listen(Talk.Hold); break;        // listens as if held on her (opens the real microphone)…
             case "listened": _ = Heard(); break;            // …until this
@@ -600,10 +635,11 @@ public partial class Listening : Node
         _ears.Push(sound);
     }
 
+    /// <summary>Dev: a recording at 16 kHz; <c>say:some_words</c> is those words in Windows' own synthesised voice.</summary>
     private static float[] Read(string path)
     {
         var wav = new Wav();
-        var samples = wav.Feed(File.ReadAllBytes(path));
+        var samples = wav.Feed(path.StartsWith("say:") ? Ears.Synthesised(path[4..].Replace('_', ' ')) : File.ReadAllBytes(path));
         return Hearing.To16k(samples, wav.SampleRate);
     }
 }

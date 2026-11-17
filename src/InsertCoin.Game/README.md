@@ -39,8 +39,9 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
   audio, and the mouth (`Face.Mouth`) follows its loudness. `App/VoiceTrainer.cs` trains a voice's own model (both
   run tied to the cabinet through `CabinetJob`). `App/VoiceSettings.cs` is its page in Settings. Measurements:
   [docs/research/2026-10-02-companion-voice.md](../../docs/research/2026-10-02-companion-voice.md).
-- The ears: `App/Ears.cs` opens the microphone while the companion listens (Godot records it into a muted bus of its
-  own), `TalkKey` reads the talk key, and `Hearing` (in `InsertCoin.Mind`) turns what was said into words with
+- The ears: `App/Ears.cs` opens the microphone while the companion listens, through `App/Microphone.cs` (Windows' Core
+  Audio: the default microphone for calls, in communications mode so Voice Clarity cleans it, opted out of ducking,
+  16 kHz mono; Godot's own audio input is off), `TalkKey` reads the talk key, and `Hearing` (in `InsertCoin.Mind`) turns what was said into words with
   SenseVoice. `App/Listening.cs` ties them together: the mouse held on the companion, the talk key, the slip's
   microphone, and hands-free (`HandsFree`, `TurnTaking`, `VoiceDetector`, `SmartTurn` in `InsertCoin.Mind`). Design:
   [docs/specs/2026-10-05-hands-free-listening.md](../../docs/specs/2026-10-05-hands-free-listening.md).

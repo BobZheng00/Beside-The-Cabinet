@@ -18,7 +18,8 @@ public partial class ListeningSettings : VBoxContainer
 
     /// <param name="hears">This build has her ears (the speech model), so she can be talked to aloud.</param>
     /// <param name="turns">…and the turn-taking models, so she can listen hands-free.</param>
-    public void Build(string name, string talkKey, HandsFree handsFree, bool hears, bool turns)
+    /// <param name="overHer">Windows takes her voice out of the microphone, so she listens while she speaks too.</param>
+    public void Build(string name, string talkKey, HandsFree handsFree, bool hears, bool turns, bool overHer)
     {
         _handsFree = handsFree;
         Form.Page(this);
@@ -52,7 +53,8 @@ public partial class ListeningSettings : VBoxContainer
         _afterQuestions = Form.Tick(Form.Indented(this), "after a question of their own", h.AfterQuestions, _ => Chosen());
         _afterRemarks = Form.Tick(Form.Indented(this), "after anything else they say on their own", h.AfterRemarks, _ => Chosen());
         Form.Hint(this, "If you start talking within those seconds, it counts as your answer; if not, the microphone closes. " +
-                        $"{name} never listens while speaking: talking over {name} still needs the key or a click.");
+                        (overHer ? $"You can talk over {name} too: they stop and listen."
+                                 : $"{name} listens once they've finished speaking: to talk over them, use the key or a click."));
 
         AddChild(new Label { Text = $"{name} may listen without being asked…" });
         _inCalls = Form.Tick(Form.Indented(this), "during a call", h.InCalls, _ => Chosen());

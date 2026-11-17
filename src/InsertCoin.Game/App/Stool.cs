@@ -2217,7 +2217,7 @@ public partial class Stool : Node2D
     private Control ListeningPage()
     {
         var page = new ListeningSettings();
-        page.Build(HerName(), _settings.Now.TalkKey, _settings.Now.HandsFree, Listening.HasEars, Listening.HasTurns);
+        page.Build(HerName(), _settings.Now.TalkKey, _settings.Now.HandsFree, Listening.HasEars, Listening.HasTurns, _listening.HearsOverHer);
         page.KeyChosen += key => _settings.Save(_settings.Now with { TalkKey = key });
         page.HandsFreeChosen += handsFree => _settings.Save(_settings.Now with { HandsFree = handsFree });
         return page;

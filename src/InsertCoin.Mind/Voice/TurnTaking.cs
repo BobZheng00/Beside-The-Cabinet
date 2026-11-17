@@ -38,12 +38,17 @@ public sealed class TurnTaking(double window)
     /// <summary>The pause the last <see cref="Heard.AskModel"/> was about, to hand back with the model's answer.</summary>
     public int Asking { get; private set; }
 
-    /// <summary>The next <paramref name="seconds"/> of sound: whether the voice detector heard speech in it.</summary>
-    public Heard Hear(bool speech, double seconds)
+    /// <summary>
+    /// The next <paramref name="seconds"/> of sound: whether the voice detector heard speech in it. While
+    /// <paramref name="sheSpeaks"/> (she listens over her own line), the wait for the player doesn't run down: the
+    /// window is for their answer once she has finished.
+    /// </summary>
+    public Heard Hear(bool speech, double seconds, bool sheSpeaks = false)
     {
         if (_done)
             return Heard.Nothing;
-        _clock += seconds;
+        if (!sheSpeaks)
+            _clock += seconds;
         if (!_talking)
         {
             _speech = speech ? _speech + seconds : 0;
