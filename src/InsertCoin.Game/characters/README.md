@@ -80,6 +80,7 @@ What each kind of file gets:
 | hair and cloth physics | yes | yes | bones named hair, skirt, tail… get springs; legs are solid to them, arms to hair; skirt panels follow the thighs; clothes keep to the body through the arrival's jump, and hair hangs by its weight and swings until they sit |
 
 A plain GLB does not say which bone is which, so `HumanoidMap` works it out from the usual naming habits (Mixamo,
-Unreal, Blender, Biped, Daz) and the skeleton's shape; `Rig` then copes with any units, facing and rest pose (T or
+Unreal, Blender, Biped, Daz, VRoid's `J_Bip_C_…` in a VRM saved as a GLB, and MikuMikuDance's standard Japanese names
+as Blender's MMD Tools exports them, sides as `.L`/`.R` or `左`/`右`) and the skeleton's shape; `Rig` then copes with any units, facing and rest pose (T or
 A). A model without a skeleton (a sculpt, most OBJ-derived files) cannot be posed: the stool stays empty and the
 CRT says why. OBJ and USDZ are not read at all; they carry no skeleton.
