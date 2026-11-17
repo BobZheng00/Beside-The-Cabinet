@@ -181,6 +181,8 @@ public partial class ScreenView : Node2D
 
     private void Show(string big, string caption, double seconds, string? waitedKind)
     {
+        if (_flash is { } showing)
+            GD.Print($"Screen: cut short: {showing.Big}: {showing.Caption.Replace('\n', ' ')}");
         _flash = (big, caption);
         _waitedKind = waitedKind;
         var id = ++_flashId;

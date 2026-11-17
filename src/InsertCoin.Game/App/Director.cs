@@ -51,8 +51,8 @@ public sealed class Director(CabinetView cabinet, Func<CompanionView?> companion
                 audio.Play("paid", delay: 0.1);
                 cabinet.Lights.Burst(LightMode.Celebrate, 1.8);
                 companion?.Play(Moment.Pump);
-                cabinet.GetTree().CreateTimer(3.2).Timeout += () =>      // after the earning that made the day good
-                    cabinet.Screen.Flash(Gain(s.Paid, "+1"), $"STREAK x{s.Streak} BONUS" + Capped(s.Paid), 3.0);
+                cabinet.GetTree().CreateTimer(3.2).Timeout += () =>      // after the earning that made the day good, in turn with a mission's
+                    cabinet.Screen.Flash(Gain(s.Paid, "+1"), $"STREAK x{s.Streak} BONUS" + Capped(s.Paid), 3.0, waits: true);
                 break;
             // a mission's name on the screen and what it paid, several in turn (switching to CREDITS pays those cleared meanwhile);
             // under FREE PLAY only that it cleared; the chalkboard sign ticks it meanwhile

@@ -247,8 +247,10 @@
         "^Sign: chalked: MISSIONS \\(MIN\\): \\[x\\] CONNECT AN AI \\+15 \\| \\[x\\] SAY HELLO \\+15 \\| EARN A CREDIT 15",
         "^Main: hello opens mind$",
         "^Settings: the list: Missions \\| .*; opened at mind$",
+        "^Settings: shows mind$",
         "^Sign: EARN A CREDIT clicked$",
         "^Main: credit opens balance$",
+        "^Settings: shows balance$",
         "^Sign: slid to \\d+ along the desk$",
         "^Sign: stands at .*slid [1-9]\\d*:",
         "^Sign: its menu at -?\\d+,-?\\d+: Put away$",
@@ -290,6 +292,9 @@
         "^Sign: chalked: MISSIONS \\(MIN\\): CONNECT AN AI 15 \\| SAY HELLO 15 \\| \\[x\\] EARN A CREDIT \\+15",
         "^Main: hello opens the slip$",
         "^Slip: \\d+ px wide"
+      ],
+      "forbid": [
+        "^Screen: cut short: "
       ]
     },
     {
