@@ -6,9 +6,11 @@ first tho". The scripts are in `tools/bench/speech/` (each has its use in its he
 stay on the PC and are not committed.*
 
 **In short.**
-- **Not done yet: the graphics card.** The sherpa-onnx the app ships runs only on the processor, and timing the
-  candidates on the card needs k2-fsa's CUDA build of it, a download that needs the owner's yes first. Everything
-  below is on the processor, with the owner's voice (GPT-SoVITS) loaded on the card beside it.
+- **On the graphics card, Qwen3-ASR 0.6B is not fast enough as it can be had today** (round 2). k2-fsa's export is
+  8-bit, which the card can't run on its own: beside the voice it took 1.3, 2.9 and 7.2 s for 2, 6 and 15 s turns,
+  slower than on the processor, and far worse while the voice spoke. A 16-bit export would run on the card, but at
+  about 1.9 GB it wouldn't fit beside the voice on the owner's 8 GB card (7.7 GB in use already in the loop).
+  SenseVoice gains nothing on the card.
 - **On the processor, every candidate is too slow for every turn.** SenseVoice hears a 2, 6 or 15 second turn in
   0.13, 0.25 or 0.6 s. Qwen3-ASR 0.6B takes 0.9, 1.7 or 4.3 s, Fun-ASR-Nano about the same, Qwen3-ASR 1.7B 1.6, 3.0
   or 7.4 s. So SenseVoice stays the ears for when the card is busy (a game running, or too little memory beside the
@@ -34,10 +36,14 @@ stay on the PC and are not committed.*
   3 false starts an hour, for about 3% of one core all day. The streaming model costs a third of 4 threads all the
   time for 11%.
 
-**Recommendation.** For #348: Qwen3-ASR 0.6B on the graphics card (Apache-2.0, k2-fsa's own export, hints that help),
-with SenseVoice-Small kept on the processor for when the card is busy, if its time on the card turns out well under
-half a second (to measure, once the CUDA build is allowed). Not the 1.7B until there is an export that holds up (the
-one tried here broke with hints), and not Nemotron. For #349: the keyword spotter as a cheap gate that runs all day,
+**Recommendation.** For #348: not Qwen3-ASR on the graphics card as things stand: k2-fsa's 8-bit export is slower on
+the card than on the processor, and a 16-bit one wouldn't fit beside the voice on an 8 GB card. Keep SenseVoice-Small
+for every turn, and use what Qwen3-ASR showed where it is cheap: the microphone in communications mode (#347) for
+distance, and the character's and player's names given where the ears can take them. If the owner wants accents
+heard better at once, Qwen3-ASR 0.6B on the processor for turns of up to about 6 s (0.9 to 1.7 s, against 0.1 to
+0.25 s) is the trade on offer. A 16-bit export on the card is worth timing only for players with more card memory
+(12 GB or more) or no voice on the card. Not the 1.7B until there is an export that holds up (the one tried here broke
+with hints), and not Nemotron. For #349: the keyword spotter as a cheap gate that runs all day,
 with the ears confirming what it flags, and the microphone in communications mode (#347) first, since distance defeats
 every way tried but the hinted ears; matching the ears' first word by sound, not spelling.
 
@@ -201,7 +207,31 @@ On the processor the streaming model's last word lands later than SenseVoice hea
 keeps a third of 4 threads busy the whole time someone speaks. The "words while you talk" (decided against for the
 first version, the spec's "Turn-based, fast and interruptible") wouldn't be worth it here.
 
-## The whole loop
+## On the graphics card, beside the voice (round 2)
+
+k2-fsa's CUDA build of sherpa-onnx 1.13.8 (the owner allowed the download), the same models as on the processor,
+with GPT-SoVITS loaded with the owner's voice. Two things were needed first: the CUDA runtime on this PC (12.5) lacks
+four functions that build's ONNX Runtime calls (`cudaLibraryLoadData` and others), so it used the newer CUDA runtime
+(12.8) that the owner's GPT-SoVITS v5 install already carries; and the card is never fully idle here, as the animated
+wallpaper keeps it 20 to 30% busy. Another agent's hidden test copy also ran on the card during part of the timings.
+
+| | ~2 s turn | ~6 s turn | ~15 s turn | Card memory |
+|---|---|---|---|---|
+| Qwen3-ASR 0.6B (int8) on the card | 1.29 [1.00, 1.95] | 2.86 [2.00, 3.91] | 7.16 [4.38, 9.44] | 0.85 GB after its first turn, more on long turns |
+| Qwen3-ASR 0.6B (int8) on the processor, for comparison | 0.86 [0.71, 1.15] | 1.68 [1.47, 2.02] | 4.33 [3.33, 6.21] | |
+| SenseVoice-Small (int8) on the card | 0.16 [0.11, 0.23] | 0.26 [0.21, 0.45] | 0.48 [0.37, 0.58] | 0.16 GB |
+| SenseVoice-Small on the processor (today) | 0.13 [0.09, 0.20] | 0.25 [0.21, 0.35] | 0.60 [0.46, 0.67] | |
+
+- **Qwen3-ASR 0.6B as k2-fsa exports it is slower on the card than on the processor.** Its export is quantised to
+  8 bits with operations (`MatMulInteger` after `DynamicQuantizeLinear`, 197 and 113 of them in the decoder) that ONNX
+  Runtime's CUDA provider doesn't run on the card, so every step goes back and forth between card and processor.
+- **Beside the voice while it speaks it gets far worse.** The whole loop with it on the card took 3.8 to 20 s from the
+  end of the words to the words heard (median by length and room), once 85 s.
+- **Memory is the other limit.** The card's 8 GB: 3.4 GB already used by the desktop and the owner's other apps,
+  2.2 GB more with the voice loaded (5.6 GB), 7.4 GB with Qwen3-ASR hearing long turns beside it, and 7.7 GB with the
+  voice speaking as well. A 16-bit export of the 0.6B model, the kind that does run on the card, is about 1.9 GB of
+  weights: on this card, with this desktop, it would not fit beside the voice.
+- **SenseVoice gains nothing on the card**: its turns take the same time as on the processor.
 
 From the end of the player's words: when the turn was judged over (Silero and Smart Turn, as the app does it), when
 the words were heard, when the mind's first words came (the mock mind, which answers at once: a real provider adds its
@@ -323,11 +353,11 @@ The two best, by room and by language (names said first, caught):
 **#348, which ears.**
 - On the processor, none of the candidates can hear every turn: a 6 s turn would wait 1.4 to 3 s more than today.
   SenseVoice-Small stays for the processor.
-- Qwen3-ASR 0.6B is the one to try on the graphics card: the best on accents and distance here, hints that help in
-  English and Japanese, Apache-2.0, k2-fsa's own export, 838 MB to download. It needs:
-  - its time on the card, beside the voice, under about half a second for a 6 s turn to be worth it (to measure);
-  - the garbled hint answers thrown away (a check of the shape of the answer, not a prompt);
-  - kanji and kana in Japanese are no worse than today's, and Chinese the same.
+- Qwen3-ASR 0.6B was the one to try on the graphics card: the best on accents and distance here, hints that help in
+  English and Japanese, Apache-2.0, k2-fsa's own export, 838 MB to download. On the card it fails (round 2): the 8-bit
+  export is slower there than on the processor, and a 16-bit one wouldn't fit beside the voice on 8 GB. On the
+  processor it costs 0.9 to 4.3 s a turn. Wherever it goes, it would need the garbled hint answers thrown away (a check
+  of the shape of the answer, not a prompt), and its Japanese checked against today's.
 - Not Qwen3-ASR 1.7B for now: the only export there is broke with hints and slipped without them. With an export of
   our own (k2-fsa's script) it may be the most accurate; it is also 2.6 GB of memory.
 - Not Fun-ASR-Nano: best in Japanese, but not on accented English, and it repeated itself.
@@ -346,8 +376,8 @@ one trained on the character's name, would help the most. The turn must also not
 recording with `hear_voice_clarity.cs` will say how much it does in their room.
 
 **Still to do.**
-- On the graphics card: each model's time and memory beside the voice. Needs k2-fsa's CUDA build of sherpa-onnx
-  1.13.8 (567 MB) in the trial folder, with the CUDA 12.5 and cuDNN 9.5 already on this PC.
+- A 16-bit export of Qwen3-ASR 0.6B on the card (a third party's is 1.9 GB; or our own with k2-fsa's script), if a
+  card with more room than 8 GB matters: its time, and whether it fits beside the voice at all.
 - Real voices: the owner's own, from across the room, once, with their microphone (the script above records it; the
   same recordings could go through `ears.cs`).
 
