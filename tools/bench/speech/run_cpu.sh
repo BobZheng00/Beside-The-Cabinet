@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Every model on every test clip, on the processor (#346): accuracy, then the names with hints. One at a time, so the
 # PC keeps its memory. Timings are taken apart, when the PC is quiet (see the note).
-#   bash tools/bench/speech/run_cpu.sh <ears.dll> <runs folder>
+#   SPEECH_TRIAL=<trial folder> bash tools/bench/speech/run_cpu.sh <ears.dll> <runs folder>
+# SPEECH_TRIAL holds the models and the test speech (see ears.cs); run from anywhere in the repository.
 set -u
-EARS=${1:-E:/Tools/speech-trial/bin-ears2/ears.dll}
-RUNS=${2:-E:/Tools/speech-trial/runs}
+: "${SPEECH_TRIAL:?set SPEECH_TRIAL to the trial folder}"
+[ $# -ge 2 ] || { sed -n 4p "$0" >&2; exit 2; }
+EARS=$(cygpath -m "$(realpath -m "${1:?ears.dll (dotnet build tools/bench/speech/ears.cs -o <folder>)}")")
+RUNS=$(cygpath -m "$(realpath -m "${2:?runs folder}")")
+cd "$(dirname "$0")/../../.."
 HINTS="Shino,诗乃,シノ,Hana,ハナ,Fumiriya,フミリヤ,Alex,林晓,健太"
 mkdir -p "$RUNS"
 run() { dotnet "$EARS" --model "$1" --out "$RUNS/$2.jsonl" "${@:3}" > "$RUNS/$2.log" 2>&1; echo "done $2"; }

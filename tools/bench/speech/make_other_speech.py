@@ -4,7 +4,7 @@ far rooms of make_audio.py (as a TV or another person in the room). Sentences th
 left out; those with a name later in them are kept, as the near misses they are. English only: there is no Chinese
 or Japanese text on this PC to make the same from without a download.
 
-    python make_other_speech.py --out E:/Tools/speech-trial/other [--minutes 60]
+    python make_other_speech.py --out <trial folder>/other --sapi <sapi_say.dll> [--minutes 60]
 
 Writes <out>/<room>/stream-NN.wav and <out>/streams.json (each stream's sentences and where they start).
 """
@@ -35,7 +35,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--minutes", type=float, default=60)
-    ap.add_argument("--sapi", default="E:/Tools/speech-trial/bin-sapi/sapi_say.dll")
+    ap.add_argument("--sapi", required=True, help="sapi_say.cs built (dotnet build sapi_say.cs -o <folder>)")
     a = ap.parse_args()
     repo = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
     rng = np.random.default_rng(3)

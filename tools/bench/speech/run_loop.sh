@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # The whole loop and the timings with her voice loaded beside the ears, as the player has it (#346). Starts the mock
-# mind and a GPT-SoVITS server of its own, only when quiet.sh says the PC is quiet and no other voice server runs, and
-# stops both at the end.
-#   bash tools/bench/speech/run_loop.sh <GPT-SoVITS folder> <voice folder> [out folder]
+# mind and a GPT-SoVITS server of its own (port 9893, never GPT-SoVITS's own 9880), only when quiet.sh says the PC is
+# quiet and no other voice server runs, and stops both at the end.
+#   SPEECH_TRIAL=<trial folder> bash tools/bench/speech/run_loop.sh <ears.dll> <GPT-SoVITS folder> <voice folder> <out folder>
 set -u
-HERE=$(cd "$(dirname "$0")" && pwd)
-REPO=$(cd "$HERE/../../.." && pwd)
-GSV=${1:?GPT-SoVITS folder}
-VOICE=${2:?voice folder}
-OUT=${3:-E:/Tools/speech-trial/runs-loop}
-EARS=${EARS:-E:/Tools/speech-trial/bin-ears3/ears.dll}
+: "${SPEECH_TRIAL:?set SPEECH_TRIAL to the trial folder}"
+[ $# -ge 4 ] || { sed -n 5p "$0" >&2; exit 2; }
+abs() { cygpath -m "$(realpath -m "$1")"; }
+EARS=$(abs "$1")
+GSV=$(abs "$2")
+VOICE=$(abs "$3")
+OUT=$(abs "$4")
+HERE=$(abs "$(dirname "$0")")
+REPO=$(abs "$HERE/../../..")
 bash "$HERE/quiet.sh" || exit 3
+cd "$REPO"
 mkdir -p "$OUT"
 python "$REPO/tools/dev/mock_mind.py" 8797 --log "$OUT/mind.jsonl" --quit-after 7200 \
   --reply "うん、わかった。九時に声をかけるね。それまで少し休んでて。" > "$OUT/mind.log" 2>&1 &
@@ -25,5 +29,5 @@ for m in sense-voice qwen3-0.6b; do
     --mind http://127.0.0.1:8797/v1/ --out "$OUT/loop-$m.jsonl" > "$OUT/loop-$m.log" 2>&1
   echo "loop done $m"
 done
-EARS="$EARS" bash "$HERE/run_timing.sh" "$EARS" "${OUT}/timing-beside-voice" cpu
+bash "$HERE/run_timing.sh" "$EARS" "$OUT/timing-beside-voice" cpu
 echo "card with the voice loaded: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"

@@ -2,7 +2,10 @@
 each name was heard (any fair spelling of it counts), and the timings. A line whose clean recording no model hears
 within 35% (its names aside) is left out everywhere, as the synthesiser's slip rather than the ears'; how many is printed.
 
-    python score.py --audio E:/Tools/speech-trial/audio --runs E:/Tools/speech-trial/runs [--md out.md]
+    python score.py --audio <trial folder>/audio --runs <runs folder> [--names <folder>] [--loop <file>] [--md out.md]
+
+A name caught in an answer that is the hint list given back garbled (letters outside the players' scripts, as
+Qwen3-ASR sometimes answers when given hints) doesn't count: the app would throw such an answer away.
 """
 import argparse, glob, json, os, re, statistics, unicodedata
 from collections import defaultdict
@@ -55,14 +58,23 @@ def distance(a, b):
     return prev[-1]
 
 
+# the scripts the players speak: an answer with letters outside them (or the replacement character) is the hint list
+# given back garbled ("Shino ʫ nota͘ Hana ʫ…"), which the app would throw away; the same rule as ears.cs's
+SCRIPTS = re.compile(r"[\u0000-\u024F\u3000-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF]")
+
+
+def hint_list(text):
+    return "\ufffd" in text or any(c.isalpha() and not SCRIPTS.match(c) for c in text)
+
+
 def name_hit(name, hyp):
-    return any(v.lower() in hyp.lower() for v in CORPUS["names"][name])
+    return not hint_list(hyp) and any(v.lower() in hyp.lower() for v in CORPUS["names"][name])
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--audio", default="E:/Tools/speech-trial/audio")
-    ap.add_argument("--runs", default="E:/Tools/speech-trial/runs")
+    ap.add_argument("--audio", required=True, help="make_audio.py's output folder (its manifest.jsonl)")
+    ap.add_argument("--runs", required=True, help="a folder of ears.cs runs")
     ap.add_argument("--md")
     ap.add_argument("--names", help="the folder of run_names.sh's runs")
     ap.add_argument("--loop", help="a jsonl of ears.cs --mode loop")
@@ -191,22 +203,26 @@ def main():
 
 
 def names_part(folder, manifest, p):
-    p("\nCatching their name: said first (caught / said), said later or not said (caught / clips), other speech (false starts, minutes, per hour), processor time per second of sound\n")
-    p("| run | said first: caught | not first: caught | false starts | other speech, min | per hour | processor per s of sound |")
-    p("|---|---|---|---|---|---|---|")
+    p("\nCatching their name: said first (caught / said), said later or not said (caught / clips), other speech (false starts, minutes, per hour), garbled hint lists not counted, and wall time spent per second of sound on the run's threads\n")
+    p("| run | said first: caught | not first: caught | false starts | other speech, min | per hour | hint lists left out | threads | wall s per s of sound |")
+    p("|---|---|---|---|---|---|---|---|---|")
     for path in sorted(glob.glob(os.path.join(folder, "*.jsonl"))):
         rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+        garbled = [r for r in rows if (r.get("caught") or "false_start_at" in r) and hint_list(r.get("words") or "")]
+        for r in garbled:
+            r["caught"] = False
         clips = [r for r in rows if "starts_with_name" in r]
         first = [r for r in clips if r["starts_with_name"]]
         later = [r for r in clips if not r["starts_with_name"]]
-        false = [r for r in rows if "false_start_at" in r]
+        false = [r for r in rows if "false_start_at" in r and not hint_list(r.get("words") or "")]
         summary = next((r for r in rows if r.get("summary")), None)
         if not summary:
             continue
         minutes = summary["streams_minutes"]
         p(f"| {os.path.basename(path)[:-6]} | {sum(r['caught'] for r in first)} / {len(first)} | "
           f"{sum(r['caught'] for r in later)} / {len(later)} | {len(false)} | {minutes} | "
-          f"{len(false) / minutes * 60 if minutes else 0:.1f} | {summary['streams_compute_per_second']:.3f} |")
+          f"{len(false) / minutes * 60 if minutes else 0:.1f} | {len(garbled)} | {rows[0].get('threads')} | "
+          f"{summary['streams_compute_per_second']:.3f} |")
 
 
 def loop_part(path, p):

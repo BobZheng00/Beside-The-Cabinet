@@ -3,7 +3,7 @@ voices, then each clip in three rooms: clean (as made), near (a room, about 1.5 
 room, about 4 m: more echo, quieter, a fan and pink noise at 10 dB under the voice). Synthesised voices and a made-up
 room are a weak stand-in for real people at a distance, and accents by speakers of other languages weaker still.
 
-    python make_audio.py --out E:/Tools/speech-trial/audio [--only-process]
+    python make_audio.py --out <trial folder>/audio --qwen <Qwen TTS native build folder> --sapi <sapi_say.dll> [--only-process]
 
 Needs numpy, scipy and soundfile (the tools venv), Qwen TTS's native build (qwen-tts.exe, --qwen) and sapi_say.cs
 built (--sapi). Writes <out>/raw/<voice>/<line>.wav, <out>/<room>/<clip>.wav at 16 kHz, and <out>/manifest.jsonl.
@@ -77,8 +77,8 @@ def room(x, kind, seed):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--qwen", default="D:/Tools/voice-trial/qwen-native")
-    ap.add_argument("--sapi", default="E:/Tools/speech-trial/bin-sapi/sapi_say.dll")
+    ap.add_argument("--qwen", required=True, help="qwentts.cpp's folder: build/Release/qwen-tts.exe and weights/")
+    ap.add_argument("--sapi", required=True, help="sapi_say.cs built (dotnet build sapi_say.cs -o <folder>)")
     ap.add_argument("--only-process", action="store_true")
     a = ap.parse_args()
     corpus = json.load(open(os.path.join(HERE, "corpus.json"), encoding="utf-8"))

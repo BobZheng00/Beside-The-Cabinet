@@ -8,12 +8,13 @@ stay on the PC and are not committed.*
 **In short.**
 - **On the graphics card, Qwen3-ASR 0.6B is not fast enough as it can be had today** (round 2). k2-fsa's export is
   8-bit, which the card can't run on its own: beside the voice it took 1.3, 2.9 and 7.2 s for 2, 6 and 15 s turns,
-  slower than on the processor, and far worse while the voice spoke. A 16-bit export would run on the card, but at
-  about 1.9 GB it wouldn't fit beside the voice on the owner's 8 GB card (7.7 GB in use already in the loop).
-  SenseVoice gains nothing on the card.
-- **Which mode.** The times in this summary are from the laptop's usual mode (the card's almost surely: see below). The owner switched to quiet mode
-  late on 2026-11-16; a like-for-like run in quiet mode is 2.5 to 3 times slower on the processor, with the same ratios
-  between the ears and between processor and card ("The laptop's quiet mode", below).
+  slower than on the processor, and far worse while the voice spoke. A 16-bit export would run on the card; at about
+  1.9 GB of weights it would be tight beside the voice on the owner's 8 GB card (an estimate, not measured: how much
+  room is left depends on what else is open, 1.2 to 3.4 GB of the card here). SenseVoice gains nothing on the card.
+- **Which mode.** The times in this summary are from the laptop's usual mode (the card's almost surely: see below).
+  The owner switched to quiet mode late on 2026-11-16; a like-for-like run afterwards, in quiet mode and with other
+  agents' test copies running beside it, was 2.5 to 3 times slower on the processor, with the same ratios between the
+  ears and between processor and card ("The laptop's quiet mode", below).
 - **On the processor, every candidate is too slow for every turn.** SenseVoice hears a 2, 6 or 15 second turn in
   0.13, 0.25 or 0.6 s. Qwen3-ASR 0.6B takes 0.9, 1.7 or 4.3 s, Fun-ASR-Nano about the same, Qwen3-ASR 1.7B 1.6, 3.0
   or 7.4 s. So SenseVoice stays the ears for when the card is busy (a game running, or too little memory beside the
@@ -21,10 +22,11 @@ stay on the PC and are not committed.*
 - **Where they're better, it's accents and distance.** On English said by speakers of other languages, SenseVoice
   gets 23 to 29% of words wrong; Qwen3-ASR 0.6B 12 to 25%, 1.7B 8 to 23%. Across the room in English, 11% against
   7.6% and 6.9%. In clean Chinese SenseVoice, Qwen3-ASR 0.6B and Fun-ASR-Nano are about equal (3%). In Japanese,
-  SenseVoice is as good as either Qwen (7% against 9 to 10%), and Fun-ASR-Nano is the best (5%) but worse than SenseVoice on accented English. Nemotron is
-  the weakest nearly everywhere, and in Mandarin far behind.
-- **Names are the hardest part, for every model.** Without hints, at best about half the names were heard in any fair
-  spelling ("Shino" comes out as "She know", 师奶, 死の). Given the names as hints, Qwen3-ASR 0.6B hears more of them
+  SenseVoice is as good as either Qwen (7% against 9 to 10%), and Fun-ASR-Nano is the best (5%); on accented English
+  Fun-ASR-Nano is a little better than SenseVoice (18 to 26%) but well behind Qwen3-ASR. Nemotron is the weakest nearly
+  everywhere, and in Mandarin far behind.
+- **Names are the hardest part, for every model.** Without hints, mostly a quarter to a half of the names were heard
+  in any fair spelling (from 4% to 64% by model, language and room; "Shino" comes out as "She know", 师奶, 死の). Given the names as hints, Qwen3-ASR 0.6B hears more of them
   in English (30 to 55%) and Japanese (29 to 42%), not in Chinese.
 - **The ears are a small part of the wait.** With SenseVoice, the player waits 0.6 to 2.2 s for the turn to be judged
   over, about 0.1 to 0.6 s for the words, and then 1.3 s (median) for the voice's first sound once the first sentence
@@ -34,18 +36,19 @@ stay on the PC and are not committed.*
   cancelling, noise suppression, gain control and deep noise suppression. Today the app gets only plain noise
   suppression. The laptop's built-in microphone has its maker's processing instead.
 - **Catching their name isn't solved by any one way tried.** From the ears' words: 11% of names said first with
-  SenseVoice, 40% with Qwen3-ASR given the names as hints (but 5 false starts an hour, all the hint list garbled). The
-  keyword spotter (round 2): 33%, best in Chinese and the clean room, nearly nothing across the room or in Japanese,
-  3 false starts an hour, for about 3% of one core all day. The streaming model costs a third of 4 threads all the
-  time for 11%.
+  SenseVoice, 36% with Qwen3-ASR given the names as hints (its garbled hint-list answers thrown away, as the app would;
+  then no false starts in 73 minutes of other speech). The keyword spotter (round 2): 33%, best in Chinese and the
+  clean room, nearly nothing across the room or in Japanese, 3 false starts an hour, for about 3% of one core all day.
+  The streaming model keeps 4 threads busy a third of the time, all the time, for 11%.
 
 **Recommendation.** For #348: not Qwen3-ASR on the graphics card as things stand: k2-fsa's 8-bit export is slower on
-the card than on the processor, and a 16-bit one wouldn't fit beside the voice on an 8 GB card. Keep SenseVoice-Small
+the card than on the processor, and a 16-bit one would be tight beside the voice on an 8 GB card (an estimate: it is
+the one thing on the card still worth measuring, a 1.9 GB download). Keep SenseVoice-Small
 for every turn, and use what Qwen3-ASR showed where it is cheap: the microphone in communications mode (#347) for
 distance, and the character's and player's names given where the ears can take them. If the owner wants accents
 heard better at once, Qwen3-ASR 0.6B on the processor for turns of up to about 6 s (0.9 to 1.7 s, against 0.1 to
-0.25 s) is the trade on offer. A 16-bit export on the card is worth timing only for players with more card memory
-(12 GB or more) or no voice on the card. Not the 1.7B until there is an export that holds up (the one tried here broke
+0.25 s) is the trade on offer. A 16-bit export on the card is most promising for players with more card memory than
+8 GB, or no voice on the card. Not the 1.7B until there is an export that holds up (the one tried here broke
 with hints), and not Nemotron. For #349: the keyword spotter as a cheap gate that runs all day,
 with the ears confirming what it flags, and the microphone in communications mode (#347) first, since distance defeats
 every way tried but the hinted ears; matching the ears' first word by sound, not spelling.
@@ -117,7 +120,9 @@ With raw processing every microphone lists nothing.
 same 10 seconds twice at once from the default microphone, as the app hears today and as a call does, while a voice
 talks from the speakers (to hear the echo cancelling, use speakers, not headphones), then plays both back. The
 recordings stay in `voice-clarity-check` in the current folder. To try another microphone, make it the default in
-Windows' sound settings first. No test runs it: it opens the microphone.
+Windows' sound settings first. If the two recordings sound the same, run it again with `-- --apart` before
+concluding anything: some drivers give two streams opened at once the same processing, and `--apart` records the
+two modes one after the other. No test runs it: it opens the microphone.
 
 ## Accuracy
 
@@ -163,14 +168,15 @@ With the names given as hints, on the clips that hold a name, all rooms together
 | Model | en without | en with | accented without | accented with | zh without | zh with | ja without | ja with |
 |---|---|---|---|---|---|---|---|---|
 | Qwen3-ASR 0.6B | 30 / 8.9 | 55 / 5.9 | 35 / 20.4 | 51 / 20.6 | 31 / 7.6 | 28 / 8.1 | 29 / 22.9 | 42 / 20.0 |
-| Qwen3-ASR 1.7B | 33 / 9.1 | 44 / 50.2 | 35 / 15.4 | 45 / 39.2 | 43 / 16.8 | 29 / 43.7 | 52 / 18.6 | 54 / 19.9 |
+| Qwen3-ASR 1.7B | 33 / 9.1 | 42 / 50.2 | 35 / 15.4 | 44 / 39.2 | 43 / 16.8 | 29 / 43.7 | 52 / 18.6 | 54 / 19.9 |
 | Fun-ASR-Nano | 25 / 12.7 | 32 / 9.4 | 32 / 25.0 | 36 / 23.6 | 36 / 7.1 | 38 / 7.1 | 48 / 13.4 | 40 / 18.5 |
 
 - Hints help Qwen3-ASR 0.6B in English and Japanese and leave the rest of the line as good or better. They don't help
   in Chinese: 诗乃 is still heard as 师奶 or 吃奶, the same sounds.
 - With hints, both Qwen3-ASR models sometimes answer with the hint list itself in broken characters ("Shino ʫ nota͘
-  Hana ʫ…"): the 1.7B export on a third of the English lines, k2-fsa's 0.6B export on 5 or 6 stretches of an hour of
-  other speech. The app would have to throw such answers away.
+  Hana ʫ…"): the 1.7B export on a third of the English lines, k2-fsa's 0.6B export on 9 of the 270 lines that start
+  with a name and on 6 stretches of an hour of other speech. The app would have to throw such answers away; the names
+  tables don't count a name in them as heard.
 - How the names went wrong, first words of the lines that start with Shino (clean and near): SenseVoice "She" 19
   times, 师奶 or 师乃, 死の, "Sheino", "Sino"; Qwen3-ASR 0.6B "She", "Chino", 市の; with hints "Shino" 28 times out of
   about 40, しの.
@@ -208,13 +214,17 @@ clip arriving at the pace it was said):
 | Nemotron, 160 ms | 1.3 to 1.4 s: smaller chunks, more work in all, and 4 threads lag behind | | |
 
 On the processor the streaming model's last word lands later than SenseVoice hears a whole 15 s turn (0.6 s), and it
-keeps a third of 4 threads busy the whole time someone speaks. The "words while you talk" (decided against for the
+keeps its 4 threads busy about 38% of the time while someone speaks (wall time; up to about 1.5 cores' worth of
+processor time). The "words while you talk" (decided against for the
 first version, the spec's "Turn-based, fast and interruptible") wouldn't be worth it here.
 
 ## On the graphics card, beside the voice (round 2)
 
-k2-fsa's CUDA build of sherpa-onnx 1.13.8 (the owner allowed the download), the same models as on the processor,
-with GPT-SoVITS loaded with the owner's voice. Two things were needed first: the CUDA runtime on this PC (12.5) lacks
+k2-fsa's CUDA build of sherpa-onnx 1.13.8 (the owner allowed the download), with GPT-SoVITS loaded with the owner's
+voice. Only Qwen3-ASR 0.6B, the candidate the processor's results pointed to, and SenseVoice, today's ears, were
+timed: the other candidates' exports are 8-bit in the same way (`MatMulInteger` and `DynamicQuantizeLinear`, 197 to
+292 of them in Fun-ASR-Nano's and Nemotron's models, and the 1.7B's decoder is built like the 0.6B's), so they would
+fare the same, and the 1.7B (2.6 GB in the processor's memory) would very likely not fit beside the voice. Two things were needed first: the CUDA runtime on this PC (12.5) lacks
 four functions that build's ONNX Runtime calls (`cudaLibraryLoadData` and others), so it used the newer CUDA runtime
 (12.8) that the owner's GPT-SoVITS v5 install already carries; and the card is never fully idle here, as the animated
 wallpaper keeps it 20 to 30% busy. Another agent's hidden test copy also ran on the card during part of the timings.
@@ -231,10 +241,13 @@ wallpaper keeps it 20 to 30% busy. Another agent's hidden test copy also ran on 
   Runtime's CUDA provider doesn't run on the card, so every step goes back and forth between card and processor.
 - **Beside the voice while it speaks it gets far worse.** The whole loop with it on the card took 3.8 to 20 s from the
   end of the words to the words heard (median by length and room), once 85 s.
-- **Memory is the other limit.** The card's 8 GB: 3.4 GB already used by the desktop and the owner's other apps,
-  2.2 GB more with the voice loaded (5.6 GB), 7.4 GB with Qwen3-ASR hearing long turns beside it, and 7.7 GB with the
-  voice speaking as well. A 16-bit export of the 0.6B model, the kind that does run on the card, is about 1.9 GB of
-  weights: on this card, with this desktop, it would not fit beside the voice.
+- **Memory is the other limit.** The card's 8 GB, in round 2: 3.4 GB already in use (the desktop, the animated
+  wallpaper, the owner's other apps and another agent's hidden test copy), 2.2 GB more with the voice loaded (5.6 GB),
+  7.4 GB with Qwen3-ASR hearing long turns beside it, and 7.7 GB with the voice speaking as well. With less open, the
+  card used 2.1 GB before the voice (the quiet-mode run) and 1.2 GB with nothing of the trial running. A 16-bit export
+  of the 0.6B model, the kind that does run on the card, is about 1.9 GB of weights, plus what it uses while hearing:
+  an estimate, not measured, is that it fits beside the voice only when the rest of the card's use is near its low
+  end.
 - **SenseVoice gains nothing on the card**: its turns take the same time as on the processor.
 
 ### The laptop's quiet mode (late on 2026-11-16)
@@ -247,7 +260,8 @@ When the timings were taken:
   switch: the same timings taken in quiet mode afterwards were 2 to 7 times slower.
 - **A like-for-like run in quiet mode** (below): 23:51 to 00:35, both ears on both the processor and the card in one
   run, with the voice loaded. Other agents' hidden test copies ran beside it most of the time (128 of 143 checks), so
-  its absolute times are slower than the owner's usual twice over.
+  its absolute times are slower than the owner's usual twice over, and how much of that is quiet mode alone isn't
+  known.
 
 | Quiet mode, s | ~2 s turn | ~6 s turn | ~15 s turn | Card memory |
 |---|---|---|---|---|
@@ -263,12 +277,15 @@ What holds in both modes, the ratios:
 - SenseVoice is no faster on the card in either.
 
 What may be faster normally: every absolute time. The usual-mode numbers are the ones in the tables above this
-section; the quiet-mode ones here are 2.5 to 3 times slower on the processor. The conclusion for #348 doesn't turn on
+section; the quiet-mode ones here are 2.5 to 3 times slower on the processor, quiet mode and the other test copies
+together. The conclusion for #348 doesn't turn on
 the mode, since it rests on the ratios and on card memory. A short re-run in the usual mode
 (`run_gpu.sh` with `LOOP=0`, about 20 minutes on a quiet PC) would confirm the absolute times if they matter to the
 decision.
 
-From the end of the player's words: when the turn was judged over (Silero and Smart Turn, as the app does it), when
+## The whole loop
+
+Round 1, in the usual mode. From the end of the player's words: when the turn was judged over (Silero and Smart Turn, as the app does it), when
 the words were heard, when the mind's first words came (the mock mind, which answers at once: a real provider adds its
 own wait here), when the first sentence was complete, and when the voice's first sound came (GPT-SoVITS with the
 owner's voice, v2ProPlus, a Japanese line). 18 clips (each length, clean and far, each language), 3 times each.
@@ -308,7 +325,9 @@ Three ways, on the processor, with the names Shino, Hana and Fumiriya (in their 
 listened for at once:
 - **The ears on each stretch of speech**: Silero finds where speech starts (a stretch ends at 0.6 s of quiet, so the
   comma after a name doesn't), the first 2 s of it are heard whole, and the name counts when the words start with it
-  (with a stretch ending at 0.25 s of quiet, as for a turn's pauses, the catches were about the same);
+  (with a stretch ending at 0.25 s of quiet, as for a turn's pauses, fewer: 27, 25 and 73 of 270 for the three
+  whole-turn rows below, against 31, 34 and 98). With hints, an answer that is the hint list given back garbled
+  (letters outside the players' scripts) isn't a catch: the app would throw it away;
 - **The streaming model on the stream**: Nemotron runs all the time, and the name counts when an utterance's words
   start with it;
 - **A keyword spotter** (round 2, the owner allowed the download): sherpa-onnx's own, already in the library the app
@@ -321,46 +340,52 @@ On the clips whose line starts with a name (caught / said), on the clips with a 
 caught), and on other speech, an hour and 13 minutes of sentences from this repository's docs said by Windows' English
 voices in the near room (a TV or another person; 20 minutes of it for the streaming model):
 
-| Way | Said first: caught | Not first: caught | Other speech: false starts | Per hour | Processor per second of sound |
-|---|---|---|---|---|---|
-| SenseVoice on each stretch | 31 / 270 (11%) | 0 / 51 | 0 in 73 min | 0 | 0.02 s |
-| SenseVoice, across the room (clean clips; other speech far) | 14 / 90 | 0 / 17 | 0 in 73 min | 0 | 0.02 s |
-| Qwen3-ASR 0.6B on each stretch | 34 / 270 (13%) | 0 / 51 | 0 in 73 min | 0 | 0.06 s |
-| Qwen3-ASR 0.6B, names as hints | 107 / 270 (40%) | 0 / 51 | 6 in 73 min | 4.9 | 0.07 s |
-| Nemotron 560 ms, streaming | 31 / 270 (11%) | 0 / 51 | 0 in 22 min | 0 | 0.31 s |
-| Keyword spotter, 1 thread | 83 / 270 (31%) | 0 / 51 | 3 in 73 min | 2.5 | 0.027 s |
-| Keyword spotter, more ways of saying them | 90 / 270 (33%) | 0 / 51 | 4 in 73 min | 3.3 | 0.027 s |
-| Keyword spotter, a lower threshold (0.15) | 96 / 270 (36%) | 0 / 51 | 3 in 73 min | 2.5 | 0.034 s |
-| Keyword spotter, other speech across the room (far clips) | 7 / 90 | 0 / 17 | 4 in 73 min | 3.3 | 0.032 s |
+The last column is wall time spent hearing per second of sound, on the threads given: on 4 threads it can be up to
+four times that in processor time.
+
+| Way | Said first: caught | Not first: caught | Other speech: false starts | Per hour | Threads | Wall time per second of sound |
+|---|---|---|---|---|---|---|
+| SenseVoice on each stretch | 31 / 270 (11%) | 0 / 51 | 0 in 73 min | 0 | 4 | 0.02 s |
+| SenseVoice, across the room (clean clips; other speech far) | 14 / 90 | 0 / 17 | 0 in 73 min | 0 | 4 | 0.02 s |
+| Qwen3-ASR 0.6B on each stretch | 34 / 270 (13%) | 0 / 51 | 0 in 73 min | 0 | 4 | 0.06 s |
+| Qwen3-ASR 0.6B, names as hints (15 garbled hint lists left out) | 98 / 270 (36%) | 0 / 51 | 0 in 73 min | 0 | 4 | 0.07 s |
+| Nemotron 560 ms, streaming | 31 / 270 (11%) | 0 / 51 | 0 in 22 min | 0 | 4 | 0.31 s |
+| Keyword spotter | 83 / 270 (31%) | 0 / 51 | 3 in 73 min | 2.5 | 1 | 0.027 s |
+| Keyword spotter, more ways of saying them | 90 / 270 (33%) | 0 / 51 | 4 in 73 min | 3.3 | 1 | 0.027 s |
+| Keyword spotter, a lower threshold (0.15) | 96 / 270 (36%) | 0 / 51 | 3 in 73 min | 2.5 | 1 | 0.034 s |
+| Keyword spotter, other speech across the room (far clips) | 7 / 90 | 0 / 17 | 4 in 73 min | 3.3 | 1 | 0.032 s |
 
 The two best, by room and by language (names said first, caught):
 
 | Way | clean | near | far | English | accented | Chinese | Japanese |
 |---|---|---|---|---|---|---|---|
-| Qwen3-ASR 0.6B with hints | 41 / 90 | 38 / 90 | 28 / 90 | 34 / 72 | 43 / 90 | 8 / 48 | 22 / 60 |
+| Qwen3-ASR 0.6B with hints | 40 / 90 | 38 / 90 | 20 / 90 | 31 / 72 | 37 / 90 | 8 / 48 | 22 / 60 |
 | Keyword spotter, more ways | 49 / 90 | 34 / 90 | 7 / 90 | 24 / 72 | 27 / 90 | 34 / 48 | 5 / 60 |
 | SenseVoice on each stretch | 14 / 90 | 13 / 90 | 4 / 90 | 6 / 72 | 9 / 90 | 7 / 48 | 9 / 60 |
 
 - **None is good enough yet.** The ears hear the rest of the line and lose the name, which is the one word that
-  matters here. With hints, Qwen3-ASR catches English names about half the time (34 of 72) and Chinese ones hardly at
-  all (8 of 48), and its false starts were all the garbled hint list described above.
+  matters here. With hints, Qwen3-ASR catches English names under half the time (31 of 72) and Chinese ones hardly at
+  all (8 of 48). Its 6 false starts and 9 of its catches were the garbled hint list described above, and are left out
+  of the counts.
 - **The keyword spotter is the mirror image**: the best in Chinese (34 of 48: 诗乃 is in its own units) and in the
   clean room, but it misses nearly every name across the room (7 of 90) and nearly every Japanese one (5 of 60: there
   is no Japanese model, and English phones fit Japanese speech poorly). Its false starts were all "Shino" or 花 heard
   in English sentences, 2.5 to 3.3 an hour; 花 (huā), one syllable, is too short a keyword. No name that came later
   in a sentence was taken for a call (the 1.5 s rule).
-- **What listening all day costs**: the keyword spotter and Silero together take 0.027 s of one core per second of
-  sound, about 3% of one core, around the clock, and 47 MB of memory. Spread over this laptop processor's 32 threads, about
-  0.1% of it. SenseVoice on each stretch of speech is about the same while people talk and nothing in quiet, but
-  needs Silero all the time (well under 1%). Battery use wasn't measured: a core never quite idle keeps a laptop from
+- **What listening all day costs**: the keyword spotter and Silero together, on one thread, take 0.027 s per second of
+  sound, about 3% of one core, around the clock, and 47 MB of memory: a small share of a laptop processor.
+  SenseVoice on each stretch of speech takes 0.02 s of wall time on 4 threads while people talk (up to about 8% of one
+  core) and nothing in quiet, but needs Silero all the time (well under 1%). Battery use wasn't measured: a core never quite idle keeps a laptop from
   its deepest sleep states, which matters more on battery than the 3% does.
 - **From the ears' words, false starts are rare** when nothing is hinted: no sentence of other speech came out starting with a name, even
   though some had a name later in them.
-- **Nemotron on the stream** takes 31% of 4 threads all the time, for 11%: not a way to listen all day.
+- **Nemotron on the stream** keeps 4 threads busy 31% of the time, all the time (up to about 1.2 cores' worth), for
+  11%: not a way to listen all day.
 - **What would do better**: the spotter as the cheap gate in the clean and near room, and the ears to confirm (only
   the first 2 s of a stretch it flags, so the cost stays small); matching the ears' first word by sound rather than
   spelling (师奶, 吃奶 and 诗乃 are all "shī nǎi"; "She know" and "Shino" are close); a keyword model with Japanese, or
-  one trained on the character's name. Distance is the open problem for every way here, which is where Voice
+  one trained on the character's name. Distance is the open problem for every way here (the hinted ears catch 20 of
+  90 across the room, the spotter 7), which is where Voice
   Clarity's noise suppression and gain control come in (#347) before anything else is tried.
 - These are synthesised voices and other speech from one kind of source: the real false start rate needs real rooms,
   the owner's TV or their friends.
@@ -380,29 +405,31 @@ The two best, by room and by language (names said first, caught):
 - **On the graphics card they don't, as shipped.** The app's sherpa-onnx (NuGet 1.13.8) is built for the processor
   only: asked for CUDA it says "Please compile with -DSHERPA_ONNX_ENABLE_GPU=ON … Fallback to cpu!", and its
   DirectML provider is missing too. k2-fsa's CUDA build for Windows (567 MB, CUDA 12 and cuDNN 9) would need those
-  NVIDIA libraries beside it (about 1 GB more, and not the CUDA 11.8 that the GPT-SoVITS package carries), and there
-  is no DirectML build to download.
+  NVIDIA libraries beside it (about 1 GB more, a CUDA runtime of 12.8 or later among them, and not the CUDA 11.8 that
+  the GPT-SoVITS package carries), and there is no DirectML build to download. Its 8-bit models are slower on the card
+  than on the processor anyway (round 2).
 
 ## What this means for the next steps
 
 **#348, which ears.**
-- On the processor, none of the candidates can hear every turn: a 6 s turn would wait 1.4 to 3 s more than today.
+- On the processor, none of the candidates can hear every turn: a 6 s turn would wait 1.1 to 2.8 s more than today.
   SenseVoice-Small stays for the processor.
 - Qwen3-ASR 0.6B was the one to try on the graphics card: the best on accents and distance here, hints that help in
   English and Japanese, Apache-2.0, k2-fsa's own export, 838 MB to download. On the card it fails (round 2): the 8-bit
-  export is slower there than on the processor, and a 16-bit one wouldn't fit beside the voice on 8 GB. On the
+  export is slower there than on the processor, and a 16-bit one would be tight beside the voice on 8 GB (an
+  estimate). On the
   processor it costs 0.9 to 4.3 s a turn. Wherever it goes, it would need the garbled hint answers thrown away (a check
   of the shape of the answer, not a prompt), and its Japanese checked against today's.
 - Not Qwen3-ASR 1.7B for now: the only export there is broke with hints and slipped without them. With an export of
   our own (k2-fsa's script) it may be the most accurate; it is also 2.6 GB of memory.
-- Not Fun-ASR-Nano: best in Japanese, but not on accented English, and it repeated itself.
-- Not Nemotron: weakest in Chinese and at a distance, a third of the processor while it listens, and the speed it
+- Not Fun-ASR-Nano: best in Japanese, but well behind Qwen3-ASR on accented English, and it repeated itself.
+- Not Nemotron: weakest in Chinese and at a distance, 4 threads a third of the time while it listens, and the speed it
   promises doesn't beat SenseVoice on whole turns here.
 - Tidying what was heard before their mind sees it: not needed for SenseVoice's or Qwen's clean-room output (3 to 10%
   wrong, mostly small); at a distance and with accents, names are what goes wrong, which the hints address.
 
-**#349, how the name is caught.** No single way is good enough on these recordings (best: 33 to 40% of names said
-first, 2.5 to 5 false starts an hour). The cheapest to run all day is the keyword spotter (3% of one core, 47 MB);
+**#349, how the name is caught.** No single way is good enough on these recordings (best: 33 to 36% of names said
+first; the spotter 2.5 to 3.3 false starts an hour, the hinted ears none once their garbled answers are thrown away). The cheapest to run all day is the keyword spotter (3% of one core, 47 MB);
 the ears with hints catch more across the room and in Japanese, the spotter more in Chinese. A spotter to gate and the
 ears to confirm, after #347 brings Voice Clarity in, is the shape to build and measure; a Japanese keyword model, or
 one trained on the character's name, would help the most. The turn must also not end at the pause after the name.
@@ -411,8 +438,8 @@ one trained on the character's name, would help the most. The turn must also not
 recording with `hear_voice_clarity.cs` will say how much it does in their room.
 
 **Still to do.**
-- A 16-bit export of Qwen3-ASR 0.6B on the card (a third party's is 1.9 GB; or our own with k2-fsa's script), if a
-  card with more room than 8 GB matters: its time, and whether it fits beside the voice at all.
+- A 16-bit export of Qwen3-ASR 0.6B on the card (a third party's is 1.9 GB; or our own with k2-fsa's script): its
+  time, and whether it fits beside the voice on 8 GB at all. Not downloaded: it needs the owner's yes.
 - Real voices: the owner's own, from across the room, once, with their microphone (the script above records it; the
   same recordings could go through `ears.cs`).
 

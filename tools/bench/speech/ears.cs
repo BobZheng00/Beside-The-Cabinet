@@ -1,25 +1,43 @@
 // Her ears, measured (#346): today's SenseVoice-Small and the candidates, through sherpa-onnx as the app would ship
-// them. One model a run, so its memory is its own.
+// them. One model a run, so its memory is its own. Run from the repository's root: the app's own models (SenseVoice,
+// Silero, Smart Turn) are found under src/InsertCoin.Game/models, or the main checkout's in a worktree that has none.
+// The trial's own files (the candidates' models, the test speech) are in the folder SPEECH_TRIAL names.
 //
-//     dotnet run tools/bench/speech/ears.cs -- --model <name> --manifest <audio>/manifest.jsonl --out <file.jsonl>
-//         [--provider cpu|cuda] [--threads 4] [--hints "Shino,Hana,..."] [--rooms clean,near,far]
-//         [--timing <n>]   also hear each of n clips per length 5 times, for the median and spread
-//         [--limit <n>]    only the first n clips
-//         [--only-names 1] only the clips with a name in them
-//         [--accuracy 0]   only the timings
+//     dotnet run tools/bench/speech/ears.cs -- --model <name> --out <file.jsonl> [options]
 //
-// Models (folders under --models, E:/Tools/speech-trial/models by default; SenseVoice from --sense-voice):
+// Common options:
+//   --manifest <file>   the clips (make_audio.py's manifest; $SPEECH_TRIAL/audio/manifest.jsonl by default)
+//   --models <folder>   the candidates' models ($SPEECH_TRIAL/models by default)
+//   --provider cpu|cuda --threads 4 --rooms clean,near,far --limit <n> --only-names 1
+//   --hints "Shino,Hana,..."   names given to the models that take them (Qwen3-ASR per turn, Fun-ASR-Nano at load)
+//   --sense-voice <folder> --turns <folder>   the app's SenseVoice and turn-taking models, if not the app's own
+//
+// Modes:
+//   (none)              every clip heard once (accuracy), then with --timing <n> n clips of each length 5 times each
+//                       (--accuracy 0: only the timings)
+//   --mode loop         the whole loop on one clip of each length, room and language, --repeat 3 times each:
+//                       --mind <url>  an OpenAI-style mind (tools/dev/mock_mind.py; http://127.0.0.1:8797/v1/)
+//                       --voice <folder>  a voice's folder (voice.json), spoken by
+//                       --gsv <url>   a GPT-SoVITS server started for the trial (http://127.0.0.1:9893/: never 9880,
+//                                     GPT-SoVITS's own port, where the player's may be running)
+//   --mode names        catching their name: the clips with a name, then --streams <folder> of long recordings of
+//                       other speech (make_other_speech.py); --names <list> the spellings that count;
+//                       --vad-silence 0.6 (whole-turn ears); --kws <folder> --keywords <file> --kws-threshold 0.25
+//                       (the keyword spotter)
+//
+// Models (--model):
 //   sense-voice      today's ears (Hearing.cs's settings)
 //   qwen3-0.6b       Qwen3-ASR 0.6B, int8 (k2-fsa's export)
 //   qwen3-1.7b       Qwen3-ASR 1.7B, int8 (a third party's export in k2-fsa's layout)
 //   fun-asr-nano     Fun-ASR-Nano, int8
 //   nemotron-560     Nemotron 3.5 ASR Streaming 0.6B, 560 ms chunks, int8; streamed as if live (see Stream)
 //   nemotron-160     the same at 160 ms chunks
-//   kws              sherpa-onnx's keyword spotter (zipformer zh-en 3M, int8; --kws <folder>), names mode only: listens
-//                    for their names all the time, a name counting when it comes within 1.5 s of speech starting
-//                    (--kws-threshold, 0.25 by default as sherpa-onnx's)
+//   kws              sherpa-onnx's keyword spotter (zipformer zh-en 3M, int8), names mode only: listens for their
+//                    names all the time, a name counting when it comes within 1.5 s of speech starting
 // Each line of --out is one clip: the words heard and how long hearing took after the turn ended. The first line is
-// the model: load time and memory. Streaming models also give when words first appeared and when the last landed.
+// the model: load time, memory, the provider asked for and the one it ran on (provider_used: a CUDA run that took no
+// card memory fell back to the processor). Streaming models also give when words first appeared and when the last
+// landed.
 
 #:property PublishAot=false
 #:property NoWarn=CA1416
@@ -37,8 +55,12 @@ for (var i = 0; i + 1 < args.Length; i += 2)
 string Option(string name, string fallback) => options.GetValueOrDefault(name, fallback);
 
 var name = Option("model", "sense-voice");
-var models = Option("models", "E:/Tools/speech-trial/models");
-var senseVoice = Option("sense-voice", "D:/CS Projects/insert-coin/src/InsertCoin.Game/models/sense-voice");
+string Trial(string sub) =>
+    Path.Combine(Environment.GetEnvironmentVariable("SPEECH_TRIAL") ?? throw new ArgumentException(
+        $"say where the trial's files are: set SPEECH_TRIAL, or give the option for {sub}"), sub);
+var models = options.TryGetValue("models", out var m0) ? m0 : Trial("models");
+var senseVoice = Option("sense-voice", AppModels("sense-voice"));
+var turnModels = Option("turns", AppModels("turn-taking"));
 var provider = Option("provider", "cpu");
 var threads = int.Parse(Option("threads", "4"));
 var hints = Option("hints", "");
@@ -46,12 +68,12 @@ var rooms = Option("rooms", "clean,near,far").Split(',');
 var timing = int.Parse(Option("timing", "0"));
 var limit = int.Parse(Option("limit", "100000"));
 
-var clips = File.ReadLines(Option("manifest", "E:/Tools/speech-trial/audio/manifest.jsonl"))
+var clips = File.ReadLines(options.TryGetValue("manifest", out var m1) ? m1 : Trial("audio/manifest.jsonl"))
     .Select(l => JsonNode.Parse(l)!.AsObject())
     .Where(c => rooms.Contains((string)c["room"]!))
     .Where(c => Option("only-names", "0") == "0" || ((JsonArray)c["names"]!).Count > 0)
     .Take(limit).ToList();
-using var output = new StreamWriter(Option("out", $"E:/Tools/speech-trial/runs/{name}.jsonl"), append: false);
+using var output = new StreamWriter(options.TryGetValue("out", out var o) ? o : throw new ArgumentException("--out <file.jsonl>"), append: false);
 void Write(object o) { output.WriteLine(JsonSerializer.Serialize(o)); output.Flush(); }
 
 var gpuBefore = GpuUsed();
@@ -71,12 +93,14 @@ var loaded = clock.Elapsed.TotalMilliseconds;
 // a first turn warms it up, as the app's would; it is not counted
 var warm = Samples((string)clips[0]["path"]!);
 var firstMs = spotting ? 0 : streaming ? Stream(warm, (string)clips[0]["lang"]!).LastMs : Time(() => Hear(warm, (string)clips[0]["lang"]!));
+// sherpa-onnx falls back to the processor quietly when CUDA can't load: a model that took no card memory ran there
+string ProviderUsed() => provider != "cuda" ? provider : GpuUsed() - gpuBefore > 50 ? "cuda" : "cpu (fell back)";
 using (var self = Process.GetCurrentProcess())
 {
     self.Refresh();
     Write(new
     {
-        model = name, provider, threads, hints, load_ms = Math.Round(loaded), first_turn_ms = Math.Round(firstMs),
+        model = name, provider, provider_used = ProviderUsed(), threads, hints, load_ms = Math.Round(loaded), first_turn_ms = Math.Round(firstMs),
         working_set_mb = self.WorkingSet64 >> 20, private_mb = self.PrivateMemorySize64 >> 20,
         gpu_used_mb = GpuUsed() - gpuBefore,
     });
@@ -133,12 +157,12 @@ Console.WriteLine($"{name}: {clips.Count} clips heard");
 // time included), the rest on the wall clock.
 async Task Loop()
 {
-    var turns = Option("turns", "D:/CS Projects/insert-coin/src/InsertCoin.Game/models/turn-taking");
+    var turns = turnModels;
     using var detector = new VoiceDetector(Path.Combine(turns, VoiceDetector.ModelFile));
     using var smart = new SmartTurn(Path.Combine(turns, SmartTurn.ModelFile));
     using var mindHttp = new HttpClient { BaseAddress = new Uri(Option("mind", "http://127.0.0.1:8797/v1/")) };
     var voiceFolder = Option("voice", "");
-    using var gsvHttp = new HttpClient { BaseAddress = new Uri(Option("gsv", "http://127.0.0.1:9880/")), Timeout = TimeSpan.FromMinutes(2) };
+    using var gsvHttp = new HttpClient { BaseAddress = new Uri(Option("gsv", "http://127.0.0.1:9893/")), Timeout = TimeSpan.FromMinutes(2) };
     var voice = new GptSoVits(gsvHttp);
     var profile = voiceFolder == "" ? null : VoiceProfile.Load(voiceFolder);
     if (profile is not null)
@@ -248,10 +272,12 @@ void Names()
     var wanted = Option("names", "Shino,シノ,しの,诗乃,詩乃,Hana,ハナ,はな,花,Fumiriya,フミリヤ").Split(',');
     bool StartsWithName(string text)
     {
+        if (LooksLikeHintList(text))
+            return false;               // the hint list given back, garbled: the app would throw it away
         var t = System.Text.RegularExpressions.Regex.Replace(text.Normalize(System.Text.NormalizationForm.FormKC), @"^[\s\p{P}]+", "");
         return wanted.Any(n => t.StartsWith(n, StringComparison.OrdinalIgnoreCase));
     }
-    var vadModel = Path.Combine(Option("turns", "D:/CS Projects/insert-coin/src/InsertCoin.Game/models/turn-taking"), VoiceDetector.ModelFile);
+    var vadModel = Path.Combine(turnModels, VoiceDetector.ModelFile);
     var computeTotal = 0.0;
     var late = new List<(double At, string Words)>();     // the spotter's names that didn't start an utterance
     var soundTotal = 0.0;
@@ -497,7 +523,7 @@ OfflineRecognizerConfig OfflineConfig()
 
 KeywordSpotterConfig SpotterConfig()
 {
-    var folder = Option("kws", "E:/Tools/speech-trial/downloads/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20");
+    var folder = options.TryGetValue("kws", out var k) ? k : Trial("downloads/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20");
     var config = new KeywordSpotterConfig();
     var m = config.ModelConfig;
     m.Transducer.Encoder = Path.Combine(folder, "encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx");
@@ -565,4 +591,21 @@ static long GpuUsed()
         return long.Parse(p.StandardOutput.ReadToEnd().Trim());
     }
     catch { return -1; }
+}
+
+// Qwen3-ASR given hints sometimes answers with the hint list itself in broken characters ("Shino ʫ nota͘ Hana ʫ…"):
+// any letter outside the scripts the players speak, or the replacement character, marks such an answer.
+static bool LooksLikeHintList(string text) =>
+    System.Text.RegularExpressions.Regex.IsMatch(text, @"[\uFFFD]|(?=\p{L})[^\p{IsBasicLatin}\p{IsLatin-1Supplement}\p{IsLatinExtended-A}\p{IsCJKUnifiedIdeographs}\p{IsHiragana}\p{IsKatakana}\p{IsHangulSyllables}\p{IsCJKSymbolsandPunctuation}\p{IsHalfwidthandFullwidthForms}]");
+
+// The app's own model folder: src/InsertCoin.Game/models/<name> under the current folder (the repository's root), or
+// the main checkout's when this is a worktree with none, as the app itself does (ModelFiles.cs).
+static string AppModels(string name)
+{
+    var here = Path.GetFullPath(Path.Combine("src", "InsertCoin.Game", "models", name));
+    if (Directory.Exists(here) || !File.Exists(".git"))
+        return here;
+    var gitdir = File.ReadAllLines(".git").FirstOrDefault(l => l.StartsWith("gitdir:"))?["gitdir:".Length..].Trim();
+    var main = gitdir is null ? null : Directory.GetParent(Path.GetFullPath(gitdir))?.Parent?.Parent;
+    return main is null ? here : Path.Combine(main.FullName, "src", "InsertCoin.Game", "models", name);
 }
