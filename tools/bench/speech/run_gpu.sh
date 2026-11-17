@@ -35,8 +35,12 @@ CLIP=$(cygpath -m "$(ls "$VOICE"/clips/*.wav | head -1)")
 curl -s -o /dev/null -X POST http://127.0.0.1:9893/tts -H "Content-Type: application/json" \
   -d "{\"text\":\"こんにちは。\",\"text_lang\":\"ja\",\"ref_audio_path\":\"$CLIP\",\"prompt_lang\":\"ja\",\"prompt_text\":\"\"}"
 echo "card with the voice loaded: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"
-bash "$HERE/run_timing.sh" "$EARS" "$OUT/timing" cuda qwen3-0.6b sense-voice
+# both ears, on the processor (the app's own build) and on the card, in one run, so they compare like for like
+for p in cpu cuda; do
+  [ $p = cpu ] && E="${EARS_CPU:-$EARS}" || E="$EARS"
+  bash "$HERE/run_timing.sh" "$E" "$OUT/timing" $p sense-voice qwen3-0.6b
+done
 echo "timings done"
-dotnet "$EARS" --mode loop --model qwen3-0.6b --provider cuda --rooms clean,far --repeat 3 --voice "$VOICE" \
+[ "${LOOP:-1}" = 1 ] && dotnet "$EARS" --mode loop --model qwen3-0.6b --provider cuda --rooms clean,far --repeat 3 --voice "$VOICE" \
   --gsv http://127.0.0.1:9893/ --mind http://127.0.0.1:8797/v1/ --out "$OUT/loop-qwen3-0.6b-cuda.jsonl" > "$OUT/loop.log" 2>&1
 echo "loop done; card with the voice loaded: $(nvidia-smi --query-gpu=memory.used --format=csv,noheader)"

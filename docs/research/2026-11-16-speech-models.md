@@ -11,6 +11,9 @@ stay on the PC and are not committed.*
   slower than on the processor, and far worse while the voice spoke. A 16-bit export would run on the card, but at
   about 1.9 GB it wouldn't fit beside the voice on the owner's 8 GB card (7.7 GB in use already in the loop).
   SenseVoice gains nothing on the card.
+- **Which mode.** Every time in this summary was taken in the laptop's usual mode. The owner switched to quiet mode
+  late on 2026-11-16; a like-for-like run in quiet mode is 2.5 to 3 times slower on the processor, with the same ratios
+  between the ears and between processor and card ("The laptop's quiet mode", below).
 - **On the processor, every candidate is too slow for every turn.** SenseVoice hears a 2, 6 or 15 second turn in
   0.13, 0.25 or 0.6 s. Qwen3-ASR 0.6B takes 0.9, 1.7 or 4.3 s, Fun-ASR-Nano about the same, Qwen3-ASR 1.7B 1.6, 3.0
   or 7.4 s. So SenseVoice stays the ears for when the card is busy (a game running, or too little memory beside the
@@ -81,8 +84,9 @@ every way tried but the hinted ears; matching the ears' first word by sound, not
   tidying for every model (numbers written as digits or words count the same, punctuation and case don't count).
   Hiragana and katakana count the same (ばたばた, バタバタ); kana where the line has kanji (わからない, 分からない)
   counts as an error, for every model alike.
-- **Timings**: only when the PC was otherwise quiet (no game, no other test run, the graphics card idle), 9 clean
-  clips of each length, 5 times each: the median and the lowest and highest.
+- **Timings**: only when the PC was otherwise quiet (no game, no other test run, the graphics card idle but for the
+  animated wallpaper), 9 clean clips of each length, 5 times each: the median and the lowest and highest. Which were
+  taken in the laptop's usual mode and which in its quiet mode is under "The laptop's quiet mode".
 
 ## Voice Clarity on this PC
 
@@ -232,6 +236,37 @@ wallpaper keeps it 20 to 30% busy. Another agent's hidden test copy also ran on 
   voice speaking as well. A 16-bit export of the 0.6B model, the kind that does run on the card, is about 1.9 GB of
   weights: on this card, with this desktop, it would not fit beside the voice.
 - **SenseVoice gains nothing on the card**: its turns take the same time as on the processor.
+
+### The laptop's quiet mode (late on 2026-11-16)
+
+Late in the evening the owner switched the laptop to its quiet mode, in which the processor and the card run slower.
+When the timings were taken:
+- **Round 1, on the processor** (every model, and the whole loop): 05:14 to 06:00 that morning, in the usual mode.
+- **The keyword spotter**: 20:06 to 20:20; probably the usual mode, but the time of the switch isn't known.
+- **Round 2, on the card** (the table above): 23:28 to 23:37. Not known for certain, but almost surely before the
+  switch: the same timings taken in quiet mode afterwards were 2 to 7 times slower.
+- **A like-for-like run in quiet mode** (below): 23:51 to 00:35, both ears on both the processor and the card in one
+  run, with the voice loaded. Other agents' hidden test copies ran beside it most of the time (128 of 143 checks), so
+  its absolute times are slower than the owner's usual twice over.
+
+| Quiet mode, s | ~2 s turn | ~6 s turn | ~15 s turn | Card memory |
+|---|---|---|---|---|
+| SenseVoice-Small, processor | 0.34 [0.13, 1.32] | 0.73 [0.64, 1.11] | 1.86 [1.39, 2.05] | |
+| Qwen3-ASR 0.6B, processor | 2.41 [1.76, 3.66] | 4.27 [3.73, 5.64] | 11.16 [8.57, 19.74] | |
+| SenseVoice-Small, card | 1.08 [0.47, 1.92] | 1.88 [1.59, 2.68] | 2.94 [2.45, 3.17] | 0.17 GB |
+| Qwen3-ASR 0.6B, card | 4.32 [3.42, 6.29] | 7.20 [6.25, 14.66] | 16.79 [13.12, 19.45] | 0.84 GB after its first turn |
+
+What holds in both modes, the ratios:
+- Qwen3-ASR 0.6B takes 6 to 7 times as long as SenseVoice on the processor (6.6 to 7.2 in the usual mode, 5.8 to 7.1
+  in quiet mode).
+- On the card, k2-fsa's 8-bit Qwen3-ASR takes 1.5 to 1.8 times as long as on the processor, in both.
+- SenseVoice is no faster on the card in either.
+
+What may be faster normally: every absolute time. The usual-mode numbers are the ones in the tables above this
+section; the quiet-mode ones here are 2.5 to 3 times slower on the processor. The conclusion for #348 doesn't turn on
+the mode, since it rests on the ratios and on card memory. A short re-run in the usual mode
+(`run_gpu.sh` with `LOOP=0`, about 20 minutes on a quiet PC) would confirm the absolute times if they matter to the
+decision.
 
 From the end of the player's words: when the turn was judged over (Silero and Smart Turn, as the app does it), when
 the words were heard, when the mind's first words came (the mock mind, which answers at once: a real provider adds its
