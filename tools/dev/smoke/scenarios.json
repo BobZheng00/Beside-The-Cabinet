@@ -316,6 +316,19 @@
       "expect": ["^Chat: her bubble showed its first words \\d+ ms after asking, the whole reply"]
     },
     {
+      "name": "talkover",
+      "about": "Talking over the companion where Windows takes their voice out of the microphone (clarity:on; a test run never opens the microphone and hears synthesised speech instead): in a conversation the microphone opens while their long reply is still showing, and the player starting to talk stops them where they are; their line keeps only what was shown, and what the player said is heard and answered. Settings → Talking to them then says you can start while they're still speaking.",
+      "covers": ["src/InsertCoin.Game/App/Listening.cs", "src/InsertCoin.Game/App/Ears.cs", "src/InsertCoin.Game/App/Microphone.cs", "src/InsertCoin.Game/App/ListeningSettings.cs", "src/InsertCoin.Mind/Voice/TurnTaking.cs"],
+      "mind": true,
+      "mindReply": "Oh, that reminds me of the time I tried to bake bread without a recipe. I thought it would be easy, so I just mixed flour and water and some yeast, and then I left it on the windowsill all afternoon. By the evening it had grown so much it pushed the cloth off the bowl, and the whole kitchen smelled sour. I baked it anyway, and it came out flat and hard as a brick, but I ate the whole thing out of pride.",
+      "mindRequests": 2,
+      "script": "nocall@1,fakemic@1.5,clarity:on@1.5,converse:on@2,chat:tell_me_a_story@3,mictalk:say:Wait_hold_on._What_did_you_have_for_lunch_today@6,settings:listening@20",
+      "shots": [8.5, 24],
+      "desk": true,
+      "expect": ["^Listening: hands-free for 30 s \\(a conversation\\)$", "^Listening: the player talked over her$", "^Chat: cut off \\d+ characters into her reply, \\d+ unsaid$", "^Ears: \\d+\\.\\d s heard in \\d+ ms$"],
+      "forbid": ["^Listening: mictalk: needs", "^Ears: the microphone"]
+    },
+    {
       "name": "slip-size",
       "about": "The chat box (the slip), with a line typed and four pictures handed over, is the size it is by a large cabinet by a medium one, and stays so with it open as the cabinet turns small, then large (Settings → General): by a small or medium cabinet its chips take two lines, inside the window; by a large one, one.",
       "covers": ["src/InsertCoin.Game/Companion/ChatBox.cs", "src/InsertCoin.Game/App/CabinetSettings.cs"],

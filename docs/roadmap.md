@@ -43,7 +43,8 @@ a price list on it (`docs/specs/2026-11-16-the-chalkboard-sign.md`).
 **Talking in the room**, in no preview yet (the user, 2026-11-15: "we want to act like we are speaking to a person in the same
 room/house"). Spec `docs/specs/2026-11-16-talking-in-the-room.md`, from the design session on #343: their name,
 opt-in, listened for while the player is home; talking over them with Windows' Voice Clarity; stronger local ears.
-Measured first (#346), then the microphone in communications mode (#347), the chosen ears (#348) and their name (#349).
+Measured first (#346), then the microphone in communications mode (#347, built 2026-11-17: talking over them where
+Voice Clarity applies), the chosen ears (#348) and their name (#349).
 
 **Next: how she talks** (the user, 2026-10-21: "more like a living person instead of feeling like a typical AI
 chatbot"). Spec `docs/specs/2026-10-24-how-she-talks.md`: lean, situational base instructions that leave her manner

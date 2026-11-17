@@ -122,7 +122,11 @@ microphone), and, opening the real microphone (except in a test copy, where they
 slip's microphone), `listen` and `listened` (as if the mouse were held on them, then let go), and `closeup:hands` (the camera narrowed onto their hands, to judge fingers; `closeup:off`).
 
 Hands-free, without ever opening the real microphone: `fakemic` (from then on they hear only recordings),
-`mictalk:C:\path\said.wav` (said into their open microphone), `converse` (`converse:on`, `converse:off`). Their tools:
+`mictalk:C:\path\said.wav` (said into their open microphone), `converse` (`converse:on`, `converse:off`),
+`clarity:on` (as if Windows took their voice out of the microphone, so they listen while they speak and can be talked
+over; `clarity:off`; a test run starts without it, whatever this PC's microphone has). Wherever a recording goes
+(`hear:`, `talk:`, `dictate:`, `mictalk:`), `say:some_words` in place of its path is those words in Windows' own speech
+synthesiser's voice. Their tools:
 `allow`, `always` and `deny` (press the card's buttons, as a click does, clicks-only cards too; on a suggested change
 to a skill, `allow` is Remember it and `deny` Not now; on the ChatGPT plan's backup card, Yes, Manage usage and Not now), `seechange` (presses See the change on that card; `seechange:end` opens it and scrolls to the end of the lines; the mock mind suggests a
 change to a skill when told "tea-timer from now on new_words instead of old_words", as with

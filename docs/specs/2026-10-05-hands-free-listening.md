@@ -29,7 +29,7 @@ How the player talks to her without holding the talk key. Decided with the user 
 
 **Shown on the cabinet:** while the microphone is open, for any reason, the CRT shows "MIC" in its top right corner, with a dot that blinks like a recording light.
 
-**Never while she speaks.** Her own voice would come back through the microphone. So she listens only once she has finished, and talking over her still needs the key or a click. Talking over her by voice waits for the echo-cancellation spike. *Changed 2026-11-16:* Windows' Voice Clarity instead, in `2026-11-16-talking-in-the-room.md` (#347).
+**Never while she speaks.** Her own voice would come back through the microphone. So she listens only once she has finished, and talking over her still needs the key or a click. Talking over her by voice waits for the echo-cancellation spike. *Changed 2026-11-16:* Windows' Voice Clarity instead, in `2026-11-16-talking-in-the-room.md` (#347). *Built 2026-11-17:* where the microphone cancels echo she listens while she speaks; elsewhere this rule stays.
 
 ## How a turn is heard
 

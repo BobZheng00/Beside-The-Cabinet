@@ -416,7 +416,9 @@ unless Settings → Voice → Talking to them says otherwise), say it, and let g
 and answer what they heard as if you had typed it. The microphone at the end of the slip writes what you say into the
 slip instead, to change before you send it. They hear on this PC, on the processor, with SenseVoice-Small (Chinese,
 English, Japanese, Korean, Cantonese, told apart by itself): about a tenth of a second for a sentence. The microphone
-is open only while they listen, and nothing is recorded or kept. The talk key's state is read each frame (no keyboard
+is open only while they listen, and nothing is recorded or kept. It is Windows' default microphone for calls,
+opened as a call opens it, so where Windows 11 has Voice Clarity for it, their voice, background noise and the room's
+echo are taken out before they hear you; other apps' sound keeps its volume meanwhile. The talk key's state is read each frame (no keyboard
 hook), so the key still does what it does in the app in front.
 
 When they're slow to find their words (a model that thinks first, a tool running) and you're waiting, they think
@@ -431,8 +433,11 @@ a few seconds after they speak (3 to 20, after their answers, their own question
 and if you start talking they hear it as your answer. A conversation (the tray's Conversation switch, or a double tap
 of the talk key) has them listen after everything they say, until you've been quiet for 30 seconds. They notice you
 start and finish by themselves (Silero's voice detector and Pipecat's Smart Turn, on the processor). They never
-listen on their own in a call, in full screen or quiet time, or while a game runs, unless you allow it, and never
-while they are speaking. The CRT shows MIC whenever the microphone is open.
+listen on their own in a call, in full screen or quiet time, or while a game runs, unless you allow it. Where the
+microphone cancels echo (Voice Clarity), they listen while they speak too, and the seconds count from when they've
+finished: start talking over them and they stop where they are and listen, keeping only what you heard of their line,
+as when you click them. Elsewhere their own voice would come back through the microphone, so they listen only once
+they've finished, and Settings says so. The CRT shows MIC whenever the microphone is open.
 
 ## Tools
 

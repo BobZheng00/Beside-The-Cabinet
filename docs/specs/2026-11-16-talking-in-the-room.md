@@ -1,8 +1,8 @@
 # Talking in the room: their name, better ears and talking over them
 
 *Decided with the user in one design session, 2026-11-15 to 2026-11-16 (#343), after they tried the Preview 3 builds
-and found the companion hard to talk to. Nothing is built yet: the first step measures before anything is chosen. The
-order is at the end.*
+and found the companion hard to talk to. The first step measures before anything is chosen. The order is at the end;
+"Talking over them" is built (#347).*
 
 ## Why
 
@@ -56,6 +56,16 @@ above, heard only on this PC, and a false start is in character.
   would. What they didn't get to say isn't kept as said.
 - Where Voice Clarity isn't there, they keep today's rule: no listening while they speak.
 - The microphone choice and its test (#342) run on the new capture.
+
+*Built (#347):* `App/Microphone.cs` opens Windows' default microphone for calls through Core Audio (WASAPI, shared,
+the communications category, 16 kHz mono float converted by Windows), opts its session out of ducking before it
+starts, and is what `Ears` records; Godot's own audio input is off. "Voice Clarity applies" is read from Windows' list
+of the microphone's effects for a call (echo cancelling present), as `tools/bench/speech/voice_clarity.cs` does, and
+again when the default microphone for calls changes. Where it applies, a hands-free window opens as soon as her line
+is out rather than after it, its seconds count only once she has finished, and the player starting to talk cuts her
+off as a click does (`Chat.Interrupt`). The talk key already stopped her on its press, with or without it. Settings →
+Talking to them says which in one line. The window opens once her reply is written, so talking over the start of a
+reply still being written needs the key.
 
 ### Better ears
 

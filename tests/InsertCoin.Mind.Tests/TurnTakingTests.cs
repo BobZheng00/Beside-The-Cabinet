@@ -28,6 +28,29 @@ public class TurnTakingTests
     }
 
     [Fact]
+    public void While_she_is_still_speaking_the_window_waits_and_the_player_can_start_over_her()
+    {
+        var turn = new TurnTaking(window: 3);
+        for (var t = 0.0; t < 10; t += Frame)
+            Assert.Equal(TurnTaking.Heard.Nothing, turn.Hear(false, Frame, sheSpeaks: true));
+        var started = Enumerable.Range(0, 10).Select(_ => turn.Hear(true, Frame, sheSpeaks: true)).ToList();
+
+        Assert.Contains(TurnTaking.Heard.Started, started);
+    }
+
+    [Fact]
+    public void Once_she_has_finished_the_whole_window_is_the_players()
+    {
+        var turn = new TurnTaking(window: 3);
+        for (var t = 0.0; t < 10; t += Frame)
+            turn.Hear(false, Frame, sheSpeaks: true);
+
+        var (what, at) = Assert.Single(Hear(turn, (4, false)));
+        Assert.Equal(TurnTaking.Heard.Expired, what);
+        Assert.InRange(at, 3, 3.1);
+    }
+
+    [Fact]
     public void A_click_or_a_cough_does_not_start_a_turn()
     {
         var events = Hear(new TurnTaking(window: 3), (1, false), (0.1, true), (1, false), (0.15, true), (2, false));
