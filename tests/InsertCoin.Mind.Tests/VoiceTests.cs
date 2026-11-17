@@ -92,6 +92,97 @@ public class VoiceTests
     }
 
     [Fact]
+    public void A_say_the_voice_cant_read_is_left_unsaid_and_its_sentences_go_unheard()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("say", "겨울에는 스케이트를 타러 가자.");
+        speech.Text("Let's go skating in winter. ");
+        speech.Direction("say", "Or the hot springs!");
+        speech.Text("Or the hot springs! ");
+        speech.Direction("say", "Samさん、温泉もいいね。");
+        speech.Text("Sam, the hot springs are nice too.");
+        speech.Finish();
+
+        Assert.Equal(["Samさん、温泉もいいね。"], spoken);              // a name in Latin letters keeps it Japanese
+        Assert.Equal([("겨울에는 스케이트를 타러 가자.", "Hangul"), ("Or the hot springs!", "Latin letters")], speech.Unsaid);
+        Assert.Equal(2, speech.Unheard);
+        Assert.False(speech.Silent);
+    }
+
+    [Fact]
+    public void A_japanese_say_all_in_kanji_is_spoken_but_a_written_sentence_in_kanji_stays_silent_as_before()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("ja", spoken.Add);
+        speech.Direction("say", "大丈夫。");
+        speech.Text("It's fine. ");
+        speech.Direction("say", "了解！");
+        speech.Text("Got it.");
+        speech.Finish();
+        Assert.Equal(["大丈夫。", "了解！"], spoken);
+        Assert.Empty(speech.Unsaid);
+
+        spoken.Clear();
+        var written = new Speech("ja", spoken.Add);
+        written.Text("没问题。");                             // the player wrote in Chinese: the reply isn't read out by a Japanese voice
+        written.Finish();
+        Assert.Empty(spoken);
+    }
+
+    [Fact]
+    public void A_say_with_kana_stays_unsaid_for_a_chinese_voice()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("zh", spoken.Add);
+        speech.Direction("say", "大丈夫だよ。");
+        speech.Text("It's fine.");
+        speech.Finish();
+
+        Assert.Empty(spoken);
+        Assert.Equal([("大丈夫だよ。", "kana")], speech.Unsaid);
+    }
+
+    [Theory]
+    [InlineData("ja", "Hades IIやる？", null)]                  // a game's title in Latin letters, in a Japanese line
+    [InlineData("ja", "Stardew Valleyだね。", null)]
+    [InlineData("ja", "大丈夫。", null)]
+    [InlineData("ja", "OK！", "Latin letters")]
+    [InlineData("ja", "오늘도 잘했어.", "Hangul")]
+    [InlineData("ja", "Hadesやろう、오늘.", "Hangul")]
+    [InlineData("zh", "Stardew Valley好玩吗？", null)]
+    [InlineData("zh", "玩Hollow Knight吗？", null)]
+    [InlineData("zh", "大丈夫だよ。", "kana")]
+    [InlineData("zh", "Nice one!", "Latin letters")]
+    [InlineData("yue", "今日好開心呀。", null)]                  // Cantonese is written in Chinese characters
+    [InlineData("yue", "大丈夫だよ。", "kana")]
+    [InlineData("en", "Nice one, Sam!", null)]
+    [InlineData("en", "Nice one, 麻糬!", "Chinese characters")]
+    [InlineData("en", "おかえり", "kana")]
+    [InlineData("ko", "Hades 하자!", null)]
+    [InlineData("ko", "大丈夫", "Chinese characters")]
+    [InlineData("ko", "おかえり", "kana")]
+    [InlineData("ja", "3:15…", null)]                           // no letters: any voice says it
+    [InlineData("fr", "おかえり", null)]                         // a voice language with no rule: as before
+    public void A_say_is_left_unsaid_only_with_a_script_its_voice_cant_read_or_none_of_its_own(string voice, string line, string? script) =>
+        Assert.Equal(script, SpokenLanguage.Unreadable(voice, line));
+
+    [Fact]
+    public void A_say_in_chinese_is_spoken_by_a_chinese_voice_and_one_with_no_letters_by_any()
+    {
+        var spoken = new List<string>();
+        var speech = new Speech("zh", spoken.Add);
+        speech.Direction("say", "冬天去滑冰吧。");
+        speech.Text("Let's go skating in winter. ");
+        speech.Direction("say", "3:15…");
+        speech.Text("3:15…");
+        speech.Finish();
+
+        Assert.Equal(["冬天去滑冰吧。", "3:15…"], spoken);
+        Assert.Empty(speech.Unsaid);
+    }
+
+    [Fact]
     public async Task Her_reply_tells_the_voice_what_to_say_and_the_bubble_what_to_show()
     {
         using var temp = new TempStore();
