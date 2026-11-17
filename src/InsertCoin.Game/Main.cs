@@ -930,6 +930,7 @@ public partial class Main : Node2D
             case "introskip": if (IsInstanceValid(_intro)) _intro!.Skip(); break;     // the intro's Skip
             case "trayitems": GD.Print($"Tray: {_tray.DevItems()}"); break;      // the tray menu's entries, as they are now
             case "windoworder": GD.Print($"Windows, top first: {_window.DevOrder()}"); break;     // the app's windows as they are stacked on screen
+            case "windoworder:dialog": DialogOrder(5); break;      // as windoworder, once a file dialog the app opened is showing
             case "menu": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2); break;     // as if she or the cabinet were right-clicked mid-window (a test run never follows the pointer): logs it
             case "menuopen": _tray.ShowMenu(DisplayServer.WindowGetPosition() + DisplayServer.WindowGetSize() / 2, evenInTest: true); break;     // as menu, and shows it (no screenshots until it closes)
             case "ticket": _ticket.Show("5:00 LEFT", "Your last token is burning"); break;
@@ -961,6 +962,20 @@ public partial class Main : Node2D
                 RefreshScreen();
                 break;
         }
+    }
+
+    /// <summary>
+    /// Dev: logs the windows' order once a file dialog the app opened is showing, however long a busy PC takes to open it,
+    /// or says none showed within that many seconds.
+    /// </summary>
+    private void DialogOrder(double seconds, double waited = 0)
+    {
+        if (DesktopWindow.DevDialogShowing())
+            GetTree().CreateTimer(0.25).Timeout += () => GD.Print($"Windows, top first: {_window.DevOrder()}");    // a moment for it to be stacked
+        else if (waited >= seconds)
+            GD.Print($"Windows: no file dialog showed within {seconds:0} s");
+        else
+            GetTree().CreateTimer(0.1).Timeout += () => DialogOrder(seconds, waited + 0.1);
     }
 
     private void DevSolve(Difficulty difficulty) =>
