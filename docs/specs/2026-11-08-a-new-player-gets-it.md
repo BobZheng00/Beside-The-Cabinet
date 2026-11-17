@@ -120,11 +120,14 @@ change which is not very sustainable?").
   away: what was paid stays in the balance, out of sight as the rest of it is, and it's there again with CREDITS. However
   often the mode is switched, a mission pays once. Unticking every way to earn counts as FREE PLAY, as it does today.
 - **They can be hidden** from their list, and General brings them back. Hidden or done, they leave the screen's pages, and
-  the companion stops mentioning them.
+  the companion stops mentioning them. *Changed 2026-11-16:* the sign is put away by hand and brought back from the
+  tray; Hide and Show missions go (`2026-11-16-the-chalkboard-sign.md`).
 - **Where they show:** as one of the screen's rotating pages, starting with it, like the time left ("It would be just
   something like the remaining play time that rotate regularly on the CRT screen"); as the full list at the top of Settings
   until they're done, where it takes Getting started's place; and from the companion, who mentions the next one once,
-  when it fits, and points them out once after the hello.
+  when it fits, and points them out once after the hello. *Changed 2026-11-16:* on a chalkboard sign beside the
+  cabinet instead of a page on the screen, a payout flashed and chalked on it, and then the sign shows what earns
+  play time (`2026-11-16-the-chalkboard-sign.md`).
 - **Three suggestions** sit over the empty slip until the first message: "What can you do?", "Remind me to stretch at 4",
   "Let's focus for 25 minutes".
 
