@@ -11,7 +11,7 @@ stay on the PC and are not committed.*
   slower than on the processor, and far worse while the voice spoke. A 16-bit export would run on the card, but at
   about 1.9 GB it wouldn't fit beside the voice on the owner's 8 GB card (7.7 GB in use already in the loop).
   SenseVoice gains nothing on the card.
-- **Which mode.** Every time in this summary was taken in the laptop's usual mode. The owner switched to quiet mode
+- **Which mode.** The times in this summary are from the laptop's usual mode (the card's almost surely: see below). The owner switched to quiet mode
   late on 2026-11-16; a like-for-like run in quiet mode is 2.5 to 3 times slower on the processor, with the same ratios
   between the ears and between processor and card ("The laptop's quiet mode", below).
 - **On the processor, every candidate is too slow for every turn.** SenseVoice hears a 2, 6 or 15 second turn in
