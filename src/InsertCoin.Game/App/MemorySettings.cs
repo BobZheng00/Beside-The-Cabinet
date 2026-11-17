@@ -52,6 +52,7 @@ public partial class MemorySettings : VBoxContainer
         public Plan? Shown;
         public LineEdit When = null!, Text = null!;
         public OptionButton Lead = null!, Repeat = null!;
+        public Label Unsaved = null!;                       // why it isn't saved, by its time: the line under the tabs is far off
         public readonly List<TimeSpan?> Leads = [];
     }
 
@@ -230,7 +231,7 @@ public partial class MemorySettings : VBoxContainer
                 _closeAsked = DateTime.Now;
             _tabs.CurrentTab = 1;
             var what = row.When.Text.Trim() is { Length: > 0 } when ? $"the time “{when}” for “{Called(row)}” can't be read" : $"“{Called(row)}” has no time";
-            Say($"Not saved: {what}. Write the time as YYYY-MM-DD HH:MM, or a date alone" +
+            NotSaved(row, $"Not saved: {what}. Write the time as YYYY-MM-DD HH:MM, or a date alone" +
                 (closing ? ", or close Settings again to leave it unchanged." : "."));
             GD.Print($"Memory: kept open: {what}");
             return false;
@@ -363,6 +364,8 @@ public partial class MemorySettings : VBoxContainer
     {
         if (_closing)
             return;
+        foreach (var row in _plans)
+            ClearUnsaved(row);                              // saved, or given what was stored
         var now = Read();
         if (now[0] != _shown[0])
             ShowPlans();
@@ -384,6 +387,14 @@ public partial class MemorySettings : VBoxContainer
     {
         Say($"{what} at {DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)}.");
         GD.Print($"Memory: {what.ToLowerInvariant()}");
+    }
+
+    /// <summary>Says why an agenda item wasn't saved, under the tabs and by the item, until it is saved or put back.</summary>
+    private void NotSaved(PlanRow row, string said)
+    {
+        Say(said);
+        row.Unsaved.Text = said;
+        row.Unsaved.Visible = true;
     }
 
     private void Say(string said)
@@ -987,6 +998,7 @@ public partial class MemorySettings : VBoxContainer
         delete.TooltipText = "Take it off the agenda (click twice)";
         foreach (var field in new[] { when, text })
         {
+            field.TextChanged += _ => ClearUnsaved(row);    // put back, or a time it can read
             field.TextSubmitted += _ => SavePlan(row);
             field.FocusExited += () => SavePlan(row);
         }
@@ -994,6 +1006,8 @@ public partial class MemorySettings : VBoxContainer
         first.AddChild(text);
         first.AddChild(delete);
         row.Box.AddChild(first);
+        row.Unsaved = new Label { ThemeTypeVariation = "Hint", AutowrapMode = TextServer.AutowrapMode.WordSmart, Visible = false };
+        row.Box.AddChild(row.Unsaved);
 
         var second = new HBoxContainer();
         second.AddThemeConstantOverride("separation", 6);
@@ -1117,12 +1131,18 @@ public partial class MemorySettings : VBoxContainer
     private static bool Unreadable(PlanRow row) =>
         (row.Shown is null ? row.Text.Text.Trim().Length >= 2 : WhenChanged(row)) && Agenda.ParseWhen(row.When.Text, DateTimeOffset.Now, TimeZoneInfo.Local) is null;
 
+    private static void ClearUnsaved(PlanRow row)
+    {
+        if (!Unreadable(row))
+            row.Unsaved.Visible = false;
+    }
+
     /// <summary>What an agenda item is called in the line under the tabs.</summary>
     private static string Called(PlanRow row) => row.Text.Text.Trim() is { Length: > 0 } text ? text : "a new item";
 
     private void CantRead(PlanRow row)
     {
-        Say($"Not saved yet: the time for “{Called(row)}” can't be read. Write it as YYYY-MM-DD HH:MM, or a date alone for a whole day.");
+        NotSaved(row, $"Not saved yet: the time for “{Called(row)}” can't be read. Write it as YYYY-MM-DD HH:MM, or a date alone for a whole day.");
         GD.Print("Memory: a time it can't read, not saved");
     }
 
