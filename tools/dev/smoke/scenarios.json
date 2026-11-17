@@ -237,17 +237,7 @@
       ],
       "settings": ", \"Language\": \"en\"",
       "script": "missions@1,sign@2.5,mission:hello@3.5,mission:ai@3.6,sign@6,signclick:credit@9,signslide:60@10,sign@11.5,signaway@12,trayitems@13,sign@13.5,menupress:Missions@14,sign@16,signlift@16.5,sign@18.5,menupress:Missions@19,signwords:zh@20,signwords:ja@22",
-      "shots": [
-        3,
-        5,
-        8,
-        10.5,
-        15.5,
-        17,
-        21,
-        23
-      ],
-      "window": "Settings",
+      "shots": [5, 7.5, 10.5, 13, 18, 19.5, 23.5, 26],
       "desk": true,
       "expect": [
         "^Sign: stands: MISSIONS \\(MIN\\): CONNECT AN AI 15 \\| SAY HELLO 15 \\| EARN A CREDIT 15 \\| ASK FOR A REMINDER 15 \\| OPEN MEMORY 15 \\| HEAR THEIR VOICE 15$",
