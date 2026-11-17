@@ -2,3 +2,5 @@
 *.import text eol=lf
 # Batch files need CRLF for cmd.exe to find their labels, whatever the checkout's autocrlf.
 *.cmd text eol=crlf
+# Shell scripts break under bash with CRLF.
+*.sh text eol=lf
