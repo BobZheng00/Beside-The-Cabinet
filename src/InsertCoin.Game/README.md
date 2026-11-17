@@ -13,6 +13,11 @@ skin's own camera and shown as a layer over the cabinet art. Code in `src/Insert
 - `ToonMaterials` + `toon.gdshaderinc` replace the model's materials: two flat tones from one fixed light, texture
   values remapped onto the skin's palette, a pink wash from the CRT, thin ink lines inside the figure.
 - `companion_layer.gdshader` inks the silhouette with the art's outline colour and width.
+- `Portraits` makes each character's portrait for their card on Settings → Companion: their model loaded once in a
+  viewport of its own, arms lowered, seen face on and framed from the neck to the top of the hair as drawn (a first
+  look finds the top), in the same toon shading but lit from the front, so no shade band crosses the face; saved in
+  the profile's `portraits` folder under a name `PortraitFile` (in `InsertCoin.Mind`) works out from the model's files, so a changed model gets a new one. One that can't be read,
+  or has no head and arms, gets a silhouette of a head and neck, as large as a portrait's.
 - `SpeechBubble` draws what the companion says: the plain lines from `App/Lines.cs` (on events a friend would react
   to, when their mind can't say them in their own words) type themselves out; replies from the mind start as
   thinking dots and grow as they stream in. A long one is shown a page at a time, like subtitles: each page turns

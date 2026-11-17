@@ -59,8 +59,8 @@ if ($late) { "warning: $($late -join ', ') would run after the last shot at ${la
 $profile = Join-Path $Out "profile-$Tag"
 if (Test-Path $profile) { Get-ChildItem $profile -File | Remove-Item -Force } else { New-Item -ItemType Directory $profile | Out-Null }
 if (Test-Path (Join-Path $profile "companion")) { Remove-Item (Join-Path $profile "companion") -Recurse -Force }   # her memory starts fresh too
-# so do the skills, the vault and the notes folder dev actions seed (skillseed, skillmake, notesseed): a run never finds an earlier run's
-foreach ($seeded in @((Join-Path $profile "skills"), (Join-Path $profile "vault"), "$profile-files")) {
+# so do the skills, the vault and the notes folder dev actions seed (skillseed, skillmake, notesseed), and the portraits made: a run never finds an earlier run's
+foreach ($seeded in @((Join-Path $profile "skills"), (Join-Path $profile "vault"), (Join-Path $profile "portraits"), "$profile-files")) {
   if (Test-Path $seeded) { Remove-Item $seeded -Recurse -Force }
 }
 if ($KeyFrom -ne "") {
