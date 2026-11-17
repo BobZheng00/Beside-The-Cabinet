@@ -12,7 +12,7 @@ namespace InsertCoin.Game.Companion;
 public partial class Portraits : Node
 {
     private const int Size = 256;                           // pixels square
-    private const string Framing = "front, neck to hair";   // a change here has every portrait made again
+    private const string Framing = "front, neck to hair, front lit";   // a change here has every portrait made again
 
     /// <summary>The profile's portraits folder.</summary>
     public string Folder { get; init; } = "";
@@ -125,7 +125,8 @@ public partial class Portraits : Node
             skeleton.ResetBonePoses();                      // a model read at run time may come posed: the arms are lowered from rest
             rig.Rotate("LeftUpperArm", Rig.Euler(0, 0, -70));
             rig.Rotate("RightUpperArm", Rig.Euler(0, 0, 70));
-            new ToonMaterials().Apply(model, CompanionView.LightDirection, new Vector3(1, 1, 1), 1);
+            // lit from the camera, a little above: face on, the stool's side light would put a shade band across half the face
+            new ToonMaterials().Apply(model, new Vector3(0, 0.3f, 1).Normalized(), new Vector3(1, 1, 1), 1);
 
             // framed on their own head, from the neck to the top of the hair (or hat, or ears) as drawn, so heads come out
             // the same size whatever their build: a first look finds the top and the sides at head height, widening
