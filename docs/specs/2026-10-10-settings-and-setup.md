@@ -125,7 +125,8 @@ short flow for what she can't do without, the checklist for the rest.
 - **LeetCode left the first run** for Getting started's optional steps (its Set up… opens Balance, whose Change…
   asks on the cabinet's screen, `Onboarding`, now the LeetCode name alone). The app is no longer LeetCode first.
   Since 2026-10-28 (#173) the first run asks what earns play time instead, LeetCode among it, and Getting started has
-  no LeetCode step (`2026-10-27-what-earns-play-time.md`).
+  no LeetCode step (`2026-10-27-what-earns-play-time.md`); since 2026-11-17 (#360) Play time takes the name in a field
+  of its own, not on the cabinet's screen.
 - **A new character** gets "Meet …" (`App/MeetSheet.cs`) when added, not the whole setup again: the provider, the
   name and what the player has told any of them are shared. It says who they are (their card, a persona file, or none:
   a plain friendly companion, with Add a character card…), their voice (Add a voice…, and Set up voices… while

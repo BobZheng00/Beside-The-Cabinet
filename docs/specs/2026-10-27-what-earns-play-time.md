@@ -125,7 +125,9 @@ Today:
    screen's call names what earns: FOCUS OR SOLVE, FOCUS TO EARN, SOLVE TO EARN, GET THINGS DONE, or nothing. The
    cabinet's CHECK with LeetCode off says ALL UP TO DATE. A name kept on the first run while LeetCode didn't answer is
    checked when the cabinet first reads it, and dropped if LeetCode has no such player. A test run's LeetCode is a
-   stand-in.
+   stand-in. *Since 2026-11-17 (#360):* Balance (Settings → Play time) takes the name in a field too, asked of LeetCode
+   by the same check as the first run's (`BalanceSettings.AskLeetCode`) on Enter or leaving it, and saved once found;
+   ticking LeetCode with no name puts the cursor there. Its Change… and the screen's prompt for it are gone from Settings.
 2. **No play time** (#174). The balance hidden and her earning talk gone, with the rest kept. *Built 2026-10-29:* with
    `Earning.Any` false the ledger keeps a game's time (a session, played time, the day's games) and spends, warns,
    prices and fades nothing; the balance stays in the state as it was. The cabinet's screen shows the time and the day

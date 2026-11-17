@@ -258,6 +258,7 @@ public partial class SettingsWindow : Window
                 case CheckBox tick:
                     tick.ButtonPressed = !tick.ButtonPressed;
                     GD.Print($"Settings: \"{tick.Text}\" {(tick.ButtonPressed ? "ticked" : "unticked")}");
+                    Callable.From(() => LogFocus(root)).CallDeferred();     // a tick may put the cursor in a field it shows
                     break;
                 case { } button:
                     button.EmitSignal(BaseButton.SignalName.Pressed);
@@ -320,11 +321,20 @@ public partial class SettingsWindow : Window
             GD.PrintErr($"Settings: no way up on {_showing}");
     }
 
-    /// <summary>Dev: where keyboard focus is after a press, if on a button (the theme draws no focus ring to see it by).</summary>
+    /// <summary>Dev: where keyboard focus is after a press, if on a button (the theme draws no focus ring to see it by) or in a field.</summary>
     private static void LogFocus(Node within)
     {
-        if (within.GetViewport()?.GuiGetFocusOwner() is Button focused)
-            GD.Print($"Settings: keyboard focus on \"{focused.Text}\"");
+        if (!IsInstanceValid(within))
+            return;
+        switch (within.GetViewport()?.GuiGetFocusOwner())
+        {
+            case Button focused:
+                GD.Print($"Settings: keyboard focus on \"{focused.Text}\"");
+                break;
+            case LineEdit field:
+                GD.Print($"Settings: keyboard focus in the field \"{field.PlaceholderText}\"");
+                break;
+        }
     }
 
     /// <summary>Dev: the pointer resting on the control with this text on the page showing, so its hover tip shows; the real mouse never moves.</summary>

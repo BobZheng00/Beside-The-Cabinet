@@ -118,6 +118,17 @@
       "expect": ["^Main: play time is earned by focus, activities$", "^Main: play time is earned by focus$", "^Crt: apps on the home screen focus, music, memos, agenda, settings$", "^Main: play time is earned by nothing$", "^Crt: apps on the home screen focus, done, music, memos, agenda, settings$"]
     },
     {
+      "name": "leetcode-name",
+      "about": "Settings → Play time takes the LeetCode name on the page: ticking LeetCode with no name puts the cursor in its field; a name LeetCode (a test run's stand-in, never leetcode.com) has no player for is said so on the page and isn't kept; a profile link is asked, becomes the name in the field, saved, and the cabinet reads that profile. The page fits at Settings' usual size and narrow.",
+      "covers": ["src/InsertCoin.Game/App/BalanceSettings.cs", "src/InsertCoin.Game/App/Welcome.cs", "src/InsertCoin.Adapters/LeetCodeProfile.cs"],
+      "settings": ", \"LeetCodeEarns\": false",
+      "script": "settings:balance@2,settingsdo:LeetCode_problems@3,settingsdo:LeetCode_name:nobody@4,settingsdo:LeetCode_name:https://leetcode.com/u/BobSmith/@9,settingswidths@10.5,settingsat:708x736@12,settingswidths@14",
+      "shots": [7, 13, 17],
+      "window": "Settings",
+      "expect": ["^Settings: \"LeetCode problems\" ticked$", "^Settings: keyboard focus in the field \"your name or profile link on LeetCode\"$", "^LeetCode: a test run's stand-in asked for nobody$", "^Main: the LeetCode name is BobSmith$", "^LeetCode: BobSmith's profile read, 0 recent solves$", "^Main: play time is earned by focus, activities, LeetCode$", "^Settings: laid out as on a 708x736 screen: 692x688$"],
+      "forbid": ["^Main: the LeetCode name is nobody", "^Settings: \\S+ needs \\d+ px", "^Settings: nothing called", "^Settings: no choice or field"]
+    },
+    {
       "name": "noplaytime",
       "about": "A game played on credit leaves time owed; then \"No play time\" on Settings → Play time: the screen shows the time and the day (no credits, streak or attract pages), the IOU ticket leaves the slot, Play time shows only the ticks, a focus part and a game show nothing on the cabinet; unticked again, the debt is back as it was.",
       "covers": ["src/InsertCoin.Core/Ledger.cs", "src/InsertCoin.Game/Cabinet/ScreenView.cs", "src/InsertCoin.Game/App/Director.cs"],
